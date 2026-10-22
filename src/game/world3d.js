@@ -14,6 +14,9 @@ import { Character } from './character.js';
 import { Character3D } from './character3d.js';
 import { Flame3D } from './flame3d.js';
 import { rng } from './kit.js';
+import { Env } from './biomes/env.js';
+import { MENU_MOOD, OVER_TINT } from './biomes/config.js';
+import { SKINS, SHARDS, outcropGeometry } from './biomes/builders/skins.js';
 
 const U = 0.1;                    // 1 px del mondo 2D = 0.1 unita' 3D (1 m = 1 unita')
 const ROAD_W = 11.0;
@@ -21,11 +24,8 @@ const WALK_W = 1.45;
 const FACADE = ROAD_W / 2 + WALK_W;
 const FAR_Z = 185;
 
-const MOODS = {
-  menu: { top: '#2a2c6e', mid: '#7a5aa8', hor: '#f39a7c', fog: '#b57c98', hemiS: '#c7b4ff', hemiG: '#6a4a58', hemiI: 1.15, dirC: '#ffb784', dirI: 1.5, moon: 1, sun: 0.35, far: '#c9b6ea', fogNear: 30, fogFar: 150 },
-  run: { top: '#4f74c8', mid: '#f2a57e', hor: '#ffd592', fog: '#f4c9a0', hemiS: '#ffe6c4', hemiG: '#7a6658', hemiI: 1.35, dirC: '#ffd49a', dirI: 2.1, moon: 0, sun: 1, far: '#ffffff', fogNear: 40, fogFar: 175 },
-  over: { top: '#161a46', mid: '#43357a', hor: '#9a5d7f', fog: '#5a476e', hemiS: '#9b95da', hemiG: '#3a2a3e', hemiI: 0.8, dirC: '#ff9b70', dirI: 0.55, moon: 1, sun: 0.1, far: '#8a80b8', fogNear: 18, fogFar: 110 },
-};
+// v5: luce e nebbia arrivano dagli ambienti (biomes/config.js); qui solo menu e game over
+const MOODS = { menu: MENU_MOOD, over: OVER_TINT.mood };
 
 const SKY_VS = `varying vec3 vDir; void main(){ vDir = normalize(position); vec4 p = modelViewMatrix * vec4(position,1.0); gl_Position = projectionMatrix * p; }`;
 const SKY_FS = `
@@ -76,8 +76,10 @@ export class World {
     this.buildMaterials();
     this.buildSky();
     this.buildLights();
-    this.buildGround();
-    this.buildVillage();
+    this.bannerMat = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
+    this.env = new Env(this);           // v5: ambienti di Gadoni a tratti (terreno, lati, galleria, monumenti)
+    this.light = { flameDist: 11, flameK: 1, mineral: 0, lamp: 0, darkByFuel: 0, tunnel: 0, exposure: 1.05 };
+    this.amb = {}; this.farVis = 1; this.tgt = {}; this.burnT = -1;
     this.buildFx();
     this.character = new Character(this.scene, 0.11);          // fallback (sprite v3) finche' il GLB non e' pronto
     this.char3d = new Character3D(this.scene, { pistolGeo: this.geo.pistol, pistolMat: this.mats2 });
@@ -178,91 +180,6 @@ export class World {
     this.scene.add(this.flameLight);
   }
 
-  // ------------------------------------------------------------ strada
-  buildGround() {
-    const L = 264;
-    this.tex.cobble.repeat.set(1, L / ROAD_W);
-    this.road = new THREE.Mesh(new THREE.PlaneGeometry(ROAD_W, L).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ map: this.tex.cobble }));
-    this.scene.add(this.road);
-    this.tex.slab.repeat.set(1, L / 2.9);
-    const walkM = new THREE.MeshLambertMaterial({ map: this.tex.slab });
-    this.walks = [-1, 1].map((s) => {
-      const m = new THREE.Mesh(new THREE.BoxGeometry(WALK_W, 0.22, L), walkM);
-      m.position.set(s * (ROAD_W / 2 + WALK_W / 2), 0.11, 0); this.scene.add(m); return m;
-    });
-    const curbM = new THREE.MeshLambertMaterial({ color: '#9a8e80' });
-    this.curbs = [-1, 1].map((s) => {
-      const m = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.26, L), curbM);
-      m.position.set(s * (ROAD_W / 2 + 0.05), 0.13, 0); this.scene.add(m); return m;
-    });
-    this.base = new THREE.Mesh(new THREE.PlaneGeometry(400, 400).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ color: '#7d8a4e' }));
-    this.base.position.y = -0.06; this.scene.add(this.base);
-  }
-
-  // ------------------------------------------------------------ villaggio
-  buildVillage() {
-    this.housePrefabs = [];
-    for (let i = 0; i < 18; i++) this.housePrefabs.push(M.buildHouse(i + 1));
-    this.gardenPrefabs = [];
-    for (let i = 0; i < 5; i++) this.gardenPrefabs.push(M.buildGarden(i + 1));
-    this.bannerGeo = [0, 1, 2, 3].map((i) => M.buildBanner(i + 1, FACADE));
-    this.sides = [-1, 1].map((s) => ({ s, list: [], nextZ: 20, r: rng(s > 0 ? 71 : 37) }));
-    this.housePool = [];
-    this.lampPool = [];
-    this.banners = []; this.bannerPool = []; this.nextBanner = -8;
-    this.bannerR = rng(55);
-  }
-  placeHouse(side) {
-    const r = side.r;
-    const pf = r.chance(0.16) ? r.pick(this.gardenPrefabs) : r.pick(this.housePrefabs);
-    let mesh = this.housePool.pop();
-    if (!mesh) { mesh = new THREE.Mesh(pf.geom, this.mats2); this.scene.add(mesh); }
-    mesh.geometry = pf.geom; mesh.visible = true;
-    mesh.position.set(side.s * FACADE, 0, side.nextZ);
-    mesh.scale.x = side.s < 0 ? 1 : -1;
-    const lamps = [];
-    for (const l of pf.lamps) {
-      let g = this.lampPool.pop();
-      if (!g) { g = this.glowSprite('#ffb85a', 2.6, 0.9); this.scene.add(g); }
-      g.visible = true;
-      g.position.set(side.s * FACADE - side.s * l.x, l.y, side.nextZ + l.z);
-      lamps.push(g);
-    }
-    side.list.push({ mesh, z0: side.nextZ, w: pf.w, lamps, ph: r() * 6 });
-    side.nextZ -= pf.w + (r.chance(0.12) ? 0.5 : 0);
-  }
-  updateVillage(camZ) {
-    for (const side of this.sides) {
-      while (side.nextZ > camZ - FAR_Z) this.placeHouse(side);
-      while (side.list.length && side.list[0].z0 - side.list[0].w > camZ + 8) {
-        const h = side.list.shift();
-        h.mesh.visible = false; this.housePool.push(h.mesh);
-        for (const g of h.lamps) { g.visible = false; this.lampPool.push(g); }
-      }
-      for (const h of side.list) for (const g of h.lamps) g.material.opacity = 0.75 + Math.sin(this.clock * 3 + h.ph) * 0.12;
-    }
-    while (this.nextBanner > camZ - FAR_Z * 0.8) {
-      let m = this.bannerPool.pop();
-      const geo = this.bannerR.pick(this.bannerGeo);
-      if (!m) { m = new THREE.Mesh(geo, [new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }), this.mat.unlit]); this.scene.add(m); }
-      m.geometry = geo; m.visible = true;
-      m.position.set(0, this.bannerR.range(9.3, 10.0), this.nextBanner);
-      m.rotation.y = this.bannerR.range(-0.12, 0.12);
-      this.banners.push(m);
-      this.nextBanner -= this.bannerR.range(26, 40);
-    }
-    while (this.banners.length && this.banners[0].position.z > camZ + 8) { const m = this.banners.shift(); m.visible = false; this.bannerPool.push(m); }
-    for (const m of this.banners) m.rotation.x = Math.sin(this.clock * 1.3 + m.position.z) * 0.04;
-  }
-  resetVillage(camZ) {
-    for (const side of this.sides) {
-      for (const h of side.list) { h.mesh.visible = false; this.housePool.push(h.mesh); for (const g of h.lamps) { g.visible = false; this.lampPool.push(g); } }
-      side.list = []; side.nextZ = camZ + 20;
-    }
-    for (const m of this.banners) { m.visible = false; this.bannerPool.push(m); }
-    this.banners = []; this.nextBanner = camZ - 8;
-  }
-
   // ------------------------------------------------------------ effetti
   buildFx() {
     this.add = new PointPool(this.scene, 700, true);
@@ -289,9 +206,29 @@ export class World {
     g.add(b);
     return g;
   }
-  createView(kind, e) {
+  // v5: aspetto dell'ostacolo secondo l'ambiente (stessa collisione, vedi biomes/builders/skins.js)
+  createSkinned(kind, skin, sk) {
     const root = new THREE.Group();
-    const v = { kind, root, body: null, glow: null, shadow: null, t: Math.random() * 6 };
+    const v = { kind, root, body: null, glow: null, shadow: null, t: Math.random() * 6, skin };
+    if (kind === 'rollbarrel') {
+      v.body = new THREE.Group();
+      const b = new THREE.Mesh(sk.make(true), this.mats2);
+      const pivot = new THREE.Group(); pivot.add(b); pivot.rotation.x = Math.PI / 2; pivot.position.y = 0.78;
+      v.spin = pivot; v.body.add(pivot); v.shadow = this.blob(1.9, 2.4);
+    } else {
+      v.body = new THREE.Mesh(sk.make(false), this.mats2);
+      const sh = { botte: [2.0, 2.0], botti: [3.6, 4.4], bottecoricata: [3.0, 1.8], muretto: [3.0, 1.4], goat: [2.0, 1.1] }[kind] || [2, 2];
+      v.shadow = this.blob(sh[0], sh[1]);
+    }
+    root.add(v.body); if (v.shadow) root.add(v.shadow);
+    this.scene.add(root);
+    return v;
+  }
+  createView(kind, e, skin = null) {
+    const sk = skin && SKINS[skin];
+    if (sk && sk.make && kind !== 'narrow') return this.createSkinned(kind, skin, sk);
+    const root = new THREE.Group();
+    const v = { kind, root, body: null, glow: null, shadow: null, t: Math.random() * 6, skin };
     if (kind === 'botte') { v.body = this.makeBarrel(false); v.shadow = this.blob(2.0, 2.0); }
     else if (kind === 'bottecoricata') {
       v.body = new THREE.Group();
@@ -319,7 +256,9 @@ export class World {
     } else if (kind === 'pozza') {
       v.body = new THREE.Group();
       const rim = new THREE.Mesh(this.geo.puddleRim, this.mat.puddleRim); rim.position.y = 0.03;
-      const w = new THREE.Mesh(this.geo.puddle, this.mat.puddle); w.position.y = 0.045;
+      let pm = this.mat.puddle;
+      if (sk && sk.puddle) { pm = this.mat['puddle_' + skin] || (this.mat['puddle_' + skin] = Object.assign(this.mat.puddle.clone(), {})); pm.color.set(sk.puddle); }
+      const w = new THREE.Mesh(this.geo.puddle, pm); w.position.y = 0.045;
       rim.renderOrder = 2; w.renderOrder = 3;
       v.body.add(rim, w);
     } else if (kind === 'goat') {
@@ -347,12 +286,14 @@ export class World {
     this.scene.add(root);
     return v;
   }
-  narrowView(e) {
+  narrowView(e, skin) {
     const rows = Math.round((e.len + 6) / WORLD.ROW);
     const side = e.lane === 0 ? -1 : 1;
-    const key = `${rows}`;
+    const sk = skin && SKINS[skin];
+    const key = `${rows}|${sk && sk.narrow ? skin : 'house'}`;
     let g = this.narrowCache.get(key);
-    if (!g) { g = M.buildNarrow(400 + rows, e.len * U, FACADE - (WORLD.LANE_W - 17) * U + 0.3); this.narrowCache.set(key, g); }
+    const width = FACADE - (WORLD.LANE_W - 17) * U + 0.3;
+    if (!g) { g = sk && sk.narrow ? outcropGeometry(400 + rows, e.len * U, width, sk.narrow.pal, sk.narrow) : M.buildNarrow(400 + rows, e.len * U, width); this.narrowCache.set(key, g); }
     const mesh = new THREE.Mesh(g, this.mats2);
     const root = new THREE.Group(); root.add(mesh);
     mesh.scale.x = side < 0 ? 1 : -1;
@@ -363,10 +304,13 @@ export class World {
   }
   spawnView(e) {
     let v;
-    if (e.kind === 'narrow') v = this.narrowView(e);
+    const skin = this.env.skin(e.kind, (e.d + (e.len || 0) / 2) * U);
+    if (e.kind === 'narrow') v = this.narrowView(e, skin);
     else {
-      const pool = this.pools[e.kind] || (this.pools[e.kind] = []);
-      v = pool.pop() || this.createView(e.kind, e);
+      const pk = e.kind + '|' + (skin || '');
+      const pool = this.pools[pk] || (this.pools[pk] = []);
+      v = pool.pop() || this.createView(e.kind, e, skin);
+      v.poolKey = pk;
       if (e.kind === 'tappeto') v.body.material = this.mat.carpet[(e.variant || 0) % 4];
     }
     v.root.visible = true; v.body.visible = true;
@@ -383,7 +327,8 @@ export class World {
     this.views.delete(e.id);
     v.root.visible = false;
     if (v.kind === 'narrow') { this.scene.remove(v.root); return; }
-    this.pools[v.kind].push(v);
+    const pk = v.poolKey || v.kind;
+    (this.pools[pk] || (this.pools[pk] = [])).push(v);
   }
   clearViews() { for (const [id] of this.views) this.despawnView({ id }); this.views.clear(); }
   placeView(e, v) {
@@ -407,7 +352,7 @@ export class World {
       if (e.kind === 'tappeto') {
         v.body.position.y = 0.38 + Math.sin(t * 3.2 + e.d * 0.05) * 0.1;
         v.body.rotation.set(-Math.PI / 2 + 0.22 + Math.sin(t * 2.3 + e.d) * 0.05, 0, Math.sin(t * 1.7 + e.d) * 0.12);
-        v.glow.position.y = 0.4;
+        v.glow.position.y = 0.4; v.glow.material.opacity = 0.32 * (1 + this.light.tunnel * 1.3);
         if (v.shadow) v.shadow.visible = true;
       } else if (e.kind === 'asfodelo' || e.kind === 'ferula') {
         v.body.position.y = 0.9 + Math.sin(t * 3 + e.d) * 0.15;
@@ -475,8 +420,12 @@ export class World {
         this.char3d.stumble(); this.char3d.kick((Math.random() < 0.5 ? -1 : 1) * 1.6, 2.2);
         break;
       }
-      case 'die': this.smokeAtTip(30); break;
-      case 'start': case 'attract': this.add.clear(); this.norm.clear(); this.shards.clear(); break;
+      case 'die': this.smokeAtTip(30); this.burnT = 0; this.burnKeep = this.char3d.keep ?? 1; break;
+      case 'start': case 'attract':
+        this.add.clear(); this.norm.clear(); this.shards.clear();
+        if (type === 'start') this.env.startRun(sim.T * U); else this.env.toAttract(sim.T * U);
+        this.burnT = -1; this.char3d.setBurn?.(null, 0);
+        break;
       default: break;
     }
   }
@@ -497,14 +446,17 @@ export class World {
     const p = v ? v.root.position : _v.set(d.x * U, 0, 0);
     const big = d.big;
     const n = big ? 34 : 18;
+    const sh = SHARDS[(v && v.skin && SKINS[v.skin] && SKINS[v.skin].shards) || 'barrel'] || SHARDS.barrel;
+    const pc = sh.cols || (sh.cols = sh.pieces.map((c) => new THREE.Color(c)));
+    const ironC = sh.ironC || (sh.ironC = new THREE.Color(sh.iron)), splC = sh.splC || (sh.splC = new THREE.Color(sh.splash)), dustC = sh.dustC || (sh.dustC = new THREE.Color(sh.dust));
     for (let i = 0; i < n; i++) {
       const a = Math.random() * Math.PI * 2, s = 3 + Math.random() * 5;
       this.shards.emit(p.x + (Math.random() - 0.5) * (big ? 2 : 1), 0.4 + Math.random() * (big ? 2.4 : 1.6), p.z + (Math.random() - 0.5) * (big ? 2 : 1),
-        Math.cos(a) * s, 3 + Math.random() * 6, Math.sin(a) * s * 0.7 + 2.2, COL.wood[i % 4], 0.7 + Math.random() * 0.7, 1.4 + Math.random() * 0.6);
+        Math.cos(a) * s, 3 + Math.random() * 6, Math.sin(a) * s * 0.7 + 2.2, pc[i % pc.length], 0.7 + Math.random() * 0.7, 1.4 + Math.random() * 0.6);
     }
-    for (let i = 0; i < (big ? 8 : 4); i++) this.shards.emit(p.x, 0.5 + Math.random() * 1.4, p.z, (Math.random() - 0.5) * 7, 4 + Math.random() * 4, (Math.random() - 0.5) * 5, COL.iron, 0.9, 1.6);
-    for (let i = 0; i < (big ? 40 : 24); i++) this.norm.emit(p.x, 0.8 + Math.random(), p.z, (Math.random() - 0.5) * 6, Math.random() * 5 + 1, (Math.random() - 0.5) * 5 + 1, 0.8, 0.32, 0.18, COL.wine, 1, 12, 0.6);
-    for (let i = 0; i < 12; i++) this.norm.emit(p.x + (Math.random() - 0.5) * 1.5, 0.5 + Math.random(), p.z, (Math.random() - 0.5) * 2, 0.6 + Math.random(), (Math.random() - 0.5) * 2, 1.1, 1.0, 3.0, COL.dust, 0.5, 0, 1);
+    for (let i = 0; i < (big ? 8 : 4); i++) this.shards.emit(p.x, 0.5 + Math.random() * 1.4, p.z, (Math.random() - 0.5) * 7, 4 + Math.random() * 4, (Math.random() - 0.5) * 5, ironC, 0.9, 1.6);
+    for (let i = 0; i < (big ? 40 : 24); i++) this.norm.emit(p.x, 0.8 + Math.random(), p.z, (Math.random() - 0.5) * 6, Math.random() * 5 + 1, (Math.random() - 0.5) * 5 + 1, 0.8, 0.32, 0.18, splC, 1, 12, 0.6);
+    for (let i = 0; i < 12; i++) this.norm.emit(p.x + (Math.random() - 0.5) * 1.5, 0.5 + Math.random(), p.z, (Math.random() - 0.5) * 2, 0.6 + Math.random(), (Math.random() - 0.5) * 2, 1.1, 1.0, 3.0, dustC, 0.5, 0, 1);
     this.burst(p.x, 1.2, p.z, COL.spark2, 18, 6);
     this.addShake(big ? 0.4 : 0.3, big ? 0.5 : 0.35);
     this.popWorld(`+${d.pts}`, p.x, 3.0, p.z, 'barrel');
@@ -534,23 +486,36 @@ export class World {
 
   // ------------------------------------------------------------ frame
   setMood(name) { this.moodName = name; }
-  updateMood(dt) {
-    const tgt = MOODS[this.moodName];
+  // bersaglio: ambiente nel punto del giocatore (+ menu al crepuscolo nel paese, + tinta del game over)
+  updateMood(dt, fuelF = 1) {
+    const env = this.env, tgt = this.tgt;
+    env.moodAt(env.cur.bDist, tgt);
+    if (this.moodName === 'menu' && env.cur.b.id === 'village') {
+      for (const k in MENU_MOOD) { if (typeof MENU_MOOD[k] === 'string') tgt[k].set(MENU_MOOD[k]); else tgt[k] = MENU_MOOD[k]; }
+    } else if (this.moodName === 'over') {
+      const ok = OVER_TINT.k * (1 - tgt.light.tunnel);
+      for (const k in OVER_TINT.mood) { const v = OVER_TINT.mood[k]; if (typeof v === 'string') tgt[k].lerp(_c.set(v), ok); else tgt[k] += (v - tgt[k]) * ok; }
+    }
     const k = 1 - Math.exp(-dt * 1.8);
     for (const key in tgt) {
-      if (typeof tgt[key] === 'string') this.mood[key].lerp(_c.set(tgt[key]), k);
-      else this.mood[key] += (tgt[key] - this.mood[key]) * k;
+      const v = tgt[key];
+      if (v && v.isColor) { if (!this.mood[key]) this.mood[key] = v.clone(); this.mood[key].lerp(v, k); }
+      else if (typeof v === 'number') { if (key === 'farVis') this.farVis += (v - this.farVis) * k; else this.mood[key] = (this.mood[key] ?? v) + (v - (this.mood[key] ?? v)) * k; }
     }
-    const m = this.mood;
+    for (const key in tgt.light) this.light[key] = (this.light[key] ?? tgt.light[key]) + (tgt.light[key] - (this.light[key] ?? tgt.light[key])) * Math.min(1, k * 1.6);
+    for (const key in tgt.amb) this.amb[key] = (this.amb[key] ?? 0) + (tgt.amb[key] - (this.amb[key] ?? 0)) * k;
+    const m = this.mood, L = this.light;
+    // in miniera il buio cresce quando la frakkera si consuma
+    const dark = L.darkByFuel * (1 - fuelF);
     this.skyU.uTop.value.copy(m.top); this.skyU.uMid.value.copy(m.mid); this.skyU.uHor.value.copy(m.hor); this.skyU.uSun.value = m.sun;
-    this.scene.fog.color.copy(m.fog); this.scene.fog.near = m.fogNear; this.scene.fog.far = m.fogFar;
-    this.hemi.color.copy(m.hemiS); this.hemi.groundColor.copy(m.hemiG); this.hemi.intensity = m.hemiI;
+    this.scene.fog.color.copy(m.fog); this.scene.fog.near = m.fogNear * (1 - dark * 0.4); this.scene.fog.far = m.fogFar * (1 - dark * 0.55);
+    this.hemi.color.copy(m.hemiS); this.hemi.groundColor.copy(m.hemiG); this.hemi.intensity = m.hemiI * (1 - dark * 0.75);
     this.dir.color.copy(m.dirC); this.dir.intensity = m.dirI;
     this.far.material.color.copy(m.far);
-    this.moon.material.opacity = m.moon; this.moon.visible = m.moon > 0.02;
+    this.moon.material.opacity = m.moon; this.moon.visible = m.moon > 0.02 && L.tunnel < 0.98;
     this.stars.material.opacity = m.moon * 0.9;
-    this.sunGlow.material.opacity = 0.5 * m.sun;
-    for (const c of this.clouds) c.material.color.copy(m.hor).lerp(_c2.set('#ffffff'), 0.35);
+    this.sunGlow.material.opacity = 0.5 * m.sun; this.sunGlow.visible = L.tunnel < 0.98;
+    for (const c of this.clouds) { c.material.color.copy(m.hor).lerp(_c2.set('#ffffff'), 0.35); c.visible = L.tunnel < 0.98; }
   }
 
   setPixelRatio(pr) {
@@ -570,7 +535,7 @@ export class World {
   render(sim, dt, view) {
     this.clock += dt;
     const pz = -sim.T * U, px = sim.px * U;
-    this.updateMood(dt);
+    this.updateMood(dt, view.fuelF);
     // camera: preset per modalita' + inseguimento morbido
     const aspect = this.camera.aspect;
     const wide = Math.max(0, Math.min(1, (aspect - 0.5) / 0.3));
@@ -598,18 +563,13 @@ export class World {
     // cielo, lontananze
     this.sky.position.copy(this.camera.position);
     this.stars.position.copy(this.camera.position);
-    this.far.position.set(0, 0, camZ - FAR_Z);
+    this.far.visible = this.farVis > 0.01;
+    this.far.position.set(0, -70 * (1 - this.farVis), camZ - FAR_Z);
     this.moon.position.set(this.camera.position.x - 70, 150, camZ - 300);
     this.sunGlow.position.set(this.camera.position.x + 60, 16, camZ - 360);
     for (const c of this.clouds) c.position.set(c.userData.x + this.camera.position.x * 0.0 + Math.sin(this.clock * 0.02 + c.userData.y) * 10, c.userData.y, camZ - 320 + c.userData.z);
-    // strada (agganciata alla griglia della texture: sembra ferma nel mondo)
-    const snap = Math.round(camZ / ROAD_W) * ROAD_W;
-    this.road.position.z = snap - 110;
-    const snapW = Math.round(camZ / 2.9) * 2.9;
-    for (const w of this.walks) w.position.z = snapW - 110;
-    for (const c of this.curbs) c.position.z = camZ - 110;
-    this.base.position.set(0, -0.06, camZ - 150);
-    this.updateVillage(camZ);
+    // v5: ambienti a tratti (terreno, lati, galleria, monumenti)
+    this.env.update(-camZ, sim.T * U, dt, this.clock);
     this.animateViews(sim, dt);
     this.dir.position.set(px - 30, 40, pz - 25); this.dir.target.position.set(px, 0, pz);
 
@@ -620,6 +580,17 @@ export class World {
     const ch = this.character, c3 = this.char3d;
     const use3d = c3.ready;
     ch.sprite.visible = !use3d;
+    // v5: la frakkera si accorcia col carburante; a zero brucia fino alle mani (game over senza crudezze)
+    const fuelF0 = view.fuelF;
+    let burnLit = false;
+    if (this.burnT >= 0) {
+      this.burnT += dt;
+      const t = Math.min(1, this.burnT / 0.85), e = t * t * (3 - 2 * t);
+      c3.setBurn?.((this.burnKeep ?? 0.4) + (0.1 - (this.burnKeep ?? 0.4)) * e, Math.max(0, Math.min(1, (this.burnT - 0.45) / 0.9)));
+      burnLit = this.burnT < 0.95;
+      if (this.burnT > 0.5 && this.burnT < 3.2 && Math.random() < dt * 14) this.norm.emit(px + (Math.random() - 0.5) * 0.8, 1.2 + Math.random() * 1.6, pz + (Math.random() - 0.5) * 0.6, (Math.random() - 0.5) * 0.5, 1 + Math.random(), (Math.random() - 0.5) * 0.4, 1.6, 0.7, 2.4, Math.random() < 0.5 ? COL.smoke : COL.smokeD, 0.5, -0.2, 0.5);
+      if (this.burnT < 1.0 && Math.random() < dt * 30) { const t2 = this.tipW; this.add.emit(t2.x + (Math.random() - 0.5) * 0.5, t2.y, t2.z, (Math.random() - 0.5) * 2, 1 + Math.random() * 2, (Math.random() - 0.5), 0.5, 0.2, 0.03, COL.ember, 1, -0.5, 0.8); }
+    } else if (use3d && c3.setFuel) c3.setFuel(view.cam === 'menu' ? 1 : fuelF0, dt);
     if (use3d) {
       c3.update(dt, view.char, px, pz);
       c3.tipWorld(this.tipW);
@@ -636,19 +607,23 @@ export class World {
       ch.worldOf(this.tipW, base, _right, _up, ch.tip.x, ch.tip.y - 9);
       ch.worldOf(this.muzzleW, base, _right, _up, ch.muzzle.x, ch.muzzle.y);
     }
-    const fuelF = view.fuelF;
-    const lit = view.char.flameOn;
+    const fuelF = this.burnT >= 0 && burnLit ? Math.max(0.35, 1 - this.burnT) : view.fuelF;
+    const lit = view.char.flameOn || burnLit;
     const flick = Math.sin(this.clock * 17) * 0.06 + Math.sin(this.clock * 29) * 0.05;
     this.flame3d.update(dt, this.camera, this.tipW, fuelF, use3d && lit, view.char.fuelLow, -(view.char.vx || 0) * 0.5);
     this.flameLight.position.copy(this.tipW); if (use3d) this.flameLight.position.y += 0.9;
-    this.flameLight.intensity = lit ? (10 + 18 * fuelF) * (1 + flick) + (this.flashBoost || 0) * 40 : 0;
+    const L = this.light, dark = L.darkByFuel * (1 - fuelF);
+    this.flameLight.distance = L.flameDist * (1 - dark * 0.45);
+    this.flameLight.intensity = lit ? (10 + 18 * fuelF) * L.flameK * (1 + flick) + (this.flashBoost || 0) * 40 : 0;
+    for (const k in this.env.tunnelMat) { const u = this.env.tunnelMat[k].userData.u; u.uLamp.value = L.lamp; u.uMineral.value = L.mineral * (0.92 + Math.sin(this.clock * 1.3) * 0.08); }
+    this.renderer.toneMappingExposure = L.exposure * (0.15 + 0.85 * this.env.fade);
     this.flashBoost = Math.max(0, (this.flashBoost || 0) - dt * 10);
     this.flameGlow.visible = lit;
     this.flameGlow.position.copy(this.tipW); if (use3d) this.flameGlow.position.y += 0.9;
     this.flameGlow.scale.setScalar((2.2 + 1.8 * fuelF) * (1 + flick));
     this.groundGlow.visible = lit;
     this.groundGlow.position.set(px, 0.04, pz - 0.5);
-    this.groundGlow.material.opacity = 0.18 + 0.2 * fuelF;
+    this.groundGlow.material.opacity = (0.18 + 0.2 * fuelF) * (1 + L.tunnel * 0.9);
     // scintille dalla fiamma (piu' fuoco => piu' scintille)
     if (lit) {
       this.sparkAcc += dt * (8 + 30 * fuelF);
@@ -773,7 +748,7 @@ export class World {
       this.renderer.render(sc, cam);
       out[k] = this.renderer.domElement.toDataURL('image/png');
       sc.remove(v.root);
-      (this.pools[k] || (this.pools[k] = [])).push(v); this.scene.add(v.root); v.root.visible = false;
+      v.poolKey = k + '|'; (this.pools[v.poolKey] || (this.pools[v.poolKey] = [])).push(v); this.scene.add(v.root); v.root.visible = false;
       if (v.shadow) v.shadow.visible = true; if (v.glow) v.glow.visible = true; if (v.ring) v.ring.visible = true;
     }
     this.scene.background = prevBg;

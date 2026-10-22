@@ -65,8 +65,11 @@ export class Character3D {
       const g = o.geometry; tris += (g.index ? g.index.count : g.attributes.position.count) / 3;
       const mt = o.material;
       if (mt.transparent || mt.alphaTest > 0 || /hair|brow/i.test(mt.name)) { mt.transparent = false; mt.alphaTest = 0.5; mt.depthWrite = true; }
-      if (/frakkera/i.test(mt.name)) { mt.roughness = 1; mt.metalness = 0; mt.emissive.setRGB(0.07, 0.045, 0.025); mt.transparent = true; mt.opacity = 1; this.frkMat = mt; }
-      else if (mt.map) { mt.emissiveMap = mt.map; mt.emissive.setRGB(0.32, 0.27, 0.24); }   // luce di riempimento (il sole e' davanti, la camera dietro)
+      if (/frakkera/i.test(mt.name)) { mt.roughness = 1; mt.metalness = 0; mt.emissive.setRGB(0.07, 0.045, 0.025); mt.transparent = true; mt.opacity = 1; this.frkMat = mt; (this.frkParts || (this.frkParts = [])).push(o); }
+      else {
+        if (mt.map) { mt.emissiveMap = mt.map; mt.emissive.setRGB(0.32, 0.27, 0.24); }   // luce di riempimento (il sole e' davanti, la camera dietro)
+        (this.bodyMats || (this.bodyMats = [])).push({ mt, col: mt.color.clone(), em: mt.emissive.clone() });
+      }
       mt.envMapIntensity = 0;
     });
     this.model = m;
@@ -86,6 +89,7 @@ export class Character3D {
     let bones = 0; m.traverse((o) => { if (o.isBone) bones++; });
     this.stats = { triangles: tris, meshes, bones, clips: gltf.animations.map((c) => c.name) };
     this.ready = !!(this.actions.idle && this.actions.run && this.bones.tip);
+    if (this.ready) this.setupBurn();
     if (!this.ready) { this.failed = true; this.error = 'GLB senza clip/nodi richiesti'; }
     this.root.visible = this.ready;
   }
@@ -194,12 +198,66 @@ export class Character3D {
       }
     }
   }
+  // ---- v5: consumo progressivo della frakkera (taglio nello shader lungo l'asse dei fusti)
+  setupBurn() {
+    this.keep = 1; this.burnU = [];
+    m: for (const o of this.frkParts || []) {
+      this.model.updateMatrixWorld(true);
+      const g = o.geometry, p = g.attributes.position;
+      const tipL = o.worldToLocal(this.bones.tip.getWorldPosition(new THREE.Vector3()));
+      g.computeBoundingBox(); const c = g.boundingBox.getCenter(new THREE.Vector3());
+      const ax = tipL.clone().sub(c).normalize();
+      let mn = Infinity, mx = -Infinity; const v = new THREE.Vector3();
+      for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i); const d = v.sub(c).dot(ax); if (d < mn) mn = d; if (d > mx) mx = d; }
+      if (!Number.isFinite(mn)) continue m;
+      const base = c.clone().addScaledVector(ax, mn), len = Math.max(0.01, tipL.clone().sub(base).dot(ax));
+      const u = { uBase: { value: base }, uAxis: { value: ax }, uLen: { value: len }, uKeep: { value: 1.5 }, uEmber: { value: 1 } };
+      this.burnU.push(u);
+      if (this.bones.tip.parent === o) this.tipRest = { base, ax, len: tipL.clone().sub(base).dot(ax), off: tipL.clone().sub(base.clone().addScaledVector(ax, tipL.clone().sub(base).dot(ax))) };
+      const mt = o.material;
+      const prev = mt.onBeforeCompile;
+      mt.onBeforeCompile = (sh, r) => {
+        prev?.(sh, r);
+        Object.assign(sh.uniforms, u);
+        sh.vertexShader = 'varying vec3 vFrk;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vFrk = position;');
+        sh.fragmentShader = 'varying vec3 vFrk; uniform vec3 uBase; uniform vec3 uAxis; uniform float uLen; uniform float uKeep; uniform float uEmber;\n' + sh.fragmentShader
+          .replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\n  float frkH = dot(vFrk - uBase, uAxis) / uLen;\n  if (frkH > uKeep) discard;')
+          .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n  float frkC = smoothstep(uKeep - 0.07, uKeep, frkH);\n  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.05, 0.035, 0.025), frkC);\n  totalEmissiveRadiance += vec3(1.0, 0.32, 0.05) * smoothstep(uKeep - 0.025, uKeep, frkH) * uEmber * 1.6;');
+      };
+      mt.customProgramCacheKey = () => 'frkburn';
+      mt.needsUpdate = true;
+    }
+    this.tipNode = this.bones.tip;
+  }
+  // quota di frakkera rimasta (1 = intera). Il carburante 0..1 la accorcia fino al 38%.
+  applyKeep(k) {
+    this.keep = k;
+    for (const u of this.burnU || []) u.uKeep.value = k >= 0.999 ? 1.5 : k;
+    const t = this.tipRest;
+    if (t) this.tipNode.position.copy(t.base).addScaledVector(t.ax, t.len * Math.min(1, k + 0.012)).add(t.off);
+  }
+  setFuel(f, dt) {
+    if (!this.ready) return;
+    const want = 0.38 + 0.62 * Math.max(0, Math.min(1, f));
+    const k = this.keep ?? 1;
+    this.applyKeep(k + (want - k) * Math.min(1, dt * (want > k ? 3 : 6)));
+    if (this.sootK) this.setSoot(0);
+  }
+  // game over: la frakkera brucia fino alle mani, il personaggio resta solo annerito dalla fuliggine (cartoon)
+  setBurn(keep, soot) {
+    if (!this.ready) return;
+    if (keep == null) { this.applyKeep(1); this.setSoot(0); return; }
+    this.applyKeep(keep); this.setSoot(soot);
+  }
+  setSoot(k) {
+    this.sootK = k;
+    for (const b of this.bodyMats || []) { b.mt.color.copy(b.col).multiplyScalar(1 - 0.6 * k); b.mt.emissive.copy(b.em).multiplyScalar(1 - 0.75 * k); }
+  }
   // dissolvenza della frakkera quando copre ostacoli in arrivo (0..1)
   setOcclusion(target, dt) {
     if (!this.frkMat) return;
     this.occ = (this.occ ?? 1) + (target - (this.occ ?? 1)) * Math.min(1, dt * 8);
-    this.frkMat.opacity = this.occ;
-    this.frkMat.depthWrite = this.occ > 0.95;
+    for (const o of this.frkParts || [this.frkMat && { material: this.frkMat }]) { o.material.opacity = this.occ; o.material.depthWrite = this.occ > 0.95; }
   }
   // impulso alla molla (urti)
   kick(a, p) { this.spring.v += a; this.spring.pv += p; }
@@ -209,6 +267,6 @@ export class Character3D {
   debug() {
     const w = {}; for (const k of CLIP_NAMES) w[k] = +this.w[k].toFixed(3);
     w.lean = +this.leanSig.toFixed(3);
-    return { ready: this.ready, failed: this.failed, state: this.state, stateT: +this.stateT.toFixed(2), stumbling: this.stumbleT >= 0, weights: w, phase: +this.phase.toFixed(3), facing: +this.facing.toFixed(3), spring: +this.spring.a.toFixed(4), frkOpacity: this.frkMat ? +this.frkMat.opacity.toFixed(2) : null, rec: this.rec, stats: this.stats };
+    return { ready: this.ready, failed: this.failed, state: this.state, stateT: +this.stateT.toFixed(2), stumbling: this.stumbleT >= 0, weights: w, phase: +this.phase.toFixed(3), facing: +this.facing.toFixed(3), spring: +this.spring.a.toFixed(4), frkOpacity: this.frkMat ? +this.frkMat.opacity.toFixed(2) : null, keep: +(this.keep ?? 1).toFixed(3), soot: +(this.sootK || 0).toFixed(2), burnParts: (this.burnU || []).length, tipOnFrk: !!this.tipRest, rec: this.rec, stats: this.stats };
   }
 }

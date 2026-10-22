@@ -23,6 +23,7 @@ export function rng(seed) {
   f.range = (a0, b0) => a0 + f() * (b0 - a0);
   f.pick = (arr) => arr[Math.floor(f() * arr.length)];
   f.chance = (p) => f() < p;
+  f.int = (n) => (f.lastInt = Math.floor(f() * n));
   return f;
 }
 

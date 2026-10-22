@@ -109,9 +109,53 @@ class AudioSys {
     const wlg = c.createGain(); wlg.gain.value = 260;
     wl.connect(wlg); wlg.connect(wf.frequency); wl.start(); wind.start();
 
+    // v5: acqua che scorre (fiume / piscina naturale)
+    const water = this._noiseSrc(true);
+    const wa = c.createBiquadFilter(); wa.type = 'bandpass'; wa.frequency.value = 900; wa.Q.value = 0.45;
+    const wb = c.createBiquadFilter(); wb.type = 'highshelf'; wb.frequency.value = 3000; wb.gain.value = -8;
+    this.waterGain = c.createGain(); this.waterGain.gain.value = 0;
+    water.connect(wa); wa.connect(wb); wb.connect(this.waterGain); this.waterGain.connect(this.sfx);
+    water.start(0, 0.7);
+    // rimbombo cupo della galleria
+    const cave = this._noiseSrc(true);
+    const cf = c.createBiquadFilter(); cf.type = 'lowpass'; cf.frequency.value = 120;
+    this.caveGain = c.createGain(); this.caveGain.gain.value = 0;
+    cave.connect(cf); cf.connect(this.caveGain); this.caveGain.connect(this.music);
+    cave.start(0, 1.3);
+    this.amb = { wind: 0.06, water: 0, drips: 0, birds: 0, bells: 0, cave: 0 };
+    this._nextDrip = 0; this._nextBird = 0; this._nextBell = 0;
     const t = c.currentTime;
     this.droneGain.gain.setTargetAtTime(0.35, t, 1.5);
     this.windGain.gain.setTargetAtTime(0.10, t, 2);
+  }
+  // v5: atmosfera sonora dell'ambiente (vento, acqua, gocce, uccelli, campane, galleria)
+  ambience(a) {
+    if (!this.ready || !a) return;
+    const t = this.ctx.currentTime;
+    this.amb = a;
+    this.windGain.gain.setTargetAtTime(0.02 + (a.wind || 0) * 0.6, t, 0.8);
+    this.waterGain.gain.setTargetAtTime((a.water || 0) * 0.55, t, 0.8);
+    this.caveGain.gain.setTargetAtTime((a.cave || 0) * 0.5, t, 0.6);
+    this.revGain.gain.setTargetAtTime(0.5 + (a.cave || 0) * 0.5, t, 0.6);
+  }
+  _ambTick(now) {
+    const a = this.amb; if (!a) return;
+    if (a.drips > 0.05 && now >= this._nextDrip) {          // gocce che cadono nella galleria
+      const f = 1400 + Math.random() * 1600, when = now + 0.02;
+      const o = this.ctx.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(f, when); o.frequency.exponentialRampToValueAtTime(f * 0.45, when + 0.09);
+      const g = this.ctx.createGain(); g.gain.setValueAtTime(0.0001, when); g.gain.exponentialRampToValueAtTime(0.05 * a.drips, when + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, when + 0.16);
+      o.connect(g); g.connect(this.reverb); g.connect(this.sfx); o.start(when); o.stop(when + 0.2);
+      this._nextDrip = now + (0.5 + Math.random() * 2.2) / a.drips;
+    }
+    if (a.birds > 0.05 && now >= this._nextBird) {          // cinguettii
+      const n = 2 + Math.floor(Math.random() * 4), base = 2600 + Math.random() * 1800;
+      for (let i = 0; i < n; i++) this._tone({ t: i * 0.09, f: base * (1 + Math.random() * 0.2), fEnd: base * 1.35, dur: 0.06, type: 'sine', vol: 0.025 * a.birds });
+      this._nextBird = now + (2.5 + Math.random() * 5) / a.birds;
+    }
+    if (a.bells > 0.5 && now >= this._nextBell) {           // campane della chiesa, lontane
+      if (this._nextBell) for (let i = 0; i < 3; i++) this._pluck(NOTE([57, 53, 50][i]), now + 0.1 + i * 1.1, 0.06);
+      this._nextBell = now + 16 + Math.random() * 14;
+    }
   }
 
   _buildFire() {
@@ -127,6 +171,7 @@ class AudioSys {
   _schedule() {
     if (!this.ctx || this.ctx.state !== 'running') return;
     const now = this.ctx.currentTime;
+    if (!this.muted) this._ambTick(now);
     // note sparse e lente: suonano anche nel menu
     if (now >= this._nextNote) {
       const n = SCALE[Math.floor(Math.random() * SCALE.length)];
