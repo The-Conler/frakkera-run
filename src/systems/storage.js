@@ -9,6 +9,7 @@ const K = {
   nick: 'frakkera.nick.v1',
   board: 'frakkera.demoBoard.v1',
   carpets: 'frakkera.carpets.v1',
+  music: 'frakkera.music.v1',
 };
 
 const mem = {}; // fallback se localStorage non e' disponibile (es. privacy mode)
@@ -46,6 +47,8 @@ export function addCarpets(n) {
 
 export const getMuted = () => get(K.mute) === '1';
 export const setMuted = (m) => set(K.mute, m ? '1' : '0');
+export const getMusic = () => get(K.music) !== '0';
+export const setMusic = (m) => set(K.music, m ? '1' : '0');
 export const getNick = () => get(K.nick) || '';
 export const setNick = (n) => set(K.nick, n);
 

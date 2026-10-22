@@ -5,7 +5,7 @@ from playwright.async_api import async_playwright
 URL = sys.argv[1] if len(sys.argv) > 1 else 'http://127.0.0.1:4173/'
 async def main():
     async with async_playwright() as p:
-        b = await p.chromium.launch(executable_path='/usr/bin/google-chrome', args=['--use-gl=swiftshader', '--enable-unsafe-swiftshader'])
+        b = await p.chromium.launch(executable_path='/usr/bin/google-chrome', args=['--use-angle=swiftshader', '--enable-unsafe-swiftshader'])
         pg = await b.new_page(viewport={'width': 390, 'height': 844})
         await pg.goto(URL + '?test=1')
         await pg.wait_for_function('window.__frk', timeout=20000)

@@ -3,8 +3,9 @@ Test end-to-end di FRAKKERA RUN in un browser headless (Chromium/Chrome).
 Avvia prima il server:  npm run build && npm run preview   (porta 4173)
 Uso: python3 tests/e2e.py [--url http://127.0.0.1:4173/]
 Profili: mobile verticale 390x844 (touch) e desktop 1366x900 (tastiera).
-Salva gli screenshot in screenshots/ (prefisso v2-).
-v2: tappeti, pistola Broccu (?debug=pistol), botti distrutte, colpi a zero, riavvio istantaneo.
+Salva gli screenshot in screenshots/ (prefisso v3-).
+v2/v3: tappeti, pistola Broccu (?debug=pistol), botti distrutte, colpi a zero, riavvio istantaneo,
+impostazioni audio/musica, conteggio animato del punteggio, misura del tempo di frame (indicativa).
 """
 import asyncio, json, os, sys, time
 from playwright.async_api import async_playwright
@@ -17,6 +18,7 @@ os.makedirs(SHOTS, exist_ok=True)
 CHROME = os.environ.get('CHROME_PATH', '/usr/bin/google-chrome')
 
 results = []
+PERF = {}
 def check(name, cond, info=''):
     results.append((name, bool(cond), info))
     print(('  PASS ' if cond else '  FAIL ') + name + (f'  [{info}]' if info else ''))
@@ -30,7 +32,7 @@ BOT_JS = """(mode) => {
     let lanes = [e.lane];
     if (e.kind === 'goat' || e.kind === 'rollbarrel') lanes = [0,1,2];
     for (const l of lanes) {
-      if (e.pickup) { if (e.ahead > -4 && e.ahead < 150) want[l] += 1 / (1 + Math.max(0, e.ahead) / 60); }
+      if (e.pickup) { if (e.ahead > -4 && e.ahead < 150) want[l] += (e.kind === 'pistola' ? 6 : 1) / (1 + Math.max(0, e.ahead) / 60); }
       else if (e.ahead + e.len > -8 && e.ahead < 60 + s.speed * 0.35) danger[l] += 10 / (1 + Math.max(0, e.ahead) / 40);
     }
   }
@@ -78,7 +80,7 @@ async def swipe(cdp, x0, y0, x1, y1, steps=6):
 
 async def run_profile(p, name, mobile):
     print(f'\n=== {name} ===')
-    args = ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required']
+    args = ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required']
     browser = await p.chromium.launch(executable_path=CHROME if os.path.exists(CHROME) else None, args=args)
     if mobile:
         ctx = await browser.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=3, is_mobile=True, has_touch=True,
@@ -90,7 +92,7 @@ async def run_profile(p, name, mobile):
     page.on('pageerror', lambda e: errors.append(f'pageerror: {e}'))
     page.on('console', lambda m: errors.append(f'console.{m.type}: {m.text}') if m.type == 'error' else None)
     cdp = await ctx.new_cdp_session(page) if mobile else None
-    shot = lambda n: page.screenshot(path=os.path.join(SHOTS, f'v2-{name}-{n}.png'))
+    shot = lambda n: page.screenshot(path=os.path.join(SHOTS, f'v3-{name}-{n}.png'))
     state = lambda: page.evaluate('window.__frk.state()')
     ui = lambda: page.evaluate('window.__frk.ui()')
     visible = lambda sel: page.evaluate(f"!document.querySelector('{sel}').classList.contains('hidden')")
@@ -119,12 +121,25 @@ async def run_profile(p, name, mobile):
     board_txt = await page.evaluate("document.querySelector('#scr-board').innerText")
     check('classifica etichettata DEMO', 'DEMO' in board_txt and 'LA CLASSIFICA' in board_txt)
 
-    # audio toggle
+    # impostazioni: audio e musica
+    await page.click('#scr-menu [data-act=settings]')
+    await page.wait_for_timeout(250)
+    check('schermata impostazioni', await visible('#scr-settings'))
+    await shot('04b-impostazioni')
     await page.click('#menu-audio')
     m1 = await page.evaluate("localStorage.getItem('frakkera.mute.v1')")
+    off1 = await page.evaluate("!document.querySelector('#menu-audio').classList.contains('on')")
     await page.click('#menu-audio')
     m2 = await page.evaluate("localStorage.getItem('frakkera.mute.v1')")
-    check('toggle audio persistito', m1 == '1' and m2 == '0', f'{m1}/{m2}')
+    check('toggle audio persistito', m1 == '1' and m2 == '0' and off1, f'{m1}/{m2}')
+    await page.click('#menu-music')
+    u1 = await page.evaluate("localStorage.getItem('frakkera.music.v1')")
+    await page.click('#menu-music')
+    u2 = await page.evaluate("localStorage.getItem('frakkera.music.v1')")
+    check('toggle musica persistito', u1 == '0' and u2 == '1', f'{u1}/{u2}')
+    await page.click('#scr-settings [data-act=back]')
+    await page.wait_for_timeout(150)
+    check('indietro da impostazioni', await visible('#scr-menu'))
 
     # ---------------------------------------------------------------- partita
     await page.click('[data-act=play]')
@@ -218,8 +233,13 @@ async def run_profile(p, name, mobile):
         await page.wait_for_timeout(300)
     check('game over compare', await visible('#scr-over'))
     sf = await state()
+    early = int((await page.inner_text('#go-score')).replace('.', '') or 0)
+    try:
+        await page.wait_for_function("document.querySelector('#go-score').textContent.replace(/\\./g, '') === document.querySelector('#go-score').dataset.final", timeout=4000)
+    except Exception: pass
     go_score = (await page.inner_text('#go-score')).replace('.', '')
-    check('punteggio finale coerente', go_score == str(sf['score']), f'{go_score} vs {sf["score"]}')
+    check('punteggio finale coerente (dopo il conteggio animato)', go_score == str(sf['score']), f'{go_score} vs {sf["score"]}')
+    check('conteggio animato del punteggio', sf['score'] == 0 or early < sf['score'], f'iniziale {early}')
     rank_txt = await page.inner_text('#go-rank')
     check('posizione classifica demo mostrata', 'demo' in rank_txt.lower(), rank_txt)
     best_ls = await page.evaluate("localStorage.getItem('frakkera.best.v1')")
@@ -375,6 +395,9 @@ async def v2_section(page, name, mobile, cdp, check, shot, state, visible):
     check('v2 HUD tappeti', abs(int(hc) - s['stats']['carpets']) <= 1, f'{hc} vs {s["stats"]["carpets"]}')
     ins = await page.evaluate("window.__frk.state().inputs")
     check('v2 log eventi/input registrati', s['events'] > 0 and ins > 0, f"events={s['events']} inputs={ins}")
+    perf = await page.evaluate('window.__frk.perf()')
+    print('  PERF', name, json.dumps(perf))
+    PERF[name] = perf
     # muori: nessun input finche' la fiamma si spegne
     t_end = time.time() + 120
     while time.time() < t_end:
@@ -384,7 +407,7 @@ async def v2_section(page, name, mobile, cdp, check, shot, state, visible):
     sf = await state()
     goc = (await page.inner_text('#go-carpets')).replace('.', ''); gob = (await page.inner_text('#go-barrels')).replace('.', '')
     check('v2 game over: tappeti e botti', goc == str(sf['stats']['carpets']) and gob == str(sf['stats']['barrels']), f'{goc}/{gob} vs {sf["stats"]["carpets"]}/{sf["stats"]["barrels"]}')
-    await page.wait_for_timeout(600)
+    await page.wait_for_timeout(2200)
     await shot('15-game-over')
     # riavvio istantaneo
     t0 = time.time()
@@ -404,9 +427,11 @@ async def v2_section(page, name, mobile, cdp, check, shot, state, visible):
 
 async def main():
     async with async_playwright() as p:
-        await run_profile(p, 'mobile', True)
-        await run_profile(p, 'desktop', False)
+        only = os.environ.get('E2E_ONLY', '')
+        if only in ('', 'mobile'): await run_profile(p, 'mobile', True)
+        if only in ('', 'desktop'): await run_profile(p, 'desktop', False)
     failed = [r for r in results if not r[1]]
+    print('\nPERF (headless SwiftShader, indicativo):', json.dumps(PERF))
     print(f'\nRISULTATO: {len(results) - len(failed)}/{len(results)} controlli superati')
     for f in failed: print('  FALLITO:', f[0], f[2])
     sys.exit(1 if failed else 0)

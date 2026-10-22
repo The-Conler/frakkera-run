@@ -522,3 +522,11 @@ export function buildStaticTextures(scene) {
   pickups(scene);
   buildV2Textures(scene);
 }
+
+// v3: solo gli sprite del personaggio (giocatore, frakkera, fiamma), con le
+// stesse funzioni di sempre => stesso output pixel. Usato dal renderer 3D.
+export function buildCharacterTextures(scene) {
+  player(scene);
+  torch(scene);
+  flame(scene);
+}

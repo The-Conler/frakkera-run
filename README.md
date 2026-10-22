@@ -2,9 +2,11 @@
 
 *Quanto lontano riuscirai a portare il fuoco?*
 
-Minigioco arcade 2D (endless runner verticale, pixel art) ispirato al rito di **Is Frakkeras di Gadoni**. Si gioca nel browser, senza download o registrazione, ed è pensato prima di tutto per lo smartphone in verticale.
+Minigioco arcade (endless runner a 3 corsie) ispirato al rito di **Is Frakkeras di Gadoni**. Si gioca nel browser, senza download o registrazione, ed è pensato prima di tutto per lo smartphone in verticale.
 
-> **Stato: versione 0.2 (v2: botti da vino, tappeti Sa Burra, pistola Broccu, nuova interfaccia).** La classifica di questa fase è **DEMO** e locale (resta sul singolo dispositivo). **Non vale per i premi.** La classifica ufficiale con validazione server arriva con la Fase 3.
+> **Stato: versione 0.3 (v3: mondo in 3D cartoon in tempo reale, interfaccia nuova).** Il personaggio, la frakkera e la fiamma restano gli **sprite pixel art originali**, identici pixel per pixel. La classifica di questa fase è **DEMO** e locale (resta sul singolo dispositivo). **Non vale per i premi.** La classifica ufficiale con validazione server arriva con la Fase 3.
+>
+> La v2 (2D pixel art, Phaser) è conservata: tag git `v2` e copia completa in `../frakkera-run-v2-backup/` (con la sua `dist/`), oltre agli archivi `frakkera-run-v2*.tgz`.
 
 ---
 
@@ -24,7 +26,7 @@ npm run build        # genera dist/
 npm run preview      # serve dist/ su http://localhost:4173
 ```
 
-Se vuoi solo provare la build già pronta, va servita via HTTP: aprire `index.html` con doppio clic (`file://`) non funziona per via dei moduli ES. Per esempio:
+La build va servita via HTTP: aprire `index.html` con doppio clic (`file://`) non funziona per via dei moduli ES. Per esempio:
 
 ```bash
 npx serve dist       # oppure: python3 -m http.server -d dist 8080
@@ -36,23 +38,21 @@ npx serve dist       # oppure: python3 -m http.server -d dist 8080
 node tests/generator.test.mjs          # 400 seed x 6 km: verifica che non esistano mai percorsi impossibili
 npm run build && npm run preview &     # serve la build sulla porta 4173
 pip install playwright                 # una volta sola
-python3 tests/e2e.py                   # test end-to-end: mobile 390x844 touch + desktop 1366x900
+python3 tests/e2e.py                   # end-to-end: mobile 390x844 touch + desktop 1366x900 (E2E_ONLY=mobile|desktop per uno solo)
 python3 tests/sprite_hash.py           # hash degli sprite protetti (giocatore, frakkera, fiamma)
-python3 tests/sprite_sheet.py          # foglio sprite ingrandito in screenshots/v2-sprites.png
+python3 tests/perf.py                  # tempo di frame indicativo in Chrome headless
 ```
 
-`tests/e2e.py` usa Chrome (`CHROME_PATH`, di default `/usr/bin/google-chrome`). Apre il menu e tutte le schermate, avvia la partita, gioca circa 20 s con un bot e verifica:
+I test usano Chrome (`CHROME_PATH`, di default `/usr/bin/google-chrome`) con WebGL software (`--use-angle=swiftshader --enable-unsafe-swiftshader`). `tests/e2e.py` apre il menu e tutte le schermate (anche IMPOSTAZIONI), avvia la partita, gioca con un bot e verifica:
 
 - punteggio, distanza e velocità che crescono, consumo della fiamma, raccolta dei materiali, bonus "per un pelo";
-- pausa manuale e automatica, game over, filtro dei nickname, classifica demo, RIPROVA;
-- persistenza del record, nessuna emoji, nessuno scroll e nessun errore in console;
-- **v2** (con `?debug=pistol`): raccolta dei tappeti e totale salvato in localStorage, pistola raccolta con 3 colpi, sparo con il pulsante SPARA (mobile) o con Spazio/W/Su (desktop), botte distrutta, colpi a zero (HUD e pulsante spariscono), il tocco su SPARA non cambia corsia, riavvio istantaneo dal game over.
+- pausa manuale e automatica, game over con **conteggio animato** del punteggio (il valore finale deve coincidere), filtro dei nickname, classifica demo, RIPROVA;
+- audio e musica attivabili e salvati, persistenza del record, nessuna emoji, nessuno scroll e nessun errore in console;
+- con `?debug=pistol`: tappeti raccolti e totale salvato, pistola con 3 colpi, sparo con il pulsante SPARA (mobile) o con Spazio/W/Su (desktop), botte distrutta, colpi a zero (HUD e pulsante spariscono), il tocco su SPARA non cambia corsia, riavvio istantaneo.
 
-Gli screenshot finiscono in `screenshots/` con prefisso `v2-`.
+Gli screenshot finiscono in `screenshots/` con prefisso `v3-`. `tests/protected-sprites.baseline.json` contiene gli hash di riferimento di giocatore, frakkera e fiamma: `tests/sprite_hash.py` deve restituire gli stessi valori.
 
-`tests/protected-sprites.baseline.json` contiene gli hash di riferimento di giocatore, frakkera e fiamma: `tests/sprite_hash.py` deve restituire gli stessi valori.
-
-**Parametro di debug:** `?debug=pistol` fa comparire una pistola già alla seconda fila e poi ogni 30 file (per test e demo). Le partite con `debug` non aggiornano record né classifica demo.
+**Parametri di debug:** `?debug=pistol` fa comparire una pistola già alla seconda fila e poi ogni 30 file. Le partite con `debug` non aggiornano record né classifica demo. `?test=1` espone `window.__frk` per i test. `?fixeddpr` disattiva la riduzione automatica della risoluzione.
 
 ---
 
@@ -61,74 +61,66 @@ Gli screenshot finiscono in `screenshots/` con prefisso `v2-`.
 | Dispositivo | Azione |
 |---|---|
 | Desktop | Frecce sinistra/destra oppure A/D. **Spazio, W o freccia su: spara** (solo con la pistola). P o Esc per la pausa, M per l'audio. Al game over: Invio, Spazio o **R** per ripartire subito |
-| Smartphone | Swipe a sinistra/destra (uno swipe sposta di una corsia) oppure tocco sulla metà sinistra o destra dello schermo. **Pulsante SPARA** in basso al centro (compare solo con colpi disponibili) oppure swipe verso l'alto. Al game over un tocco su RIPROVA riparte subito |
+| Smartphone | Swipe a sinistra/destra (uno swipe sposta di una corsia) oppure tocco sulla metà sinistra o destra dello schermo. **Pulsante SPARA** rotondo in basso a destra (compare solo con colpi disponibili) oppure swipe verso l'alto. Al game over un tocco su RIPROVA riparte subito |
 
-Tutto si gioca con un dito. Il pulsante SPARA intercetta il proprio tocco, che quindi non arriva al canvas e non cambia corsia. Per 350 ms dopo il game over i tasti di ripartenza sono ignorati: così uno sparo tenuto premuto al momento dello spegnimento non fa ripartire per sbaglio.
-
-Durante la partita la pagina non scorre e non zooma: `touch-action: none`, `preventDefault` sui `touchmove` e niente doppio tocco o pinch.
+Il pulsante SPARA intercetta il proprio tocco, che quindi non arriva al canvas e non cambia corsia. Per 350 ms dopo il game over i tasti di ripartenza sono ignorati. Durante la partita la pagina non scorre e non zooma.
 
 ---
 
-## Struttura del progetto
+## Architettura v3
 
 ```
 frakkera-run/
-├── index.html                 # pagina unica: canvas di gioco + interfaccia HTML (menu, HUD, schermate)
+├── index.html                 # canvas WebGL + interfaccia HTML/CSS; icone SVG inline (corona, coppa, libro, tappeto, ...)
 ├── vite.config.js             # base './' => funziona in sottocartelle e iframe
-├── netlify.toml               # deploy su Netlify già pronto
-├── public/favicon.svg
 ├── src/
-│   ├── main.js                # avvio, dimensionamento pixel-perfect, creazione del gioco Phaser
-│   ├── config.js              # TUTTI i valori di punteggio, fiamma, difficoltà e mondo
-│   ├── ui.js                  # menu, HUD, pausa, game over, nickname, classifica demo
-│   ├── styles.css             # interfaccia in stile pixel (font pixel locali)
-│   ├── bus.js                 # eventi tra il gioco e l'interfaccia
-│   ├── scenes/GameScene.js    # gameplay: simulazione a passo fisso, collisioni, rendering, luce
-│   ├── systems/
-│   │   ├── generator.js       # generatore procedurale con garanzia di percorribilità
-│   │   ├── rng.js             # PRNG deterministico (seed => stesso percorso)
-│   │   ├── audio.js           # effetti sonori e musica sintetizzati con WebAudio
-│   │   ├── storage.js         # record personale, impostazioni, classifica demo (localStorage)
-│   │   └── nickname.js        # validazione e filtro di base dei nickname
-│   ├── art/
-│   │   ├── palette.js         # palette (notte, fuoco, pietra, legno, rosso bruciato)
-│   │   ├── textures.js        # pixel art generata via codice (giocatore, frakkera e fiamma INVARIATI)
-│   │   └── textures2.js       # v2: botti da vino, schegge, tappeti Sa Burra, pistola Broccu, vampata, colpo
-│   └── assets/fonts/          # Press Start 2P e VT323 (SIL OFL 1.1), sottoinsieme latino, woff
-├── tests/
-│   ├── generator.test.mjs     # test di percorribilità
-│   ├── e2e.py                 # test end-to-end Playwright (v1 + v2)
-│   ├── sprite_hash.py         # verifica che gli sprite protetti non cambino
-│   └── sprite_sheet.py        # esporta screenshots/v2-sprites.png
-├── reference/                 # riferimento del tappeto sa burra
-└── screenshots/               # catture dei test (mobile e desktop)
+│   ├── main.js                # avvio: colonna verticale, font, Game, UI, resize
+│   ├── ui.js                  # menu, impostazioni, HUD, popup, pausa, game over (conteggio animato), classifica demo
+│   ├── styles.css             # interfaccia cartoon: pulsanti arrotondati con bordo inferiore, pannelli blu notte, oro
+│   ├── config.js              # TUTTI i valori di punteggio, fiamma, difficoltà e mondo (invariati dalla v2)
+│   ├── bus.js                 # piccolo emettitore di eventi gioco <-> interfaccia
+│   ├── game/
+│   │   ├── sim.js             # simulazione pura (porting 1:1 della logica v2): passo fisso 1/120 s, collisioni, punteggio, registro
+│   │   ├── game.js            # ciclo rAF, input (swipe/tocco/tastiera), audio, HUD, qualità adattiva
+│   │   ├── world3d.js         # scena Three.js: cielo, luci, nebbia, strada, villaggio, oggetti, particelle, camere
+│   │   ├── models.js          # modelli low-poly generati via codice (case, giardini, festoni, botti, capre, fasci, pistola, colline)
+│   │   ├── kit.js             # fusione di primitive in un'unica geometria a colori per vertice (+ finta occlusione)
+│   │   ├── tex3d.js           # texture su canvas: acciottolato, doghe, tappeti Sa Burra, bagliori, ombre
+│   │   ├── particles.js       # scintille/fumo/vino (Points preallocati) e schegge di legno (InstancedMesh)
+│   │   ├── character.js       # billboard del personaggio: compone player/torch/flame ORIGINALI su una canvas
+│   │   └── texshim.js         # finto "scene.textures" per eseguire le funzioni di disegno originali senza Phaser
+│   ├── systems/               # generator.js, rng.js, audio.js (+ interruttore musica), storage.js, nickname.js
+│   ├── art/                   # textures.js (player/torch/flame INVARIATI), textures2.js (pistola in mano), palette.js
+│   └── assets/fonts3/         # Lilita One e Baloo 2 (SIL OFL 1.1), woff2 latino
+├── tests/                     # generator.test.mjs, e2e.py, sprite_hash.py, perf.py
+├── reference/                 # tappeto sa burra e immagine di riferimento v3
+└── screenshots/               # catture dei test (prefisso v3-)
 ```
 
-**Stack:** Phaser 3.90 (WebGL con ripiego su Canvas), JavaScript ES modules, Vite. Niente CDN: Phaser finisce nel bundle. A runtime nessun altro servizio esterno.
+**Stack:** Three.js 0.186 (WebGL), JavaScript ES modules, Vite. Phaser è stato rimosso. Niente CDN e nessun servizio esterno a runtime.
 
-**Peso della build:** circa 340 KB gzip di JS (quasi tutto Phaser), 4 KB di CSS, 37 KB di font. Nessuna immagine da scaricare.
+**Peso della build:** circa 175 KB gzip di JS (quasi tutto Three.js), 6 KB di CSS, 49 KB di font. Nessuna immagine da scaricare: tutto è generato via codice.
+
+**Logica separata dalla grafica.** `sim.js` non sa nulla del rendering: emette eventi (`spawn`, `barrel`, `carpet`, `shot`, `die`, ...) che `world3d.js` trasforma in modelli, particelle e scosse. Lo stesso modulo potrà girare sul server per il replay anti-cheat (Fase 3). Unità: 10 px della v2 = 1 m = 1 unità 3D; corsie, hitbox, velocità e generatore sono quelli della v2.
+
+**Prestazioni mobile:**
+
+- geometrie fuse per prefabbricato (una casa = 1 mesh con 2 materiali), riutilizzo a nastro di case, lampioni, festoni e oggetti (pool), nessuna allocazione per frame nel ciclo;
+- particelle in buffer preallocati, schegge in `InstancedMesh`, ombre finte (blob) invece delle shadow map;
+- risoluzione limitata a 1,75x; se per 2 s i frame superano 24 ms, la risoluzione scende a passi di 0,25 fino a 1x;
+- pausa automatica e niente rendering quando la pagina è in background.
 
 ---
 
-## Asset
+## Grafica e personaggio
 
-- **Grafica:** tutta la pixel art è disegnata via codice in `src/art/textures.js` su canvas a bassa risoluzione (circa 180 px di larghezza logica). Poi viene ingrandita di un fattore **intero** di pixel fisici con filtro nearest-neighbour, così resta nitida su ogni schermo. Comprende:
-  - il portatore della frakkera con 4 frame di corsa, la frakkera stessa e la fiamma animata (6 frame);
-  - scintille, braci e fumo;
-  - le case in pietra con tetti in coppi, finestre accese, porte e lanterne, i vicoletti laterali e l'acciottolato;
-  - muretti a secco, pozzanghere, case che sporgono nel vicolo, capre;
-  - **v2:** tutti gli ostacoli in legno sono **botti da vino** tradizionali (vista 3/4, doghe bombate, cerchi di ferro scuro, legno caldo): botte in piedi, botte coricata su zeppe, gruppo di 5 botti, botte che rotola (4 frame); schegge, pezzi di cerchio e schizzi di vino quando si rompono;
-  - **v2:** 4 varianti di **tappeto Sa Burra** tessuto (rombi, zig-zag, righe, rombo centrale) nei colori rosso, bordeaux, senape e crema, con frange che si muovono;
-  - **v2:** pistola Broccu (pickup), pistola in mano (sprite separato sovrapposto al personaggio), vampata in 3 frame, colpo, fumo;
-  - i fasci di asfodelo e di ferula.
-- **Sprite protetti:** giocatore, frakkera e fiamma (`player()`, `torch()`, `flame()`) non sono stati toccati in v2; la verifica è negli hash di `tests/protected-sprites.baseline.json`. La fiamma ora ha scala costante (stessa dimensione dei pixel di tutto il resto): il livello del fuoco si legge dal raggio della luce, dalle scintille e dal tremolio sotto il 25%.
-- **Luce:** una maschera di oscurità blu notte con un "buco" morbido attorno alla fiamma. Il raggio dipende dal livello del fuoco e tremola. Sopra ci sono bagliori additivi su finestre, lanterne e materiali. Il costo è molto basso: niente shader e niente render texture a ogni frame.
-- **Audio:** tutto sintetizzato in `src/systems/audio.js`, quindi nessun file audio:
-  - passi, crepitio continuo del fuoco legato al livello della fiamma, raccolta, catena, "per un pelo", urto, pozzanghera (sfrigolio), capra, traguardo, game over, nuovo record;
-  - v2: tappeto (note che salgono lungo una scia), pistola raccolta, sparo, botte che si rompe, rimbalzo sulla pietra, "senza colpi", bonus sopravvivenza;
-  - musica d'atmosfera: bordone grave, vento notturno, note modali rade con eco e un battito che accelera con la corsa. Nessun cliché "folk sardo".
-- **Font:** Press Start 2P e VT323, licenza SIL Open Font License 1.1 (vedi `src/assets/fonts/FONTS-LICENSE.txt`).
-- **Fase 2:** per sostituire la grafica con sprite sheet disegnati a mano basta caricare PNG con le stesse chiavi (`player`, `flame`, `muretto`, ...) nel `preload` della scena. Le dimensioni attese sono quelle in `textures.js`.
+- **Personaggio (regola vincolante):** giocatore, frakkera e fiamma sono **gli sprite originali** prodotti da `player()`, `torch()` e `flame()` (non modificati, hash verificati), con la stessa animazione di corsa a 4 frame, la fiamma a 6 frame e la stessa oscillazione della frakkera. Vengono composti su una canvas 72x88 esattamente come nella v2 e mostrati come **billboard** rivolto alla camera, con filtro nearest e senza mipmap. Aggiunte permesse: scala, ombra a macchia, luce calda puntiforme sulla punta della fiamma, scintille e fumo 3D.
+- **Posa del game over (compromesso da decidere):** non avendo pixel nuovi, il personaggio caduto è lo stesso sprite ruotato di circa 83° (sdraiato), con la frakkera ruotata e spenta accanto e il fumo che sale dalla punta. La camera si alza e lo inquadra dall'alto; gli ostacoli vicini vengono nascosti per pulizia. Se si vuole una vera posa "a terra" serve un nuovo frame disegnato a mano (oggi escluso dalla regola).
+- **Villaggio:** case in intonaco caldo e pietra con tetti in coppi, cantonali, finestre con persiane (alcune accese), fioriere, balconi, lanterne, rampicanti, giardini; festoni di bandierine e drappi viola/rossi; colline, paese sul colle, chiesa con campanile e cipressi in lontananza; cielo a gradiente con sole o luna, nuvole e stelle.
+- **Atmosfere:** menu al crepuscolo viola-blu con luna; corsa al tramonto dorato; game over più scuro. Passaggio graduale tra le tre.
+- **Oggetti:** botti in 3D (in piedi, coricate su zeppe, gruppi, che rotolano) che esplodono in doghe, cerchi, schizzi di vino e polvere; tappeti Sa Burra galleggianti con texture tessuta (4 varianti), bagliore ed effetto di raccolta; pistola Broccu dorata con anello luminoso, vampata, scia del colpo e scossa della camera; fasci di asfodelo e ferula; muretti a secco, pozzanghere, capre, vicoli stretti.
+- **Audio:** tutto sintetizzato in `src/systems/audio.js`, come in v2; in v3 la musica si può spegnere separatamente (IMPOSTAZIONI).
+- **Font:** Lilita One (titoli) e Baloo 2 (testi), licenza SIL Open Font License 1.1 (`src/assets/fonts3/FONTS-LICENSE.txt`).
 
 ---
 
@@ -218,6 +210,14 @@ Il gioco si adatta da solo alla dimensione dell'iframe. In un iframe, la tastier
 
 ---
 
+## Novità v3 (0.3.0)
+
+1. **Mondo 3D in tempo reale** (Three.js): camera in terza persona dietro al portatore, strada lastricata a 3 corsie verso l'orizzonte, stile cartoon low-poly, luce del tramonto, nebbia, ombre morbide finte.
+2. **Personaggio invariato** come billboard pixel art (vedi sopra), con luce sulla fiamma e scintille 3D.
+3. **Villaggio sardo** ridisegnato, botti/tappeti/pistola/fasci in 3D con effetti di rottura e raccolta.
+4. **Interfaccia nuova** non pixel: logo a lettere grosse con fascia tessuta, GIOCA ORA giallo-arancio, quattro tasti (CLASSIFICA, COME SI GIOCA, IS FRAKKERAS, IMPOSTAZIONI con audio e musica), targa del record; HUD con pausa rotonda, barra della fiamma a pillola, pannelli per punti/record, tappeti e colpi; game over "FIAMMA SPENTA" con conteggio animato, nastro NUOVO RECORD!, righe con icone, nickname, RIPROVA grande, CLASSIFICA e MENU; animazioni di entrata.
+5. **Tutto il gameplay della v2 è invariato** (stessa simulazione, stesso generatore, stessi punteggi e tetti, stesso registro v2).
+
 ## Novità v2 (0.2.0)
 
 1. **Botti da vino** al posto di botti/ceste/carri: botte singola, coricata, gruppi, botte che rotola. Sempre una strada senza pistola (testato).
@@ -255,8 +255,8 @@ Il gioco si adatta da solo alla dimensione dell'iframe. In un iframe, la tastier
 - [x] "LA CLASSIFICA DEL FUOCO" (DEMO, locale): posizione, nickname, punti, data; primi 3 evidenziati, la propria voce evidenziata; azzeramento.
 - [x] Record personale persistente in localStorage, scritto solo se migliore, con ripiego in memoria se lo storage è bloccato.
 - [x] Audio WebAudio completo, attivato solo dopo un gesto dell'utente (rispetta le regole di autoplay e lo sblocco su iOS) e sospeso in background.
-- [x] Mobile-first in verticale; su desktop una colonna centrata. Scala pixel-perfect e area sicura per il notch (`viewport-fit=cover`).
-- [x] Testato in Chrome headless (mobile + desktop; in v2 110 controlli) e in Firefox (smoke test).
+- [x] Mobile-first in verticale; su desktop una colonna centrata. Area sicura per il notch (`viewport-fit=cover`).
+- [x] Testato in Chrome headless (mobile + desktop; in v3 118 controlli). La v2 era stata provata anche in Firefox; la v3 non ancora.
 
 ## Da sviluppare
 
@@ -291,8 +291,8 @@ Un punteggio calcolato solo dal client si può sempre falsificare. Per questo il
 
 - **seed deterministico** (`systems/rng.js`): lo stesso seed genera lo stesso percorso;
 - **simulazione a passo fisso**: `tick()` a 1/120 s;
-- **registro degli input**: elenco `[passo, direzione]`, raccolto in `GameScene.inputs`. In v2 anche gli spari: `[passo, 'F']`.
-- **registro degli eventi** (v2): `GameScene.events`, elenco `[passo, codice, valore]`. Codici: `f` fascio raccolto, `x` catena, `c` tappeto, `p` pistola, `b` botte distrutta, `h` urto, `w` pozzanghera, `n` per un pelo, `m` traguardo, `s` sopravvivenza, `cap` punti tagliati dal tetto. Il game over passa `log: {v: 2, seed, steps, inputs, events}`: il server potrà rigiocare la partita e confrontare evento per evento, non solo il totale.
+- **registro degli input**: elenco `[passo, direzione]`, raccolto in `Sim.inputs` (`src/game/sim.js`). In v2 anche gli spari: `[passo, 'F']`.
+- **registro degli eventi** (v2): `Sim.events`, elenco `[passo, codice, valore]`. Codici: `f` fascio raccolto, `x` catena, `c` tappeto, `p` pistola, `b` botte distrutta, `h` urto, `w` pozzanghera, `n` per un pelo, `m` traguardo, `s` sopravvivenza, `cap` punti tagliati dal tetto. Il game over passa `log: {v: 2, seed, steps, inputs, events}`: il server potrà rigiocare la partita e confrontare evento per evento, non solo il totale.
 
 **Note anti-cheat v2:**
 
@@ -349,7 +349,8 @@ Un punteggio calcolato solo dal client si può sempre falsificare. Per questo il
 - Testato in Chrome headless (rendering software) e in Firefox. **Safari/iOS non è stato verificato su un dispositivo reale.** Il codice tiene già conto delle particolarità iOS (sblocco audio nel gesto, `visualViewport`, niente zoom o scroll), ma resta da provare in Fase 4.
 - Su schermi in orizzontale il gioco resta una colonna verticale centrata. Non c'è un avviso "ruota il telefono", che può arrivare in Fase 4.
 - Il 2,6% circa dei tappeti si trova in scie fuori dal sentiero che a velocità alta possono essere irraggiungibili senza rischi: è voluto (scelta rischio/ricompensa), ma si può ridurre con `CARPETS.OFFPATH_SHARE`.
-- I popup centrali (per esempio "PISTOLA BROCCU!" e "LA FIAMMA RESISTE") possono sovrapporsi se capitano nello stesso istante.
-- I font sono in woff (non woff2) perché nell'ambiente di build mancava il compressore brotli: circa 37 KB in totale.
-- La grafica è generata via codice: è coerente e leggera, ma più semplice di sprite fatti a mano (obiettivo della Fase 2).
+- La grafica 3D è generata via codice (nessun modello o texture esterni): leggera e coerente, ma meno ricca di asset fatti a mano.
+- Il personaggio è un billboard 2D in un mondo 3D: visto di lato nei cambi di corsia resta "piatto" per scelta (regola sugli sprite originali). La posa del game over è un compromesso (sprite ruotato).
+- Prestazioni misurate solo in Chrome headless con WebGL software (SwiftShader): lì il tempo di frame è dominato dalla CPU che emula la GPU (circa 50-110 ms) e non è rappresentativo; il lavoro JavaScript per frame è di circa 3-4 ms (p95). Circa 250-330 draw call e 160-180 mila triangoli in corsa: vanno verificati su telefoni reali di fascia media; se serve si possono ridurre i dettagli delle case lontane.
+- Il bundle JS supera i 500 KB non compressi (Three.js): Vite lo segnala, ma compresso sono circa 175 KB.
 - Il testo sulla tradizione è volutamente breve e generale e va validato con gli organizzatori.

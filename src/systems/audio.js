@@ -46,7 +46,7 @@ class AudioSys {
     this.master.connect(comp); comp.connect(c.destination);
 
     this.sfx = c.createGain(); this.sfx.gain.value = 0.8; this.sfx.connect(this.master);
-    this.music = c.createGain(); this.music.gain.value = 0.55; this.music.connect(this.master);
+    this.music = c.createGain(); this.music.gain.value = this.musicOn === false ? 0 : 0.55; this.music.connect(this.master);
 
     // rumore bianco riutilizzabile
     const len = c.sampleRate * 2;
@@ -196,6 +196,10 @@ class AudioSys {
   setMuted(m) {
     this.muted = m;
     if (this.master) this.master.gain.setTargetAtTime(m ? 0 : 0.9, this.ctx.currentTime, 0.05);
+  }
+  setMusic(on) {
+    this.musicOn = on;
+    if (this.music) this.music.gain.setTargetAtTime(on ? 0.55 : 0, this.ctx.currentTime, 0.08);
   }
   setIntensity(v, tempo = 0) { this.intensity = v; this.tempo = tempo; }
   setHidden(h) {

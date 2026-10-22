@@ -179,6 +179,7 @@ function carpets(scene) {
 }
 
 // -------------------------------------------------------------- pistola
+export function pistolTextures(scene) { return pistol(scene); }
 function pistol(scene) {
   // a terra, 18x12 (2 frame per il luccichio)
   let { tex, ctx } = canvasTex(scene, 'pistola', 18, 12, 2);
