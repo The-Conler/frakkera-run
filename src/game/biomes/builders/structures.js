@@ -45,7 +45,7 @@ export function buildViaduct(terrainY = () => -6) {
 
 // ------------------------------------------------------------------ galleria (segmento)
 // profilo a volta: pareti quasi verticali fino a 3.2 m, calotta fino a ~9.6 m
-const PROF_N = 26;
+const PROF_N = 26;   // (profilo di riferimento)
 export const TUNNEL = { halfW: 6.8, wallH: 3.2, crown: 6.4 };
 function profilePoint(t) {               // t 0..1 da pavimento sinistro a pavimento destro
   const { halfW, wallH, crown } = TUNNEL;
@@ -58,13 +58,14 @@ function profilePoint(t) {               // t 0..1 da pavimento sinistro a pavim
   const nx = Math.cos(a) / halfW, ny = Math.sin(a) / crown, l = Math.hypot(nx, ny);
   return [x, y, nx / l, ny / l];
 }
-const PAL_ROCK = ['#6b6e68', '#5c605c', '#7a7a70', '#585a56', '#8a8676', '#6a7068', '#77746a'];
-const PAL_BLUE = ['#1c2a8a', '#2433a8', '#2f45c8', '#3a52d8', '#4a66e8', '#26359a'];
-const PAL_GOLD = ['#c08a4a', '#a8743a', '#d8a060', '#8a5a2e', '#b88a58'];
+const PAL_ROCK = ['#62706c', '#56625f', '#6f7670', '#525c5a', '#7d8078', '#5f6e6a', '#6c726c'];   // grigio-verde come nella foto
+const PAL_BLUE = ['#0a1248', '#101d6a', '#172c92', '#1f3fc0', '#2a58ea', '#0d175a', '#1a36b0'];   // dal blu notte al blu elettrico
+const PAL_GOLD = ['#b8742e', '#9a5a26', '#d08a42', '#7a4620', '#a86a34'];   // ocra / ruggine come nella foto
 // lamps: [[W, x, y]] posizioni delle lampade (per la luce "cotta" nei vertici)
 export function tunnelSegment(W0, len, type = 'rock', lamps = []) {
-  const nr = Math.max(2, Math.ceil(len / 0.9) + 1);
   const blue = type === 'blue';
+  const PROF_N = blue ? 44 : 26;                       // la galleria blu ha piu' facce (lastre piu' piccole)
+  const nr = Math.max(2, Math.ceil(len / (blue ? 0.62 : 0.9)) + 1);
   const amp = blue ? 1.15 : 0.75;
   const P = []; const col = []; const glow = [];
   const ring = [];
@@ -75,8 +76,13 @@ export function tunnelSegment(W0, len, type = 'rock', lamps = []) {
       const t = i / PROF_N;
       const [x0, y0, nx, ny] = profilePoint(t);
       let d = fbm(W / 3.2, t * 9, blue ? 5 : 2, 3) * amp + noise3(W / 1.1, t * 30, 9) * amp * 0.35;
-      if (blue) d += Math.max(0, noise3(W / 6, t * 4, 3)) * 0.9;     // grandi lastre sporgenti
-      d = Math.max(-0.7, Math.min(1.2, d));
+      if (blue) {
+        // grandi lastre e massi sfaccettati: rumore "a gradini" => salti netti tra piani inclinati diversi
+        const q = noise3(W / 2.4, t * 10, 31) * 0.5 + 0.5, q2 = noise3(W / 5.5, t * 5, 3) * 0.5 + 0.5;
+        d = d * 0.45 + (Math.floor(q * 4) / 4) * 1.5 - 0.55 + (Math.floor(q2 * 3) / 3) * 0.8 + noise3(W / 0.8, t * 36, 9) * 0.22;
+      }
+      d = Math.max(-0.7, Math.min(blue ? 2.1 : 1.2, d));
+      if (blue) d = Math.max(d, -0.95 + 0.3 * Math.abs(t - 0.5));
       const edge = y0 < 0.3 ? y0 / 0.3 : 1;                            // al pavimento la roccia tocca il suolo
       const x = x0 + nx * d * edge, y = Math.max(0, y0 + ny * d * edge);
       row.push([x, y, -W]);
@@ -85,8 +91,9 @@ export function tunnelSegment(W0, len, type = 'rock', lamps = []) {
       let g1 = 0, g2 = 0;
       if (blue) {
         const goldT = noise3(W / 7, t * 5 + (x < 0 ? 2.5 : 0), 13) * 0.5 + 0.5 + (x < 0 ? 0.12 : -0.05);
-        if (goldT > 0.62) { _c.set(pickN(PAL_GOLD, n)); g2 = 0.05; }
-        else { _c.set(pickN(PAL_BLUE, n)); if (n2 > 0.78) _c.lerp(_c2.set('#a9b8ff'), 0.55); g2 = 0.55 + n2 * 0.6; }
+        if (goldT > 0.68) { _c.set(pickN(PAL_GOLD, n)).multiplyScalar(0.8); g2 = 0.22; }
+        else { _c.set(pickN(PAL_BLUE, n)); if (n2 > 0.82) _c.lerp(_c2.set('#4f9cff'), 0.45); g2 = 0.3 + n2 * 0.8; }
+        if (d < -0.1) { _c.multiplyScalar(0.45); g2 *= 0.35; }       // le fessure tra le lastre restano scure
         if (n2 < 0.15) _c.multiplyScalar(0.55);
       } else {
         _c.set(pickN(PAL_ROCK, n));
@@ -136,11 +143,27 @@ export function tunnelProps(W0, len, type, lamps, o = {}) {
     if (lw < W0 || lw >= W0 + len) continue;
     const z = -(lw - W0), s = Math.sign(lx);
     k.add(G.box(0.3, 0.3, 0.6), '#2a2a2a', { x: lx - s * 0.12, y: ly + 0.25, z });
-    k.add(G.box(0.22, 0.32, 0.5), type === 'blue' ? '#dfe6ff' : '#ffe6b8', { x: lx, y: ly, z, unlit: true });
+    k.add(G.box(0.22, 0.32, 0.5), type === 'blue' ? '#ffc070' : '#ffe6b8', { x: lx, y: ly, z, unlit: true });
     k.add(G.cyl(0.03, 0.03, 3.5, 4), '#222', { x: lx - s * 0.1, y: ly + 2, z });
   }
-  if (o.frames) for (let z = -r.range(2, 5); z > -len; z -= o.frames) {   // centine di legno (solo vicino all'ingresso)
-    for (const s of [-1, 1]) k.add(G.box(0.4, 7.2, 0.4), r.pick(['#6b4a2e', '#5a3f28']), { x: s * 6.0, y: 3.6, z, rz: s * 0.04, vary: 0.15 });
+  if (type === 'blue') {                // botti e massi ai lati dei binari, fuori dalle corsie
+    for (let z = -r.range(0, 6); z > -len; z -= r.range(5, 11)) {
+      const s = r.chance(0.5) ? 1 : -1;
+      if (r.chance(0.45)) { const n = 1 + r.int(2); for (let q = 0; q < n; q++) k.add(G.cyl(0.42, 0.42, 1.05, 10), r.pick(['#6b4426', '#5a3820', '#7a5030']), { x: s * (5.1 + q * 0.2), y: 0.53, z: z - q * 0.95, vary: 0.12 }); }
+      else k.add(G.ico(r.range(0.4, 0.8), 0), r.pick(['#14205e', '#1c2f86', '#0f1748']), { x: s * r.range(4.9, 5.6), y: 0.25, z, sy: 0.7, flat: true, vary: 0.2 });
+    }
+  }
+  if (o.frames) for (let z = -r.range(2, 5); z > -len; z -= o.frames) {   // centine di legno
+    const th = type === 'blue' ? 0.26 : 0.4, hw = type === 'blue' ? 5.5 : 6.0;
+    if (type === 'blue') {   // centina a tre pezzi che segue la volta, tutta sopra l'altezza della camera
+      for (const s of [-1, 1]) {
+        k.add(G.box(th, 6.4, th), r.pick(['#6b4a2e', '#5a3f28']), { x: s * hw, y: 3.2, z, vary: 0.15 });
+        k.add(G.box(th, 2.7, th), '#5a3f28', { x: s * 4.55, y: 7.5, z, rz: s * 0.78, vary: 0.1 });
+      }
+      k.add(G.box(7.4, th * 1.1, th * 1.1), '#5a3f28', { x: 0, y: 8.45, z, vary: 0.1 });
+      continue;
+    }
+    for (const s of [-1, 1]) k.add(G.box(th, 7.2, th), r.pick(['#6b4a2e', '#5a3f28']), { x: s * hw, y: 3.6, z, rz: s * 0.04, vary: 0.15 });
     k.add(G.box(12.6, 0.45, 0.45), '#5a3f28', { x: 0, y: 7.4, z, vary: 0.1 });
   }
   return k.lit.length || k.unlit.length ? k.build() : null;

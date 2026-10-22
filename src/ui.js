@@ -8,6 +8,7 @@ import { audio } from './systems/audio.js';
 import * as store from './systems/storage.js';
 import { validateNick, cleanNick } from './systems/nickname.js';
 import { carpetDataURL } from './game/tex3d.js';
+import { BIOMES } from './game/biomes/config.js';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => Array.from(document.querySelectorAll(s));
@@ -349,11 +350,32 @@ export function initUI(game) {
   $('#loading').classList.add('hidden');
   show('menu');
 
+  // v5: menu sviluppatore nascosto (?dev=1): salto diretto a un ambiente di Gadoni
+  const qs = new URLSearchParams(location.search);
+  if (qs.has('dev')) {
+    const box = document.createElement('div');
+    box.id = 'dev-maps';
+    box.style.cssText = 'position:fixed;left:8px;right:8px;top:calc(env(safe-area-inset-top) + 64px);z-index:60;display:flex;flex-wrap:wrap;gap:6px;justify-content:center;font:600 12px system-ui;';
+    const cur = qs.get('map') || 'village';
+    for (const b of BIOMES) {
+      const a = document.createElement('a');
+      const q = new URLSearchParams(location.search); q.set('map', b.id);
+      a.href = '?' + q.toString(); a.textContent = `${b.from} m · ${b.id}`; a.title = b.name;
+      a.style.cssText = `padding:6px 9px;border-radius:10px;text-decoration:none;color:#fff;background:${b.id === cur ? '#e8590c' : 'rgba(20,24,60,.78)'};`;
+      box.appendChild(a);
+    }
+    document.body.appendChild(box);
+    const menu = $('#scr-menu');
+    const sync = () => { box.style.display = menu.classList.contains('hidden') ? 'none' : 'flex'; };
+    new MutationObserver(sync).observe(menu, { attributes: true, attributeFilter: ['class'] }); sync();
+  }
+
   if (new URLSearchParams(location.search).has('test')) {
     window.__frk = {
       state: () => game.debugState(), ui: () => state,
       texCanvas: (k) => game.world.character.store.textures.get(k).canvas,
       perf: () => game.perfStats(),
+      env: () => game.world.env.debug(),
       game,
     };
   }

@@ -21,7 +21,9 @@ async def main():
             errs = []
             pg.on('pageerror', lambda e: errs.append(str(e)))
             pg.on('console', lambda m: errs.append(m.text) if m.type == 'error' else None)
-            await pg.goto(URL + f'?test=1&fixeddpr&map={mp}')
+            mp, _, at = mp.partition('@')
+            await pg.goto(URL + f'?test=1&fixeddpr&map={mp}' + (f'&at={at}' if at else ''))
+            if at: mp = f'{mp}-at{at}'
             await pg.wait_for_function('window.__frk && document.querySelector("#loading").classList.contains("hidden")', timeout=30000)
             await pg.wait_for_function('window.__frk.game.world.char3d.ready || window.__frk.game.world.char3d.failed', timeout=30000)
             await asyncio.sleep(1.5)

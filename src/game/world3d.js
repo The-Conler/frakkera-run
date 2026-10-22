@@ -558,6 +558,8 @@ export class World {
       if (this.shake <= 0) this.shakeAmp = 0;
     }
     this.camera.lookAt(this.camLook);
+    // solo test/screenshot (?test): inquadratura libera relativa alla camera di gioco
+    if (this.camOverride) { const o = this.camOverride; this.camera.position.set(o[0], o[1], this.camPos.z + o[2]); this.camera.lookAt(o[3], o[4], this.camPos.z + o[5]); }
     this.camera.updateMatrixWorld();
     const camZ = this.camera.position.z;
     // cielo, lontananze
@@ -585,11 +587,11 @@ export class World {
     let burnLit = false;
     if (this.burnT >= 0) {
       this.burnT += dt;
-      const t = Math.min(1, this.burnT / 0.85), e = t * t * (3 - 2 * t);
-      c3.setBurn?.((this.burnKeep ?? 0.4) + (0.1 - (this.burnKeep ?? 0.4)) * e, Math.max(0, Math.min(1, (this.burnT - 0.45) / 0.9)));
-      burnLit = this.burnT < 0.95;
+      const t = Math.min(1, this.burnT / 0.6), e = t * t * (3 - 2 * t);
+      c3.setBurn?.((this.burnKeep ?? 0.4) + (0.1 - (this.burnKeep ?? 0.4)) * e, Math.max(0, Math.min(1, (this.burnT - 0.3) / 0.8)));
+      burnLit = this.burnT < 0.3;          // la fiamma divampa un attimo, poi resta la brace che consuma il fascio
       if (this.burnT > 0.5 && this.burnT < 3.2 && Math.random() < dt * 14) this.norm.emit(px + (Math.random() - 0.5) * 0.8, 1.2 + Math.random() * 1.6, pz + (Math.random() - 0.5) * 0.6, (Math.random() - 0.5) * 0.5, 1 + Math.random(), (Math.random() - 0.5) * 0.4, 1.6, 0.7, 2.4, Math.random() < 0.5 ? COL.smoke : COL.smokeD, 0.5, -0.2, 0.5);
-      if (this.burnT < 1.0 && Math.random() < dt * 30) { const t2 = this.tipW; this.add.emit(t2.x + (Math.random() - 0.5) * 0.5, t2.y, t2.z, (Math.random() - 0.5) * 2, 1 + Math.random() * 2, (Math.random() - 0.5), 0.5, 0.2, 0.03, COL.ember, 1, -0.5, 0.8); }
+      if (this.burnT < 0.7 && Math.random() < dt * 30) { const t2 = this.tipW; this.add.emit(t2.x + (Math.random() - 0.5) * 0.5, t2.y, t2.z, (Math.random() - 0.5) * 2, 1 + Math.random() * 2, (Math.random() - 0.5), 0.5, 0.2, 0.03, COL.ember, 1, -0.5, 0.8); }
     } else if (use3d && c3.setFuel) c3.setFuel(view.cam === 'menu' ? 1 : fuelF0, dt);
     if (use3d) {
       c3.update(dt, view.char, px, pz);

@@ -92,10 +92,11 @@ export const BIOMES = [
     sides: 'tunnel', tunnel: 'blue',
     landmarks: ['mineExit'],
     skins: { botte: 'barrel', botti: 'oreCart', bottecoricata: 'timbers', rollbarrel: 'barrel', muretto: 'rubbleBlue', goat: 'trolley', pozza: 'bluePuddle', narrow: 'tunnelBlue' },
-    decor: { banners: false, bulbs: false, lanterns: false, mineLamps: 60 },
+    decor: { banners: false, bulbs: false, lanterns: false, mineLamps: 18, motes: true },
     // le pareti minerali hanno luce propria (non dipende dalla frakkera)
-    mood: { top: '#05060a', mid: '#05060a', hor: '#0a0c18', fog: '#060a24', hemiS: '#6f86ff', hemiG: '#101430', hemiI: 0.32, dirC: '#000000', dirI: 0, moon: 0, sun: 0, far: '#000000', fogNear: 10, fogFar: 95 },
-    light: { flameDist: 22, flameK: 1.7, mineral: 1, lamp: 0.35, darkByFuel: 0.6, tunnel: 1, exposure: 1.1 },
+    // riempimento blu forte (luce di contorno blu su personaggio e frakkera), nebbia blu in profondita'
+    mood: { top: '#05060a', mid: '#05060a', hor: '#0a0c18', fog: '#030820', hemiS: '#3f6cff', hemiG: '#0c1640', hemiI: 0.55, dirC: '#5a8cff', dirI: 0.7, moon: 0, sun: 0, far: '#000000', fogNear: 12, fogFar: 105 },
+    light: { flameDist: 20, flameK: 1.25, mineral: 1, lamp: 0.6, darkByFuel: 0.35, tunnel: 1, exposure: 1.15 },
     ambience: { wind: 0, water: 0.05, drips: 1, birds: 0, bells: 0, cave: 1 },
     transitionOut: 16,          // uscita dalla miniera: di nuovo all'aperto
   },

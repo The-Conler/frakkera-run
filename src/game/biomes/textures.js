@@ -81,9 +81,9 @@ export function stoneTrailTexture() {
 // ghiaia grigia del piazzale della miniera, con traversine dei binari
 export function gravelTexture({ floor = false, blue = false } = {}) {
   const S = 512; const [c, ctx] = cv(S, S); const r = rng(floor ? 57 : 44);
-  const base = blue ? '#2a2f3e' : floor ? '#56595a' : '#8d8a84';
+  const base = blue ? '#252b40' : floor ? '#56595a' : '#8d8a84';
   ctx.fillStyle = base; ctx.fillRect(0, 0, S, S);
-  const cols = blue ? ['#353b52', '#2a3046', '#463e3a', '#3c4566', '#5a4a3a'] : floor ? ['#626664', '#4c504f', '#6e706a', '#5a5550', '#4a5452'] : ['#a19d96', '#7f7b74', '#b3aea5', '#96918a', '#6f6b65', '#c0bbb1'];
+  const cols = blue ? ['#36405c', '#2a3250', '#4a4038', '#3a4878', '#5a4a36'] : floor ? ['#626664', '#4c504f', '#6e706a', '#5a5550', '#4a5452'] : ['#a19d96', '#7f7b74', '#b3aea5', '#96918a', '#6f6b65', '#c0bbb1'];
   speckle(ctx, S, r, 5200, cols, 2, 5, 0.9);
   stones(ctx, S, r, 120, cols, 2, 5, 'rgba(20,20,20,0.35)');
   // traversine sotto i binari (corsia centrale e destra), passo 1 m
@@ -93,8 +93,8 @@ export function gravelTexture({ floor = false, blue = false } = {}) {
     ctx.fillStyle = r.pick(blue ? ['#4a3a2c', '#3f3226'] : ['#6b5136', '#5e4630', '#77593a']); ctx.fillRect(S * u - 31, y, 62, 14);
   }
   ctx.globalAlpha = 1;
-  if (floor || blue) { // pozze e zone bagnate
-    for (let i = 0; i < 10; i++) { ctx.fillStyle = blue ? 'rgba(70,110,255,0.18)' : 'rgba(30,40,45,0.35)'; const x = r() * S, y = r() * S; wrapDraw(S, x, y, (X, Y) => blob(ctx, X, Y, r.range(20, 60), r.range(10, 26), r() * 3)); }
+  if (floor || blue) { // pozze e zone bagnate (nella blu: zone scure lucide, il riflesso e' nello shader)
+    for (let i = 0; i < 10; i++) { ctx.fillStyle = blue ? 'rgba(10,14,34,0.35)' : 'rgba(30,40,45,0.35)'; const x = r() * S, y = r() * S; wrapDraw(S, x, y, (X, Y) => blob(ctx, X, Y, r.range(20, 60), r.range(10, 26), r() * 3)); }
   }
   if (blue) { speckle(ctx, S, r, 400, ['#6f8cff', '#9db0ff', '#c59a52'], 1, 3, 0.7); }
   return tex(c);

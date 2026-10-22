@@ -28,9 +28,10 @@ const AMB_KEYS = ['wind', 'water', 'drips', 'birds', 'bells', 'cave'];
 function groundMat(map, o = {}) {
   const P = o.phong ? THREE.MeshPhongMaterial : THREE.MeshLambertMaterial;
   const m = new P({ map, color: o.color || '#ffffff', ...(o.phong ? { specular: o.specular || '#8890a0', shininess: o.shininess || 60 } : {}) });
-  const u = { uMapB: { value: o.mapB || map }, uZ0: { value: 0 }, uZ1: { value: 1 }, uSX: { value: o.sx ?? 1 / 11 }, uSZ: { value: o.sz ?? 1 / 11 }, uX0: { value: o.x0 ?? -5.5 }, uAbs: { value: o.abs ? 1 : 0 } };
+  const u = { uWet: { value: 1 }, uMapB: { value: o.mapB || map }, uZ0: { value: 0 }, uZ1: { value: 1 }, uSX: { value: o.sx ?? 1 / 11 }, uSZ: { value: o.sz ?? 1 / 11 }, uX0: { value: o.x0 ?? -5.5 }, uAbs: { value: o.abs ? 1 : 0 } };
   m.userData.u = u;
   if (o.mapB) m.defines = { BLEND: '' };
+  if (o.wet) m.defines = { ...(m.defines || {}), WET: '' };
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, u);
     sh.vertexShader = 'varying vec3 vWP;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n  vWP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
@@ -43,8 +44,24 @@ function groundMat(map, o = {}) {
         sA = mix(sA, sB, kb);
       #endif
       diffuseColor *= sA;`);
+    if (o.wet) {
+      // pavimento bagnato: pozze lucide che riflettono il blu delle pareti (fresnel) + riflesso caldo dalla fiamma (specular Phong)
+      sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        vec2 pq = vWP.xz * vec2(0.9, 0.55);
+        float pn = sin(pq.x * 3.1 + sin(pq.y * 1.7) * 2.0) * 0.5 + sin(pq.y * 2.3 + pq.x * 1.3 + sin(pq.x * 0.7)) * 0.5;
+        float puddle = smoothstep(0.25, 0.6, pn) * (1.0 - smoothstep(0.35, 0.65, sA.g));
+        float fr = pow(1.0 - clamp(abs(dot(normalize(vViewPosition), normal)), 0.0, 1.0), 2.0);
+        diffuseColor.rgb *= mix(1.0, 0.45, puddle);                  // le pozze sono scure come uno specchio
+        float rip = sin(vWP.z * 3.0 + vWP.x * 0.8) * 0.5 + 0.5;
+        totalEmissiveRadiance += vec3(0.03, 0.09, 0.36) * (0.08 + puddle * (0.25 + 0.55 * rip * rip)) * (0.3 + fr * 1.2) * uWet;
+        float streak = exp(-pow(abs(abs(vWP.x) - 5.4) * 0.9, 2.0));
+        totalEmissiveRadiance += vec3(0.9, 0.5, 0.18) * streak * puddle * fr * 0.35 * uWet;`)
+        .replace('#include <lights_phong_fragment>', `#include <lights_phong_fragment>
+        material.specularShininess = mix(40.0, 160.0, puddle); material.specularStrength = mix(0.5, 1.6, puddle);`);
+      sh.fragmentShader = 'uniform float uWet;\n' + sh.fragmentShader;
+    }
   };
-  m.customProgramCacheKey = () => (o.mapB ? 'gb' : 'g') + (o.phong ? 'p' : 'l');
+  m.customProgramCacheKey = () => (o.mapB ? 'gb' : 'g') + (o.phong ? 'p' : 'l') + (o.wet ? 'w' : '');
   return m;
 }
 function waterMat(normalMap, color, opacity = 0.84) {
@@ -64,17 +81,35 @@ function waterMat(normalMap, color, opacity = 0.84) {
   return m;
 }
 function tunnelMat(blue) {
-  const m = new THREE.MeshLambertMaterial({ vertexColors: true });
-  const u = { uLamp: { value: 0.5 }, uMineral: { value: 0 }, uLampCol: { value: new THREE.Color(blue ? '#d8e0ff' : '#ffd8a0') }, uMinCol: { value: new THREE.Color('#2f4cff') } };
+  // galleria blu: Phong (riflessi bagnati) + scintille minerali che brillano cambiando punto di vista
+  const m = blue ? new THREE.MeshPhongMaterial({ vertexColors: true, specular: '#3f6fe0', shininess: 38, flatShading: true }) : new THREE.MeshLambertMaterial({ vertexColors: true });
+  const u = { uLamp: { value: 0.5 }, uMineral: { value: 0 }, uLampCol: { value: new THREE.Color(blue ? '#d8e0ff' : '#ffe6c4') }, uMinCol: { value: new THREE.Color('#2f4cff') } };
   m.userData.u = u;
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, u);
-    sh.vertexShader = 'attribute vec2 aGlow;\nvarying vec2 vGlow;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vGlow = aGlow;');
-    sh.fragmentShader = 'uniform float uLamp; uniform float uMineral; uniform vec3 uLampCol; uniform vec3 uMinCol; varying vec2 vGlow;\n' + sh.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+    sh.vertexShader = 'attribute vec2 aGlow;\nvarying vec2 vGlow; varying vec3 vWP;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vGlow = aGlow;').replace('#include <project_vertex>', '#include <project_vertex>\n  vWP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    sh.fragmentShader = 'uniform float uLamp; uniform float uMineral; uniform vec3 uLampCol; uniform vec3 uMinCol; varying vec2 vGlow; varying vec3 vWP;\n'
+      + 'float hsh(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }\n'
+      + sh.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
       totalEmissiveRadiance += diffuseColor.rgb * uLampCol * (vGlow.x * uLamp * 1.5);
-      totalEmissiveRadiance += vGlow.y * uMineral * (diffuseColor.rgb * 1.25 + uMinCol * 0.16);`);
+      ${blue ? `
+      // bagliore minerale: piu' forte sulle facce rivolte verso la camera, buio nelle fessure
+      vec3 vd = normalize(cameraPosition - vWP);
+      vec3 fn = normalize(cross(dFdx(vWP), dFdy(vWP)));
+      float face = clamp(abs(dot(fn, vd)), 0.0, 1.0);
+      totalEmissiveRadiance += vGlow.y * uMineral * (diffuseColor.rgb * (0.12 + 1.25 * face * face * face) + uMinCol * 0.08 * face * face);
+      // scintille: celle di 12 cm, ognuna con una direzione casuale che "accende" il riflesso
+      vec3 cell = floor(vWP * 3.5);
+      float h = hsh(cell);
+      if (h > 0.7 && vGlow.y > 0.25) {
+        vec3 rd = normalize(vec3(hsh(cell + 1.7), hsh(cell + 3.1), hsh(cell + 5.3)) * 2.0 - 1.0);
+        float sp = pow(max(0.0, dot(rd, vd)), 10.0);
+        vec3 f = fract(vWP * 3.5) - 0.5; float dotm = 1.0 - smoothstep(0.08, 0.32, length(f));
+        totalEmissiveRadiance += vec3(0.65, 0.88, 1.0) * sp * dotm * 4.0 * uMineral;
+      }` : `
+      totalEmissiveRadiance += vGlow.y * uMineral * (diffuseColor.rgb * 1.25 + uMinCol * 0.16);`}`);
   };
-  m.customProgramCacheKey = () => 'tunnel';
+  m.customProgramCacheKey = () => 'tunnel' + (blue ? 'B' : 'R');
   return m;
 }
 // geometria di base lunga 1 m (scalata in z): piano largo w centrato in x
@@ -98,11 +133,13 @@ export class Env {
   constructor(world) {
     this.world = world; this.scene = world.scene; this.mats2 = world.mats2;
     this.markCache = new Map();
-    if (typeof window !== 'undefined') setTimeout(() => this.prewarm(), 2500);
+    if (typeof window !== 'undefined') setTimeout(() => this.prewarm(), 200);
     const dev = mapFromURL();
     this.dev = dev;
-    this.offset = dev ? dev.from : 0;           // salto di mappa (solo grafica)
-    this.menuB = dev ? dev.from + 4 : 20;
+    // salto di mappa (solo grafica): ?map=<id> e, opzionale, &at=<metri dentro l'ambiente>
+    const at = typeof location !== 'undefined' ? Math.max(0, +new URLSearchParams(location.search).get('at') || 0) : 0;
+    this.offset = dev ? Math.min(dev.to - 5, dev.from + at) : 0;
+    this.menuB = dev ? this.offset + 4 : 20;
     this.mode = 'attract'; this.anchor = 0;
     this.fade = 1;
     this.mats();
@@ -130,7 +167,7 @@ export class Env {
     };
     this.roadTex = { cobble: this.tex.cobble, trail: this.tex.trail, stoneTrail: this.tex.stoneTrail, gravel: this.tex.gravel, mineFloor: this.tex.mineFloor, blueFloor: this.tex.blueFloor };
     this.roadMat = {};
-    for (const k in this.roadTex) this.roadMat[k] = groundMat(this.roadTex[k], k === 'blueFloor' || k === 'mineFloor' ? { phong: true, shininess: k === 'blueFloor' ? 90 : 40, specular: k === 'blueFloor' ? '#9ab0ff' : '#606870' } : {});
+    for (const k in this.roadTex) this.roadMat[k] = groundMat(this.roadTex[k], k === 'blueFloor' || k === 'mineFloor' ? { phong: true, wet: k === 'blueFloor', shininess: k === 'blueFloor' ? 120 : 40, specular: k === 'blueFloor' ? '#c8d8ff' : '#606870' } : {});
     this.blendMats = new Map();
     this.shoulderMat = {
       walk: groundMat(this.tex.slab, { sx: 1 / WALK_W, sz: 1 / 2.9, x0: 5.5, abs: true }),
@@ -162,7 +199,7 @@ export class Env {
   blendMat(a, b) {
     const key = a + '>' + b;
     let m = this.blendMats.get(key);
-    if (!m) { m = groundMat(this.roadTex[a], { mapB: this.roadTex[b], phong: b === 'blueFloor' || b === 'mineFloor' || a === 'blueFloor' }); this.blendMats.set(key, m); }
+    if (!m) { m = groundMat(this.roadTex[a], { mapB: this.roadTex[b], phong: b === 'blueFloor' || b === 'mineFloor' || a === 'blueFloor', wet: b === 'blueFloor' || a === 'blueFloor', specular: '#a8b8e0', shininess: 90 }); this.blendMats.set(key, m); }
     return m;
   }
   // geometria varia unita (cordoli, terreni ai lati, binari, letto del fiume), lunga 1 m
@@ -177,7 +214,7 @@ export class Env {
     }
     if (g.right === 'water') one(80, 0.1, 8 + 40, -2.6, '#55744a');
     if (g.right === 'river') one(80, 0.1, 12 + 40, -6.0, '#5a5a48');
-    if (g.rails) for (const lx of [0, 3.4]) for (const s of [-0.52, 0.52]) { one(0.1, 0.12, lx + s, 0.06, '#6a4a32'); one(0.05, 0.03, lx + s, 0.135, '#9a7a62'); }
+    if (g.rails) for (const lx of [0, 3.4]) for (const s of [-0.52, 0.52]) { one(0.1, 0.12, lx + s, 0.06, '#6a4a32'); one(0.05, 0.03, lx + s, 0.135, g.wet ? '#c4cfee' : '#9a7a62'); }
     const geom = k.build();
     this.miscGeo.set(bid, geom);
     return geom;
@@ -336,6 +373,7 @@ export class Env {
     if (this._warm) return; this._warm = true;
     const jobs = [
       () => this.prefab('church', 0, () => { const s = buildChurchSquare(1); return { geom: s.geom, w: 0, lamps: s.lamps, houses: s.houses }; }),
+      () => { for (const h of this.prefabs.get('church0').houses) this.prefab('house', h.seed % 26, () => M.buildHouse(h.seed % 26 + 1)); },
       () => this.markGeom('pinnacle', () => N.buildPinnacle(3)),
       () => this.markGeom('valley', () => N.valleyTerrain(250 + 0 - 140, 480, { side: 1, x0: 14.5, topY: -7, floorY: -46, dropW: 24, floorW: 150, far: 330, mtnH: 75, seed: 7, trees: 600 })),
       () => this.markGeom('viaduct', () => S.buildViaduct((x) => (x < 0 ? -2 : -5))),
@@ -346,7 +384,8 @@ export class Env {
       () => this.prefab('exit', 0, () => ({ geom: S.buildMineExit(8), w: 0, lamps: [] })),
     ];
     const idle = window.requestIdleCallback || ((f) => setTimeout(() => f({ timeRemaining: () => 8 }), 60));
-    const step = () => { if (!jobs.length) return; if (this.mode === 'run') { setTimeout(step, 400); return; } jobs.shift()(); idle(step); };
+    let n = 0;
+    const step = () => { if (!jobs.length) return; if (this.mode === 'run' && n >= 3) { setTimeout(step, 400); return; } n++; jobs.shift()(); idle(step); };
     idle(step);
   }
   prefab(kind, idx, make) {
@@ -363,9 +402,49 @@ export class Env {
     for (const l of pf.lamps) lamps.push(this.lamp(sd.s * FACADE - sd.s * l.x, l.y, -W + l.z, '#ffb85a', 2.6));
     return { W0: W, W1: W + pf.w, w: pf.w, mesh, key: pf.key, lamps };
   }
+  // tutte le luci decorative (lanterne, lampadine, lampade di miniera) in UN solo draw call:
+  // ogni "lamp" e' un handle leggero; ogni frame gli handle visibili vengono scritti in un THREE.Points
+  glowLayer() {
+    const N = 640;
+    const g = new THREE.BufferGeometry();
+    this.gP = new Float32Array(N * 3); this.gC = new Float32Array(N * 4); this.gS = new Float32Array(N);
+    g.setAttribute('position', new THREE.BufferAttribute(this.gP, 3).setUsage(THREE.DynamicDrawUsage));
+    g.setAttribute('color', new THREE.BufferAttribute(this.gC, 4).setUsage(THREE.DynamicDrawUsage));
+    g.setAttribute('size', new THREE.BufferAttribute(this.gS, 1).setUsage(THREE.DynamicDrawUsage));
+    g.setDrawRange(0, 0);
+    const mat = new THREE.ShaderMaterial({
+      uniforms: { uMap: { value: this.world.tex.glow }, uScale: { value: 400 } },
+      vertexShader: `attribute float size; attribute vec4 color; varying vec4 vC; uniform float uScale;
+        void main() { vC = color; vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_Position = projectionMatrix * mv;
+          gl_PointSize = min(480.0, size * uScale / max(0.5, -mv.z)); }`,
+      fragmentShader: `uniform sampler2D uMap; varying vec4 vC;
+        void main() { vec4 t = texture2D(uMap, gl_PointCoord); gl_FragColor = vec4(vC.rgb * t.rgb, t.a * vC.a); }`,
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    });
+    this.glowPts = new THREE.Points(g, mat); this.glowPts.frustumCulled = false; this.glowPts.renderOrder = 15;
+    this.scene.add(this.glowPts);
+    this.glows = [];
+  }
+  flushGlow() {
+    if (!this.glowPts) return;
+    const w = this.world, cam = w.camera;
+    const h = w.renderer.domElement.height;
+    this.glowPts.material.uniforms.uScale.value = h / (2 * Math.tan((cam.fov * Math.PI) / 360));
+    let n = 0; const P = this.gP, C = this.gC, S = this.gS, max = S.length;
+    for (const g of this.glows) {
+      if (!g.visible || n >= max) continue;
+      P[n * 3] = g.position.x; P[n * 3 + 1] = g.position.y; P[n * 3 + 2] = g.position.z;
+      const c = g.material.color; C[n * 4] = c.r; C[n * 4 + 1] = c.g; C[n * 4 + 2] = c.b; C[n * 4 + 3] = g.material.opacity;
+      S[n] = g.scale.x; n++;
+    }
+    const geo = this.glowPts.geometry;
+    geo.setDrawRange(0, n);
+    for (const k of ['position', 'color', 'size']) { const a = geo.attributes[k]; a.clearUpdateRanges?.(); a.addUpdateRange?.(0, n * a.itemSize); a.needsUpdate = true; }
+  }
   lamp(x, y, z, color, size, op = 0.9) {
+    if (!this.glowPts) this.glowLayer();
     let g = this.lampPool.pop();
-    if (!g) { g = this.world.glowSprite('#ffffff', 1, 0.9); this.scene.add(g); }
+    if (!g) { g = { visible: true, position: new THREE.Vector3(), scale: { x: 1, set(a) { this.x = a; } }, material: { color: new THREE.Color(), opacity: 1 }, userData: {} }; this.glows.push(g); }
     g.material.color.set(color); g.scale.set(size, size, 1); g.material.opacity = op; g.userData.op = op; g.userData.ph = Math.random() * 6;
     g.visible = true; g.position.set(x, y, z);
     return g;
@@ -395,19 +474,20 @@ export class Env {
       for (let lb = Math.ceil((b0 - bStart - 6) / every) * every + bStart + 6; lb < b1; lb += every) {
         const idx = Math.round((lb - bStart - 6) / every);
         if (lb < bStart + 3 || lb > bStart + (i.b.to - i.b.from) - 3) continue;
-        lampsNear.push([this.wOf(lb), idx % 2 ? 5.9 : -5.9, 4.6]);
+        const lx = type === 'blue' ? 4.9 : 5.9;          // la parete blu sporge di piu'
+        lampsNear.push([this.wOf(lb), idx % 2 ? lx : -lx, type === 'blue' ? 5.2 : 4.6]);
       }
       const geom = S.tunnelSegment(W, len, type, lampsNear);
       const mesh = new THREE.Mesh(geom, this.tunnelMat[type]); this.scene.add(mesh);
       const extra = [];
-      const props = S.tunnelProps(W, len, type, lampsNear, { frames: i.b.id === 'mine-int' && i.local < 70 ? 7 : 0 });
+      const props = S.tunnelProps(W, len, type, lampsNear, { frames: i.b.id === 'mine-int' && i.local < 70 ? 7 : type === 'blue' ? 15 : 0 });
       if (props) { const pm = new THREE.Mesh(props, this.mats2); pm.position.z = -W; pm.userData.ownGeo = true; this.scene.add(pm); extra.push(pm); }
       if (i.b.id === 'mine-int' && Math.floor((i.local + len) / 90) > Math.floor(i.local / 90) && i.local > 40) {
         const dm = new THREE.Mesh(this.prefab('drill', 0, () => ({ geom: S.buildDrillMachine(), w: 0, lamps: [] })).geom, this.mats2);
         dm.position.set(-5.4, 0, -(W + len * 0.5)); dm.rotation.y = 0.05; this.scene.add(dm); extra.push(dm);
       }
       const lamps = [];
-      for (const [lw, lx, ly] of lampsNear) if (lw >= W && lw < W + len) lamps.push(this.lamp(lx * 0.97, ly, -lw, type === 'blue' ? '#c8d4ff' : '#ffd49a', 2.4, 0.75));
+      for (const [lw, lx, ly] of lampsNear) if (lw >= W && lw < W + len) lamps.push(this.lamp(lx * 0.97, ly, -lw, type === 'blue' ? '#ffb45a' : '#ffd49a', type === 'blue' ? 4.2 : 2.4, type === 'blue' ? 0.95 : 0.8));
       this.center.push({ W0: W, W1: W + len, mesh, owned: true, extra, lamps });
       this.stats.built++;
       this.cW = W + len;
@@ -530,6 +610,32 @@ export class Env {
     // bioma corrente
     const b = this.bAt(playerW);
     this.cur = { ...biomeAt(b), bDist: b };
+    this.updateMotes(camW, dt);
+    this.flushGlow();
+  }
+  // pulviscolo minerale sospeso nella galleria blu (un solo draw call, segue la camera)
+  updateMotes(camW, dt) {
+    const k = (this.world.light && this.world.light.mineral) || 0;
+    if (k < 0.02 && !this.motes) return;
+    if (!this.motes) {
+      const N = 180, P = new Float32Array(N * 3); const r = rng(909);
+      for (let i = 0; i < N; i++) { P[i * 3] = r.range(-6, 6); P[i * 3 + 1] = r.range(0.3, 7.5); P[i * 3 + 2] = -camW - r.range(-2, 46); }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(P, 3));
+      const m = new THREE.PointsMaterial({ map: this.world.tex.glow, color: '#9cc8ff', size: 0.13, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false });
+      this.motes = new THREE.Points(g, m); this.motes.frustumCulled = false; this.motes.renderOrder = 16; this.scene.add(this.motes);
+      this.moteW = camW;
+    }
+    const m = this.motes; m.visible = k > 0.02; m.material.opacity = 0.85 * k;
+    if (!m.visible) return;
+    const P = m.geometry.attributes.position; const a = P.array; const t = this.world.clock || 0;
+    for (let i = 0; i < P.count; i++) {
+      a[i * 3] += Math.sin(t * 0.6 + i) * dt * 0.12; a[i * 3 + 1] += (Math.sin(t * 0.4 + i * 1.7) * 0.08 + 0.03) * dt;
+      if (a[i * 3 + 1] > 7.8) a[i * 3 + 1] = 0.3;
+      let z = a[i * 3 + 2]; const rel = -z - camW;                 // distanza davanti alla camera
+      if (rel < -2) z -= 48; else if (rel > 46) z += 48;
+      a[i * 3 + 2] = z;
+    }
+    P.needsUpdate = true;
   }
 
   // luce / nebbia / audio del punto b (con dissolvenza verso il bioma successivo)
