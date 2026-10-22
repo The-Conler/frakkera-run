@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#1b1f4a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="description" content="FRAKKERA RUN - Quanto lontano riuscirai a portare il fuoco? Minigioco arcade ispirato a Is Frakkeras di Gadoni." />
+  <title>FRAKKERA RUN</title>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+  <script type="module" crossorigin src="./assets/index-BLNoP85-.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-C6x7xrfc.css">
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <linearGradient id="g-gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe680"/><stop offset="1" stop-color="#f0a21e"/></linearGradient>
+      <linearGradient id="g-fire" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd84a"/><stop offset=".55" stop-color="#ff8a1e"/><stop offset="1" stop-color="#e2401a"/></linearGradient>
+    </defs>
+    <symbol id="i-crown" viewBox="0 0 24 24"><path fill="url(#g-gold)" stroke="#8a4a10" stroke-width="1.2" stroke-linejoin="round" d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 10H5z"/><rect x="5" y="17.5" width="14" height="2.6" rx="1" fill="#f0a21e" stroke="#8a4a10" stroke-width="1"/><circle cx="12" cy="13.5" r="1.4" fill="#e2401a"/></symbol>
+    <symbol id="i-trophy" viewBox="0 0 24 24"><path fill="none" stroke="#f0a21e" stroke-width="2" d="M7 6H3.5c0 4 2 6 4.5 6M17 6h3.5c0 4-2 6-4.5 6"/><path fill="url(#g-gold)" stroke="#8a4a10" stroke-width="1.1" d="M6.5 3.5h11V8a5.5 5.5 0 01-11 0z"/><rect x="10.6" y="13" width="2.8" height="4" fill="#f0a21e"/><rect x="7" y="17" width="10" height="3.5" rx="1" fill="url(#g-gold)" stroke="#8a4a10" stroke-width="1.1"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path fill="#f6e7c4" stroke="#8a4a10" stroke-width="1.2" stroke-linejoin="round" d="M12 6.5C9.5 4.8 6 4.5 2.5 5v13c3.5-.5 7 0 9.5 1.6 2.5-1.6 6-2.1 9.5-1.6V5C18 4.5 14.5 4.8 12 6.5z"/><path d="M12 6.5v13" stroke="#8a4a10" stroke-width="1.2"/><path d="M4.5 8.5c2-.3 4 0 5.5.8M4.5 11.5c2-.3 4 0 5.5.8M14 9.3c1.5-.8 3.5-1.1 5.5-.8M14 12.3c1.5-.8 3.5-1.1 5.5-.8" stroke="#e0a93a" stroke-width="1.1" fill="none"/><path d="M2.5 18c3.5-.5 7 0 9.5 1.6 2.5-1.6 6-2.1 9.5-1.6v1.6c-3.5-.4-7 .1-9.5 1.6-2.5-1.5-6-2-9.5-1.6z" fill="#f0a21e"/></symbol>
+    <symbol id="i-carpet" viewBox="0 0 24 24"><g stroke="#f3e8cc" stroke-width="1.3" stroke-linecap="round"><path d="M4 6.5H1.8M4 9.5H1.8M4 12.5H1.8M4 15.5H1.8M4 18.5H1.8M20 6.5h2.2M20 9.5h2.2M20 12.5h2.2M20 15.5h2.2M20 18.5h2.2"/></g><rect x="3.6" y="4.5" width="16.8" height="16" rx="1.2" fill="#8e1f33"/><rect x="5" y="5.9" width="14" height="13.2" fill="#c0283c"/><path d="M12 7.2l4.6 5.3L12 17.8 7.4 12.5z" fill="#f3e8cc"/><path d="M12 9l3 3.5-3 3.5-3-3.5z" fill="#e0a93a"/><path d="M12 10.9l1.4 1.6-1.4 1.6-1.4-1.6z" fill="#8e1f33"/><path d="M5 5.9h14M5 19.1h14" stroke="#f6cf5e" stroke-width="1.1" stroke-dasharray="1.2 1.2"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><path fill="url(#g-gold)" stroke="#8a4a10" stroke-width="1.1" d="M10.3 2.5h3.4l.5 2.6 1.9.8 2.2-1.5 2.4 2.4-1.5 2.2.8 1.9 2.6.5v3.4l-2.6.5-.8 1.9 1.5 2.2-2.4 2.4-2.2-1.5-1.9.8-.5 2.6h-3.4l-.5-2.6-1.9-.8-2.2 1.5-2.4-2.4 1.5-2.2-.8-1.9-2.6-.5v-3.4l2.6-.5.8-1.9-1.5-2.2 2.4-2.4 2.2 1.5 1.9-.8z"/><circle cx="12" cy="12" r="3.4" fill="#2a2f5e" stroke="#8a4a10" stroke-width="1.1"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5l13 7.5-13 7.5z" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6" y="4.5" width="4.4" height="15" rx="1.6" fill="currentColor"/><rect x="13.6" y="4.5" width="4.4" height="15" rx="1.6" fill="currentColor"/></symbol>
+    <symbol id="i-retry" viewBox="0 0 24 24"><path d="M19.5 12a7.5 7.5 0 11-2.2-5.3" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/><path d="M20.5 3.5v6h-6z" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 11.5L12 4l9 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M5.5 10.5V20h5v-5.5h3V20h5v-9.5L12 5z" fill="currentColor"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M14.5 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-flame" viewBox="0 0 24 24"><path fill="url(#g-fire)" stroke="#8a2a0a" stroke-width="1.1" stroke-linejoin="round" d="M12 2.5c1 3.2 4.8 5.6 5.8 9.6 1 4.4-2 8.4-5.8 8.4S5.2 17 6.2 12.8c.5-2.1 1.7-3.4 2.6-4.6.2 1.6.8 2.6 1.8 3.2C10 8.4 10.5 5.4 12 2.5z"/><path fill="#fff3a0" d="M12 12c.8 1.6 2.5 2.6 2.5 4.5a2.5 2.5 0 01-5 0c0-1.5 1.3-2.6 2.5-4.5z"/></symbol>
+    <symbol id="i-pistol" viewBox="0 0 24 24"><path fill="#9aa1b0" stroke="#2b2a33" stroke-width="1" d="M6 8h15.5v3H6z"/><rect x="18.5" y="7.5" width="1.6" height="4" fill="#e2b346"/><path fill="#a8672f" stroke="#4b2a12" stroke-width="1" stroke-linejoin="round" d="M5 8.5h4.5l1 3-1.5 1 .5 1.5-3 5.5H2.8l1.6-5.5L3.5 11z"/><rect x="2.6" y="17.2" width="4" height="2.4" rx=".6" fill="#e2b346"/><path d="M10 11.5c.2 2 1.2 2.6 2.6 2.4" fill="none" stroke="#e2b346" stroke-width="1.2"/><rect x="7" y="6.2" width="2.2" height="2.2" fill="#6a7080"/></symbol>
+    <symbol id="i-barrel" viewBox="0 0 24 24"><path fill="#a8672f" stroke="#4b2a12" stroke-width="1.1" d="M6.5 3.5h11c1.6 2.8 2.4 5.6 2.4 8.5s-.8 5.7-2.4 8.5h-11C4.9 17.7 4.1 14.9 4.1 12s.8-5.7 2.4-8.5z"/><path d="M9 3.6c-.8 2.8-1.2 5.6-1.2 8.4s.4 5.6 1.2 8.4M15 3.6c.8 2.8 1.2 5.6 1.2 8.4s-.4 5.6-1.2 8.4M12 3.6v16.8" stroke="#7a4520" stroke-width="1" fill="none"/><path d="M5.3 7h13.4M4.4 15.5h15.2" stroke="#3a3432" stroke-width="2"/></symbol>
+    <symbol id="i-road" viewBox="0 0 24 24"><path fill="#b9a68c" stroke="#5a4a3a" stroke-width="1" d="M9 2.5h6l5 19H4z"/><path d="M12 4v3M12 9.5v3.5M12 15.5v4.5" stroke="#f6e7c4" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="i-sound" viewBox="0 0 24 24"><path fill="currentColor" d="M3.5 9h4l5-4.5v15l-5-4.5h-4z"/><path d="M15.5 8.5c1.4 1.8 1.4 5.2 0 7M18.2 6c2.8 3.3 2.8 8.7 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-mute" viewBox="0 0 24 24"><path fill="currentColor" d="M3.5 9h4l5-4.5v15l-5-4.5h-4z"/><path d="M15.5 9l5 6M20.5 9l-5 6" stroke="#ff7a5a" stroke-width="2.2" stroke-linecap="round"/></symbol>
+    <symbol id="i-music" viewBox="0 0 24 24"><path fill="currentColor" d="M9 5.5l11-2.5v12.2a3 3 0 11-2-2.8V7.3l-7 1.6v8.3a3 3 0 11-2-2.8z"/></symbol>
+  </svg>
+
+  <div id="frame">
+    <div id="game"></div>
+    <div id="ui">
+      <div id="popups" aria-hidden="true"></div>
+
+      <!-- HUD -->
+      <div id="hud" class="hidden">
+        <div class="hud-left">
+          <div class="hud-btns">
+            <button class="round-btn" id="hud-pause" aria-label="Pausa"><svg><use href="#i-pause"/></svg></button>
+            <button class="round-btn small" id="hud-audio" aria-label="Audio"></button>
+          </div>
+          <div class="fuel" id="fuel">
+            <svg class="fuel-ico"><use href="#i-flame"/></svg>
+            <div class="fuel-bar"><div class="fuel-fill" id="fuel-fill"></div><div class="fuel-shine"></div></div>
+          </div>
+          <div class="hud-dist"><svg><use href="#i-road"/></svg><span id="hud-dist">0</span> m</div>
+        </div>
+        <div class="hud-right">
+          <div class="chip chip-score">
+            <svg class="ico"><use href="#i-crown"/></svg>
+            <div class="chip-txt"><span id="hud-score">0</span><small>REC <b id="hud-best">0</b></small></div>
+          </div>
+          <div class="chip" id="hud-carpets-cell"><svg class="ico"><use href="#i-carpet"/></svg><span id="hud-carpets">0</span></div>
+          <div class="chip chip-ammo hidden" id="hud-ammo"><svg class="ico"><use href="#i-pistol"/></svg><span id="hud-ammo-n">0</span><span class="pips"><i></i><i></i><i></i></span></div>
+        </div>
+      </div>
+      <button id="fire-btn" class="hidden" aria-label="Spara">
+        <svg class="fire-ico"><use href="#i-pistol"/></svg>
+        <span class="fire-lbl">SPARA</span>
+        <span class="pips"><i></i><i></i><i></i></span>
+        <span class="fire-key">SPAZIO</span>
+      </button>
+
+      <!-- MENU -->
+      <section class="screen" id="scr-menu">
+        <div class="logo-wrap">
+          <h1 class="logo" aria-label="FRAKKERA RUN">
+            <span class="logo-l1">FRAKKERA</span>
+            <span class="logo-banner"><span class="logo-l2">RUN</span></span>
+          </h1>
+          <p class="subtitle">Quanto lontano riuscirai a portare il fuoco?</p>
+        </div>
+        <div class="menu-bottom">
+          <button class="btn btn-primary btn-xl" data-act="play">GIOCA ORA <svg class="btn-ico"><use href="#i-play"/></svg></button>
+          <div class="menu-grid">
+            <button class="tile" data-act="board"><svg><use href="#i-trophy"/></svg><span>CLASSIFICA</span></button>
+            <button class="tile" data-act="howto"><svg><use href="#i-book"/></svg><span>COME SI GIOCA</span></button>
+            <button class="tile" data-act="info"><svg><use href="#i-carpet"/></svg><span>IS FRAKKERAS</span></button>
+            <button class="tile" data-act="settings"><svg><use href="#i-gear"/></svg><span>IMPOSTAZIONI</span></button>
+          </div>
+          <div class="record-plate">
+            <div class="rp-cell"><svg><use href="#i-crown"/></svg><div><small>RECORD</small><b id="menu-best">0</b></div></div>
+            <div class="rp-sep"></div>
+            <div class="rp-cell"><svg><use href="#i-carpet"/></svg><div><small>SA BURRA</small><b id="menu-carpets">0</b></div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- IMPOSTAZIONI -->
+      <section class="screen panel-screen hidden" id="scr-settings">
+        <div class="sheet">
+          <h2 class="sheet-title">IMPOSTAZIONI</h2>
+          <div class="opt-list">
+            <button class="opt" id="menu-audio" data-act="audio"><svg class="opt-ico"><use href="#i-sound"/></svg><span>Audio</span><span class="switch"><i></i></span></button>
+            <button class="opt" id="menu-music" data-act="music"><svg class="opt-ico"><use href="#i-music"/></svg><span>Musica</span><span class="switch"><i></i></span></button>
+          </div>
+          <p class="note">Il gioco si mette in pausa da solo quando cambi app o scheda.</p>
+          <button class="btn btn-navy" data-act="back"><svg class="btn-ico"><use href="#i-back"/></svg> INDIETRO</button>
+        </div>
+      </section>
+
+      <!-- COME SI GIOCA -->
+      <section class="screen panel-screen hidden" id="scr-howto">
+        <div class="sheet tall">
+          <h2 class="sheet-title">COME SI GIOCA</h2>
+          <div class="scroll">
+            <p>Corri per i vicoli del paese tenendo accesa la <b>frakkera</b>. La corsa è automatica e accelera sempre di più.</p>
+            <div class="controls">
+              <div><span class="key">&larr;</span><span class="key">&rarr;</span> o <span class="key">A</span><span class="key">D</span><br/>cambia corsia</div>
+              <div><span class="key wide">SCORRI</span> o <span class="key wide">TOCCA</span><br/>a sinistra / destra</div>
+            </div>
+            <h3>La fiamma</h3>
+            <p>Il fuoco si consuma di continuo: se si spegne la corsa finisce. Raccogli i fasci per alimentarlo.</p>
+            <ul class="items">
+              <li><img data-icon="asfodelo" alt="" /> <span><b>Asfodelo</b> ricarica <b data-cfg="ASFODELO"></b></span></li>
+              <li><img data-icon="ferula" alt="" /> <span><b>Ferula</b>, più rara, ricarica <b data-cfg="FERULA"></b></span></li>
+            </ul>
+            <h3>I tappeti Sa Burra</h3>
+            <ul class="items">
+              <li><img data-icon="tappeto" alt="" /> <span>Lungo i vicoli trovi piccoli <b>tappeti tessuti</b>, in file e zig-zag. Sono la tua <b>collezione</b>: il totale resta salvato tra una partita e l'altra.</span></li>
+            </ul>
+            <h3>Le botti e la pistola</h3>
+            <ul class="items">
+              <li><img data-icon="botte" alt="" /> <span>Le <b>botti da vino</b> bloccano la corsia: un urto toglie <b data-cfg="HIT_SOLID"></b> di fiamma. C'è sempre una strada libera anche senza sparare.</span></li>
+              <li><img data-icon="pistola" alt="" /> <span>Raccogli la rara <b>pistola Broccu</b>: hai <b data-pistol="AMMO"></b> colpi per far saltare le botti davanti a te e guadagnare punti.</span></li>
+              <li><span class="key wide">SPARA</span><span>Pulsante in basso, swipe verso l'alto, oppure <span class="key">SPAZIO</span> <span class="key">W</span> <span class="key">&uarr;</span></span></li>
+            </ul>
+            <h3>Altri ostacoli</h3>
+            <ul class="items">
+              <li><img data-icon="muretto" alt="" /> <span>Muretti e case che sporgono: aggirali, la pistola non li rompe.</span></li>
+              <li><img data-icon="pozza" alt="" /> <span>Le pozzanghere spengono in parte il fuoco (<b data-cfg="HIT_PUDDLE"></b>).</span></li>
+              <li><img data-icon="goat" alt="" /> <span>Capre e botti che rotolano attraversano la strada: guardale muoversi.</span></li>
+            </ul>
+            <h3>Punti</h3>
+            <table class="pts" id="pts-table"></table>
+            <p class="note">Pausa: tasto P / Esc o il pulsante in alto. Dopo il game over: RIPROVA, oppure Invio / R.</p>
+          </div>
+          <button class="btn btn-navy" data-act="back"><svg class="btn-ico"><use href="#i-back"/></svg> INDIETRO</button>
+        </div>
+      </section>
+
+      <!-- INFO -->
+      <section class="screen panel-screen hidden" id="scr-info">
+        <div class="sheet tall">
+          <h2 class="sheet-title">IS FRAKKERAS</h2>
+          <div class="scroll">
+            <div class="info-band"></div>
+            <p><b>Is Frakkeras</b> è un rito tradizionale di <b>Gadoni</b>, paese dell'entroterra della Sardegna, legato alla commemorazione dei defunti.</p>
+            <p>Le <b>frakkeras</b> sono grandi fiaccole fatte di materiali vegetali, tradizionalmente <b>asfodelo</b> e <b>ferula</b>, che vengono accese e portate lungo le strade del paese.</p>
+            <p>Il fuoco, la notte, il movimento e le scintille tra le case di pietra sono l'anima di questo gioco: un piccolo omaggio a un rito da vivere dal vero.</p>
+            <p>I tappeti che raccogli si ispirano alla tessitura sarda <b>Sa Burra</b>, con i suoi rombi e zig-zag nei colori del rosso, del senape e del crema.</p>
+          </div>
+          <button class="btn btn-navy" data-act="back"><svg class="btn-ico"><use href="#i-back"/></svg> INDIETRO</button>
+        </div>
+      </section>
+
+      <!-- CLASSIFICA -->
+      <section class="screen panel-screen hidden" id="scr-board">
+        <div class="sheet tall">
+          <h2 class="sheet-title"><svg class="title-ico"><use href="#i-trophy"/></svg> LA CLASSIFICA<br/>DEL FUOCO</h2>
+          <p class="demo-badge">DEMO &middot; classifica locale su questo dispositivo, non valida per i premi</p>
+          <div class="scroll"><table class="board" id="board-table"></table></div>
+          <div class="row-btns">
+            <button class="btn btn-navy" data-act="back"><svg class="btn-ico"><use href="#i-back"/></svg> INDIETRO</button>
+            <button class="btn btn-ghost small" data-act="reset-board">AZZERA DEMO</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- PAUSA -->
+      <section class="screen panel-screen hidden" id="scr-pause">
+        <div class="sheet">
+          <h2 class="sheet-title">PAUSA</h2>
+          <p class="center">La fiamma ti aspetta.</p>
+          <button class="btn btn-primary" data-act="resume"><svg class="btn-ico"><use href="#i-play"/></svg> RIPRENDI</button>
+          <button class="btn btn-navy" data-act="audio"><svg class="btn-ico"><use href="#i-sound"/></svg> <span class="audio-label">AUDIO: SI</span></button>
+          <button class="btn btn-ghost" data-act="quit"><svg class="btn-ico"><use href="#i-home"/></svg> ESCI AL MENU</button>
+        </div>
+      </section>
+
+      <!-- GAME OVER -->
+      <section class="screen hidden" id="scr-over">
+        <h2 class="logo over-logo"><span class="logo-l1">FIAMMA</span><span class="logo-l1 l1b">SPENTA</span></h2>
+        <div class="over-spacer"></div>
+        <div class="over-panel">
+          <small class="go-label">PUNTEGGIO</small>
+          <span class="final-score" id="go-score">0</span>
+          <span class="new-rec hidden" id="go-newrec"><svg><use href="#i-crown"/></svg>NUOVO RECORD!</span>
+          <div class="go-rows">
+            <div class="go-row"><svg><use href="#i-road"/></svg><span>DISTANZA</span><b id="go-dist">0 m</b></div>
+            <div class="go-row"><svg><use href="#i-carpet"/></svg><span>SA BURRA</span><b id="go-carpets">0</b></div>
+            <div class="go-row"><svg><use href="#i-barrel"/></svg><span>BARILI DISTRUTTI</span><b id="go-barrels">0</b></div>
+          </div>
+          <p class="go-meta"><span>Record <b id="go-best">0</b></span> &middot; <span id="go-rank"></span></p>
+          <form class="nick-form" id="nick-form" autocomplete="off">
+            <input id="nick" maxlength="12" placeholder="IL TUO NICKNAME" spellcheck="false" autocapitalize="characters" enterkeyhint="done" />
+            <button class="btn btn-navy small" type="submit">SALVA</button>
+          </form>
+          <p class="nick-msg" id="nick-msg"></p>
+        </div>
+        <button class="btn btn-primary btn-xl" data-act="retry" id="btn-retry"><svg class="btn-ico"><use href="#i-retry"/></svg> RIPROVA</button>
+        <div class="row-btns">
+          <button class="btn btn-navy" data-act="board"><svg class="btn-ico gold"><use href="#i-trophy"/></svg> CLASSIFICA</button>
+          <button class="btn btn-navy" data-act="quit"><svg class="btn-ico"><use href="#i-home"/></svg> MENU</button>
+        </div>
+        <p class="go-total">Collezione: <b id="go-total">0</b> tappeti Sa Burra</p>
+      </section>
+
+      <div id="countdown" class="hidden"></div>
+      <div id="loading"><div class="ld-flame"><svg><use href="#i-flame"/></svg></div><span>ACCENSIONE...</span></div>
+    </div>
+  </div>
+  <noscript>FRAKKERA RUN richiede JavaScript.</noscript>
+</body>
+</html>
