@@ -231,6 +231,44 @@ Il gioco si adatta da solo alla dimensione dell'iframe. In un iframe, la tastier
 
 Originali, creati dagli script del progetto: frakkera (geometria e colori), gilet, risvolti delle maniche, bottoni, tutte le texture in `blender/tex/`, le 6 animazioni, la fiamma e gli effetti. Mixamo non è stato usato: con un account Adobe dell'utente potrebbe fornire animazioni di corsa da motion capture più naturali (opzione futura).
 
+## Novità v5 (0.5.0) - il mondo di Gadoni
+
+La corsa attraversa gli ambienti veri di Gadoni, costruiti dalle foto in `reference/gadoni/` (niente caverne di cristalli fantasy):
+
+| Distanza | Ambiente (`id`) | Cosa c'è |
+|---|---|---|
+| 0-250 m | paese e piazza della chiesa (`village`) | vie del paese della v4, piazza con pavimento a scacchi, campanile in pietra con fasce e cornici rosa, cella campanaria ad arco con campana, orologio bianco, cuspide in coppi con croce, chiesa rosa a capanna, capanna del presepe col tetto d'erba, fili di lampadine dalla cima del campanile |
+| 250-500 m | la roccia (`rock`) | sentiero sul fianco della valle, guglia di roccia alta ~100 m, bosco, muretti a secco |
+| 500-750 m | fiume e piscina naturale (`river`) | sentiero in lastre di pietra, acqua animata, parete di travertino col muschio e cascatelle, massi bianchi, greto |
+| 750-1000 m | viadotto (`viaduct`) | piloni rettangolari alti e snelli in cemento, impalcato lungo e dritto, fiume sotto; il giocatore corre su un sentiero separato, mai sull'impalcato |
+| 1000-1150 m | Miniera Fenice, piazzale (`mine-ext`) | parete con reti, arco d'ingresso in pietra con imbocco vero della galleria, porticina laterale, colonna in ferro arrugginito, cartello di legno "MINIERA FENICE", carrello, binari, muro a secco |
+| 1150-1350 m | galleria (`mine-int`) | roccia grigio-verde, tubo blu sulla volta, cavi, lampade, perforatrice; buio forte che cresce quando cala la fiamma |
+| 1350-1600 m | galleria blu (`mine-blue`) | lastre di roccia sfaccettate blu notte/blu elettrico con macchie ocra, scintille minerali, pavimento bagnato e lucido con binari, centine di legno e lanterne calde in profondità, botti ai lati, pulviscolo sospeso; luce minerale propria |
+| oltre 1600 m | si riparte dal paese | ciclo continuo, a ogni giro più verso sera/notte |
+
+- **Solo grafica:** generatore, `sim.js`, collisioni, punteggi, raccolte, log di corsa e controlli sono quelli della v4 (stesso seed => stessa partita). Gli ostacoli cambiano solo "pelle" per ambiente (botti, massi, tronchi, carrelli di minerale, centine...), con la stessa collisione.
+- **Transizioni sfumate:** suolo con fusione di 12 m ai confini, cielo/nebbia/luci interpolati, imbocco e uscita della galleria veri.
+- **A pezzi (chunk):** si costruisce solo ~190 m davanti e si libera dietro; pezzi riusati da pool; le geometrie pesanti dei monumenti si pre-costruiscono nel menu e alla rimozione si libera la memoria GPU; tutte le luci decorative stanno in un solo draw call.
+- **Luce della frakkera** su tutte le superfici vicine; in miniera la luce ambiente cala molto e il buio dipende dal livello del fuoco; la galleria blu ha il suo bagliore minerale.
+- **Frakkera che si consuma:** il fascio si accorcia con il carburante; a zero brucia del tutto (game over senza nulla di cruento).
+- **Audio d'ambiente** sintetizzato: vento, acqua, gocce in galleria, uccelli, campane della chiesa.
+
+### Salto di mappa (sviluppo)
+
+- `?map=village|rock|river|viaduct|mine-ext|mine-int|mine-blue` parte direttamente da quell'ambiente (anche nel menu), es. `index.html?map=mine-blue`.
+- `&at=<metri>` parte più avanti dentro l'ambiente, es. `?map=village&at=110` (piazza della chiesa).
+- `?dev=1` mostra un menu nascosto con i pulsanti dei 7 ambienti.
+- Il salto cambia solo la grafica: la partita (seed, ostacoli, punteggio) è quella normale.
+
+### Dove stanno le configurazioni degli ambienti
+
+- `src/game/biomes/config.js`: un oggetto per ambiente (distanze, suolo, lati, vuoti, galleria, monumenti, pelli degli ostacoli, decorazioni, atmosfera cielo/nebbia/luci, luce della frakkera e buio, audio, lunghezza della transizione).
+- `src/game/biomes/env.js`: gestore dei pezzi (suolo, lati, galleria, decorazioni, monumenti), materiali e fusioni.
+- `src/game/biomes/builders/`: `church.js` (piazza, campanile, chiesa, presepe; isolata in funzioni proprie), `nature.js` (valle, guglia, piscina, cascate), `structures.js` (viadotto, galleria, imbocco della miniera, perforatrice), `skins.js` (pelli degli ostacoli), `common.js` (rocce, alberi, muretti).
+- `src/game/biomes/textures.js`: texture procedurali (sentieri, ghiaia con traversine, cartello, reti).
+
+Test aggiuntivi: `python3 tests/maps.py` (screenshot di ogni ambiente col salto di mappa) e `python3 tests/views.py` (inquadrature dei monumenti per il confronto con le foto).
+
 ## Novità v4 (0.4.0)
 
 1. **Personaggio 3D vero** al posto del billboard: uomo con scheletro, vestiti del concept, frakkera 3D legata con corde, fiamma shader; 6 animazioni con macchina a stati e dissolvenze.

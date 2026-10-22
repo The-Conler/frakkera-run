@@ -5,7 +5,7 @@
 //  indicato; 1 metro = PX_PER_METER px.
 // =====================================================================
 
-export const GAME_VERSION = '0.3.0';
+export const GAME_VERSION = '0.5.0';
 
 // ---- Punteggio --------------------------------------------------------
 export const SCORE = {
