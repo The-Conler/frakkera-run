@@ -1,0 +1,50 @@
+<!doctype html><html><body style="margin:0;background:#07070d">
+<canvas id="out"></canvas>
+<script type="module">
+import { buildStaticTextures } from '../src/art/textures.js';
+const texs = {};
+const scene = { textures: {
+  exists: k => !!texs[k], remove: k => delete texs[k],
+  createCanvas(k, w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const t = { canvas: c, frames: [], getContext: () => c.getContext('2d'), add(i,_,x,y,w,h){ this.frames[i]={x,y,w,h}; }, refresh(){} , getSourceImage(){return c;} };
+    texs[k] = t; return t; },
+  addCanvas(k,c){ texs[k]={canvas:c,frames:[]}; }, get: k => texs[k],
+}, add: {}, make: {} };
+try { buildStaticTextures(scene); } catch (e) { document.title = 'ERR ' + e.message; }
+const S = 10, CW = 40, CH = 78; // logical cell
+function drawChar(ctx, f, ox, oy, scale, t) {
+  const P = texs.player, T = texs.torch, F = texs.flame;
+  const px = ox + 20, pY = oy + 70;
+  const fr = P.frames[f];
+  ctx.drawImage(P.canvas, fr.x, fr.y, fr.w, fr.h, px - fr.w/2, pY + 4 - fr.h, fr.w, fr.h);
+  const rot = 0.2 + Math.sin(t * 7.5) * 0.06;
+  const hx = px + 6, hy = pY - 15;
+  ctx.save(); ctx.translate(hx, hy + 6); ctx.rotate(rot);
+  ctx.drawImage(T.canvas, -T.canvas.width/2, -T.canvas.height); ctx.restore();
+  const tx = hx + Math.sin(rot) * 27, ty = hy + 6 - Math.cos(rot) * 27;
+  const ff = F.frames[f % F.frames.length];
+  ctx.drawImage(F.canvas, ff.x, ff.y, ff.w, ff.h, Math.round(tx) - ff.w/2, Math.round(ty) + 2 - ff.h*0.88, ff.w, ff.h);
+}
+window.render = (mode, f) => {
+  const out = document.getElementById('out'); const ctx = out.getContext('2d');
+  const small = document.createElement('canvas');
+  if (mode === 'frame') {
+    small.width = CW; small.height = CH; const s = small.getContext('2d');
+    const g = s.createRadialGradient(20, 26, 2, 20, 26, 30); g.addColorStop(0, '#3a2210'); g.addColorStop(1, '#07070d');
+    s.fillStyle = g; s.fillRect(0, 0, CW, CH);
+    drawChar(s, f, 0, 0, 1, f / 8);
+    out.width = CW * S; out.height = CH * S;
+  } else {
+    small.width = CW * 4 + 50; small.height = CH; const s = small.getContext('2d');
+    s.fillStyle = '#07070d'; s.fillRect(0, 0, small.width, CH);
+    for (let i = 0; i < 4; i++) drawChar(s, i, i * CW, 0, 1, i / 8);
+    const P = texs.player, T = texs.torch;
+    s.drawImage(T.canvas, CW * 4 + 8, 30);
+    s.drawImage(texs.flame.canvas, 0, 0, 20, 30, CW * 4 + 22, 28, 20, 30);
+    out.width = small.width * S; out.height = CH * S;
+  }
+  ctx.imageSmoothingEnabled = false; ctx.drawImage(small, 0, 0, out.width, out.height);
+  return [out.width, out.height];
+};
+window.ready = true;
+</script></body></html>

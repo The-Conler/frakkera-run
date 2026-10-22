@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#070a18" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="description" content="FRAKKERA RUN - Quanto lontano riuscirai a portare il fuoco? Minigioco arcade ispirato a Is Frakkeras di Gadoni." />
+  <title>FRAKKERA RUN</title>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+</head>
+<body>
+  <div id="frame">
+    <div id="game"></div>
+    <div id="ui">
+      <!-- HUD -->
+      <div id="hud" class="hidden" aria-live="off">
+        <div class="hud-plate">
+          <div class="hud-cell hud-score">
+            <span id="hud-score">0</span>
+            <span class="hud-sub">REC <b id="hud-best">0</b></span>
+          </div>
+          <div class="hud-cell hud-dist">
+            <span id="hud-dist">0</span>
+            <span class="hud-sub">METRI</span>
+          </div>
+          <div class="hud-cell hud-carpets" id="hud-carpets-cell">
+            <img class="px-ico" data-tex="tappeto" alt="" />
+            <span id="hud-carpets">0</span>
+          </div>
+          <div class="hud-btns">
+            <button class="icon-btn" id="hud-audio" aria-label="Audio"></button>
+            <button class="icon-btn" id="hud-pause" aria-label="Pausa"></button>
+          </div>
+        </div>
+        <div class="hud-row2">
+          <div class="fuel" id="fuel">
+            <img class="px-ico fuel-ico" data-tex="flame" alt="" />
+            <div class="fuel-bar"><div class="fuel-fill" id="fuel-fill"></div><div class="fuel-ticks"></div></div>
+          </div>
+          <div class="ammo hidden" id="hud-ammo" aria-label="Colpi">
+            <img class="px-ico" data-tex="pistola" alt="" />
+            <span class="pips"><i></i><i></i><i></i></span>
+          </div>
+        </div>
+      </div>
+      <button id="fire-btn" class="hidden" aria-label="Spara">
+        <span class="fire-lbl">SPARA</span><span class="fire-key">SPAZIO</span>
+        <span class="pips"><i></i><i></i><i></i></span>
+      </button>
+
+      <!-- MENU -->
+      <section class="screen" id="scr-menu">
+        <div class="menu-top">
+          <h1 class="logo"><span class="l1">FRAKKERA</span><span class="l2">RUN</span></h1>
+          <div class="woven" aria-hidden="true"></div>
+          <p class="subtitle">Quanto lontano riuscirai a portare il fuoco?</p>
+        </div>
+        <div class="menu-bottom plate">
+          <div class="woven" aria-hidden="true"></div>
+          <div class="menu-stats">
+            <div><span>RECORD</span><b id="menu-best">0</b></div>
+            <div><span>TAPPETI</span><b><img class="px-ico" data-tex="tappeto" alt="" /><em id="menu-carpets">0</em></b></div>
+          </div>
+          <button class="btn primary" data-act="play">GIOCA ORA</button>
+          <div class="grid2">
+            <button class="btn" data-act="board">CLASSIFICA</button>
+            <button class="btn" data-act="howto">COME SI GIOCA</button>
+          </div>
+          <div class="row-btns">
+            <button class="btn ghost" data-act="info">IS FRAKKERAS</button>
+            <button class="icon-btn big" data-act="audio" id="menu-audio" aria-label="Audio"></button>
+          </div>
+        </div>
+      </section>
+
+      <!-- COME SI GIOCA -->
+      <section class="screen panel hidden" id="scr-howto">
+        <h2>COME SI GIOCA</h2>
+        <div class="scroll">
+          <p>Corri per i vicoli del paese tenendo accesa la <b>frakkera</b>. La corsa è automatica e accelera sempre di più.</p>
+          <div class="controls">
+            <div><span class="key">&larr;</span><span class="key">&rarr;</span> o <span class="key">A</span><span class="key">D</span><br/>cambia corsia</div>
+            <div><span class="key wide">SCORRI</span> o <span class="key wide">TOCCA</span><br/>a sinistra / destra</div>
+          </div>
+          <h3>La fiamma</h3>
+          <p>Il fuoco si consuma di continuo: se si spegne la corsa finisce. Raccogli i fasci per alimentarlo.</p>
+          <ul class="items">
+            <li><img data-tex="asfodelo" alt="" /> <span><b>Asfodelo</b> ricarica <b data-cfg="ASFODELO"></b></span></li>
+            <li><img data-tex="ferula" alt="" /> <span><b>Ferula</b>, più rara, ricarica <b data-cfg="FERULA"></b></span></li>
+          </ul>
+          <h3>I tappeti Sa Burra</h3>
+          <ul class="items">
+            <li><img data-tex="tappeto" alt="" /> <span>Lungo i vicoli trovi piccoli <b>tappeti tessuti</b>, in file e zig-zag. Sono la tua <b>collezione</b>: il totale resta salvato tra una partita e l'altra.</span></li>
+          </ul>
+          <h3>Le botti e la pistola</h3>
+          <ul class="items">
+            <li><img data-tex="botte" alt="" /> <span>Le <b>botti da vino</b> bloccano la corsia: un urto toglie <b data-cfg="HIT_SOLID"></b> di fiamma. C'è sempre una strada libera anche senza sparare.</span></li>
+            <li><img data-tex="pistola" alt="" /> <span>Raccogli la rara <b>pistola Broccu</b>: hai <b data-pistol="AMMO"></b> colpi per far saltare le botti davanti a te e guadagnare punti.</span></li>
+            <li><span class="key wide">SPARA</span><span>Pulsante in basso, swipe verso l'alto, oppure <span class="key">SPAZIO</span> <span class="key">W</span> <span class="key">&uarr;</span></span></li>
+          </ul>
+          <h3>Altri ostacoli</h3>
+          <ul class="items">
+            <li><img data-tex="muretto" alt="" /> <span>Muretti e case che sporgono: aggirali, la pistola non li rompe.</span></li>
+            <li><img data-tex="pozza" alt="" /> <span>Le pozzanghere spengono in parte il fuoco (<b data-cfg="HIT_PUDDLE"></b>).</span></li>
+            <li><img data-tex="goat" alt="" /> <span>Capre e botti che rotolano attraversano la strada: guardale muoversi.</span></li>
+          </ul>
+          <h3>Punti</h3>
+          <table class="pts" id="pts-table"></table>
+          <p class="note">Pausa: tasto P / Esc o il pulsante in alto. Dopo il game over: RIPROVA, oppure Invio / R.</p>
+        </div>
+        <button class="btn" data-act="back">INDIETRO</button>
+      </section>
+
+      <!-- INFO TRADIZIONE -->
+      <section class="screen panel hidden" id="scr-info">
+        <h2>IS FRAKKERAS</h2>
+        <div class="woven" aria-hidden="true"></div>
+        <div class="scroll">
+          <img class="info-art" data-tex="flame" alt="" />
+          <p><b>Is Frakkeras</b> è un rito tradizionale di <b>Gadoni</b>, paese dell'entroterra della Sardegna, legato alla commemorazione dei defunti.</p>
+          <p>Le <b>frakkeras</b> sono grandi fiaccole fatte di materiali vegetali, tradizionalmente <b>asfodelo</b> e <b>ferula</b>, che vengono accese e portate lungo le strade del paese.</p>
+          <p>Il fuoco, la notte, il movimento e le scintille tra le case di pietra sono l'anima di questo gioco: un piccolo omaggio a un rito da vivere dal vero.</p>
+        </div>
+        <button class="btn" data-act="back">INDIETRO</button>
+      </section>
+
+      <!-- CLASSIFICA -->
+      <section class="screen panel hidden" id="scr-board">
+        <h2 class="board-title">LA CLASSIFICA<br/>DEL FUOCO</h2>
+        <p class="demo-badge">DEMO &middot; classifica locale su questo dispositivo, non valida per i premi</p>
+        <div class="scroll">
+          <table class="board" id="board-table"></table>
+        </div>
+        <div class="row-btns">
+          <button class="btn" data-act="back">INDIETRO</button>
+          <button class="btn ghost small" data-act="reset-board">AZZERA DEMO</button>
+        </div>
+      </section>
+
+      <!-- PAUSA -->
+      <section class="screen panel hidden" id="scr-pause">
+        <h2>PAUSA</h2>
+        <p class="center">La fiamma ti aspetta.</p>
+        <div class="menu-btns">
+          <button class="btn primary" data-act="resume">RIPRENDI</button>
+          <button class="btn" data-act="audio"><span class="audio-label">AUDIO: SI</span></button>
+          <button class="btn ghost" data-act="quit">ESCI AL MENU</button>
+        </div>
+      </section>
+
+      <!-- GAME OVER -->
+      <section class="screen panel hidden" id="scr-over">
+        <div class="woven" aria-hidden="true"></div>
+        <h2 class="over-title">FIAMMA SPENTA</h2>
+        <div class="final">
+          <span class="final-score" id="go-score">0</span>
+          <span class="new-rec hidden" id="go-newrec">NUOVO RECORD!</span>
+        </div>
+        <div class="go-stats">
+          <div><span>DISTANZA</span><b id="go-dist">0 M</b></div>
+          <div><span>RECORD</span><b id="go-best">0</b></div>
+          <div><span>TAPPETI</span><b><img class="px-ico" data-tex="tappeto" alt="" /><em id="go-carpets">0</em></b></div>
+          <div><span>BOTTI ROTTE</span><b><img class="px-ico" data-tex="botte" alt="" /><em id="go-barrels">0</em></b></div>
+        </div>
+        <button class="btn primary huge" data-act="retry" id="btn-retry">RIPROVA</button>
+        <p class="go-rank" id="go-rank"></p>
+        <form class="nick-form" id="nick-form" autocomplete="off">
+          <input id="nick" maxlength="12" placeholder="NICKNAME" spellcheck="false" autocapitalize="characters" enterkeyhint="done" />
+          <button class="btn small" type="submit">SALVA</button>
+        </form>
+        <p class="nick-msg" id="nick-msg"></p>
+        <div class="row-btns">
+          <button class="btn" data-act="board">CLASSIFICA</button>
+          <button class="btn ghost" data-act="quit">MENU</button>
+        </div>
+        <p class="go-total">Collezione: <b id="go-total">0</b> tappeti</p>
+      </section>
+
+      <div id="countdown" class="hidden"></div>
+      <div id="loading">ACCENSIONE...</div>
+    </div>
+  </div>
+  <noscript>FRAKKERA RUN richiede JavaScript.</noscript>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

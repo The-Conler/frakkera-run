@@ -1,0 +1,23 @@
+// Palette: notte blu-nera, fuoco arancio/giallo, pietra e legno, rosso bruciato.
+export const P = {
+  night0: '#05070f', night1: '#070a18', night2: '#0d1226', night3: '#161c35',
+  ink: '#0b0810',
+  stone0: '#1d1b21', stone1: '#2c2a31', stone2: '#3b3940', stone3: '#4e4a4e', stone4: '#66605d', stone5: '#857c72', stone6: '#a39784',
+  warm0: '#2a2019', warm1: '#3e3026', warm2: '#54412f',
+  wood0: '#24160e', wood1: '#3a2416', wood2: '#56361f', wood3: '#77502c', wood4: '#9a6c3c',
+  roof0: '#2e1410', roof1: '#47201a', roof2: '#622c20', roof3: '#7e3a28', roof4: '#9a4a31',
+  fire0: '#5e1208', fire1: '#a8270f', fire2: '#e0521a', fire3: '#ff8a24', fire4: '#ffbf3a', fire5: '#ffe589', fire6: '#fff7d6',
+  win0: '#c96a1c', win1: '#ffa640', win2: '#ffd57a',
+  water0: '#081326', water1: '#0f2240', water2: '#1d3c63', water3: '#4f7fa6',
+  stalk0: '#5e5230', stalk1: '#8f7f4c', stalk2: '#bcaa70', flower: '#efe7cf',
+  fer0: '#3e4a1e', fer1: '#62752e', fer2: '#93a548', fer3: '#d6c95c',
+  cord: '#a8301e',
+  skin0: '#7a4a32', skin1: '#b47a54',
+  hair: '#1e1310',
+  coat0: '#16121a', coat1: '#241d28', coat2: '#342a38',
+  scarf: '#8e2a1c', scarf2: '#b23a22',
+  trou: '#2a2420', boot: '#120c0a',
+  goat0: '#1e1612', goat1: '#33261d', goat2: '#4a382a', goatW: '#d9cfbd', horn: '#a8987a',
+  metal: '#2a2c33', metal2: '#555a66',
+  weed: '#27331c', weed2: '#3a4a26',
+};
