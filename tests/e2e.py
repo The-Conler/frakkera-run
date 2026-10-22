@@ -3,7 +3,8 @@ Test end-to-end di FRAKKERA RUN in un browser headless (Chromium/Chrome).
 Avvia prima il server:  npm run build && npm run preview   (porta 4173)
 Uso: python3 tests/e2e.py [--url http://127.0.0.1:4173/]
 Profili: mobile verticale 390x844 (touch) e desktop 1366x900 (tastiera).
-Salva gli screenshot in screenshots/ (prefisso v3-).
+Salva gli screenshot in screenshots/ (prefisso v4-).
+v4: personaggio 3D (GLB) e macchina a stati delle animazioni: IDLE nel menu, RUN, cambio corsia, STUMBLE, GAME OVER.
 v2/v3: tappeti, pistola Broccu (?debug=pistol), botti distrutte, colpi a zero, riavvio istantaneo,
 impostazioni audio/musica, conteggio animato del punteggio, misura del tempo di frame (indicativa).
 """
@@ -92,7 +93,8 @@ async def run_profile(p, name, mobile):
     page.on('pageerror', lambda e: errors.append(f'pageerror: {e}'))
     page.on('console', lambda m: errors.append(f'console.{m.type}: {m.text}') if m.type == 'error' else None)
     cdp = await ctx.new_cdp_session(page) if mobile else None
-    shot = lambda n: page.screenshot(path=os.path.join(SHOTS, f'v3-{name}-{n}.png'))
+    shot = lambda n: page.screenshot(path=os.path.join(SHOTS, f'v4-{name}-{n}.png'))
+    c3 = lambda: page.evaluate('window.__frk.game.world.char3d.debug()')
     state = lambda: page.evaluate('window.__frk.state()')
     ui = lambda: page.evaluate('window.__frk.ui()')
     visible = lambda sel: page.evaluate(f"!document.querySelector('{sel}').classList.contains('hidden')")
@@ -101,6 +103,15 @@ async def run_profile(p, name, mobile):
     await page.wait_for_function('window.__frk && document.querySelector("#loading").classList.contains("hidden")', timeout=20000)
     await page.wait_for_timeout(1200)
     check('menu visibile', await visible('#scr-menu'))
+    try:
+        await page.wait_for_function('window.__frk.game.world.char3d.ready || window.__frk.game.world.char3d.failed', timeout=30000)
+    except Exception: pass
+    await page.wait_for_timeout(900)
+    d = await c3()
+    check('v4 modello 3D (GLB) caricato', d['ready'] and not d['failed'], json.dumps(d['stats']))
+    check('v4 menu: animazione IDLE', d['state'] == 'idle' and d['weights']['idle'] > 0.9, json.dumps(d['weights']))
+    check('v4 budget triangoli personaggio <= 20k', 0 < d['stats']['triangles'] <= 20000, str(d['stats']['triangles']))
+    check('v4 clip richieste presenti', all(k in d['stats']['clips'] for k in ['idle', 'run', 'left', 'right', 'stumble', 'gameover']), ','.join(d['stats']['clips']))
     txt = await page.inner_text('#scr-menu')
     check('titolo e sottotitolo', 'FRAKKERA' in txt and 'Quanto lontano riuscirai a portare il fuoco?' in txt)
     no_emoji = await page.evaluate("!/[\\u{1F300}-\\u{1FAFF}\\u{2600}-\\u{27BF}]/u.test(document.body.innerText)")
@@ -146,6 +157,10 @@ async def run_profile(p, name, mobile):
     await page.wait_for_timeout(400)
     s0 = await state()
     check('partita avviata', s0['mode'] == 'run' and await visible('#hud'))
+    await page.wait_for_timeout(500)
+    d = await c3()
+    check('v4 corsa: animazione RUN', d['state'] == 'run' and d['weights']['run'] > 0.5 and d['weights']['idle'] < 0.3, json.dumps(d['weights']))
+    await page.evaluate('window.__frk.game.world.char3d.resetRec()')
 
     if mobile:
         box = await page.evaluate("(() => { const r = document.querySelector('#game canvas').getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; })()")
@@ -202,6 +217,7 @@ async def run_profile(p, name, mobile):
     fuel_drop_seen = False
     prev = s0
     shots_done = 0
+    lane_shot = False; stumble_shot = False
     samples = []
     while time.time() < t_end:
         r = await page.evaluate(BOT_JS, 'greedy')
@@ -211,6 +227,14 @@ async def run_profile(p, name, mobile):
         samples.append((s['meters'], s['score'], s['fuel']))
         prev = s
         await press(r['dir'])
+        if r['dir'] != 0 and not lane_shot:
+            await page.wait_for_timeout(60)
+            dd = await c3()
+            if dd['weights']['left'] + dd['weights']['right'] > 0.25:
+                await shot('05b-cambio-corsia'); lane_shot = True
+        if not stumble_shot and s['stats']['hits'] > 0:
+            dd = await c3()
+            if dd['stumbling']: await shot('05c-inciampo'); stumble_shot = True
         if shots_done == 0 and s['meters'] > 60:
             await shot('05-gioco'); shots_done = 1
         elif shots_done == 1 and s['meters'] > 150:
@@ -225,6 +249,16 @@ async def run_profile(p, name, mobile):
     check('velocita crescente', s1['baseSpeed'] > s0['baseSpeed'], f"{s0['baseSpeed']:.0f} -> {s1['baseSpeed']:.0f}")
     hud_score = await page.inner_text('#hud-score')
     check('HUD mostra il punteggio', hud_score.replace('.', '').isdigit())
+    d = await c3()
+    check('v4 cambio corsia: clip LEFT/RIGHT fuse con la corsa', d['rec']['lean'] > 0.3, f"max peso lean {d['rec']['lean']:.2f}")
+    if not stumble_shot:
+        # nessun urto vero durante il bot: si forza solo l'effetto visivo (la logica di collisione non viene toccata)
+        await page.evaluate("(() => { const g = window.__frk.game; g.world.onFx('hit', {}, g.sim); })()")
+        await page.wait_for_timeout(180)
+        await shot('05c-inciampo'); stumble_shot = True
+    await page.wait_for_timeout(400)
+    d = await c3()
+    check('v4 urto: animazione STUMBLE', d['rec']['stumbles'] > 0 and d['rec']['stumble'] > 0.5, f"stumbles={d['rec']['stumbles']} max={d['rec']['stumble']:.2f}")
 
     # lascia spegnere la fiamma (nessun input)
     t_end = time.time() + 120
@@ -232,6 +266,10 @@ async def run_profile(p, name, mobile):
         if await visible('#scr-over'): break
         await page.wait_for_timeout(300)
     check('game over compare', await visible('#scr-over'))
+    d = await c3()
+    check('v4 game over: sequenza run -> over e clip GAMEOVER', 'over' in d['rec']['states'] and d['state'] == 'over' and d['weights']['gameover'] > 0.9, json.dumps(d['rec']['states']))
+    fade = await page.evaluate('window.__frk.game.world.flame3d.fade')
+    check('v4 game over: la fiamma si spegne in fumo', fade < 0.25, f'{fade:.2f}')
     sf = await state()
     early = int((await page.inner_text('#go-score')).replace('.', '') or 0)
     try:
@@ -272,6 +310,9 @@ async def run_profile(p, name, mobile):
     await page.wait_for_timeout(600)
     sr = await state()
     check('RIPROVA riavvia la partita', sr['mode'] == 'run' and sr['meters'] < 20 and sr['fuel'] > 90, f"{sr['mode']} {sr['meters']}m")
+    await page.wait_for_timeout(500)
+    d = await c3()
+    check('v4 RIPROVA: il personaggio torna a correre', d['state'] == 'run' and d['weights']['gameover'] < 0.5, json.dumps(d['weights']))
     await page.wait_for_timeout(1500)
 
     # torna al menu e verifica persistenza dopo ricarica

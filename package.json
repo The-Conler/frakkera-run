@@ -1,8 +1,8 @@
 {
   "name": "frakkera-run",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
-  "description": "FRAKKERA RUN - minigioco arcade ispirato a Is Frakkeras di Gadoni (Fase 1, prototipo)",
+  "description": "FRAKKERA RUN - minigioco arcade ispirato a Is Frakkeras di Gadoni (v4, personaggio 3D)",
   "type": "module",
   "scripts": {
     "dev": "vite --host",

@@ -4,9 +4,9 @@
 
 Minigioco arcade (endless runner a 3 corsie) ispirato al rito di **Is Frakkeras di Gadoni**. Si gioca nel browser, senza download o registrazione, ed è pensato prima di tutto per lo smartphone in verticale.
 
-> **Stato: versione 0.3 (v3: mondo in 3D cartoon in tempo reale, interfaccia nuova).** Il personaggio, la frakkera e la fiamma restano gli **sprite pixel art originali**, identici pixel per pixel. La classifica di questa fase è **DEMO** e locale (resta sul singolo dispositivo). **Non vale per i premi.** La classifica ufficiale con validazione server arriva con la Fase 3.
+> **Stato: versione 0.4 (v4: personaggio 3D vero, con scheletro e animazioni).** Il portatore e la frakkera sono ora un unico modello 3D GLB (`public/models/frakkera-man.glb`) creato in Blender con MPFB2/MakeHuman (asset CC0) e animato; fiamma, scintille e luce restano in Three.js. La classifica di questa fase è **DEMO** e locale (resta sul singolo dispositivo). **Non vale per i premi.** La classifica ufficiale con validazione server arriva con la Fase 3.
 >
-> La v2 (2D pixel art, Phaser) è conservata: tag git `v2` e copia completa in `../frakkera-run-v2-backup/` (con la sua `dist/`), oltre agli archivi `frakkera-run-v2*.tgz`.
+> La v3 (personaggio sprite pixel art in mondo 3D) è conservata nel tag git `v3` e negli archivi `frakkera-run-v3*.tgz`. La v2 (2D pixel art, Phaser) è conservata: tag git `v2` e copia completa in `../frakkera-run-v2-backup/` (con la sua `dist/`), oltre agli archivi `frakkera-run-v2*.tgz`.
 
 ---
 
@@ -39,7 +39,7 @@ node tests/generator.test.mjs          # 400 seed x 6 km: verifica che non esist
 npm run build && npm run preview &     # serve la build sulla porta 4173
 pip install playwright                 # una volta sola
 python3 tests/e2e.py                   # end-to-end: mobile 390x844 touch + desktop 1366x900 (E2E_ONLY=mobile|desktop per uno solo)
-python3 tests/sprite_hash.py           # hash degli sprite protetti (giocatore, frakkera, fiamma)
+python3 tests/charsheet.py http://127.0.0.1:5173/ screenshots/v4-character-turnaround.png screenshots/v4-run-cycle.png   # tavole del personaggio rese col motore
 python3 tests/perf.py                  # tempo di frame indicativo in Chrome headless
 ```
 
@@ -48,9 +48,10 @@ I test usano Chrome (`CHROME_PATH`, di default `/usr/bin/google-chrome`) con Web
 - punteggio, distanza e velocità che crescono, consumo della fiamma, raccolta dei materiali, bonus "per un pelo";
 - pausa manuale e automatica, game over con **conteggio animato** del punteggio (il valore finale deve coincidere), filtro dei nickname, classifica demo, RIPROVA;
 - audio e musica attivabili e salvati, persistenza del record, nessuna emoji, nessuno scroll e nessun errore in console;
+- personaggio 3D: GLB caricato, triangoli <= 20.000, clip presenti, stati IDLE nel menu, RUN in partita, peso delle clip di inclinazione nei cambi corsia, STUMBLE all'urto, sequenza di GAME OVER con fiamma che si spegne, ritorno a RUN con RIPROVA;
 - con `?debug=pistol`: tappeti raccolti e totale salvato, pistola con 3 colpi, sparo con il pulsante SPARA (mobile) o con Spazio/W/Su (desktop), botte distrutta, colpi a zero (HUD e pulsante spariscono), il tocco su SPARA non cambia corsia, riavvio istantaneo.
 
-Gli screenshot finiscono in `screenshots/` con prefisso `v3-`. `tests/protected-sprites.baseline.json` contiene gli hash di riferimento di giocatore, frakkera e fiamma: `tests/sprite_hash.py` deve restituire gli stessi valori.
+Gli screenshot finiscono in `screenshots/` con prefisso `v4-`. Il vecchio controllo sugli hash degli sprite della v3 non vale più (il personaggio è cambiato su richiesta) ed è archiviato in `tests/obsolete/`.
 
 **Parametri di debug:** `?debug=pistol` fa comparire una pistola già alla seconda fila e poi ogni 30 file. Le partite con `debug` non aggiornano record né classifica demo. `?test=1` espone `window.__frk` per i test. `?fixeddpr` disattiva la riduzione automatica della risoluzione.
 
@@ -67,7 +68,7 @@ Il pulsante SPARA intercetta il proprio tocco, che quindi non arriva al canvas e
 
 ---
 
-## Architettura v3
+## Architettura v4
 
 ```
 frakkera-run/
@@ -87,19 +88,23 @@ frakkera-run/
 │   │   ├── kit.js             # fusione di primitive in un'unica geometria a colori per vertice (+ finta occlusione)
 │   │   ├── tex3d.js           # texture su canvas: acciottolato, doghe, tappeti Sa Burra, bagliori, ombre
 │   │   ├── particles.js       # scintille/fumo/vino (Points preallocati) e schegge di legno (InstancedMesh)
-│   │   ├── character.js       # billboard del personaggio: compone player/torch/flame ORIGINALI su una canvas
+│   │   ├── character3d.js     # personaggio 3D: GLTFLoader + Meshopt, AnimationMixer, macchina a stati con dissolvenze, molla sulla frakkera, pistola in mano
+│   │   ├── flame3d.js         # fiamma a 4 strati shader (rumore fbm) sulla punta della frakkera
+│   │   ├── character.js       # billboard sprite della v3, usato solo come riserva se il GLB non si carica
 │   │   └── texshim.js         # finto "scene.textures" per eseguire le funzioni di disegno originali senza Phaser
 │   ├── systems/               # generator.js, rng.js, audio.js (+ interruttore musica), storage.js, nickname.js
 │   ├── art/                   # textures.js (player/torch/flame INVARIATI), textures2.js (pistola in mano), palette.js
 │   └── assets/fonts3/         # Lilita One e Baloo 2 (SIL OFL 1.1), woff2 latino
-├── tests/                     # generator.test.mjs, e2e.py, sprite_hash.py, perf.py
-├── reference/                 # tappeto sa burra e immagine di riferimento v3
-└── screenshots/               # catture dei test (prefisso v3-)
+├── public/models/             # frakkera-man.glb (personaggio + frakkera, 1,6 MB)
+├── blender/                   # pipeline Blender/MPFB2 che genera il GLB (script + texture originali)
+├── tests/                     # generator.test.mjs, e2e.py, perf.py, charsheet.py, look4.py, obsolete/
+├── reference/                 # tappeto sa burra, riferimenti v3 e v4 (concept del personaggio, foto della frakkera)
+└── screenshots/               # catture dei test e tavole del personaggio (prefisso v4-)
 ```
 
 **Stack:** Three.js 0.186 (WebGL), JavaScript ES modules, Vite. Phaser è stato rimosso. Niente CDN e nessun servizio esterno a runtime.
 
-**Peso della build:** circa 175 KB gzip di JS (quasi tutto Three.js), 6 KB di CSS, 49 KB di font. Nessuna immagine da scaricare: tutto è generato via codice.
+**Peso della build:** circa 211 KB gzip di JS (quasi tutto Three.js), 6 KB di CSS, 49 KB di font e il modello `frakkera-man.glb` da 1,6 MB (compresso con meshopt). Il resto del mondo è generato via codice.
 
 **Logica separata dalla grafica.** `sim.js` non sa nulla del rendering: emette eventi (`spawn`, `barrel`, `carpet`, `shot`, `die`, ...) che `world3d.js` trasforma in modelli, particelle e scosse. Lo stesso modulo potrà girare sul server per il replay anti-cheat (Fase 3). Unità: 10 px della v2 = 1 m = 1 unità 3D; corsie, hitbox, velocità e generatore sono quelli della v2.
 
@@ -114,8 +119,10 @@ frakkera-run/
 
 ## Grafica e personaggio
 
-- **Personaggio (regola vincolante):** giocatore, frakkera e fiamma sono **gli sprite originali** prodotti da `player()`, `torch()` e `flame()` (non modificati, hash verificati), con la stessa animazione di corsa a 4 frame, la fiamma a 6 frame e la stessa oscillazione della frakkera. Vengono composti su una canvas 72x88 esattamente come nella v2 e mostrati come **billboard** rivolto alla camera, con filtro nearest e senza mipmap. Aggiunte permesse: scala, ombra a macchia, luce calda puntiforme sulla punta della fiamma, scintille e fumo 3D.
-- **Posa del game over (compromesso da decidere):** non avendo pixel nuovi, il personaggio caduto è lo stesso sprite ruotato di circa 83° (sdraiato), con la frakkera ruotata e spenta accanto e il fumo che sale dalla punta. La camera si alza e lo inquadra dall'alto; gli ostacoli vicini vengono nascosti per pulizia. Se si vuole una vera posa "a terra" serve un nuovo frame disegnato a mano (oggi escluso dalla regola).
+- **Personaggio 3D (v4):** uomo di mezza età con camicia bianca a maniche arrotolate, gilet scuro con bottoni, pantaloni scuri, scarpe nere e coppola; porta la frakkera (circa 3,4 m, il doppio della sua altezza) sulla spalla destra tenendola con due mani. Modello unico GLB: 9 mesh, 55 ossa, **19.745 triangoli**, texture fino a 1024 px, 1,6 MB. Animazioni: `idle`, `run`, `left`, `right`, `stumble`, `gameover` (rallenta, si ferma, pianta la frakkera e china la testa). In gioco: dissolvenze tra le clip, inclinazione nei cambi corsia sincronizzata con la corsa, velocità della corsa legata alla velocità del gioco, molla sulla frakkera, lampeggio durante l'invulnerabilità, pistola nella mano destra. Se il GLB non si carica resta il billboard della v3.
+- **Frakkera:** fascio denso di canne e rami (180 steli, 60 rametti, punta annerita, ramoscelli sporgenti) legato da 7 doppie corde, con estremità irregolari e svasate. La fiamma (4 strati shader), le scintille, il fumo e la luce calda sono in Three.js. Se la frakkera copre ostacoli o tappeti sullo schermo diventa semitrasparente (fino al 38%).
+- **Camere:** menu di tre quarti sul personaggio fermo; in corsa dietro e sopra, con la camera che segue la corsia per tenere in quadro portatore e fiamma sul telefono in verticale; al game over camera da dietro più lontana con il personaggio sotto il titolo.
+- **Pipeline (`blender/build_character.sh`):** Blender 4.2 headless + MPFB 2.0.8. `step1_human.py` crea l'uomo (macro, proxy, vestiti, coppola, capelli, pelle, scheletro game_engine); `make_textures.py` disegna le texture; `step2_build.py` taglia le maniche e aggiunge i risvolti, costruisce il gilet dal corpo, decima e modella la frakkera; `step3_anim.py` crea presa e IK e anima le 6 clip; `step4_export.py` esporta il glTF; infine `gltf-transform meshopt`. Rigenera il file con `bash blender/build_character.sh` (servono Blender e MPFB in `/workspace/tools`).
 - **Villaggio:** case in intonaco caldo e pietra con tetti in coppi, cantonali, finestre con persiane (alcune accese), fioriere, balconi, lanterne, rampicanti, giardini; festoni di bandierine e drappi viola/rossi; colline, paese sul colle, chiesa con campanile e cipressi in lontananza; cielo a gradiente con sole o luna, nuvole e stelle.
 - **Atmosfere:** menu al crepuscolo viola-blu con luna; corsa al tramonto dorato; game over più scuro. Passaggio graduale tra le tre.
 - **Oggetti:** botti in 3D (in piedi, coricate su zeppe, gruppi, che rotolano) che esplodono in doghe, cerchi, schizzi di vino e polvere; tappeti Sa Burra galleggianti con texture tessuta (4 varianti), bagliore ed effetto di raccolta; pistola Broccu dorata con anello luminoso, vampata, scia del colpo e scossa della camera; fasci di asfodelo e ferula; muretti a secco, pozzanghere, capre, vicoli stretti.
@@ -210,10 +217,32 @@ Il gioco si adatta da solo alla dimensione dell'iframe. In un iframe, la tastier
 
 ---
 
+## Asset esterni e licenze (v4)
+
+| Asset | Fonte | Licenza |
+|---|---|---|
+| Blender 4.2.9 (solo strumento, non distribuito) | https://download.blender.org/release/Blender4.2/blender-4.2.9-linux-x64.tar.xz | GPL (il materiale prodotto è di chi lo crea) |
+| MPFB 2.0.8 (estensione MakeHuman per Blender, solo strumento) | https://github.com/makehumancommunity/mpfb2/releases/download/v2.0.8/mpfb-2.0.8.zip | codice GPL-3.0; i modelli generati sono CC0 |
+| makehuman_system_assets: mesh base, proxy `male_generic`, vestito `male_casualsuit03`, scarpe `shoes04`, capelli `short02`, sopracciglia `eyebrow001`, occhi low-poly, pelle `middleage_caucasian_male`, scheletro `game_engine` | https://files.makehumancommunity.org/asset_packs/makehuman_system_assets/makehuman_system_assets_cc0.zip | CC0 1.0 |
+| Coppola `jujube_newsboy_cap` (pacchetto hats01, autore jujube) | https://files.makehumancommunity.org/asset_packs/hats01/hats01_cc0.zip | CC0 1.0 |
+| gltf-transform (solo strumento di compressione) | https://gltf-transform.dev/ | MIT |
+| three.js e decoder Meshopt (`three/examples/jsm/libs/meshopt_decoder.module.js`) | https://threejs.org/ | MIT |
+| Font Lilita One e Baloo 2 | Google Fonts / @fontsource | SIL OFL 1.1 |
+
+Originali, creati dagli script del progetto: frakkera (geometria e colori), gilet, risvolti delle maniche, bottoni, tutte le texture in `blender/tex/`, le 6 animazioni, la fiamma e gli effetti. Mixamo non è stato usato: con un account Adobe dell'utente potrebbe fornire animazioni di corsa da motion capture più naturali (opzione futura).
+
+## Novità v4 (0.4.0)
+
+1. **Personaggio 3D vero** al posto del billboard: uomo con scheletro, vestiti del concept, frakkera 3D legata con corde, fiamma shader; 6 animazioni con macchina a stati e dissolvenze.
+2. **Camere riviste** per il telefono in verticale (menu, corsa, game over) e trasparenza della frakkera quando copre gli oggetti.
+3. **Game over animato:** il portatore rallenta, pianta la frakkera e la fiamma si spegne in fumo.
+4. **Inciampo** visibile all'urto, con scintille e scossa.
+5. Gameplay, generatore e punteggi invariati.
+
 ## Novità v3 (0.3.0)
 
 1. **Mondo 3D in tempo reale** (Three.js): camera in terza persona dietro al portatore, strada lastricata a 3 corsie verso l'orizzonte, stile cartoon low-poly, luce del tramonto, nebbia, ombre morbide finte.
-2. **Personaggio invariato** come billboard pixel art (vedi sopra), con luce sulla fiamma e scintille 3D.
+2. **Personaggio invariato** come billboard pixel art, con luce sulla fiamma e scintille 3D.
 3. **Villaggio sardo** ridisegnato, botti/tappeti/pistola/fasci in 3D con effetti di rottura e raccolta.
 4. **Interfaccia nuova** non pixel: logo a lettere grosse con fascia tessuta, GIOCA ORA giallo-arancio, quattro tasti (CLASSIFICA, COME SI GIOCA, IS FRAKKERAS, IMPOSTAZIONI con audio e musica), targa del record; HUD con pausa rotonda, barra della fiamma a pillola, pannelli per punti/record, tappeti e colpi; game over "FIAMMA SPENTA" con conteggio animato, nastro NUOVO RECORD!, righe con icone, nickname, RIPROVA grande, CLASSIFICA e MENU; animazioni di entrata.
 5. **Tutto il gameplay della v2 è invariato** (stessa simulazione, stesso generatore, stessi punteggi e tetti, stesso registro v2).
@@ -256,7 +285,7 @@ Il gioco si adatta da solo alla dimensione dell'iframe. In un iframe, la tastier
 - [x] Record personale persistente in localStorage, scritto solo se migliore, con ripiego in memoria se lo storage è bloccato.
 - [x] Audio WebAudio completo, attivato solo dopo un gesto dell'utente (rispetta le regole di autoplay e lo sblocco su iOS) e sospeso in background.
 - [x] Mobile-first in verticale; su desktop una colonna centrata. Area sicura per il notch (`viewport-fit=cover`).
-- [x] Testato in Chrome headless (mobile + desktop; in v3 118 controlli). La v2 era stata provata anche in Firefox; la v3 non ancora.
+- [x] Testato in Chrome headless (mobile + desktop; in v4 138 controlli). La v2 era stata provata anche in Firefox; la v3 non ancora.
 
 ## Da sviluppare
 
@@ -346,11 +375,11 @@ Un punteggio calcolato solo dal client si può sempre falsificare. Per questo il
 ## Problemi noti e limiti
 
 - La classifica è solo **demo/locale**: è modificabile da chi usa il dispositivo e non vale per i premi (lo dice anche l'interfaccia).
-- Testato in Chrome headless (rendering software) e in Firefox. **Safari/iOS non è stato verificato su un dispositivo reale.** Il codice tiene già conto delle particolarità iOS (sblocco audio nel gesto, `visualViewport`, niente zoom o scroll), ma resta da provare in Fase 4.
+- Testato in Chrome headless (rendering software); la v2 anche in Firefox, la v4 non ancora. **Safari/iOS non è stato verificato su un dispositivo reale.** Il codice tiene già conto delle particolarità iOS (sblocco audio nel gesto, `visualViewport`, niente zoom o scroll), ma resta da provare in Fase 4.
 - Su schermi in orizzontale il gioco resta una colonna verticale centrata. Non c'è un avviso "ruota il telefono", che può arrivare in Fase 4.
 - Il 2,6% circa dei tappeti si trova in scie fuori dal sentiero che a velocità alta possono essere irraggiungibili senza rischi: è voluto (scelta rischio/ricompensa), ma si può ridurre con `CARPETS.OFFPATH_SHARE`.
-- La grafica 3D è generata via codice (nessun modello o texture esterni): leggera e coerente, ma meno ricca di asset fatti a mano.
-- Il personaggio è un billboard 2D in un mondo 3D: visto di lato nei cambi di corsia resta "piatto" per scelta (regola sugli sprite originali). La posa del game over è un compromesso (sprite ruotato).
-- Prestazioni misurate solo in Chrome headless con WebGL software (SwiftShader): lì il tempo di frame è dominato dalla CPU che emula la GPU (circa 50-110 ms) e non è rappresentativo; il lavoro JavaScript per frame è di circa 3-4 ms (p95). Circa 250-330 draw call e 160-180 mila triangoli in corsa: vanno verificati su telefoni reali di fascia media; se serve si possono ridurre i dettagli delle case lontane.
-- Il bundle JS supera i 500 KB non compressi (Three.js): Vite lo segnala, ma compresso sono circa 175 KB.
+- Il mondo 3D è generato via codice: leggero e coerente, ma meno ricco di asset fatti a mano. L'unico modello esterno è il personaggio (vedi licenze).
+- Il personaggio 3D è realistico (MakeHuman), non stilizzato come il concept: più snello e meno tozzo, viso meno caratterizzato. Il gilet è ricavato dal corpo (niente revers o tasche). Le mani stringono la frakkera in modo approssimato (IK, dita solo piegate). Le animazioni sono fatte a mano via script, non motion capture: in qualche fotogramma la frakkera tocca la gamba. Da dietro la sagoma (coppola, maniche bianche, gilet scuro, frakkera sulla spalla destra) si legge, ma sul telefono il personaggio è piccolo. La frakkera è più chiara e regolare di quella della foto. Un modello stilizzato commissionato a un artista (e animazioni mocap) migliorerebbe molto la fedeltà.
+- Prestazioni misurate solo in Chrome headless con WebGL software (SwiftShader): lì il tempo di frame è dominato dalla CPU che emula la GPU (circa 50-110 ms) e non è rappresentativo; il lavoro JavaScript per frame è di circa 3-4 ms (p95). Circa 270-320 draw call e 190-200 mila triangoli in corsa (il personaggio: 9 draw call e 19.745 triangoli, più 4 quadrati per la fiamma): vanno verificati su telefoni reali di fascia media; se serve si possono ridurre i dettagli delle case lontane.
+- Il bundle JS supera i 500 KB non compressi (Three.js): Vite lo segnala, ma compresso sono circa 211 KB.
 - Il testo sulla tradizione è volutamente breve e generale e va validato con gli organizzatori.

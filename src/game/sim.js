@@ -120,7 +120,7 @@ export class Sim {
     this.clock += dt;
     if (this.mode === 'attract') {
       this.currentSpeed = ATTRACT_SPEED;
-      this.T += ATTRACT_SPEED * dt;
+      // v4: nel menu il personaggio 3D e' fermo (IDLE), quindi il mondo non scorre
       this.fuel = FUEL.MAX;
       this.approachLane(dt);
       return;

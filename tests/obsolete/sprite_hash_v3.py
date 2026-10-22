@@ -1,3 +1,6 @@
+"""OBSOLETO dalla v4: il personaggio non e' piu' lo sprite pixel art ma un modello 3D (GLB).
+Tenuto solo come riferimento storico per la v3 (tag v3); non fa parte della suite di test.
+"""
 """Hash del pixel output degli sprite protetti (player, torch, flame).
 Uso: python3 tests/sprite_hash.py [url]  -> stampa JSON con gli hash."""
 import asyncio, sys, json, hashlib

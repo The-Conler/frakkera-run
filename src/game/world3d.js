@@ -11,6 +11,8 @@ import * as T3 from './tex3d.js';
 import * as M from './models.js';
 import { PointPool, Shards } from './particles.js';
 import { Character } from './character.js';
+import { Character3D } from './character3d.js';
+import { Flame3D } from './flame3d.js';
 import { rng } from './kit.js';
 
 const U = 0.1;                    // 1 px del mondo 2D = 0.1 unita' 3D (1 m = 1 unita')
@@ -41,6 +43,7 @@ void main(){
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _v3 = new THREE.Vector3();
 const _right = new THREE.Vector3(), _up = new THREE.Vector3();
+const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c3 = new THREE.Vector3();
 const _c = new THREE.Color(), _c2 = new THREE.Color();
 const COL = {
   spark: new THREE.Color('#ffb347'), spark2: new THREE.Color('#ffe08a'), ember: new THREE.Color('#ff7a2a'),
@@ -76,7 +79,9 @@ export class World {
     this.buildGround();
     this.buildVillage();
     this.buildFx();
-    this.character = new Character(this.scene, 0.11);
+    this.character = new Character(this.scene, 0.11);          // fallback (sprite v3) finche' il GLB non e' pronto
+    this.char3d = new Character3D(this.scene, { pistolGeo: this.geo.pistol, pistolMat: this.mats2 });
+    this.flame3d = new Flame3D(this.scene);
     this.charShadow = this.blob(2.4, 1.3);
     this.scene.add(this.charShadow);
     this.shots = new Map();
@@ -463,7 +468,13 @@ export class World {
         this.popWorld('SSSS...', x, 3.2, pz, 'water');
         break;
       }
-      case 'hit': this.addShake(0.35, 0.28); this.smokeAtTip(12); this.burst(this.tipW.x, this.tipW.y, this.tipW.z, COL.spark, 26, 5); break;
+      case 'hit': {
+        this.addShake(0.35, 0.28); this.smokeAtTip(12);
+        const t = this.tipW;
+        this.burst(t.x, t.y + 0.5, t.z, COL.spark, 34, 5.5); this.burst(t.x, t.y + 0.3, t.z, COL.ember, 22, 3.5);
+        this.char3d.stumble(); this.char3d.kick((Math.random() < 0.5 ? -1 : 1) * 1.6, 2.2);
+        break;
+      }
       case 'die': this.smokeAtTip(30); break;
       case 'start': case 'attract': this.add.clear(); this.norm.clear(); this.shards.clear(); break;
       default: break;
@@ -564,9 +575,9 @@ export class World {
     const aspect = this.camera.aspect;
     const wide = Math.max(0, Math.min(1, (aspect - 0.5) / 0.3));
     let cp, cl, fov;
-    if (view.cam === 'menu') { cp = _v.set(1.8, 2.2, pz + 16); cl = _v2.set(-0.3, 3.0, pz - 8); fov = 58; }
-    else if (view.cam === 'over') { const ox = Math.max(-2.2, Math.min(2.2, px + 2.8)); cp = _v.set(ox, 10, pz + 14); cl = _v2.set(px + 1.0 + (ox - px - 2.8) * 0.3, -5.0, pz - 0.5); fov = 52; }
-    else { cp = _v.set(px * 0.55, 6.0 - wide, pz + 9.6 - wide * 1.5); cl = _v2.set(px * 0.3, 1.8, pz - 15); fov = 64 - wide * 6; }
+    if (view.cam === 'menu') { cp = _v.set(0.9 + wide * 1.2, 2.0 + wide * 0.6, pz + 10.5 - wide * 2.5); cl = _v2.set(0.1 - wide * 0.8, 1.2 + wide * 1.2, pz); fov = 58; }
+    else if (view.cam === 'over') { cp = _v.set(px * 0.45 + 2.0, 4.2, pz + 15.5); cl = _v2.set(px, -2.6, pz); fov = 52; }
+    else { cp = _v.set(px * 0.82 - 0.6, 6.4 - wide, pz + 9.4 - wide * 1.5); cl = _v2.set(px * 0.55 - 0.1, 1.8, pz - 15); fov = 64 - wide * 6; }
     const k = 1 - Math.exp(-dt * (view.cam === 'run' ? 7 : 2.6));
     this.camPos.lerp(cp, k);
     this.camLook.lerp(cl, k);
@@ -602,25 +613,38 @@ export class World {
     this.animateViews(sim, dt);
     this.dir.position.set(px - 30, 40, pz - 25); this.dir.target.position.set(px, 0, pz);
 
-    // personaggio
+    // personaggio: modello 3D (v4) oppure sprite di riserva (v3) se il GLB non e' (ancora) disponibile
     const base = _v3.set(px, 0, pz);
     _right.setFromMatrixColumn(this.camera.matrixWorld, 0);
     _up.setFromMatrixColumn(this.camera.matrixWorld, 1);
-    const ch = this.character;
-    ch.update(dt, view.char);
-    ch.sprite.position.copy(base);
-    this.charShadow.position.set(px + (view.char.downT > 0 ? 0.6 : 0), 0.03, pz);
-    this.charShadow.scale.set(view.char.downT > 0 ? 3.4 : 2.2, 1, 1.3);
-    ch.worldOf(this.tipW, base, _right, _up, ch.tip.x, ch.tip.y - 9);
-    ch.worldOf(this.muzzleW, base, _right, _up, ch.muzzle.x, ch.muzzle.y);
+    const ch = this.character, c3 = this.char3d;
+    const use3d = c3.ready;
+    ch.sprite.visible = !use3d;
+    if (use3d) {
+      c3.update(dt, view.char, px, pz);
+      c3.tipWorld(this.tipW);
+      if (view.char.armed) c3.muzzleWorld(this.muzzleW);
+      else this.muzzleW.set(px - 0.5, 2.0, pz - 0.8);
+      this.charShadow.position.set(px, 0.03, pz - 0.2);
+      this.charShadow.scale.set(2.3, 1, 2.0);
+      c3.setOcclusion(view.cam === 'run' && this.occludes(px, pz) ? 0.38 : 1, dt);
+    } else {
+      ch.update(dt, view.char);
+      ch.sprite.position.copy(base);
+      this.charShadow.position.set(px + (view.char.downT > 0 ? 0.6 : 0), 0.03, pz);
+      this.charShadow.scale.set(view.char.downT > 0 ? 3.4 : 2.2, 1, 1.3);
+      ch.worldOf(this.tipW, base, _right, _up, ch.tip.x, ch.tip.y - 9);
+      ch.worldOf(this.muzzleW, base, _right, _up, ch.muzzle.x, ch.muzzle.y);
+    }
     const fuelF = view.fuelF;
     const lit = view.char.flameOn;
     const flick = Math.sin(this.clock * 17) * 0.06 + Math.sin(this.clock * 29) * 0.05;
-    this.flameLight.position.copy(this.tipW);
+    this.flame3d.update(dt, this.camera, this.tipW, fuelF, use3d && lit, view.char.fuelLow, -(view.char.vx || 0) * 0.5);
+    this.flameLight.position.copy(this.tipW); if (use3d) this.flameLight.position.y += 0.9;
     this.flameLight.intensity = lit ? (10 + 18 * fuelF) * (1 + flick) + (this.flashBoost || 0) * 40 : 0;
     this.flashBoost = Math.max(0, (this.flashBoost || 0) - dt * 10);
     this.flameGlow.visible = lit;
-    this.flameGlow.position.copy(this.tipW);
+    this.flameGlow.position.copy(this.tipW); if (use3d) this.flameGlow.position.y += 0.9;
     this.flameGlow.scale.setScalar((2.2 + 1.8 * fuelF) * (1 + flick));
     this.groundGlow.visible = lit;
     this.groundGlow.position.set(px, 0.04, pz - 0.5);
@@ -652,6 +676,68 @@ export class World {
     this.add.update(dt); this.norm.update(dt); this.shards.update(dt);
     this.renderer.render(this.scene, this.camera);
   }
+
+  // foglio del personaggio renderizzato col motore del gioco (turnaround / ciclo di corsa) -> dataURL PNG
+  renderCharacterSheet(kind = 'turnaround', w = 360, h = 640) {
+    const c3 = this.char3d;
+    if (!c3.ready) return null;
+    const sc = new THREE.Scene();
+    sc.background = new THREE.Color('#e4d6c2');
+    sc.add(new THREE.HemisphereLight('#fff3e0', '#7a6660', 1.5));
+    const d1 = new THREE.DirectionalLight('#fff0dc', 2.6); d1.position.set(3, 6, 6); sc.add(d1);
+    const d2 = new THREE.DirectionalLight('#ffc890', 1.1); d2.position.set(-5, 3, -4); sc.add(d2);
+    const ground = new THREE.Mesh(this.geo.blob, this.mat.blob); ground.scale.set(3.2, 1, 2.4); sc.add(ground);
+    const parent = c3.root.parent, pos = c3.root.position.clone(), rot = c3.root.rotation.y, fParent = this.flame3d.group.parent;
+    sc.add(c3.root); sc.add(this.flame3d.group);
+    c3.root.position.set(0, 0, 0);
+    const cam = new THREE.PerspectiveCamera(30, w / h, 0.1, 100);
+    const views = kind === 'run'
+      ? [0, 1, 2, 3, 4, 5, 6, 7].map((i) => ({ clip: 'run', t: i / 8, rot: -Math.PI / 2 }))
+      : [{ clip: 'idle', t: 0, rot: 0 }, { clip: 'idle', t: 0, rot: -Math.PI / 2 }, { clip: 'idle', t: 0, rot: Math.PI }, { clip: 'run', t: 0.25, rot: Math.PI * 0.8 }];
+    const out = document.createElement('canvas'); out.width = w * views.length; out.height = h;
+    const ctx = out.getContext('2d');
+    const prevSize = new THREE.Vector2(); this.renderer.getSize(prevSize);
+    const prevPR = this.renderer.getPixelRatio();
+    this.renderer.setPixelRatio(1); this.renderer.setSize(w, h, false);
+    const acts = c3.actions;
+    views.forEach((v, i) => {
+      for (const k in acts) acts[k].setEffectiveWeight(0);
+      const a = acts[v.clip]; a.setEffectiveWeight(1); a.time = v.t * a.getClip().duration;
+      c3.mixer.update(0);
+      c3.root.rotation.y = v.rot; c3.root.updateMatrixWorld(true);
+      c3.bones.tip.getWorldPosition(_v);
+      if (kind === 'closeup') { cam.position.set(0, 2.2, 7.4); cam.lookAt(0, 1.75, 0); } else if (kind === 'run') { cam.position.set(-1.5, 3.9, 17.5); cam.lookAt(-1.5, 3.7, 0); } else { cam.position.set(0, 3.6, 16.5); cam.lookAt(0, 3.3, 0); }
+      cam.updateMatrixWorld();
+      this.flame3d.fade = 1; this.flame3d.update(0.016, cam, _v, 1, true, false, 0);
+      this.renderer.render(sc, cam);
+      ctx.drawImage(this.renderer.domElement, i * w, 0);
+    });
+    parent.add(c3.root); fParent.add(this.flame3d.group);
+    c3.root.position.copy(pos); c3.root.rotation.y = rot;
+    this.renderer.setPixelRatio(prevPR); this.renderer.setSize(prevSize.x, prevSize.y, false);
+    return out.toDataURL('image/png');
+  }
+
+  // la frakkera (dalle mani alla punta, in coordinate schermo) copre un oggetto in arrivo?
+  occludes(px, pz) {
+    const asp = this.camera.aspect;
+    _a.set(px, 3.0, pz).project(this.camera);
+    _b.copy(this.tipW); _b.y += 1.2; _b.project(this.camera);
+    const sx = (_b.x - _a.x) * asp, sy = _b.y - _a.y, L2 = sx * sx + sy * sy || 1;
+    for (const v of this.views.values()) {
+      if (!v.root.visible) continue;
+      const p = v.root.position;
+      if (p.z > pz - 2.5 || p.z < pz - 80) continue;
+      _c3.set(p.x, 1.0, p.z).project(this.camera);
+      const qx = (_c3.x - _a.x) * asp, qy = _c3.y - _a.y;
+      const t = Math.max(0, Math.min(1, (qx * sx + qy * sy) / L2));
+      const dx = qx - sx * t, dy = qy - sy * t;
+      if (dx * dx + dy * dy < 0.016) return true;
+    }
+    return false;
+  }
+
+  stepFrame() { return this.char3d.ready ? this.char3d.frame : this.character.frame; }
 
   // proiezione per i popup HTML (0..1 nello schermo)
   project(x, y, z, out) {

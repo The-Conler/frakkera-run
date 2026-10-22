@@ -129,7 +129,7 @@ export class Game {
     if (mode === 'dying' || mode === 'over') this.downT = Math.min(1, this.downT + dt / 0.6);
     const fuelF = Math.max(0, sim.fuel) / FUEL.MAX;
     const ch = this.character || (this.character = {});
-    ch.mode = mode; ch.speed = sim.currentSpeed; ch.clock = sim.clock; ch.vx = sim.vx; ch.invuln = sim.invuln;
+    ch.mode = mode; ch.speed = sim.currentSpeed; ch.clock = sim.clock; ch.vx = sim.vx; ch.invuln = sim.invuln; ch.targetLane = sim.targetLane;
     ch.fuelLow = sim.fuel < FUEL.LOW_WARNING; ch.armed = mode === 'run' && (sim.ammo > 0 || sim.recoilT > 0);
     ch.recoil = sim.recoilT; ch.flameOn = mode === 'run' || mode === 'attract'; ch.downT = this.downT;
     const view = this.view || (this.view = {});
@@ -137,7 +137,7 @@ export class Game {
     view.char = ch; view.fuelF = mode === 'attract' ? 1 : fuelF; view.speed = sim.currentSpeed; view.smoke = mode === 'dying' || mode === 'over';
     this.world.render(sim, dt, view);
     // passi
-    const fr = this.world.character.frame;
+    const fr = this.world.stepFrame();
     if (fr !== this.lastFrame && (fr === 1 || fr === 3) && mode === 'run' && !this.paused) audio.step(fr === 3);
     this.lastFrame = fr;
     if (!this.paused) {
