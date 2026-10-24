@@ -257,10 +257,16 @@ export function initUI(game) {
     state = 'shop';
     $('#shop-say').textContent = 'Bentornato, piccioc\u00f9! Cosa ti serve per la strada?';
     renderShop();
-    show('shop'); $('#hud').classList.add('hidden');
+    show('shop'); $('#hud').classList.add('hidden'); measureShopUI();
   });
   ['pointerup', 'pointermove', 'click', 'touchstart', 'touchend'].forEach((ev) => offerBtn.addEventListener(ev, (e) => { e.stopPropagation(); if (ev !== 'touchstart') e.preventDefault(); }, { passive: false }));
   $('#scr-shop').addEventListener('pointerdown', (e) => e.stopPropagation());
+  // v5s7b: la camera del negozio inquadra la bancarella nello spazio libero tra titolo e pannello
+  function measureShopUI() {
+    const H = window.innerHeight || 1, top = $('.shop-top').getBoundingClientRect(), pan = $('.shop-panel').getBoundingClientRect();
+    game.world.shopUI = { top: Math.min(0.3, (top.bottom + 4) / H), bottom: Math.min(0.5, (H - pan.top + 4) / H) };
+  }
+  window.addEventListener('resize', () => { if (state === 'shop') measureShopUI(); });
   function leaveShop() {
     if (state !== 'shop') return;
     state = 'shopcount';

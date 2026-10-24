@@ -725,9 +725,10 @@ export class World {
     if (this.flashT > 0) { this.flashT -= dt; this.flash.position.copy(this.muzzleW); this.flash.scale.setScalar(1.4 + (0.09 - this.flashT) * 8); if (this.flashT <= 0) this.flash.visible = false; }
     this.add.update(dt); this.norm.update(dt); this.shards.update(dt);
     if (this.shopView) {   // v5s7: dentro il Garag di Pinu (scena a parte)
+      if (!this.renderer.shadowMap.enabled) { this.renderer.shadowMap.enabled = true; this.renderer.shadowMap.type = THREE.PCFSoftShadowMap; }   // v5s7b: ombre solo nel negozio (la strada non ha luci con ombre)
       const sh = this.shopRoom || (this.shopRoom = buildShopRoom());
       const sz = this.renderer.getSize(this._sz || (this._sz = new THREE.Vector2()));
-      sh.update(dt, sz.x / Math.max(1, sz.y));
+      sh.update(dt, sz.x / Math.max(1, sz.y), this.shopUI);
       this.renderer.render(sh.scene, sh.camera);
       return;
     }

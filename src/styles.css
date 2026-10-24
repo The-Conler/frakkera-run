@@ -302,3 +302,15 @@ svg { display: block; }
   .final-score { font-size: calc(var(--u) * 42); }
   .go-row b { font-size: calc(var(--u) * 19); }
 }
+
+/* v5s7b: pannello compatto sul selciato, tre carte in fila; fumetto piccolo sotto il titolo */
+#scr-shop { padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+#scr-shop .shop-bubble { position: absolute; right: 14px; top: calc(max(12px, env(safe-area-inset-top)) + calc(var(--u) * 46)); max-width: 58%; margin: 0; font-size: calc(var(--u) * 13); padding: 7px 11px; }
+#scr-shop .shop-panel { padding: 8px 8px 2px; background: linear-gradient(rgba(70,40,20,0.86), rgba(45,25,12,0.94)); }
+#scr-shop .shop-items { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+#scr-shop .shop-item { grid-template-columns: 1fr; justify-items: center; text-align: center; gap: 3px; padding: 7px 4px 8px; }
+#scr-shop .shop-item .si-ico { width: 40px; height: 40px; } #scr-shop .shop-item .si-ico img, #scr-shop .shop-item .si-ico svg { width: 30px; height: 30px; }
+#scr-shop .shop-item .si-name { font-size: calc(var(--u) * 14); line-height: 1.05; } #scr-shop .shop-item .si-desc { font-size: calc(var(--u) * 10.5); line-height: 1.15; }
+#scr-shop .shop-item .si-price { font-size: calc(var(--u) * 15); padding: 4px 8px; }
+#scr-shop .shop-meta { margin: 5px 0; font-size: calc(var(--u) * 12); }
+#scr-shop #shop-exit { margin-bottom: 4px; padding-top: 10px; padding-bottom: 10px; }

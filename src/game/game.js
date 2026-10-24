@@ -155,7 +155,7 @@ export class Game {
     ch.duck = mode === 'run' ? sim.duckT : 0; ch.slip = sim.slipT; ch.fuelLow = sim.fuel < FUEL.LOW_WARNING; ch.armed = mode === 'run' && (sim.ammo > 0 || sim.recoilT > 0);
     ch.recoil = sim.recoilT; ch.flameOn = mode === 'run' || mode === 'attract'; ch.downT = this.downT;
     const view = this.view || (this.view = {});
-    view.cam = mode === 'attract' ? 'menu' : mode === 'run' ? 'run' : 'over';
+    view.cam = mode === 'attract' ? 'menu' : (mode === 'run' || mode === 'shop') ? 'run' : 'over';   // v5s7b: in negozio/3-2-1 resta la camera di corsa
     view.char = ch; view.fuelF = mode === 'attract' ? 1 : fuelF; view.speed = sim.currentSpeed; view.smoke = mode === 'dying' || mode === 'over';
     this.world.render(sim, dt, view);
     // passi

@@ -1,7 +1,7 @@
 // =====================================================================
 // v5 stage 7: "Garag di Pinu" - bottega rustica low-poly (scena 3D a parte,
 // renderizzata al posto della strada mentre la corsa e' in pausa nel negozio).
-// Riferimento: reference/gadoni/target-garage-di-pinu.jpg (pali e travi di legno,
+// Riferimento (v5s7b): reference/gadoni/target2-garage-di-pinu.jpg (9:16) (pali e travi di legno,
 // lanterne, zucche e taglieri appesi, cesti, tappeto sardo rosso/bianco, bancone
 // con coperta scozzese rossa, Pinu con coppola e giacca scura, giocattoli di legno,
 // pavimento di lastre di pietra). Solo grafica: nessuna logica di gioco qui.
@@ -52,129 +52,246 @@ function banner() {
   });
 }
 
-export function buildShopRoom(name = 'Garag di Pinu') {
+// cielo: gradiente azzurro
+function skyTexture() {
+  return canvasTex(8, 256, (x, w, h) => {
+    const g = x.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, '#2f7fd8'); g.addColorStop(0.55, '#6fb2ec'); g.addColorStop(1, '#cfe6f6');
+    x.fillStyle = g; x.fillRect(0, 0, w, h);
+  });
+}
+// occlusione finta "di bottega": scurisce sotto il tetto, contro il muro di fondo e vicino al suolo
+function bakeAO(geo, { ground = 0.28, roof = 0.22, wall = 0.18 } = {}) {
+  const p = geo.attributes.position, c = geo.attributes.color;
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+    const inside = Math.abs(x) < 3.2 && z < 0.6 && z > -3;
+    let k = 1 - ground * Math.max(0, 1 - y / 0.9) * (y > 0.08 ? 1 : 0);
+    if (inside && y > 3.0 && y < 4.4) k -= roof * Math.min(1, (y - 3.0) / 1.2);
+    if (inside && z < -2.0) k -= wall * Math.min(1, (-2.0 - z) / 0.7) * Math.max(0, 1 - y / 4.2);
+    c.setXYZ(i, c.getX(i) * k, c.getY(i) * k, c.getZ(i) * k);
+  }
+}
+
+export function buildShopRoom() {
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color('#f2a868');
+  scene.background = skyTexture();
+  scene.fog = new THREE.Fog('#cfe6f6', 22, 60);
   const lit = new THREE.MeshLambertMaterial({ vertexColors: true }), unlit = new THREE.MeshBasicMaterial({ vertexColors: true });
   const mats = [lit, unlit];
-  const k = new Kit(77); const r = rng(77);
-  const wood = ['#7a4a2a', '#6b4126', '#85532e'], dark = '#4a2c18';
-  // pavimento di lastre di pietra
-  k.add(G.box(11, 0.1, 10), '#8a7a66', { y: -0.05, z: -3 });
-  for (let z = 1.6; z > -7.6; z -= 0.95) for (let x = -5.2 + (Math.round(z * 3) % 2) * 0.45; x < 5.3; x += 0.95) k.add(G.cyl(0.46, 0.46, 0.06, 6), r.pick(['#e2d4bc', '#d6c6aa', '#cdbc9e', '#e8dcc6', '#c8b694']), { x: x + r.range(-0.08, 0.08), y: 0.02, z: z + r.range(-0.08, 0.08), ry: r.range(0, 1), vary: 0.08 });
-  // pareti: fondo color crema, fianco sinistro di pietra
-  k.add(G.box(11, 5.4, 0.3), '#efe2c6', { y: 2.7, z: -7.8 });
-  k.add(G.box(0.3, 5.4, 9), '#e6d6b8', { x: 5.4, y: 2.7, z: -3.5 });
-  for (let y = 0.3; y < 1.6; y += 0.5) for (let z = -7.4; z < 1.5; z += 0.8) k.add(G.box(0.7, 0.45, 0.75), r.pick(['#cfc2a8', '#bdb094', '#d8ccb4']), { x: -5.25, y: y + 0.2, z: z + (y % 1 ? 0.4 : 0), vary: 0.1 });
-  // pali e travi di legno, soffitto di assi
-  for (const [x, z] of [[-4.6, 0.6], [4.6, 0.6], [-4.6, -7.4], [4.6, -7.4], [-1.2, -7.4]]) k.add(G.box(0.42, 5.2, 0.42), r.pick(wood), { x, y: 2.6, z, vary: 0.1 });
-  for (const z of [0.6, -3.4, -7.4]) k.add(G.box(10.4, 0.42, 0.42), r.pick(wood), { y: 4.75, z, vary: 0.1 });
-  for (const x of [-4.6, 4.6]) k.add(G.box(0.4, 0.4, 8.4), r.pick(wood), { x, y: 4.75, z: -3.4 });
-  for (let x = -5.2; x < 5.3; x += 0.45) k.add(G.box(0.44, 0.08, 9), r.pick(['#b8864a', '#a8783a', '#c49456', '#9a6c34']), { x, y: 5.05, z: -3.4, rx: 0.06, vary: 0.1 });
-  for (const s of [-1, 1]) k.add(G.box(0.3, 0.3, 1.6), dark, { x: s * 4.6, y: 4.2, z: -0.2, rx: 0.8 });
-  // taglieri appesi al muro di fondo
-  for (let i = 0; i < 12; i++) {
-    const x = -3.9 + i * 0.72 + r.range(-0.08, 0.08), h = r.range(0.7, 1.25), w = r.range(0.38, 0.6);
-    if (x > 2.9 && x < 3.8) continue;
-    k.add(G.box(w, h, 0.06), r.pick(['#8a5a34', '#7a4c2a', '#9a6a3e', '#6b4126']), { x, y: 3.55 - (h - 1) / 2, z: -7.6, vary: 0.08 });
-    k.add(G.box(0.12, 0.25, 0.06), '#6b4126', { x, y: 3.55 + h / 2 + 0.05, z: -7.6 });
+  const k = new Kit(77), r = rng(91);
+  const W = ['#8a5530', '#7a4a2a', '#94603a', '#6f4226'], PL = ['#a8703c', '#9a6434', '#b47c46', '#8c5a30', '#c08850'];
+  const STONE = ['#e6d0ae', '#dcc49e', '#d2b892', '#ead8ba', '#ccb08a'];
+  const X0 = 3.0, ZF = 0.35, ZB = -2.7, EAVE = 4.55;
+
+  // ---------------------------------------------------------- cortile di lastre irregolari
+  const fk = new Kit(13);
+  fk.add(G.box(30, 0.1, 40), '#9c8262', { y: -0.05, z: 12 });
+  for (let row = 0, z = -3.2; z < 26; row++) {
+    const sz = 0.75 + Math.max(0, z) * 0.07;          // lastre un po' piu' grandi verso la camera (come nel riferimento)
+    for (let x = -9 + (row % 2) * sz * 0.5; x < 9; x += sz * r.range(0.95, 1.2)) {
+      fk.add(G.cyl(sz * 0.56, sz * 0.6, 0.07, r.pick([5, 6, 6, 7])), r.pick(STONE), { x: x + r.range(-0.1, 0.1), y: 0.03, z: z + r.range(-0.08, 0.08), ry: r.range(0, 6), sz: r.range(0.62, 0.8), sx: r.range(0.95, 1.15), vary: 0.06 });
+    }
+    z += sz * 0.62;
   }
-  // zucche (cucuzze) e lanterne di ferro appese alle travi
-  for (const [x, z, s] of [[-3.2, -3.4, 1], [-2.1, -3.4, 0.8], [-0.6, -3.4, 1.1], [0.9, -3.4, 0.9], [2.6, -3.4, 1], [-1.4, 0.6, 0.9], [1.8, 0.6, 1.1], [3.6, -3.4, 0.8]]) {
-    const L = r.range(0.5, 0.9);
-    k.add(G.cyl(0.015, 0.015, L, 4), '#3a2a1a', { x, y: 4.55 - L / 2, z });
-    k.add(G.sph(0.28 * s, 8, 6), r.pick(['#e07a3a', '#d06a2a', '#e88a48']), { x, y: 4.55 - L - 0.32 * s, z, sy: 1.15, vary: 0.1, flat: true });
-    k.add(G.sph(0.15 * s, 7, 5), '#d8763a', { x, y: 4.55 - L - 0.02, z, flat: true });
-  }
-  // cesti intrecciati a sinistra (impilati) e sul pavimento
-  const basket = (x, y, z, s, handle = true) => {
-    k.add(G.cyl(0.42 * s, 0.32 * s, 0.5 * s, 10), r.pick(['#b8834a', '#a8743e', '#c49058']), { x, y: y + 0.25 * s, z, vary: 0.12, flat: true });
-    k.add(G.torus(0.42 * s, 0.04 * s, 4, 12), '#8a5a2a', { x, y: y + 0.5 * s, z, rx: Math.PI / 2 });
-    for (let i = 1; i < 4; i++) k.add(G.torus(0.42 * s - i * 0.03 * s, 0.015 * s, 3, 12), '#8a5a2a', { x, y: y + i * 0.12 * s, z, rx: Math.PI / 2 });
-    if (handle) k.add(G.torus(0.3 * s, 0.03 * s, 4, 10, Math.PI), '#8a5a2a', { x, y: y + 0.5 * s, z });
-  };
-  for (const [x, y, z, s] of [[-3.9, 1.05, -6.6, 1.1], [-3.0, 1.05, -6.7, 1.0], [-3.5, 1.65, -6.6, 1.0], [-3.9, 2.4, -7.2, 0.9], [-2.9, 2.5, -7.2, 0.9], [-3.6, 0, -4.2, 0.9], [-2.8, 0, -4.0, 0.8], [-1.5, 0, -6.0, 0.9], [-0.7, 0, -6.2, 0.75], [-4.1, 0, -2.6, 1.0]]) basket(x, y, z, s);
-  // ripiano dei cesti
-  k.add(G.box(2.6, 0.12, 1.2), wood[0], { x: -3.4, y: 1.0, z: -6.7 }); k.add(G.box(2.4, 0.1, 0.5), wood[1], { x: -3.4, y: 2.35, z: -7.3 });
-  // tavolino col tappeto (il tappeto e' una mesh a parte con texture)
-  k.add(G.box(2.8, 0.9, 1.1), dark, { x: -3.0, y: 0.45, z: -5.2 });
-  // albero-espositore di legno e sedie
-  k.add(G.cyl(0.12, 0.2, 2.4, 6), '#8a5a2a', { x: -0.6, y: 1.2, z: -6.6, flat: true });
-  for (const [a, y] of [[0.8, 1.7], [-0.9, 1.3], [2.2, 2.1]]) k.add(G.cyl(0.05, 0.08, 1.1, 5), '#8a5a2a', { x: -0.6 + Math.cos(a) * 0.45, y, z: -6.6 + Math.sin(a) * 0.2, rz: Math.cos(a) * 0.9, flat: true });
-  basket(-0.1, 1.15, -6.5, 0.6); basket(-1.1, 1.7, -6.6, 0.55);
-  for (const [x, z] of [[0.4, -5.6], [-1.6, -4.4]]) { k.add(G.box(0.6, 0.06, 0.6), '#a8743e', { x, y: 0.5, z }); for (const [dx, dz] of [[-0.25, -0.25], [0.25, -0.25], [-0.25, 0.25], [0.25, 0.25]]) k.add(G.box(0.06, 0.5, 0.06), '#8a5a2a', { x: x + dx, y: 0.25, z: z + dz }); }
-  // cassette di legno a destra con frutta
-  for (let i = 0; i < 4; i++) k.add(G.box(1.0, 0.45, 0.6), r.pick(wood), { x: 4.6, y: 0.25 + i * 0.47, z: -6.6, vary: 0.1 });
-  for (let i = 0; i < 6; i++) k.add(G.ico(0.12, 0), '#c8283a', { x: 4.4 + r.range(-0.3, 0.3), y: 2.1, z: -6.6 + r.range(-0.2, 0.2), flat: true });
-  // bancone (il telo scozzese e' una mesh a parte)
-  k.add(G.box(3.0, 1.05, 1.2), '#5a3a22', { x: 2.0, y: 0.52, z: -3.8 });
-  // giocattoli di legno sul bancone e su uno sgabello: pagoda a gradini e carrettino
-  for (let i = 0; i < 5; i++) k.add(G.box(0.5 - i * 0.08, 0.14, 0.5 - i * 0.08), i % 2 ? '#c49058' : '#a8743e', { x: 3.15, y: 1.17 + i * 0.15, z: -3.7, ry: i * 0.2 });
-  k.add(G.cone(0.1, 0.25, 6), '#8a5a2a', { x: 3.15, y: 2.0, z: -3.7 });
-  k.add(G.box(0.5, 0.18, 0.3), '#c49058', { x: 0.95, y: 1.2, z: -3.5 }); for (const [dx, dz] of [[-0.17, 0.16], [0.17, 0.16], [-0.17, -0.16], [0.17, -0.16]]) k.add(G.cyl(0.07, 0.07, 0.04, 8), '#6b4126', { x: 0.95 + dx, y: 1.12, z: -3.5 + dz, rx: Math.PI / 2 });
-  for (let i = 0; i < 4; i++) k.add(G.box(0.36 - i * 0.06, 0.12, 0.36 - i * 0.06), '#d8a868', { x: -0.05, y: 0.6 + i * 0.13, z: -5.6 });
-  // lanterne a muro sui pali davanti (vetro luminoso)
+  const floor = new THREE.Mesh(fk.build(), mats); floor.receiveShadow = true; scene.add(floor);
+
+  // ---------------------------------------------------------- muretti e basi di pietra
+  const block = (x, y, z, w, h, d) => k.add(G.box(w, h, d), r.pick(['#d9cfbd', '#cbbfa8', '#e2d9c8', '#c2b59c']), { x, y, z, ry: r.range(-0.06, 0.06), vary: 0.08 });
   for (const s of [-1, 1]) {
-    k.add(G.box(0.5, 0.65, 0.5), '#2a1a12', { x: s * 4.25, y: 3.2, z: 0.75 });
-    k.add(G.box(0.38, 0.5, 0.52), '#ffd36a', { x: s * 4.25, y: 3.2, z: 0.75, unlit: true });
-    k.add(G.cone(0.38, 0.3, 4), '#2a1a12', { x: s * 4.25, y: 3.68, z: 0.75, ry: Math.PI / 4 });
+    // base dei pali davanti
+    block(s * X0, 0.32, ZF, 0.95, 0.64, 0.95); block(s * X0, 0.7, ZF, 0.75, 0.14, 0.75);
+    // muretti a secco ai lati, in primo piano
+    for (let z = -2.6; z < 1.0; z += 0.72) { block(s * (X0 + 0.9 + r.range(0, 0.1)), 0.32, z, 0.8, 0.62, 0.7); block(s * (X0 + 0.95), 0.92, z + 0.3, 0.75, 0.58, 0.68); }
+    for (let z = 1.2; z < 5.5; z += 0.8) { const xx = s * (X0 + 0.25 + (z - 1.2) * 0.05); block(xx, 0.36, z, 0.9, 0.72, 0.78); block(xx + s * 0.05, 1.05, z + 0.35, 0.85, 0.66, 0.74); if (z > 2) block(xx + s * 0.1, 1.65, z + 0.1, 0.8, 0.56, 0.7); }
+    
   }
-  k.add(G.box(0.36, 0.46, 0.36), '#ffe9a0', { x: 1.0, y: 1.55, z: -7.55, unlit: true });   // finestrella/lume sul fondo
-  // fuori: alberelli tondi a sinistra e pietre in primo piano
-  for (const [x, y, z, s] of [[-6.4, 3.6, 0.2, 1.3], [-6.8, 2.2, -1.6, 1.1], [-6.2, 4.6, -3.0, 1.2]]) k.add(G.ico(s, 0), r.pick(['#5f9a30', '#6faa3a', '#4f8a2a']), { x, y, z, flat: true });
-  k.add(G.cyl(0.16, 0.22, 3, 5), '#5a4430', { x: -6.5, y: 1.5, z: -0.8 });
-  for (const [x, z, s] of [[-4.9, 1.4, 0.8], [-5.4, 0.4, 0.9], [4.9, 1.3, 0.8], [5.3, 0.2, 0.9]]) k.add(G.dode(s), r.pick(['#d8ccb4', '#cfc2a8', '#bdb094']), { x, y: s * 0.7, z, sy: 0.9, flat: true, vary: 0.1 });
-  const room = new THREE.Mesh(k.build({ ao: 0.18 }), mats);
-  scene.add(room);
-  // tappeto, telo scozzese, insegna, stendardo (texture)
-  const rug = new THREE.Mesh(new THREE.BoxGeometry(2.95, 0.93, 1.16), new THREE.MeshLambertMaterial({ map: rugTexture() }));
-  rug.position.set(-3.0, 0.47, -5.2); scene.add(rug);
-  const tart = new THREE.Mesh(new THREE.BoxGeometry(3.1, 1.0, 1.3), new THREE.MeshLambertMaterial({ map: tartanTexture() }));
-  tart.position.set(2.0, 0.6, -3.8); scene.add(tart);
-  const sign = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 0.9), new THREE.MeshBasicMaterial({ map: signTexture(name) }));
-  sign.position.set(0, 4.25, 0.85); scene.add(sign);
-  const ban = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 1.4), new THREE.MeshLambertMaterial({ map: banner(), side: THREE.DoubleSide }));
-  ban.position.set(-4.3, 3.1, 0.9); scene.add(ban);
-  // Pinu: anziano con coppola e giacca scura, mani giunte sul bancone
-  const pinu = new THREE.Group(); const pk = new Kit(5);
-  pk.add(G.box(1.0, 1.05, 0.55), '#26262e', { y: 1.55, vary: 0.04 });                  // giacca
-  pk.add(G.box(0.3, 0.6, 0.05), '#f2f0e8', { y: 1.75, z: 0.28 });                      // camicia
-  pk.add(G.box(0.08, 0.45, 0.06), '#5a1a1a', { y: 1.72, z: 0.31 });                    // cravatta
-  for (const s of [-1, 1]) { pk.add(G.box(0.24, 0.24, 0.62), '#2a2a34', { x: s * 0.3, y: 1.22, z: 0.38, ry: -s * 0.25 }); pk.add(G.box(0.2, 0.55, 0.24), '#26262e', { x: s * 0.52, y: 1.5, z: 0.12, rz: s * 0.15 }); }
-  pk.add(G.sph(0.17, 8, 6), '#e0a888', { y: 1.22, z: 0.72, flat: true });               // mani giunte
-  pk.add(G.box(0.24, 0.18, 0.2), '#e0a888', { y: 2.12, z: 0.02 });                       // collo
-  pk.add(G.box(0.5, 0.56, 0.48), '#e6ae8c', { y: 2.45, vary: 0.03 });                    // testa
-  pk.add(G.box(0.14, 0.16, 0.12), '#d89a7a', { y: 2.4, z: 0.28 });                       // naso
-  for (const s of [-1, 1]) { pk.add(G.box(0.1, 0.05, 0.03), '#1a1410', { x: s * 0.12, y: 2.53, z: 0.25 }); pk.add(G.box(0.14, 0.04, 0.04), '#d8d4cc', { x: s * 0.12, y: 2.6, z: 0.25 }); pk.add(G.box(0.06, 0.16, 0.12), '#e0a888', { x: s * 0.27, y: 2.45, z: 0 }); }
-  pk.add(G.box(0.26, 0.05, 0.04), '#9a5a48', { y: 2.27, z: 0.25 });                      // bocca
-  pk.add(G.box(0.54, 0.16, 0.5), '#cfcac0', { y: 2.3, z: -0.04 });                        // capelli bianchi ai lati
-  pk.add(G.cyl(0.3, 0.32, 0.16, 10), '#3a3430', { y: 2.78, z: -0.02, sz: 1.1, flat: true }); // coppola
-  pk.add(G.box(0.5, 0.05, 0.28), '#33302c', { y: 2.72, z: 0.3, rx: 0.15 });               // visiera
-  pinu.add(new THREE.Mesh(pk.build(), mats));
-  pinu.position.set(2.05, 0, -4.75); scene.add(pinu);
-  const head = null;
-  // luci calde: emisferica, sole radente da sinistra, lanterne
-  scene.add(new THREE.HemisphereLight('#ffe2b8', '#6a4a30', 1.25));
-  const sun = new THREE.DirectionalLight('#ffc888', 1.7); sun.position.set(-6, 7, 6); scene.add(sun);
-  for (const s of [-1, 1]) { const l = new THREE.PointLight('#ffb050', 9, 9, 1.6); l.position.set(s * 4.0, 3.2, 0.2); scene.add(l); }
-  const pl = new THREE.PointLight('#ffd890', 7, 7, 1.6); pl.position.set(1.0, 2.2, -6.6); scene.add(pl);
-  const camera = new THREE.PerspectiveCamera(60, 0.46, 0.1, 80);
+  // ---------------------------------------------------------- struttura di legno
+  for (const s of [-1, 1]) {
+    k.add(G.box(0.42, EAVE - 0.75, 0.42), W[0], { x: s * X0, y: 0.77 + (EAVE - 0.75) / 2, z: ZF, vary: 0.08 });     // pali davanti
+    k.add(G.box(0.3, 0.3, 0.46), W[3], { x: s * X0, y: 1.1, z: ZF });                                              // collari
+    k.add(G.box(0.36, EAVE, 0.36), W[1], { x: s * X0, y: EAVE / 2, z: ZB + 0.2, vary: 0.08 });                    // pali dietro
+    k.add(G.box(0.12, 1.0, 0.16), W[2], { x: s * (X0 - 0.42), y: EAVE - 0.5, z: ZF, rz: s * 0.78 });              // saette
+    k.add(G.box(0.34, 0.34, 3.6), W[2], { x: s * X0, y: EAVE - 0.05, z: (ZF + ZB) / 2, vary: 0.08 });             // correnti laterali
+  }
+  k.add(G.box(0.3, EAVE, 0.3), W[1], { x: -1.35, y: EAVE / 2, z: ZB + 0.15 });
+  k.add(G.box(7.0, 0.42, 0.42), W[0], { y: EAVE, z: ZF, vary: 0.06 });                 // trave maestra davanti
+  k.add(G.box(6.6, 0.22, 0.26), W[3], { y: EAVE - 0.38, z: ZF + 0.02 });               // seconda trave
+  k.add(G.box(6.6, 0.32, 0.32), W[1], { y: EAVE - 0.3, z: -1.1 });                     // trave a meta'
+  k.add(G.box(6.6, 0.34, 0.34), W[0], { y: EAVE, z: ZB + 0.2 });
+  for (let x = -2.7; x <= 2.75; x += 0.9) k.add(G.box(0.2, 0.2, 0.8), W[2], { x, y: EAVE + 0.02, z: ZF + 0.55, vary: 0.1 });   // teste dei travetti
+  // tetto a due falde di assi spesse con gronda sporgente (falda davanti verso la camera)
+  const RID = 7.0, ZR = -1.0, ZE = 1.35;
+  const run = ZE - ZR, rise = RID - EAVE - 0.25, len = Math.hypot(run, rise) + 0.3, ang = Math.atan2(rise, run);
+  for (let x = -3.7; x < 3.75; x += 0.44) {
+    const l = len + r.range(-0.15, 0.2), dz = r.range(-0.05, 0.05);
+    k.add(G.box(0.42, 0.14, l), r.pick(PL), { x: x + r.range(-0.02, 0.02), y: (RID + EAVE + 0.25) / 2 + r.range(-0.03, 0.03), z: (ZR + ZE) / 2 + dz, rx: ang + r.range(-0.03, 0.03), rz: r.range(-0.04, 0.04), vary: 0.1 });
+    k.add(G.box(0.42, 0.14, 2.2), r.pick(PL), { x, y: RID - 0.55, z: ZR - 0.95, rx: -0.55, vary: 0.1 });     // falda dietro
+  }
+  k.add(G.box(7.6, 0.24, 0.3), W[3], { y: RID + 0.05, z: ZR - 0.05 });                  // colmo
+  for (let x = -3.4; x <= 3.5; x += 1.15) k.add(G.box(0.18, 0.2, 2.6), W[3], { x, y: (RID + EAVE) / 2 - 0.05, z: (ZR + ZE) / 2 - 0.1, rx: ang });   // puntoni sotto le assi
+  k.add(G.box(6.4, 0.1, 3.3), '#6a4226', { y: EAVE + 0.2, z: (ZF + ZB) / 2 });           // soffitto scuro sotto il tetto
+
+  // ---------------------------------------------------------- muro di fondo color crema + taglieri appesi
+  k.add(G.box(6.4, EAVE, 0.25), '#f0e2c4', { y: EAVE / 2, z: ZB, vary: 0.02 });
+  k.add(G.box(6.4, 0.25, 0.3), '#c8b494', { y: 0.12, z: ZB + 0.05 });
+  for (let i = 0; i < 9; i++) {
+    const x = -1.95 + i * 0.6 + r.range(-0.05, 0.05), h = r.range(0.55, 0.95), w = r.range(0.32, 0.44);
+    k.add(G.box(w, h, 0.07), r.pick(['#8a5a34', '#7a4c2a', '#9a6a3e', '#6b4126']), { x, y: 2.95 - h / 2, z: ZB + 0.17, rz: r.range(-0.03, 0.03), vary: 0.06 });
+    k.add(G.box(0.1, 0.16, 0.07), '#6b4126', { x, y: 3.0, z: ZB + 0.17 });
+    k.add(G.cyl(0.025, 0.025, 0.05, 6), '#3a2614', { x, y: 3.12, z: ZB + 0.18, rx: Math.PI / 2 });
+  }
+  // scaffale con cesti a sinistra
+  const basket = (x, y, z, s, handle = true) => {
+    k.add(G.cyl(0.3 * s, 0.24 * s, 0.38 * s, 9), r.pick(['#c08a4c', '#b07a40', '#cc985a']), { x, y: y + 0.19 * s, z, vary: 0.1, flat: true });
+    for (let i = 1; i < 4; i++) k.add(G.torus(0.3 * s - (3 - i) * 0.018 * s, 0.014 * s, 3, 12), '#8a5a2a', { x, y: y + i * 0.1 * s, z, rx: Math.PI / 2 });
+    k.add(G.torus(0.3 * s, 0.03 * s, 4, 12), '#8a5a2a', { x, y: y + 0.38 * s, z, rx: Math.PI / 2 });
+    if (handle) k.add(G.torus(0.22 * s, 0.025 * s, 4, 10), '#8a5a2a', { x, y: y + 0.38 * s, z, sz: 0.4 });
+  };
+  for (const y of [1.25, 1.95, 2.6]) { k.add(G.box(1.2, 0.08, 0.5), W[2], { x: -2.15, y, z: ZB + 0.38 }); k.add(G.box(0.07, 0.25, 0.4), W[3], { x: -2.15, y: y - 0.15, z: ZB + 0.38 }); }
+  basket(-2.15, 1.29, ZB + 0.38, 1.2); basket(-2.15, 1.99, ZB + 0.38, 1.1); basket(-2.15, 2.64, ZB + 0.38, 1.0);
+  // tavolino rosso (telo sardo, mesh a parte) e cesti a terra
+  basket(-2.25, 0, 0.4, 1.55); basket(-1.45, 0, 0.55, 1.25, false); basket(-0.95, 0, -0.35, 1.2); basket(-1.3, 0.62, -1.1, 0.85);
+  basket(2.45, 0, 0.55, 1.1, false);
+  // arcolaio/telaio di legno tra il tavolino e il bancone
+  k.add(G.box(0.08, 1.7, 0.08), W[2], { x: -1.1, y: 0.85, z: -1.55, rz: 0.12 });
+  k.add(G.box(0.08, 1.4, 0.08), W[2], { x: -0.7, y: 0.7, z: -1.6, rz: -0.18 });
+  k.add(G.torus(0.34, 0.035, 4, 14), W[1], { x: -0.9, y: 1.45, z: -1.6, ry: 0.5 });
+  for (let a = 0; a < 3; a++) k.add(G.box(0.03, 0.66, 0.03), W[3], { x: -0.9, y: 1.45, z: -1.6, ry: 0.5, rz: a * 1.05 });
+  k.add(G.box(1.0, 0.06, 0.06), W[0], { x: -0.9, y: 0.5, z: -1.6, ry: 0.5 });
+  k.add(G.box(0.7, 0.06, 0.5), W[2], { x: -1.3, y: 0.62, z: -1.1 }); for (const dx of [-0.3, 0.3]) for (const dz of [-0.2, 0.2]) k.add(G.box(0.05, 0.6, 0.05), W[3], { x: -1.3 + dx, y: 0.3, z: -1.1 + dz });
+  // cassette di frutta a destra
+  for (let i = 0; i < 3; i++) for (let j = 0; j < (i < 2 ? 2 : 1); j++) {
+    const x = 2.35 + j * 0.05, z = -1.7 - j * 0.65 + 0.3;
+    k.add(G.box(0.85, 0.42, 0.6), r.pick(W), { x, y: 0.22 + i * 0.44, z, ry: r.range(-0.05, 0.05), vary: 0.1 });
+    for (const yy of [-0.08, 0.1]) k.add(G.box(0.87, 0.04, 0.62), '#5a3a22', { x, y: 0.22 + i * 0.44 + yy, z });
+  }
+  for (let i = 0; i < 9; i++) k.add(G.ico(0.1, 0), r.pick(['#c8202e', '#d83040', '#b01a26']), { x: 2.35 + r.range(-0.3, 0.3), y: 1.36 + r.range(0, 0.06), z: -1.4 + r.range(-0.2, 0.2), flat: true });
+  k.add(G.box(0.85, 0.85, 0.08), '#a8783e', { x: 2.4, y: 2.2, z: ZB + 0.2 }); for (let i = 0; i < 4; i++) k.add(G.box(0.85, 0.05, 0.1), '#7a4c2a', { x: 2.4, y: 1.85 + i * 0.24, z: ZB + 0.26 });  // graticcio
+  // bancone (il telo scozzese e' a parte), gambe sotto il telo
+  for (const dx of [-1.6, 1.6]) for (const dz of [-0.45, 0.45]) k.add(G.box(0.14, 0.3, 0.14), W[3], { x: 0.25 + dx, y: 0.15, z: -0.35 + dz });
+  // piramide di legno a gradini sul bancone e scatolina
+  for (let i = 0; i < 6; i++) k.add(G.box(0.62 - i * 0.1, 0.12, 0.5 - i * 0.08), i % 2 ? '#c8945a' : '#a8743e', { x: 1.4, y: 1.17 + i * 0.12, z: -0.5 });
+  k.add(G.cone(0.06, 0.18, 6), '#8a5a2a', { x: 1.4, y: 1.94, z: -0.5 });
+  k.add(G.box(0.42, 0.14, 0.3), '#c49058', { x: -0.95, y: 1.18, z: -0.35 }); k.add(G.box(0.44, 0.04, 0.32), '#8a5a2a', { x: -0.95, y: 1.27, z: -0.35 });
+
+  // ---------------------------------------------------------- zucche appese e lanterne
+  for (const [x, z, s, L] of [[-1.85, 0.0, 1.0, 0.55], [-1.2, -0.3, 0.8, 0.65], [-0.45, 0.1, 1.15, 0.5], [0.95, -0.2, 1.1, 0.6], [1.75, -0.9, 0.7, 0.4], [2.45, 0.05, 0.95, 0.85], [-1.6, -1.3, 0.6, 0.35]]) {
+    const y0 = EAVE - 0.2;
+    k.add(G.cyl(0.012, 0.012, L, 4), '#3a2a1a', { x, y: y0 - L / 2, z });
+    k.add(G.cyl(0.05 * s, 0.07 * s, 0.14 * s, 6), '#b05a28', { x, y: y0 - L - 0.04, z, flat: true });
+    k.add(G.sph(0.24 * s, 7, 6), r.pick(['#e47a34', '#d86a2a', '#ec8a44']), { x, y: y0 - L - 0.3 * s, z, sx: 1.25, sz: 1.25, sy: 1.6, flat: true, vary: 0.08 });
+  }
+  k.add(G.box(0.2, 0.3, 0.2), '#3a2a1a', { x: 1.75, y: EAVE - 0.85, z: -0.9 }); k.add(G.box(0.14, 0.2, 0.22), '#ffd36a', { x: 1.75, y: EAVE - 0.85, z: -0.9, unlit: true });
+  for (const s of [-1, 1]) {
+    const lx = s * (X0 + 0.38), ly = 3.15, lz = ZF + 0.05;
+    k.add(G.box(0.3, 0.06, 0.1), '#2a1a12', { x: s * (X0 + 0.2), y: ly + 0.42, z: lz });   // braccio
+    k.add(G.box(0.36, 0.06, 0.36), '#2a1a12', { x: lx, y: ly - 0.25, z: lz });
+    for (const [dx, dz] of [[-0.16, -0.16], [0.16, -0.16], [-0.16, 0.16], [0.16, 0.16]]) k.add(G.box(0.05, 0.46, 0.05), '#2a1a12', { x: lx + dx, y: ly, z: lz + dz });
+    k.add(G.box(0.28, 0.42, 0.28), '#ffcf5a', { x: lx, y: ly, z: lz, unlit: true });
+    k.add(G.cone(0.3, 0.22, 4), '#2a1a12', { x: lx, y: ly + 0.33, z: lz, ry: Math.PI / 4 });
+    k.add(G.sph(0.05, 6, 4), '#2a1a12', { x: lx, y: ly + 0.47, z: lz });
+  }
+  // ---------------------------------------------------------- fuori: alberi, casa di pietra, nuvole
+  const tree = (x, z, h, s) => {
+    k.add(G.cyl(0.14 * s, 0.22 * s, h, 6), '#6a4a30', { x, y: h / 2, z, flat: true });
+    for (const [dx, dy, dz, rr] of [[0, 0.2, 0, 1.25], [-0.75, -0.3, 0.25, 0.95], [0.8, -0.2, -0.2, 1.0], [0.1, 0.95, -0.1, 0.9]]) k.add(G.ico(rr * s, 1), r.pick(['#4f8f2e', '#5ea036', '#47822a', '#69ad3e']), { x: x + dx * s, y: h + dy * s, z: z + dz * s, flat: true, vary: 0.12 });
+  };
+  tree(-4.6, -3.6, 5.6, 1.5); tree(-5.0, -1.2, 3.0, 1.1); tree(3.9, -5.4, 6.3, 1.4); tree(5.4, -2.6, 2.8, 1.0);
+  for (let y = 0; y < 9; y += 0.55) for (let x = 0; x < 3; x += 0.75) k.add(G.box(0.72, 0.52, 0.5), r.pick(['#d8b894', '#cfae88', '#e0c4a0', '#c4a07a']), { x: 4.9 + x + ((y / 0.55) % 2) * 0.35, y: y + 0.27, z: -4.0, vary: 0.08 });
+  k.add(G.box(3.6, 0.3, 2.0), '#b8553a', { x: 6.1, y: 9.1, z: -4.6, rz: 0.25 });
+  k.add(G.box(1.2, 9.5, 1.2), '#c8a47e', { x: -7.6, y: 4.75, z: -7, vary: 0.05 });
+  const rk = new Kit(3); for (const [x, y, z, s] of [[-6, 10.5, -14, 1.6], [-4.2, 10.8, -14, 1.2], [-7.6, 10.2, -14, 1.1], [6.5, 11.6, -16, 1.0], [7.8, 11.4, -16, 0.8]]) rk.add(G.ico(s, 1), '#ffffff', { x, y, z, sy: 0.55, flat: true, unlit: true });
+  scene.add(new THREE.Mesh(rk.build(), mats));
+
+  const geo = k.build(); bakeAO(geo);
+  const stall = new THREE.Mesh(geo, mats); stall.castShadow = true; stall.receiveShadow = true; scene.add(stall);
+
+  // ---------------------------------------------------------- tessuti (texture su volumi 3D)
+  const tm = (tex) => new THREE.MeshLambertMaterial({ map: tex });
+  const clothBox = (w, h, d, mat, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); m.castShadow = m.receiveShadow = true; scene.add(m); return m; };
+  const tart = tartanTexture(); tart.wrapS = tart.wrapT = THREE.RepeatWrapping; tart.repeat.set(2.2, 1);
+  clothBox(3.6, 0.84, 1.3, tm(tart), 0.25, 0.7, -0.35);                       // telo scozzese del bancone
+  clothBox(3.66, 0.06, 1.36, tm(tart), 0.25, 1.12, -0.35);
+  clothBox(1.55, 0.95, 0.95, tm(rugTexture()), -2.05, 0.48, -1.15);            // cassa coperta col tappeto sardo
+  const ban = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.45, 0.04), tm(banner()));
+  ban.position.set(-X0 + 0.5, 2.55, ZF + 0.06); ban.castShadow = true; scene.add(ban);
+  const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.66, 5), new THREE.MeshLambertMaterial({ color: '#4a2c18' })); rod.rotation.z = Math.PI / 2; rod.position.set(-X0 + 0.5, 3.3, ZF + 0.08); scene.add(rod);
+
+  // ---------------------------------------------------------- Pinu
+  const pinu = new THREE.Group();
+  const pk = new Kit(5);
+  const SK = '#d9946c', SK2 = '#c07a58', JK = '#2a2a32', JK2 = '#1f1f26';
+  // busto con spalle e risvolti
+  pk.add(G.cyl(0.36, 0.3, 0.62, 7), JK, { y: 1.3, sz: 0.62, flat: true, vary: 0.04 });
+  pk.add(G.box(0.86, 0.16, 0.42), JK, { y: 1.58 });
+  pk.add(G.box(0.2, 0.36, 0.03), '#f4f2ea', { y: 1.5, z: 0.21 });
+  pk.add(G.box(0.07, 0.26, 0.03), '#3a1c1c', { y: 1.48, z: 0.23 });
+  for (const s of [-1, 1]) {
+    pk.add(G.box(0.12, 0.42, 0.03), JK2, { x: s * 0.13, y: 1.47, z: 0.225, rz: s * 0.32 });            // risvolti
+    pk.add(G.box(0.2, 0.42, 0.24), JK, { x: s * 0.42, y: 1.34, z: 0.05, rz: s * 0.12, flat: true });   // braccio
+    pk.add(G.box(0.18, 0.17, 0.48), JK, { x: s * 0.33, y: 1.08, z: 0.34, ry: s * 0.45 });               // avambraccio sul tavolo
+    pk.add(G.box(0.15, 0.13, 0.16), SK, { x: s * 0.07, y: 1.1, z: 0.6, ry: s * 0.3, vary: 0.04 });     // mani giunte
+    pk.add(G.box(0.05, 0.06, 0.13), SK2, { x: s * 0.03, y: 1.17, z: 0.6 });
+  }
+  pk.add(G.box(0.2, 0.1, 0.16), SK, { y: 1.69, z: 0.03 });                                // collo
+  // testa angolosa: mascella, zigomi, naso, sopracciglia
+  pk.add(G.box(0.36, 0.3, 0.34), SK, { y: 1.9, vary: 0.03 });
+  pk.add(G.box(0.3, 0.12, 0.3), SK2, { y: 1.73, z: 0.01 });                              // mascella
+  pk.add(G.box(0.2, 0.06, 0.06), SK2, { y: 1.71, z: 0.16 });                             // mento
+  for (const s of [-1, 1]) {
+    pk.add(G.box(0.09, 0.07, 0.08), SK2, { x: s * 0.12, y: 1.84, z: 0.15, ry: s * 0.4 });  // zigomi
+    pk.add(G.box(0.07, 0.035, 0.03), '#1e1410', { x: s * 0.085, y: 1.93, z: 0.175 });     // occhi
+    pk.add(G.box(0.11, 0.035, 0.05), '#8a8478', { x: s * 0.085, y: 1.98, z: 0.17, rz: -s * 0.18 }); // sopracciglia
+    pk.add(G.box(0.04, 0.1, 0.07), SK2, { x: s * 0.19, y: 1.9, z: 0 });                    // orecchie
+    pk.add(G.box(0.04, 0.11, 0.2), '#d8d2c6', { x: s * 0.182, y: 1.98, z: -0.04 });        // capelli bianchi
+    pk.add(G.box(0.03, 0.08, 0.02), '#b07058', { x: s * 0.09, y: 1.79, z: 0.165, rz: s * 0.5 }); // pieghe del sorriso
+  }
+  pk.add(G.cone(0.065, 0.17, 4), SK2, { y: 1.86, z: 0.21, rx: Math.PI / 2, ry: Math.PI / 4, sy: 1.2 });   // naso
+  pk.add(G.box(0.13, 0.025, 0.02), '#8a4a3a', { y: 1.78, z: 0.172 });                    // bocca sorridente
+  pk.add(G.box(0.38, 0.07, 0.36), '#2c2824', { y: 2.07, z: -0.01 });                     // coppola
+  pk.add(G.box(0.36, 0.06, 0.3), '#34302b', { y: 2.12, z: -0.04, rx: -0.12 });
+  pk.add(G.box(0.42, 0.035, 0.17), '#24201c', { y: 2.05, z: 0.23, rx: 0.22 });              // visiera
+  const pm = new THREE.Mesh(pk.build(), mats); pm.castShadow = true; pinu.add(pm);
+  pinu.position.set(0.15, 0.1, -1.3); pinu.scale.setScalar(1.3); scene.add(pinu);
+
+  // ---------------------------------------------------------- luci: sole caldo del pomeriggio con ombre morbide
+  scene.add(new THREE.HemisphereLight('#ffe2bc', '#8a6a48', 1.25));
+  const sun = new THREE.DirectionalLight('#ffc884', 1.8);
+  sun.position.set(-7, 10, 7); sun.target.position.set(0, 0, -0.5);
+  sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); sun.shadow.radius = 4; sun.shadow.bias = -0.0008; sun.shadow.normalBias = 0.03;
+  const sc = sun.shadow.camera; sc.left = -8; sc.right = 8; sc.top = 9; sc.bottom = -6; sc.near = 1; sc.far = 30;
+  scene.add(sun, sun.target);
+  const fill = new THREE.DirectionalLight('#bcd6ff', 0.35); fill.position.set(6, 4, 8); scene.add(fill);
+  for (const s of [-1, 1]) { const l = new THREE.PointLight('#ffb050', 6, 5, 1.6); l.position.set(s * (X0 + 0.38), 3.0, ZF + 0.5); scene.add(l); }
+  const pl = new THREE.PointLight('#ffcf88', 3, 5, 1.6); pl.position.set(0.3, 3.0, -0.6); scene.add(pl);
+
+  const camera = new THREE.PerspectiveCamera(62, 0.5625, 0.1, 80);
   let t = 0, nodT = 0;
   return {
     scene, camera, pinu,
     nod() { nodT = 0.6; },
-    update(dt, aspect) {
+    // ui: frazioni di schermo occupate in alto (titolo) e in basso (pannello acquisti)
+    update(dt, aspect, ui = { top: 0.1, bottom: 0.34 }) {
       t += dt;
-      camera.aspect = aspect;
-      // inquadratura: in verticale il bancone con Pinu sta nella meta' alta (sotto c'e' il pannello degli acquisti)
-      const por = aspect < 1;
-      camera.fov = por ? 64 : 50;
-      camera.position.set(por ? 0.9 : 0, por ? 2.1 : 2.3, por ? 5.2 : 6.5);
-      camera.lookAt(por ? 1.2 : 0, por ? 0.6 : 1.8, -5);
+      // inquadratura calcolata dall'aspetto: tutta la bancarella (tetto con gronde, pali, lanterne)
+      // nella fascia libera tra il titolo e il pannello; camera frontale e centrata.
+      const fov = 62, tn = Math.tan(THREE.MathUtils.degToRad(fov / 2));
+      const halfW = 3.5, top = 7.25, bot = -0.2, zp = ZF + 0.5;
+      const band = Math.max(0.3, 1 - ui.top - ui.bottom);
+      const dW = halfW / (tn * aspect);                       // distanza che fa entrare la larghezza
+      const dH = (top - bot) / (2 * tn * band);               // distanza che fa entrare l'altezza nella fascia
+      const D = Math.max(dW, dH);
+      const H = 2 * D * tn;                                   // altezza visibile al piano della bancarella
+      const sBot = 1 - ui.bottom - 0.015;                      // il piede della bancarella appoggia sul bordo del pannello
+      const cy = bot + (sBot - 0.5) * H;          // camera senza beccheggio: sposto in altezza
+      camera.aspect = aspect; camera.fov = fov;
+      camera.position.set(0, cy, zp + D);
+      camera.lookAt(0, cy, zp);                                // frontale, senza beccheggio (il calcolo della fascia resta esatto)
       camera.updateProjectionMatrix();
-      pinu.position.y = Math.sin(t * 1.6) * 0.012;
-      pinu.rotation.y = Math.sin(t * 0.5) * 0.06 - 0.12;
-      if (nodT > 0) { nodT = Math.max(0, nodT - dt); pinu.rotation.x = Math.sin((0.6 - nodT) / 0.6 * Math.PI * 2) * 0.08; } else pinu.rotation.x = 0;
+      pinu.position.y = Math.sin(t * 1.6) * 0.008;
+      pinu.rotation.y = Math.sin(t * 0.5) * 0.05;
+      if (nodT > 0) { nodT = Math.max(0, nodT - dt); pinu.rotation.x = Math.sin((0.6 - nodT) / 0.6 * Math.PI * 2) * 0.06; } else pinu.rotation.x = 0;
     },
   };
 }

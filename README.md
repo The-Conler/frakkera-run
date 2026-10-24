@@ -297,6 +297,9 @@ La corsa attraversa gli ambienti veri di Gadoni, costruiti dalle foto in `refere
 ### Stage 7 — Garag di Pinu
 Ad ogni ritorno al villaggio (dal giro 1, ~1600 m) compare per 5 s il pulsante «Entra da Pinu?». Entrando la simulazione si ferma (evento E), si compra con i tappeti di Sa Burra (B: indice*1000+prezzo, max 3 per visita; prezzi in config.js SHOP), «Esci» riprende dopo 3-2-1 (X). Oggetti: Pistola Broccu (3 colpi / +3), Fascio di asfodelo (fiamma piena), Scudo di sughero (para un urto, Z). Offerta scaduta: Q.
 
+### Stage 7b — bancarella di Pinu rifatta
+Scena del negozio ricostruita da zero (src/game/shop3d.js) sul riferimento 9:16 reference/gadoni/target2-garage-di-pinu.jpg: bancarella di legno con tetto di assi spesse e gronda, lanterne accese sui pali, zucche appese, muro crema con taglieri, cesti, cassa col tappeto sardo, stendardo, telaio, cassette di frutta, piramide di legno, bancone col telo scozzese e Pinu nuovo; cortile di lastre, muretti, alberi, casa di pietra, cielo. Sole caldo con ombre morbide (solo nel negozio) + AO cotta nei vertici. La camera e' calcolata dall'aspetto e dallo spazio lasciato libero da titolo e pannello (ora tre carte in fila). Logica, prezzi e log invariati. Corretto lo scatto della camera durante il 3-2-1.
+
 ### Salto di mappa (sviluppo)
 
 - `?map=village|rock|river|viaduct|mine-ext|mine-int|mine-blue` parte direttamente da quell'ambiente (anche nel menu), es. `index.html?map=mine-blue`.
