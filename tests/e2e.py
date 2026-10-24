@@ -450,6 +450,30 @@ async def v2_section(page, name, mobile, cdp, check, shot, state, visible):
         gs = await page.evaluate("(() => { const sim = window.__frk.game.sim, g = window.__goat, v = window.__frk.game.world.views.get(g.id); return { goats: sim.stats.goats, scared: !!g.scared, done: g.done, ev: sim.events.some(e => e[1] === 'g'), gone: !v || !!v.dead }; })()")
         check('v5 capra colpita dalla pistola e messa in fuga', gs['goats'] == g0 + 1 and gs['scared'] and gs['done'] and gs['ev'], json.dumps(gs))
         check('v5 capra sparita dopo il balzo', gs['gone'], json.dumps(gs))
+    # v5s6: abbassata da tastiera (freccia giu'), trave passata abbassandosi, ostacolo d'ambiente distrutto, gradino di velocita'
+    if await page.evaluate("window.__frk.game.sim.mode") == 'run':
+        await page.evaluate("(() => { const s = window.__frk.game.sim; s.entities.forEach((e) => { if (!e.pickup) e.done = true; }); s.fuel = 100; s.invuln = 0; })()")
+        await page.keyboard.press('ArrowDown')
+        dk = await page.evaluate("(() => { const s = window.__frk.game.sim; return { duckT: s.duckT, inp: s.inputs.some((x) => x[1] === 'D') }; })()")
+        check('v5s6 abbassata con freccia giu\'', dk['inp'], json.dumps(dk))
+        await page.wait_for_timeout(900)
+        await page.evaluate("(() => { const s = window.__frk.game.sim; s.fuel = 100; s.invuln = 0; s.spawn({ kind: 'trave', lane: 1, d: s.T - s.genOffset + 90, len: 10 }); window.__beam = s.entities[s.entities.length - 1]; })()")
+        for _ in range(200):
+            a = await page.evaluate("(() => { const s = window.__frk.game.sim; s.fuel = 100; return window.__beam.d - s.T; })()")
+            if a < (await page.evaluate("window.__frk.game.sim.currentSpeed")) * 0.22: break
+            await page.wait_for_timeout(15)
+        await page.keyboard.press('KeyS')
+        await page.wait_for_timeout(1500)
+        bm = await page.evaluate("(() => { const b = window.__beam, s = window.__frk.game.sim; return { ducked: !!b.ducked, beams: s.stats.beams, duckMax: window.__frk.game.world.char3d.rec.duck || 0 }; })()")
+        check('v5s6 trave bassa passata abbassandosi', bm['ducked'] and bm['beams'] >= 1, json.dumps(bm))
+        check('v5s6 animazione accovacciata sul personaggio', bm['duckMax'] > 0.5 or not await page.evaluate("window.__frk.game.world.char3d.ready"), json.dumps(bm))
+        ob = await page.evaluate("""(() => { const s = window.__frk.game.sim; s.fuel = 100;
+          s.entities.forEach((e) => { if (!e.pickup) e.done = true; });
+          s.spawn({ kind: 'rollin', lane: s.targetLane, d: s.T - s.genOffset + 200, len: 14, sweep: 110 }); window.__roll = s.entities[s.entities.length - 1];
+          s.ammo = Math.max(1, s.ammo); s.fireCd = 0; s.fire(); return s.stats.obst; })()""")
+        await page.wait_for_timeout(1500)
+        ob2 = await page.evaluate("(() => { const s = window.__frk.game.sim; return { obst: s.stats.obst, ev: s.events.some((e) => e[1] === 'o'), destroyed: !!window.__roll.destroyed }; })()")
+        check('v5s6 ostacolo d\'ambiente distrutto dalla pistola', ob2['obst'] == ob + 1 and ob2['ev'] and ob2['destroyed'], json.dumps(ob2))
     perf = await page.evaluate('window.__frk.perf()')
     print('  PERF', name, json.dumps(perf))
     PERF[name] = perf

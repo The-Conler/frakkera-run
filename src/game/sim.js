@@ -5,11 +5,11 @@
 // tramite `fx(tipo, dati)`. Unita': px del mondo 2D (10 px = 1 m), corsie
 // centrate su x = 0.
 // =====================================================================
-import { SCORE, FUEL, WORLD, PX_PER_METER, PISTOL } from '../config.js';
-import { Generator, SOLID, DESTRUCTIBLE, PICKUP_KINDS, difficultyAt, speedAt, lerp } from '../systems/generator.js';
+import { SCORE, FUEL, WORLD, PX_PER_METER, PISTOL, SPEED_STEPS, BIOME_OBST, DUCK } from '../config.js';
+import { Generator, SOLID, DESTRUCTIBLE, PICKUP_KINDS, BIOME_KINDS, difficultyAt, speedAt, speedStepsAt, lerp } from '../systems/generator.js';
 import { randomSeed } from '../systems/rng.js';
 
-export const HALF_W = { muretto: 12, botte: 7, bottecoricata: 11, botti: 12, pozza: 9, narrow: 17, goat: 7, rollbarrel: 7, asfodelo: 10, ferula: 10, tappeto: 11, pistola: 11 };
+export const HALF_W = { muretto: 12, botte: 7, bottecoricata: 11, botti: 12, pozza: 9, narrow: 17, goat: 7, rollbarrel: 7, rollin: 7, sasso: 8, bagnato: 9, trave: 60, asfodelo: 10, ferula: 10, tappeto: 11, pistola: 11 };
 export const ATTRACT_SPEED = 34;
 const PLAYER_BACK = 3, PLAYER_FRONT = 5, PLAYER_HALF = 3;
 export const GUTTER = 4;
@@ -25,6 +25,7 @@ export class Sim {
   constructor(fx, opts = {}) {
     this.fx = fx || (() => {});
     this.debug = opts.debug || '';
+    this.mapOffsetM = opts.mapOffsetM || 0;   // salto di mappa (sviluppo)
     this.getBest = opts.getBest || (() => 0);
     this.addCarpets = opts.addCarpets || (() => 0);
     this.carpetTotal = opts.carpetTotal || 0;
@@ -39,7 +40,8 @@ export class Sim {
 
   resetRunState() {
     this.score = 0; this.metersCredited = 0; this.fuel = FUEL.START; this.chain = 0;
-    this.stats = { pickups: 0, nearMiss: 0, chains: 0, milestones: 0, hits: 0, bonus: 0, carpets: 0, barrels: 0, goats: 0, shots: 0, pistols: 0, survival: 0, capped: 0 };
+    this.stats = { pickups: 0, nearMiss: 0, chains: 0, milestones: 0, hits: 0, bonus: 0, carpets: 0, barrels: 0, goats: 0, obst: 0, ducks: 0, beams: 0, slips: 0, speedSteps: 0, shots: 0, pistols: 0, survival: 0, capped: 0 };
+    this.duckT = 0; this.duckCd = 0; this.slipT = 0; this.speedStep = 0; this.beamHint = false;
     this.carpetStreak = 0; this.ammo = 0; this.fireCd = 0; this.recoilT = 0;
     this.shots = [];
     this.nextSurvival = SCORE.SURVIVAL_EVERY_S;
@@ -58,7 +60,7 @@ export class Sim {
     this.clearEntities();
     this.resetRunState();
     this.seed = seed ?? randomSeed();
-    this.gen = new Generator(this.seed, { debugPistol: this.debug.includes('pistol') });
+    this.gen = new Generator(this.seed, { debugPistol: this.debug.includes('pistol'), mapOffsetM: this.mapOffsetM });
     this.genOffset = this.T;
     this.mode = 'run';
     this.lane = 1; this.targetLane = 1;
@@ -101,6 +103,15 @@ export class Sim {
     return true;
   }
 
+  // v5s6: abbassarsi (swipe giu', freccia giu', S) per passare sotto le travi basse
+  duck() {
+    if (this.mode !== 'run' || this.duckCd > 0 || this.duckT > 0) return false;
+    this.duckT = DUCK.TIME_S;
+    this.inputs.push([this.step, 'D']);
+    this.fx('duck');
+    return true;
+  }
+
   fire() {
     if (this.mode !== 'run' || this.ammo <= 0 || this.fireCd > 0) return false;
     this.ammo--;
@@ -138,7 +149,18 @@ export class Sim {
     const rd = this.runD;
     if (this.slowT < WORLD.HIT_RECOVER_S) this.slowT += dt;
     const slow = lerp(WORLD.HIT_SLOW, 1, Math.min(1, this.slowT / WORLD.HIT_RECOVER_S));
-    const speed = speedAt(rd) * slow;
+    const steps = speedStepsAt(rd, this.mapOffsetM);
+    if (steps > this.speedStep) {
+      this.speedStep = steps; this.stats.speedSteps = steps;
+      this.log('v', steps);
+      this.fx('speedUp', { step: steps });
+      this.fx('popup', { text: SPEED_STEPS.BANNER, style: 'speed' });
+      this.fx('sound', 'speedUp');
+    }
+    if (this.duckT > 0) { this.duckT = Math.max(0, this.duckT - dt); if (this.duckT === 0) this.duckCd = DUCK.COOLDOWN_S; }
+    else this.duckCd = Math.max(0, this.duckCd - dt);
+    this.slipT = Math.max(0, this.slipT - dt);
+    const speed = speedAt(rd, this.mapOffsetM) * slow;
     this.currentSpeed = speed;
     this.T += speed * dt;
     this.invuln = Math.max(0, this.invuln - dt);
@@ -184,7 +206,7 @@ export class Sim {
     const tx = laneX(this.targetLane);
     const d = tx - this.px;
     if (Math.abs(d) <= WORLD.LANE_SNAP_PX) { this.px = tx; this.vx = 0; return; }
-    this.px += d * (1 - Math.exp(-WORLD.LANE_EASE * dt));
+    this.px += d * (1 - Math.exp(-(this.slipT > 0 ? BIOME_OBST.WET_EASE : WORLD.LANE_EASE) * dt));
     this.vx = Math.max(-1, Math.min(1, d / WORLD.LANE_W));
   }
 
@@ -230,6 +252,17 @@ export class Sim {
         if (e.d - T < MOVE_AHEAD) { e.x += e.vx * e.dir * dt; e.moving = true; }
         if (e.kind === 'goat' && !e.bleat && e.d - T < MOVE_AHEAD - 10) { e.bleat = true; this.fx('sound', 'goat'); }
       }
+      if (e.kind === 'rollin' && !e.done && e.d - T < MOVE_AHEAD) {
+        // botte / carrello che rotola verso il giocatore lungo la corsia (velocita' proporzionale alla corsa)
+        if (!e.moving) { e.moving = true; this.fx('sound', 'rumble'); }
+        e.d -= BIOME_OBST.ROLL_K * (this.currentSpeed || 0) * dt;
+      }
+      if (e.kind === 'sasso' && !e.landed && e.d - T < (this.currentSpeed || 0) * BIOME_OBST.ROCK_LEAD_S + 40) {
+        e.landed = true; this.fx('rockFall', { e });       // l'ombra era gia' sulla corsia: ora il masso cade e resta li'
+      }
+      if (e.kind === 'trave' && !e.hint && !this.beamHint && e.d - T < (this.currentSpeed || 0) * 1.7) {
+        e.hint = true; this.beamHint = true; this.fx('beamHint', { e });
+      }
       if (e.done) continue;
       const ex = this.entX(e);
       const hw = HALF_W[e.kind] || 10;
@@ -245,6 +278,11 @@ export class Sim {
       }
       if (overlapD && Math.abs(ex - px) <= hw + PLAYER_HALF && !e.hit) {
         if (e.kind === 'pozza') { this.hitPuddle(e); continue; }
+        if (e.kind === 'bagnato') { this.hitWet(e); continue; }
+        if (e.kind === 'trave') {
+          if (this.duckT > 0) { e.hit = true; e.ducked = true; this.stats.beams++; this.log('u', 0); this.fx('ducked', { e }); continue; }
+          if (this.invuln <= 0) { this.hitSolid(e); continue; }
+        }
         if (this.invuln <= 0) { this.hitSolid(e); continue; }
       }
       if (e.d + e.len < pBack) {
@@ -274,10 +312,11 @@ export class Sim {
       let gone = p.d - this.T > SHOT_RANGE;
       if (!gone) {
         for (const e of this.entities) {
-          if (e.done || e.pickup || !e.solid) continue;
+          if (e.done || e.pickup || (!e.solid && !(e.kind === 'bagnato' && !e.hit))) continue;
           const ex = this.entX(e);
           if (e.d <= p.d + 3 && e.d + e.len + 6 >= p.d && Math.abs(ex - p.x) <= (HALF_W[e.kind] || 10) + 2) {
             if (e.kind === 'goat') this.scareGoat(e);
+            else if (BIOME_KINDS[e.kind]) this.destroyObst(e);
             else if (DESTRUCTIBLE[e.kind]) this.destroyBarrel(e);
             else this.fx('ricochet', { x: p.x, d: p.d });
             gone = true;
@@ -296,6 +335,25 @@ export class Sim {
     this.stats.barrels++;
     this.log('b', pts);
     this.fx('barrel', { e, big, pts, x: this.entX(e) });
+  }
+
+  // v5s6: ostacolo d'ambiente distrutto con la pistola (come una botte, log 'o')
+  destroyObst(e) {
+    e.done = true; e.destroyed = true;
+    const pts = this.addBonus(SCORE.OBST_BIOME);
+    this.stats.obst++;
+    this.log('o', pts);
+    this.fx('barrel', { e, big: false, pts, x: this.entX(e) });
+  }
+
+  // pietra bagnata: niente danno, ma per un attimo il cambio corsia e' lento (scivoli)
+  hitWet(e) {
+    e.hit = true;
+    this.slipT = BIOME_OBST.WET_SLIP_S;
+    this.stats.slips++;
+    this.log('k', 0);
+    this.fx('slip', { e });
+    this.fx('popup', { text: 'SCIVOLA!', style: 'water' });
   }
 
   // colpo alla capra: niente sangue, la capra fa un balzo e scappa via di corsa in una nuvola di polvere;
@@ -358,7 +416,7 @@ export class Sim {
   hitSolid(e) {
     e.hit = true; e.done = true;
     this.lastHitStep = this.step;
-    const loss = isMoving(e.kind) ? FUEL.HIT_GOAT : FUEL.HIT_SOLID;
+    const loss = isMoving(e.kind) || e.kind === 'rollin' ? FUEL.HIT_GOAT : e.kind === 'trave' ? FUEL.HIT_BEAM : FUEL.HIT_SOLID;
     this.log('h', loss);
     this.carpetStreak = 0;
     this.fuel -= loss;
@@ -376,14 +434,14 @@ export class Sim {
     this.fx('over', {
       score: this.score, meters, ...this.stats, time: Math.round(this.runTime * 10) / 10,
       seed: this.seed, carpetTotal: this.carpetTotal, debug: this.debug,
-      log: { v: 2, seed: this.seed, steps: this.step, inputs: this.inputs.slice(), events: this.events.slice() },
+      log: { v: 3, mapOffsetM: this.mapOffsetM, seed: this.seed, steps: this.step, inputs: this.inputs.slice(), events: this.events.slice() },
     });
   }
 
   debugState() {
     return {
       mode: this.mode, score: this.score, fuel: this.fuel, meters: Math.floor(this.runD / PX_PER_METER),
-      lane: this.targetLane, px: this.px, T: this.T, stats: { ...this.stats }, speed: this.currentSpeed, baseSpeed: speedAt(Math.max(0, this.runD)),
+      lane: this.targetLane, px: this.px, T: this.T, stats: { ...this.stats }, speed: this.currentSpeed, baseSpeed: speedAt(Math.max(0, this.runD), this.mapOffsetM), speedStep: this.speedStep, duckT: this.duckT, slipT: this.slipT,
       ammo: this.ammo, shotsInFlight: this.shots.length, carpetTotal: this.carpetTotal, events: this.events.length, inputs: this.inputs.length,
       entities: this.entities.filter((e) => !e.done).map((e) => ({ kind: e.kind, lane: e.lane, x: e.x, ahead: e.d - this.T, len: e.len, pickup: !!e.pickup, solid: e.solid, destructible: !!DESTRUCTIBLE[e.kind] })),
     };

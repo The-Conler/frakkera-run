@@ -29,7 +29,7 @@ const LOD_D = 230, LOD_MIN = 0.8, BATCH = 70;   // i pezzi lontani sono uniti a 
 const _c = new THREE.Color();
 const MOOD_KEYS = ['top', 'mid', 'hor', 'fog', 'hemiS', 'hemiG', 'dirC', 'far'];
 const NUM_KEYS = ['hemiI', 'dirI', 'moon', 'sun', 'fogNear', 'fogFar'];
-const LIGHT_KEYS = ['flameDist', 'flameK', 'mineral', 'lamp', 'darkByFuel', 'tunnel', 'exposure', 'camLook', 'camFov'];
+const LIGHT_KEYS = ['flameDist', 'flameK', 'mineral', 'lamp', 'darkByFuel', 'tunnel', 'exposure', 'camLook', 'camFov', 'camYaw'];
 const AMB_KEYS = ['wind', 'water', 'drips', 'birds', 'bells', 'cave'];
 
 // ---------------------------------------------------------------- materiali del suolo con UV nel mondo
@@ -191,7 +191,7 @@ export class Env {
       gravelEdge: groundMat(this.tex.gravelEdge, { sx: 1 / 3, sz: 1 / 3, x0: 0, abs: true }),
       none: groundMat(this.tex.mineFloor, { phong: true, shininess: 30 }),
     };
-    this.waterMat = { pool: waterMat(nrm, '#16b09a', 0.88), river: waterMat(nrm, '#3f7f7c', 0.86) };
+    this.waterMat = { pool: waterMat(nrm, '#2cc8b4', 0.5), river: waterMat(nrm, '#3f7f7c', 0.86) };
     this.tunnelMat = { rock: tunnelMat(false), blue: tunnelMat(true) };
     this.fallMat = new THREE.MeshBasicMaterial({ color: '#f4fbff', transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide, map: this.fallTexture() });
     this.fallMat.map.wrapT = THREE.RepeatWrapping; this.fallMat.map.repeat.set(1, 2);
@@ -235,7 +235,7 @@ export class Env {
       if (g.left !== 'drop') one(80, 0.1, -(9.0 + 40), (g.terrainY ?? -0.06) - 0.05, g.terrain);   // con la valle a sinistra niente terreno piano
       if (!g.right) one(80, 0.1, 9.0 + 40, (g.terrainY ?? -0.06) - 0.05, g.terrain);
     }
-    if (g.right === 'water') one(80, 0.1, 6.2 + 40, -2.6, '#3f8a70');
+    if (g.right === 'water') one(80, 0.1, 6.2 + 40, -3.2, '#0e6e58');
     if (g.right === 'river') one(80, 0.1, 12 + 40, -6.0, '#5a5a48');
     if (g.rails) for (const lx of [0, 3.4]) for (const s of [-0.52, 0.52]) { one(0.1, 0.12, lx + s, 0.06, '#6a4a32'); one(0.05, 0.03, lx + s, 0.135, g.wet ? '#c4cfee' : '#9a7a62'); }
     const geom = k.build();
@@ -379,7 +379,7 @@ export class Env {
         // target2-fiume: bosco fitto e alto a sinistra con alberi chini sul sentiero; a destra piscina larga,
         // parete di travertino muschiata alta e lontana, massi bianchi e felci sulla riva
         if (s < 0) { const w = fit(7, 11); return own(() => N.slopePiece(W, w, { Hs: 15, dist: 30, trees: 0.55, ferns: 0.8, rocks: 0.35, fence: true, canopy: true, leaf: LEAF.fresh, rockPal: ROCK.limestone, ground: ['#4f7a2a', '#5f8a30', '#6b8a3c', '#3f6a24', '#7a8a4a'], seed: 9 }), w); }
-        const w = fit(8, 12); return own(() => N.poolBankPiece(W, w, { cliffX: -15, cliffH: 27, beachW: 1.1, beachX0: 0.9, mossTo: 0.78, lush: true }), w);
+        const w = fit(8, 12); return own(() => N.poolBankPiece(W, w, { cliffX: -23, cliffH: 32, beachW: 1.4, beachX0: 0.95, mossTo: 0.8, lush: true, shallow: true }), w);
       }
       case 'valley': {
         if (s < 0) { const w = fit(8, 12); return own(() => N.slopePiece(W, w, { Hs: 16, dist: 30, trees: 0.22, rocks: 0.5, wall: true, wallH: 0.9, ferns: 0.05, seed: 13, ground: ['#7a7a44', '#6b7a3e', '#8a7a5a', '#9a8f6a', '#6e6a40'], conifers: true }), w); }
@@ -688,11 +688,16 @@ export class Env {
       cached('valley', () => valleyRock(Bm)).position.z = Bm;
     } else if (id === 'pool') {
       // cascate grandi e ben visibili davanti alla parete (ora piu' lontana: piscina larga)
-      for (const [lz, h, w] of [[35, 24, 11], [70, 27, 9], [105, 26, 13], [140, 28, 10], [175, 25, 12], [210, 24, 9], [240, 22, 10]]) {
-        const fall = mesh(N.waterfallGeometry(h, w), this.fallMat); fall.position.set(18.2, h - 0.4, -lz); fall.rotation.y = -1.05;   // rivolta verso chi arriva
-        lamps.push(this.lamp(17.6, 0.7, -lz - W, '#ffffff', 10, 0.45));
-        lamps.push(this.lamp(16.4, 0.4, -lz - W + 3, '#e8fff8', 6, 0.3));
+      // v5s6 (target3-cascata): parete lontana (piscina larga fino al sentiero), tante cascate sottili e luminose + qualche grande
+      for (const [lz, h, w] of [[35, 28, 9], [70, 31, 7], [105, 30, 11], [140, 32, 8], [175, 29, 10], [210, 28, 7], [240, 26, 8]]) {
+        const fall = mesh(N.waterfallGeometry(h, w), this.fallMat); fall.position.set(27.2, h - 0.6, -lz); fall.rotation.y = -1.05;   // rivolta verso chi arriva
+        lamps.push(this.lamp(26, 0.7, -lz - W, '#ffffff', 12, 0.45));
       }
+      for (const [lz, h, w] of [[22, 26, 2.4], [52, 30, 2.0], [88, 29, 2.6], [122, 31, 2.2], [158, 28, 2.4], [192, 30, 2.0], [226, 27, 2.6], [252, 25, 2.2]]) {
+        const fall = mesh(N.waterfallGeometry(h, w), this.fallMat); fall.position.set(28.4, h - 0.6, -lz); fall.rotation.y = -1.05;
+      }
+      const ig = this.markGeom('islet', () => N.isletGeometry(41)); m_gpu.push(ig);
+      for (const [x, lz, ry] of [[16, 58, 0.4], [19, 150, -0.6], [14.5, 228, 1.2]]) { const isl = mesh(ig, this.mats2, true); isl.position.set(x, -0.2, -lz); isl.rotation.y = ry; }
       // fasci di luce che filtrano tra le chiome (piani additivi: 1 draw call ciascuno, solo qui)
       const sg = this.shaftGeo || (this.shaftGeo = (() => { const g = new THREE.PlaneGeometry(3.2, 26); g.translate(0, -13, 0); return g; })());
       for (const [sx, lz, rz] of [[2.5, 28, 0.42], [6.5, 64, 0.38], [1.5, 101, 0.45], [7.5, 138, 0.4], [3.5, 176, 0.42], [6, 214, 0.36]]) {

@@ -7,7 +7,8 @@
 // mobili compaiono solo in "finestre calme" senza altri ostacoli.
 // Tappeti, combustibile e pistola si piazzano solo in celle libere.
 // =====================================================================
-import { DIFFICULTY as DF, WORLD, PX_PER_METER, CARPETS as CP, PISTOL } from '../config.js';
+import { DIFFICULTY as DF, WORLD, PX_PER_METER, CARPETS as CP, PISTOL, SPEED_STEPS as SS, BIOME_OBST as BO, DUCK } from '../config.js';
+import { biomeAt, BIOMES } from '../game/biomes/config.js';
 import { makeRng } from './rng.js';
 
 export const lerp = (a, b, t) => a + (b - a) * t;
@@ -18,7 +19,18 @@ export function difficultyAt(px) {
   return Math.pow(clamp01(m / DF.RAMP_METERS), DF.RAMP_EXP);
 }
 
-export function speedAt(px) {
+// v5s6: numero di ambienti nuovi raggiunti dall'inizio della corsa (gradini di velocita').
+// offM = metri di partenza dentro il giro (solo il salto di mappa di sviluppo, altrimenti 0).
+export function biomeIndexAt(m) { const i = biomeAt(Math.max(0, m)); return i.lap * BIOMES.length + i.index; }
+export function speedStepsAt(px, offM = 0) {
+  return Math.min(SS.CAP_STEPS, Math.max(0, biomeIndexAt(px / PX_PER_METER + offM) - biomeIndexAt(offM)));
+}
+export const biomeIdAt = (px, offM = 0) => biomeAt(Math.max(0, px / PX_PER_METER + offM)).b.id;
+
+export function speedAt(px, offM = 0) {
+  return Math.min(baseSpeedAt(px) + speedStepsAt(px, offM) * SS.PER_STEP, DF.SPEED_MAX);
+}
+export function baseSpeedAt(px) {
   const d = difficultyAt(px);
   let s = lerp(DF.SPEED_START, DF.SPEED_END, d);
   const m = px / PX_PER_METER;
@@ -29,9 +41,15 @@ export function speedAt(px) {
 // ostacoli che fermano il giocatore (la pozzanghera no: toglie solo fuoco)
 export const SOLID = {
   muretto: true, botte: true, bottecoricata: true, botti: true, narrow: true, goat: true, rollbarrel: true, pozza: false,
+  // v5s6: ostacoli d'ambiente (la pietra bagnata non ferma: fa scivolare) e trave bassa (si passa abbassandosi)
+  rollin: true, sasso: true, bagnato: false, trave: false,
 };
 // distruttibili con la pistola: tutte e sole le botti
-export const DESTRUCTIBLE = { botte: true, bottecoricata: true, botti: true, rollbarrel: true };
+export const DESTRUCTIBLE = { botte: true, bottecoricata: true, botti: true, rollbarrel: true, rollin: true, sasso: true, bagnato: true };
+// ostacoli d'ambiente v5s6 (punteggio e log a parte)
+export const BIOME_KINDS = { rollin: true, sasso: true, bagnato: true };
+// ambiente -> ostacolo tipico (il viadotto non ne ha)
+export const BIOME_OBST_KIND = { village: 'rollin', rock: 'sasso', river: 'bagnato', 'mine-ext': 'rollin', 'mine-int': 'rollin', 'mine-blue': 'rollin' };
 export const PICKUP_KINDS = { asfodelo: 'fuel', ferula: 'fuel', tappeto: 'carpet', pistola: 'pistol' };
 
 const SHORT_LEN = { muretto: 14, botte: 18, bottecoricata: 14, pozza: 13 };
@@ -41,6 +59,8 @@ export class Generator {
     this.rng = makeRng(seed);
     this.seed = seed;
     this.debugPistol = !!opts.debugPistol;
+    this.offM = opts.mapOffsetM || 0;     // salto di mappa (sviluppo): ostacoli dell'ambiente mostrato
+    this.nextBeamAt = 20; this.nextBiomeAt = 10;
     const L = WORLD.LANES;
     this.row = 0;
     this.path = 1;
@@ -119,6 +139,35 @@ export class Generator {
     }
     const required = new Array(L).fill(false);
     for (let l = 0; l < L; l++) required[l] = this.freeUntil[l] >= r || l === this.path;
+
+    // ---- v5s6: trave bassa (tutte le corsie, si passa abbassandosi: niente altro sulla fila) ----
+    if (diff >= DUCK.BEAM_FROM && r >= this.nextBeamAt && !longActive && rng() < lerp(DUCK.BEAM_P_START, DUCK.BEAM_P_END, diff)) {
+      this.nextBeamAt = r + DUCK.BEAM_MIN_GAP_ROWS + rng.int(0, 8);
+      for (let l = 0; l < L; l++) { used[l] = true; this.laneCool[l] = Math.max(this.laneCool[l], r + 1); }
+      emit({ kind: 'trave', lane: 1, d: D + 10, len: DUCK.BEAM_LEN });
+      this.carpetRow(r, D, diff, used, emit);
+      return;
+    }
+    // ---- v5s6: ostacolo tipico dell'ambiente (fuori dal sentiero sicuro) ----
+    if (diff >= BO.FROM && r >= this.nextBiomeAt && rng() < lerp(BO.P_START, BO.P_END, diff)) {
+      const kind = BIOME_OBST_KIND[biomeIdAt(D, this.offM)];
+      const free = [];
+      for (let l = 0; l < L; l++) if (!required[l] && !used[l] && this.blockedUntil[l] < r && this.laneCool[l] < r) free.push(l);
+      if (kind && free.length) {
+        const l = rng.pick(free);
+        this.nextBiomeAt = r + BO.MIN_GAP_ROWS + rng.int(0, 6);
+        used[l] = true;
+        if (kind === 'rollin') {
+          // rotola verso il giocatore: la corsia resta riservata per le file che attraversa
+          this.blockedUntil[l] = r + BO.ROLL_ROWS; this.laneCool[l] = r + BO.ROLL_ROWS + 1;
+          const sweep = Math.ceil(336 * BO.ROLL_K / (1 + BO.ROLL_K)) + 12;
+          emit({ kind, lane: l, d: D + BO.ROLL_ROWS * ROW, len: 14, sweep });
+        } else {
+          this.laneCool[l] = r + 1;
+          emit({ kind, lane: l, d: D + 8, len: 14 });
+        }
+      }
+    }
 
     // ---- ostacoli lunghi -------------------------------------------
     const canLong = (l) => !required[l] && !used[l] && this.blockedUntil[l] < r;

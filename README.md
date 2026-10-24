@@ -286,6 +286,14 @@ La corsa attraversa gli ambienti veri di Gadoni, costruiti dalle foto in `refere
 - Verifica dei passaggi: `python3 tests/transitions.py` (foglio provini per confine in `screenshots/v5s5-transizione-*.png`,
   metriche in `screenshots/v5s5-transizioni-after.json`; `--tag before` contro la versione precedente).
 
+### Aggiornamento v5-stage6: ostacoli dei luoghi, travi basse, velocita' a gradini, piscina (target3)
+
+- **Ostacoli tipici di ogni luogo**, tutti distruttibili con la pistola Broccu (+150, log `o`): in paese botti che **rotolano verso di te** lungo la corsia (rombo e polvere come avviso); sulla roccia **massi che cadono** (prima un anello arancio e l'ombra pulsante sulla corsia, poi il masso cade ~1 s prima e resta come ostacolo); alla piscina **pietre bagnate** (niente danno, ma per 0,9 s il cambio corsia e' lento, log `k`); in miniera **carrelli** lanciati sui binari. Il generatore li mette solo fuori dal sentiero sicuro (le botti/carrelli riservano la corsia per tutto il tratto che percorrono): resta sempre un percorso senza pistola (`tests/generator.test.mjs`).
+- **Travi basse** (non distruttibili): archi/balconi fioriti in paese, tronchi caduti su roccia/fiume/viadotto, travi della miniera. **Swipe verso il basso** o **freccia giu' / S** per abbassarsi 0,62 s (input `D` nel log, passaggio `u`, urto -26 di fiamma). Il personaggio corre accovacciato e la frakkera si inclina in avanti. Suggerimento "SCORRI GIU' PER ABBASSARTI" alla prima trave (poi salvato), testo in COME SI GIOCA.
+- **Velocita' a gradini**: ogni luogo nuovo +4 px/s (tabella `SPEED_STEPS` in `src/config.js`, tetto 10 gradini) con banner **PIU' VELOCE!** e suono (log `v`). La rampa continua e' piu' dolce (`SPEED_END` 185): a 1600 m ~175 px/s (prima 164).
+- **Piscina (solo il bioma fiume)** verso `reference/gadoni/target3-cascata.png`: acqua turchese/smeraldo trasparente che arriva al sentiero con fondale visibile (sassi e chiazze di luce), parete muschiata piu' lontana con 7 cascate grandi e 8 sottili, isolotti con tronco, massi e cespugli low-poly, lastre del sentiero calde arancio-sabbia, inquadratura girata un poco verso l'acqua.
+- Registro partita `v: 3` (con `mapOffsetM`). Test: `node tests/sim-s6.test.mjs`.
+
 ### Salto di mappa (sviluppo)
 
 - `?map=village|rock|river|viaduct|mine-ext|mine-int|mine-blue` parte direttamente da quell'ambiente (anche nel menu), es. `index.html?map=mine-blue`.

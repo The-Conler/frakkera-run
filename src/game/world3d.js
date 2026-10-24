@@ -5,7 +5,7 @@
 // =====================================================================
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { WORLD } from '../config.js';
+import { WORLD, BIOME_OBST } from '../config.js';
 import { laneX, isMoving } from './sim.js';
 import * as T3 from './tex3d.js';
 import * as M from './models.js';
@@ -211,7 +211,18 @@ export class World {
   createSkinned(kind, skin, sk) {
     const root = new THREE.Group();
     const v = { kind, root, body: null, glow: null, shadow: null, t: Math.random() * 6, skin };
-    if (kind === 'rollbarrel') {
+    if (kind === 'trave') {
+      v.body = new THREE.Mesh(sk.make(false), this.mats2); v.shadow = this.blob(12.8, 1.3);
+    } else if (kind === 'sasso') {
+      v.body = new THREE.Mesh(sk.make(false), this.mats2); v.shadow = this.blob(2.8, 2.8);  // ombra = avviso prima della caduta
+      const wm = this.mat.warn || (this.mat.warn = new THREE.MeshBasicMaterial({ color: '#ff5a2a', transparent: true, opacity: 0.85, depthWrite: false, fog: false }));
+      const ring = new THREE.Mesh(this.geo.ring, wm); ring.rotation.x = Math.PI / 2; ring.position.y = 0.06; ring.scale.setScalar(1.5); ring.renderOrder = 4; v.warn = ring; root.add(ring);
+    } else if (kind === 'bagnato') {
+      v.body = new THREE.Group();
+      const w = new THREE.Mesh(this.geo.puddle, this.mat.wet || (this.mat.wet = Object.assign(this.mat.puddle.clone(), {})));
+      this.mat.wet.color.set('#5fd0c0'); w.position.y = 0.04; w.scale.set(1.25, 1, 1.25); w.renderOrder = 3;
+      v.body.add(w, new THREE.Mesh(sk.make(false), this.mats2)); v.water = w;
+    } else if (kind === 'rollbarrel') {
       v.body = new THREE.Group();
       const b = new THREE.Mesh(sk.make(true), this.mats2);
       const pivot = new THREE.Group(); pivot.add(b); pivot.rotation.x = Math.PI / 2; pivot.position.y = 0.78;
@@ -226,6 +237,7 @@ export class World {
     return v;
   }
   createView(kind, e, skin = null) {
+    if (!skin) skin = { sasso: 'fallRock', bagnato: 'wetStone', trave: 'beamTrunk' }[kind] || null;
     const sk = skin && SKINS[skin];
     if (sk && sk.make && kind !== 'narrow') return this.createSkinned(kind, skin, sk);
     const root = new THREE.Group();
@@ -252,6 +264,16 @@ export class World {
       const pivot = new THREE.Group(); pivot.add(b); pivot.rotation.x = Math.PI / 2; pivot.position.y = 0.78;
       v.spin = pivot; v.body.add(pivot);
       v.shadow = this.blob(1.9, 2.4);
+    } else if (kind === 'rollin') {
+      // v5s6: botte coricata di traverso che rotola lungo la corsia verso il giocatore
+      v.body = new THREE.Group();
+      const b = new THREE.Group();
+      b.add(new THREE.Mesh(this.geo.barrelBody, this.mat.stave), new THREE.Mesh(this.geo.barrelLid, this.mat.lid), new THREE.Mesh(this.geo.barrelHoops, this.mat.iron));
+      b.position.y = -0.9;
+      const inner = new THREE.Group(); inner.add(b); inner.rotation.z = Math.PI / 2;
+      const spin = new THREE.Group(); spin.add(inner); spin.position.y = 0.78;
+      v.spin = spin; v.body.add(spin);
+      v.shadow = this.blob(2.4, 1.9);
     } else if (kind === 'muretto') {
       v.body = new THREE.Mesh(this.geo.wall[e.id % 3], this.mats2); v.shadow = this.blob(3.0, 1.4);
     } else if (kind === 'pozza') {
@@ -317,7 +339,7 @@ export class World {
     v.root.visible = true; v.body.visible = true;
     if (v.glow) v.glow.visible = true;
     v.t = Math.random() * 6;
-    v.dead = false; v.hitT = 0;
+    v.dead = false; v.hitT = 0; v.fallT = 0; v.landFx = false;
     if (e.kind === 'botte' || e.kind === 'muretto') v.body.rotation.y = (e.id * 1.37) % 6.28 * (e.kind === 'botte' ? 1 : 0.06);
     this.views.set(e.id, v);
     this.placeView(e, v);
@@ -347,7 +369,7 @@ export class World {
       // inquadratura del game over: niente ostacoli addosso al personaggio caduto
       const ahead = e.d - sim.T;
       v.root.visible = !(this.moodName === 'over' && !e.pickup && ahead + (e.len || 0) > -210 && ahead < 70);
-      if (e.done && !v.dead && (e.pickup || e.destroyed)) { v.dead = true; v.body.visible = false; if (v.glow) v.glow.visible = false; if (v.shadow) v.shadow.visible = !e.pickup && !e.destroyed; }
+      if (e.done && !v.dead && (e.pickup || e.destroyed)) { v.dead = true; v.body.visible = false; if (v.glow) v.glow.visible = false; if (v.warn) v.warn.visible = false; if (v.shadow) v.shadow.visible = !e.pickup && !e.destroyed; }
       if (v.dead) continue;
       v.t += dt;
       if (e.kind === 'tappeto') {
@@ -377,8 +399,30 @@ export class World {
           if (Math.random() < dt * 20) this.norm.emit(v.root.position.x, 0.3, v.root.position.z, (Math.random() - 0.5) * 2, 0.6 + Math.random(), (Math.random() - 0.5) * 1.5, 1.0, 0.8, 2.2, COL.dust, 0.5, 0, 1);
           if (q > 1.4 && !v.dead) { v.dead = true; v.body.visible = false; if (v.shadow) v.shadow.visible = false; this.dustPuff(v.root.position.x, v.root.position.z, 14); }
         } else if (e.moving) { v.body.position.y = Math.abs(Math.sin(t * 12)) * 0.12; v.body.rotation.z = Math.sin(t * 12) * 0.05; }
+      } else if (e.kind === 'rollin') {
+        // v5s6: rotola verso di te (polvere e rombo come avviso)
+        if (e.moving) {
+          const vz = BIOME_OBST.ROLL_K * (sim.currentSpeed || 0) * U;
+          if (v.spin) v.spin.rotation.x += (vz / 0.78) * dt; else v.body.position.y = Math.abs(Math.sin(t * 24)) * 0.05;
+          const p = v.root.position;
+          if (Math.random() < dt * 22) this.norm.emit(p.x + (Math.random() - 0.5) * 1.6, 0.25, p.z - 0.9, (Math.random() - 0.5) * 1.2, 0.5 + Math.random() * 0.8, -0.6, 0.9, 0.7, 1.8, COL.dust, 0.45, 0, 1);
+          if (!v.spin && Math.random() < dt * 10) this.add.emit(p.x + (Math.random() < 0.5 ? -0.6 : 0.6), 0.15, p.z + 0.6, (Math.random() - 0.5) * 2, 1 + Math.random() * 2, 1.5, 0.3, 0.14, 0.03, COL.spark, 1, 6, 2);
+        }
+      } else if (e.kind === 'sasso') {
+        // v5s6: prima solo l'ombra che pulsa sulla corsia, poi il masso cade e resta li'
+        if (!e.landed) {
+          v.body.visible = false;
+          const k = 0.7 + Math.sin(t * 10) * 0.18; v.shadow.scale.set(2.8 * k, 1, 2.8 * k);
+          if (v.warn) { v.warn.visible = true; v.warn.scale.setScalar(1.2 + 0.4 * k); }
+        } else {
+          v.fallT += dt; const q = Math.min(1, v.fallT / 0.4);
+          if (v.warn) v.warn.visible = false;
+          v.body.visible = true; v.body.position.y = 18 * (1 - q * q); v.body.rotation.x = (1 - q) * 2.5;
+          v.shadow.scale.set(2.8, 1, 2.8);
+          if (q >= 1 && !v.landFx) { v.landFx = true; const p = v.root.position; this.dustPuff(p.x, p.z, 24); this.addShake(0.16, 0.14); }
+        }
       }
-      if (e.hit && !v.hitT && e.kind !== 'pozza') v.hitT = 0.4;
+      if (e.hit && !v.hitT && e.kind !== 'pozza' && e.kind !== 'bagnato' && !e.ducked) v.hitT = 0.4;
       if (v.hitT > 0) { v.hitT = Math.max(0, v.hitT - dt); v.body.rotation.z = Math.sin(v.hitT * 40) * v.hitT * 0.4; }
     }
   }
@@ -434,6 +478,13 @@ export class World {
         this.char3d.stumble(); this.char3d.kick((Math.random() < 0.5 ? -1 : 1) * 1.6, 2.2);
         break;
       }
+      case 'slip': {
+        const x = sim.px * U;
+        for (let i = 0; i < 22; i++) this.norm.emit(x + (Math.random() - 0.5), 0.2, pz, (Math.random() - 0.5) * 4, Math.random() * 3 + 1.5, (Math.random() - 0.5) * 3, 0.5, 0.25, 0.1, COL.water, 0.9, 14, 0.5);
+        this.char3d.kick((Math.random() < 0.5 ? -1 : 1) * 0.8, 0.6);
+        break;
+      }
+      case 'duck': { const x = sim.px * U; this.dustPuff(x, pz + 0.4, 6); break; }
       case 'die': this.smokeAtTip(30); this.burnT = 0; this.burnKeep = this.char3d.keep ?? 1; break;
       case 'start': case 'attract':
         this.add.clear(); this.norm.clear(); this.shards.clear();
@@ -561,6 +612,7 @@ export class World {
       // per ambiente (config.light.camLook/camFov): un po' piu' larga e meno inclinata dove i monumenti devono entrare in verticale
       const L = this.light || {}, por = 1 - wide;
       cp = _v.set(px * 0.82 - 0.6, 6.4 - wide, pz + 9.4 - wide * 1.5); cl = _v2.set(px * 0.55 - 0.1, 1.8 + (L.camLook || 0) * por, pz - 15); fov = 64 - wide * 6 + (L.camFov || 0) * por;
+      if (L.camYaw) { cl.x += L.camYaw * por; cp.x -= L.camYaw * 0.3 * por; }   // v5s6: solo la piscina guarda un po' verso l'acqua a destra
     }
     const k = 1 - Math.exp(-dt * (view.cam === 'run' ? 7 : 2.6));
     this.camPos.lerp(cp, k);

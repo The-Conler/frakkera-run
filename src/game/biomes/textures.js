@@ -59,13 +59,13 @@ export function trailTexture() {
 // lastricato naturale di pietra chiara con muschio (sentiero del fiume)
 export function stoneTrailTexture() {
   const S = 512; const [c, ctx] = cv(S, S); const r = rng(33);
-  ctx.fillStyle = '#6f6a52'; ctx.fillRect(0, 0, S, S);
+  ctx.fillStyle = '#7a5838'; ctx.fillRect(0, 0, S, S);   // v5s6 (target3-cascata): lastre calde arancio-sabbia
   // lastre irregolari (griglia deformata)
   const N = 7;
   for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
     const cx = (i + 0.5 + (j % 2) * 0.5) * S / N + r.range(-8, 8), cy = (j + 0.5) * S / N + r.range(-8, 8);
     const rad = S / N * 0.48;
-    const col = r.pick(['#c9c3b2', '#bdb6a2', '#d6d0c0', '#b0aa96', '#c4bca6']);
+    const col = r.pick(['#dcaa72', '#d09a62', '#e4b680', '#c88e58', '#d8a46e']);
     const pts = []; for (let k = 0; k < 7; k++) { const a = k / 7 * Math.PI * 2 + r() * 0.4; pts.push([Math.cos(a) * rad * r.range(0.78, 1.02), Math.sin(a) * rad * r.range(0.78, 1.02)]); }
     wrapDraw(S, cx, cy, (X, Y) => {
       ctx.fillStyle = 'rgba(30,30,20,0.45)'; ctx.beginPath(); pts.forEach(([x, y], k) => (k ? ctx.lineTo : ctx.moveTo).call(ctx, X + x + 2, Y + y + 3)); ctx.fill();
@@ -74,8 +74,8 @@ export function stoneTrailTexture() {
     });
   }
   // muschio nelle fughe
-  speckle(ctx, S, r, 700, ['#6f9a3a', '#5f8a30', '#86ad4a'], 2, 6, 0.55);
-  gutters(ctx, S, 'rgba(60,80,30,0.45)');
+  speckle(ctx, S, r, 260, ['#6f9a3a', '#5f8a30', '#86ad4a'], 2, 5, 0.45);
+  gutters(ctx, S, 'rgba(70,50,30,0.4)');
   return tex(c);
 }
 // ghiaia grigia del piazzale della miniera, con traversine dei binari

@@ -15,7 +15,7 @@ export class Game {
     this.container = container;
     this.debug = new URLSearchParams(location.search).get('debug') || '';
     this.world = new World(container);
-    this.sim = new Sim((t, d) => this.onFx(t, d), { debug: this.debug, getBest, addCarpets, carpetTotal: getCarpetTotal() });
+    this.sim = new Sim((t, d) => this.onFx(t, d), { debug: this.debug, getBest, addCarpets, carpetTotal: getCarpetTotal(), mapOffsetM: (this.world.env && this.world.env.offset) || 0 });
     this.paused = false;
     this.accum = 0;
     this.last = 0;
@@ -47,6 +47,7 @@ export class Game {
     this.world.setMood('menu');
     audio.setIntensity(0);
   }
+  duck() { return this.sim.duck(); }
   fire() { const ok = this.sim.fire(); if (ok) audio.shoot(); return ok; }
   pause() { this.paused = true; }
   resume() { this.paused = false; this.accum = 0; }
@@ -67,6 +68,16 @@ export class Game {
       case 'pistol': audio.pistolPickup(); break;
       case 'puddle': audio.puddle(); break;
       case 'hit': audio.hit(); break;
+      case 'slip': audio.puddle(); break;
+      case 'rockFall': audio.rockFall?.(); break;
+      case 'duck': audio.duck?.(); break;
+      case 'speedUp': bus.emit('speedup', d); break;
+      case 'beamHint': {
+        // suggerimento la prima volta (poi resta salvato)
+        let seen = false; try { seen = localStorage.getItem('frakkera.duckhint.v1') === '1'; localStorage.setItem('frakkera.duckhint.v1', '1'); } catch { /* privato */ }
+        if (!seen || this.debug.includes('hint')) bus.emit('popup', { text: 'SCORRI GI\u00d9 PER ABBASSARTI', style: 'hint' });
+        break;
+      }
       case 'die': audio.gameOver(); audio.setIntensity(0); this.world.setMood('over'); break;
       case 'over': bus.emit('gameover', d); break;
       case 'popup': bus.emit('popup', d); break;
@@ -85,6 +96,7 @@ export class Game {
       const dx = p.clientX - q.x, dy = p.clientY - q.y;
       if (Math.abs(dx) >= 20 && Math.abs(dx) > Math.abs(dy) * 1.1) { this.sim.move(dx > 0 ? 1 : -1); q.swiped = true; }
       else if (dy <= -26 && Math.abs(dy) > Math.abs(dx) * 1.3) { this.fire(); q.swiped = true; }
+      else if (dy >= 26 && Math.abs(dy) > Math.abs(dx) * 1.3) { this.duck(); q.swiped = true; }
     });
     const up = (p) => {
       const q = this.ptr;
@@ -105,6 +117,7 @@ export class Game {
       if (k === 'ArrowLeft' || k === 'KeyA') { if (!e.repeat) this.sim.move(-1); }
       else if (k === 'ArrowRight' || k === 'KeyD') { if (!e.repeat) this.sim.move(1); }
       else if (k === 'Space' || k === 'KeyW' || k === 'ArrowUp') this.fire();
+      else if (k === 'ArrowDown' || k === 'KeyS') { if (!e.repeat) this.duck(); }
       else if ((k === 'KeyP' || k === 'Escape') && this.sim.mode === 'run') bus.emit('request-pause');
     });
   }
@@ -130,7 +143,7 @@ export class Game {
     const fuelF = Math.max(0, sim.fuel) / FUEL.MAX;
     const ch = this.character || (this.character = {});
     ch.mode = mode; ch.speed = sim.currentSpeed; ch.clock = sim.clock; ch.vx = sim.vx; ch.invuln = sim.invuln; ch.targetLane = sim.targetLane;
-    ch.fuelLow = sim.fuel < FUEL.LOW_WARNING; ch.armed = mode === 'run' && (sim.ammo > 0 || sim.recoilT > 0);
+    ch.duck = mode === 'run' ? sim.duckT : 0; ch.slip = sim.slipT; ch.fuelLow = sim.fuel < FUEL.LOW_WARNING; ch.armed = mode === 'run' && (sim.ammo > 0 || sim.recoilT > 0);
     ch.recoil = sim.recoilT; ch.flameOn = mode === 'run' || mode === 'attract'; ch.downT = this.downT;
     const view = this.view || (this.view = {});
     view.cam = mode === 'attract' ? 'menu' : mode === 'run' ? 'run' : 'over';

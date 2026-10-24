@@ -106,6 +106,70 @@ function trolley(seed) {
   k.add(G.box(0.4, 0.3, 0.4), '#7a6a58', { x: 0.25, y: 0.88, z: 0.1 });
   return k.build();
 }
+// ---- v5s6: travi basse (tutta la strada; sotto a ~2.2 u: si passa solo abbassandosi) ----
+const BEAM_Y = 2.25, HALF = 6.3;
+function beamTimber(seed) {           // miniera: trave squadrata su due montanti, con lanterna
+  const k = new Kit(seed); const r = rng(seed);
+  const wood = ['#7a5a36', '#6b4a2e', '#8a6a42'];
+  k.add(G.box(HALF * 2 + 0.6, 0.62, 0.62), r.pick(wood), { y: BEAM_Y + 0.31, vary: 0.1 });
+  for (const s of [-1, 1]) {
+    k.add(G.box(0.6, BEAM_Y + 0.62, 0.6), r.pick(wood), { x: s * HALF, y: (BEAM_Y + 0.62) / 2, vary: 0.1 });
+    k.add(G.box(0.9, 0.18, 0.5), '#4a3420', { x: s * (HALF - 0.6), y: BEAM_Y - 0.05, rz: s * 0.6 });
+  }
+  for (let i = 0; i < 4; i++) k.add(G.box(0.05, 0.5, 0.64), '#3a2a1a', { x: -4.5 + i * 3, y: BEAM_Y + 0.31 });
+  k.add(G.box(0.3, 0.4, 0.3), '#ffcf6a', { x: 0, y: BEAM_Y - 0.25, unlit: true });
+  for (const x of [-2.2, 2.2]) k.add(G.box(0.7, 0.08, 0.66), '#d8a040', { x, y: BEAM_Y + 0.05, unlit: true }); // fasce gialle di pericolo
+  return k.build({ ao: 0.2 });
+}
+function beamVillage(seed) {          // paese: arco/balcone di legno basso con vasi di fiori e lucine
+  const k = new Kit(seed); const r = rng(seed);
+  const wood = ['#6b4126', '#7a4a2a', '#5a3820'];
+  k.add(G.box(HALF * 2 + 0.6, 0.5, 1.4), r.pick(wood), { y: BEAM_Y + 0.25, vary: 0.08 });
+  k.add(G.box(HALF * 2 + 0.6, 0.12, 1.6), '#c0603a', { y: BEAM_Y + 0.56 });
+  for (let x = -HALF + 0.4; x <= HALF - 0.3; x += 0.55) k.add(G.box(0.08, 0.7, 0.08), '#3a2618', { x, y: BEAM_Y + 0.95, z: 0.7 });
+  k.add(G.box(HALF * 2 + 0.6, 0.1, 0.12), '#3a2618', { y: BEAM_Y + 1.32, z: 0.7 });
+  for (let i = 0; i < 6; i++) {
+    const x = -HALF + 1 + i * 2.1;
+    k.add(G.box(0.6, 0.35, 0.35), '#b8643a', { x, y: BEAM_Y + 0.8, z: 0.2 });
+    for (let j = 0; j < 4; j++) k.add(G.ico(0.16, 0), r.pick(['#e8506a', '#ff8fa0', '#f2e65a', '#ffffff', '#d03050']), { x: x + r.range(-0.25, 0.25), y: BEAM_Y + 1.05, z: 0.2 + r.range(-0.12, 0.12), flat: true });
+  }
+  for (const s of [-1, 1]) {
+    k.add(G.box(0.55, BEAM_Y + 0.5, 0.55), '#d8c4a0', { x: s * HALF, y: (BEAM_Y + 0.5) / 2, vary: 0.05 });
+    k.add(G.box(0.4, 0.5, 0.9), r.pick(wood), { x: s * (HALF - 0.45), y: BEAM_Y - 0.15, rz: s * 0.7 });
+  }
+  for (let i = 0; i < 13; i++) { const x = -HALF + 0.5 + i * ((HALF * 2 - 1) / 12); const sag = Math.sin((i / 12) * Math.PI) * 0.35; k.add(G.ico(0.09, 0), i % 2 ? '#ffe9a0' : '#ffd36a', { x, y: BEAM_Y - 0.08 - sag, z: -0.75, unlit: true }); }
+  return k.build({ ao: 0.2 });
+}
+function beamTrunk(seed, moss) {      // roccia / fiume / viadotto: tronco caduto appoggiato su due massi
+  const k = new Kit(seed); const r = rng(seed);
+  const bark = ['#5a4430', '#4a3828', '#6b5038'];
+  k.add(G.cyl(0.42, 0.55, HALF * 2 + 1.2, 10), r.pick(bark), { y: BEAM_Y + 0.42, rz: Math.PI / 2, vary: 0.12, flat: true });
+  for (const s of [-1, 1]) k.add(G.cyl(0.4, 0.5, 0.05, 10), '#c8a06a', { x: s * (HALF + 0.62), y: BEAM_Y + 0.42, rz: Math.PI / 2 });
+  for (let i = 0; i < 5; i++) k.add(G.cyl(0.06, 0.12, r.range(0.8, 1.5), 5), bark[0], { x: r.range(-5, 5), y: BEAM_Y + 0.85, z: r.range(-0.3, 0.3), rz: r.range(-0.9, 0.9), rx: r.range(-0.6, 0.6) });
+  for (let i = 0; i < 8; i++) k.add(G.ico(r.range(0.2, 0.36), 0), r.pick(moss ? ['#5f9a30', '#6faa3a', '#86b84a'] : LEAF.holm), { x: r.range(-5.5, 5.5), y: BEAM_Y + r.range(0.7, 1.1), z: r.range(-0.4, 0.4), flat: true });
+  for (const s of [-1, 1]) {
+    k.add(rockGeom(r, 1.1, { detail: 1, squash: 1.3, rough: 0.3 }), r.pick(moss ? ROCK.limestone : ROCK.granite), { x: s * HALF, y: 1.0, sy: 1.5, vary: 0.15 });
+    k.add(rockGeom(r, 0.7, { detail: 0, squash: 0.8 }), r.pick(moss ? ROCK.limestone : ROCK.granite), { x: s * (HALF + 0.6), y: 0.4, z: 0.6, vary: 0.15 });
+  }
+  return k.build({ ao: 0.2 });
+}
+// pietre bagnate (piscina): lastre piatte lucide di acqua, con muschio
+function wetStones(seed) {
+  const k = new Kit(seed); const r = rng(seed);
+  const wet = ['#5d6e6a', '#6b7c76', '#4f605c', '#7a8a80'];
+  for (const [x, z, s] of [[-0.6, 0.4, 0.6], [0.5, 0.3, 0.55], [0, -0.45, 0.65], [0.7, -0.6, 0.4], [-0.75, -0.5, 0.42]]) k.add(rockGeom(r, s, { detail: 1, squash: 0.35, rough: 0.2 }), r.pick(wet), { x, y: 0.1, z, vary: 0.12 });
+  for (let i = 0; i < 6; i++) k.add(G.ico(r.range(0.1, 0.18), 0), r.pick(['#5f9a30', '#6faa3a']), { x: r.range(-0.9, 0.9), y: 0.2, z: r.range(-0.7, 0.7), sy: 0.4, flat: true });
+  for (let i = 0; i < 5; i++) k.add(G.box(0.22, 0.02, 0.06), '#e8fbff', { x: r.range(-0.7, 0.7), y: 0.3, z: r.range(-0.5, 0.5), ry: r.range(0, 3), unlit: true }); // riflessi
+  return k.build({ ao: 0.15 });
+}
+// masso che cade (roccia): piu' grande del masso fermo
+function fallRock(seed) {
+  const k = new Kit(seed); const r = rng(seed);
+  k.add(rockGeom(r, 1.15, { detail: 1, squash: 0.9, rough: 0.32 }), r.pick(ROCK.granite), { y: 1.0, vary: 0.2 });
+  addRock(k, r, 0.6, 0.3, 0.5, 0.4, ROCK.granite, { squash: 0.7 });
+  addRock(k, r, -0.6, 0.25, -0.3, 0.35, ROCK.granite, { squash: 0.7 });
+  return k.build({ ao: 0.25 });
+}
 // sporgenza di roccia nella corsia (al posto dell'angolo di casa)
 export function outcropGeometry(seed, len, width, pal, o = {}) {
   const k = new Kit(seed); const r = rng(seed);
@@ -147,6 +211,14 @@ export const SKINS = {
   goat: { orig: true }, trolley: { make: () => once('trolley', () => trolley(25)) },
   puddle: { orig: true }, darkPuddle: { orig: true, puddle: '#3a5560' }, bluePuddle: { orig: true, puddle: '#4a6aff' },
   house: { orig: true },
+  // v5s6
+  rollBarrel: { orig: true, shards: 'barrel' },
+  fallRock: { make: () => once('fallRock', () => fallRock(31)), shards: 'stone' },
+  wetStone: { make: () => once('wetStone', () => wetStones(32)), shards: 'moss' },
+  beamTimber: { make: () => once('beamTimber', () => beamTimber(33)), beam: true },
+  beamVillage: { make: () => once('beamVillage', () => beamVillage(34)), beam: true },
+  beamTrunk: { make: () => once('beamTrunk', () => beamTrunk(35, false)), beam: true },
+  beamTrunkMoss: { make: () => once('beamTrunkMoss', () => beamTrunk(36, true)), beam: true },
   outcrop: { narrow: { pal: ROCK.granite, shrubs: true } },
   mossOutcrop: { narrow: { pal: ROCK.limestone, moss: true } },
   tunnelRock: { narrow: { pal: ROCK.mine, hMin: 4, hMax: 7 } },

@@ -22,7 +22,7 @@ const MOVING = new Set(['goat', 'rollbarrel']);
 let failures = 0, totalObs = 0, totalPick = 0, kinds = {}, carpetsReach = 0, carpetsTot = 0, pistols = 0;
 for (let s = 1; s <= SEEDS; s++) {
   const g = new Generator(s * 7919);
-  const ents = [];
+  const ents = [], beams = [];
   g.fillUntil(LENGTH, (e) => ents.push(e));
   const n = Math.ceil(LENGTH / CELL) + 10;
   const blocked = Array.from({ length: L }, () => new Uint8Array(n));
@@ -31,7 +31,10 @@ for (let s = 1; s <= SEEDS; s++) {
     if (e.pickup) { totalPick++; continue; }
     totalObs++;
     if (MOVING.has(e.kind)) continue; // verificati a parte: finestra calma
-    const c0 = Math.max(0, Math.floor(e.d / CELL) - PAD), c1 = Math.ceil((e.d + e.len) / CELL) + PAD;
+    if (e.kind === 'trave') { beams.push(e); continue; } // si passa abbassandosi in qualunque corsia (controllata a parte)
+    // botte / carrello che rotola verso il giocatore: occupa la corsia per tutto il tratto che percorre
+    const d0 = e.kind === 'rollin' ? e.d - e.sweep : e.d;
+    const c0 = Math.max(0, Math.floor(d0 / CELL) - PAD), c1 = Math.ceil((e.d + e.len) / CELL) + PAD;
     for (let c = c0; c <= c1 && c < n; c++) blocked[e.lane][c] = 1;
   }
   let ok = true;
@@ -58,7 +61,7 @@ for (let s = 1; s <= SEEDS; s++) {
     if (!e.pickup) continue;
     // controllo stretto: nessuna sovrapposizione reale (senza margine)
     for (const o of ents) {
-      if (o.pickup || MOVING.has(o.kind) || o.lane !== e.lane) continue;
+      if (o.pickup || MOVING.has(o.kind) || o.kind === 'trave' || o.lane !== e.lane) continue;
       if (o.d < e.d + e.len && o.d + o.len > e.d) { ok = false; console.log(`seed ${s}: ${e.kind} sovrapposto a ${o.kind} @${e.d}`); }
     }
     const cm = Math.floor((e.d + e.len / 2) / CELL);
@@ -67,7 +70,7 @@ for (let s = 1; s <= SEEDS; s++) {
     if (e.kind === 'pistola') { pistols++; if (!reachable) { ok = false; console.log(`seed ${s}: pistola irraggiungibile @${e.d}`); } }
     if (e.kind === 'tappeto') {
       // la corsia deve restare libera per almeno 25 px dopo il tappeto
-      const after = ents.find((o) => !o.pickup && !MOVING.has(o.kind) && o.lane === e.lane && o.d >= e.d + e.len && o.d < e.d + e.len + 25);
+      const after = ents.find((o) => !o.pickup && !MOVING.has(o.kind) && o.kind !== 'trave' && o.lane === e.lane && o.d >= e.d + e.len && o.d < e.d + e.len + 25);
       if (after) { ok = false; console.log(`seed ${s}: trappola dopo un tappeto @${e.d} (${after.kind})`); }
     }
   }
@@ -75,6 +78,11 @@ for (let s = 1; s <= SEEDS; s++) {
     const near = ents.filter((x) => !x.pickup && x !== e && !MOVING.has(x.kind) && SOLID[x.kind] !== undefined &&
       x.d + x.len > e.d - 2 * WORLD.ROW && x.d < e.d + 2 * WORLD.ROW);
     if (near.length) { ok = false; console.log(`seed ${s}: ostacolo vicino a ${e.kind} @${e.d}`); }
+  }
+  // v5s6: nessun ostacolo (fermo) sulla stessa fila della trave, in nessuna corsia: abbassarsi basta sempre
+  for (const t of beams) {
+    const clash = ents.find((o) => !o.pickup && o !== t && o.kind !== 'trave' && !MOVING.has(o.kind) && o.d < t.d + t.len + 4 && o.d + o.len > t.d - 4 && o.kind !== 'rollin' && o.kind !== 'narrow');
+    if (clash) { ok = false; console.log(`seed ${s}: ostacolo sotto la trave @${t.d} (${clash.kind})`); }
   }
   if (!ok) failures++;
 }

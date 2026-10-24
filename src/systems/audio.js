@@ -359,6 +359,27 @@ class AudioSys {
     if (!this.ok) return;
     [0, 7, 12, 19].forEach((s, i) => this._tone({ t: i * 0.07, f: 349 * Math.pow(2, s / 12), dur: 0.2, type: 'triangle', vol: 0.12 }));
   }
+  // ---------------- v5s6 ----------------
+  speedUp() {
+    if (!this.ok) return;
+    [0, 5, 9, 14].forEach((s, i) => this._tone({ t: i * 0.05, f: 440 * Math.pow(2, s / 12), dur: 0.12, type: 'sawtooth', vol: 0.05 }));
+    this._burst({ dur: 0.45, type: 'bandpass', f: 600, fEnd: 3200, q: 0.7, vol: 0.14 });   // whoosh
+  }
+  duck() {
+    if (!this.ok) return;
+    this._burst({ dur: 0.18, type: 'bandpass', f: 1400, fEnd: 500, q: 1, vol: 0.14 });
+  }
+  rumble() {
+    if (!this.ok) return;
+    this._burst({ dur: 0.9, type: 'lowpass', f: 220, fEnd: 120, vol: 0.3 });
+    this._tone({ f: 60, fEnd: 48, dur: 0.8, type: 'sine', vol: 0.2 });
+  }
+  rockFall() {
+    if (!this.ok) return;
+    this._burst({ dur: 0.3, type: 'bandpass', f: 2400, fEnd: 600, q: 1, vol: 0.12 });
+    this._tone({ t: 0.28, f: 110, fEnd: 40, dur: 0.3, type: 'sine', vol: 0.45 });
+    this._burst({ t: 0.28, dur: 0.3, type: 'lowpass', f: 800, vol: 0.35 });
+  }
   click() {
     if (!this.ok) return;
     this._tone({ f: 740, dur: 0.05, type: 'square', vol: 0.05 });

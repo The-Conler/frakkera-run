@@ -20,6 +20,7 @@ export const CLIP_NAMES = ['idle', 'run', 'left', 'right', 'stumble', 'gameover'
 const FADE = { idle: 0.35, run: 0.25, left: 0.09, right: 0.09, stumble: 0.08, gameover: 0.3 };
 
 const _v = new THREE.Vector3(), _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion();
+const DUCK_LEAN = 0.32, DUCK_TILT = -0.85;   // v5s6: piega del corpo e inclinazione della frakkera nell'abbassata
 const AX_FWD = new THREE.Vector3(0, 0, 1), AX_SIDE = new THREE.Vector3(1, 0, 0);
 const PISTOL_Q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2); // canna +x -> avanti (-z)
 
@@ -167,20 +168,28 @@ export class Character3D {
     this.root.rotation.y = this.facing + (this.state === 'run' ? (st.vx || 0) * 0.22 : 0);
     // lampeggio durante l'invulnerabilita'
     this.model.visible = !(st.invuln > 0 && Math.floor(st.invuln * 14) % 2);
+    // v5s6: abbassata (swipe giu'): corsa accovacciata = corpo compresso e piegato in avanti,
+    // frakkera inclinata in avanti e piu' bassa per passare sotto le travi
+    const dk = this.state === 'run' && st.duck > 0 ? 1 : 0;
+    this.duckK = (this.duckK || 0) + (dk - (this.duckK || 0)) * Math.min(1, dt * (dk ? 18 : 9));
+    const k = this.duckK;
+    this.root.scale.set(1 + 0.08 * k, 1 - 0.34 * k, 1 + 0.08 * k);
+    this.model.rotation.x = DUCK_LEAN * k;
+    R.duck = Math.max(R.duck || 0, k);
     // molla sull'osso della presa: la frakkera arriva in ritardo nei cambi di corsia
     const sg = this.spring;
     const tgt = this.state === 'run' ? -(st.vx || 0) * 0.16 : 0;
     sg.v += ((tgt - sg.a) * 70 - sg.v * 7.5) * dt; sg.a += sg.v * dt;
     sg.pv += ((0 - sg.p) * 55 - sg.pv * 6) * dt; sg.p += sg.pv * dt;
     const c = this.bones.carry;
-    if (c && (Math.abs(sg.a) > 1e-4 || Math.abs(sg.p) > 1e-4)) {
+    if (c && (Math.abs(sg.a) > 1e-4 || Math.abs(sg.p) > 1e-4 || k > 1e-3)) {
       c.parent.updateWorldMatrix(true, false);
       c.parent.getWorldQuaternion(_q2).invert();
       // assi del modello (avanti / lato) nello spazio del genitore dell'osso
       _v.copy(AX_FWD).applyQuaternion(this.root.quaternion).applyQuaternion(_q2);
       _q.setFromAxisAngle(_v, sg.a); c.quaternion.premultiply(_q);
       _v.copy(AX_SIDE).applyQuaternion(this.root.quaternion).applyQuaternion(_q2);
-      _q.setFromAxisAngle(_v, sg.p); c.quaternion.premultiply(_q);
+      _q.setFromAxisAngle(_v, sg.p + DUCK_TILT * k); c.quaternion.premultiply(_q);
     }
     this.root.updateMatrixWorld(true);
     this.bones.tip.getWorldPosition(this.tipW);
