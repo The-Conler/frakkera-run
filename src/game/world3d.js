@@ -29,7 +29,7 @@ const MOODS = { menu: MENU_MOOD, over: OVER_TINT.mood };
 
 const SKY_VS = `varying vec3 vDir; void main(){ vDir = normalize(position); vec4 p = modelViewMatrix * vec4(position,1.0); gl_Position = projectionMatrix * p; }`;
 const SKY_FS = `
-uniform vec3 uTop; uniform vec3 uMid; uniform vec3 uHor; uniform vec3 uSunDir; uniform float uSun;
+uniform vec3 uTop; uniform vec3 uMid; uniform vec3 uHor; uniform vec3 uFog; uniform vec3 uSunDir; uniform float uSun;
 varying vec3 vDir;
 void main(){
   float h = vDir.y;
@@ -37,7 +37,8 @@ void main(){
   c = mix(c, uTop, smoothstep(0.16, 0.75, h));
   float s = max(0.0, dot(normalize(vDir), uSunDir));
   c += vec3(1.0, 0.75, 0.45) * pow(s, 18.0) * 0.55 * uSun + vec3(1.0,0.85,0.6) * pow(s, 400.0) * 1.2 * uSun;
-  if (h < 0.0) c = mix(uHor, uHor * 0.8, smoothstep(0.0, -0.3, h));
+  // sotto l'orizzonte (dove non c'e' terreno) il colore della nebbia: un vuoto si legge come lontananza velata, non come cielo
+  if (h < 0.0) c = mix(uHor, uFog, smoothstep(0.0, -0.035, h));
   gl_FragColor = vec4(c, 1.0);
 }`;
 
@@ -143,7 +144,7 @@ export class World {
   // ------------------------------------------------------------ cielo e luci
   buildSky() {
     this.skyU = {
-      uTop: { value: new THREE.Color() }, uMid: { value: new THREE.Color() }, uHor: { value: new THREE.Color() },
+      uTop: { value: new THREE.Color() }, uMid: { value: new THREE.Color() }, uHor: { value: new THREE.Color() }, uFog: { value: new THREE.Color() },
       uSunDir: { value: new THREE.Vector3(0.25, 0.08, -1).normalize() }, uSun: { value: 1 },
     };
     const sky = new THREE.Mesh(new THREE.SphereGeometry(480, 24, 12), new THREE.ShaderMaterial({ vertexShader: SKY_VS, fragmentShader: SKY_FS, uniforms: this.skyU, side: THREE.BackSide, depthWrite: false, fog: false }));
@@ -368,7 +369,14 @@ export class World {
         if (e.moving) v.spin.rotation.z -= (e.vx * e.dir * U / 0.78) * dt;
       } else if (e.kind === 'goat') {
         v.body.rotation.y = e.dir > 0 ? 0 : Math.PI;
-        if (e.moving) { v.body.position.y = Math.abs(Math.sin(t * 12)) * 0.12; v.body.rotation.z = Math.sin(t * 12) * 0.05; }
+        if (e.scared) {
+          // colpita dalla pistola: balzo spaventato, capriola e via di corsa in una nuvola di polvere (niente sangue)
+          v.scT = (v.scT || 0) + dt; const q = v.scT;
+          v.body.position.y = q < 0.7 ? Math.sin((q / 0.7) * Math.PI) * 1.8 : Math.abs(Math.sin(t * 16)) * 0.15;
+          v.body.rotation.z = q < 0.7 ? (q / 0.7) * Math.PI * 2 * (e.dir > 0 ? -1 : 1) : 0;
+          if (Math.random() < dt * 20) this.norm.emit(v.root.position.x, 0.3, v.root.position.z, (Math.random() - 0.5) * 2, 0.6 + Math.random(), (Math.random() - 0.5) * 1.5, 1.0, 0.8, 2.2, COL.dust, 0.5, 0, 1);
+          if (q > 1.4 && !v.dead) { v.dead = true; v.body.visible = false; if (v.shadow) v.shadow.visible = false; this.dustPuff(v.root.position.x, v.root.position.z, 14); }
+        } else if (e.moving) { v.body.position.y = Math.abs(Math.sin(t * 12)) * 0.12; v.body.rotation.z = Math.sin(t * 12) * 0.05; }
       }
       if (e.hit && !v.hitT && e.kind !== 'pozza') v.hitT = 0.4;
       if (v.hitT > 0) { v.hitT = Math.max(0, v.hitT - dt); v.body.rotation.z = Math.sin(v.hitT * 40) * v.hitT * 0.4; }
@@ -384,6 +392,12 @@ export class World {
       case 'shot': this.shotStart(d); break;
       case 'shotEnd': this.shotEnd(d); break;
       case 'barrel': this.barrelBurst(d); break;
+      case 'goatScared': {
+        const p = this.views.get(d.e.id)?.root.position || _v.set(d.x * U, 0, -d.e.d * U);
+        this.dustPuff(p.x, p.z, 26); this.burst(p.x, 1.2, p.z, COL.spark2, 10, 4);
+        this.popWorld(`+${d.pts}`, p.x, 2.6, p.z, 'barrel');
+        break;
+      }
       case 'ricochet': this.burst(d.x * U, 1.8, -d.d * U, COL.spark2, 14, 4); break;
       case 'carpet': {
         const p = this.views.get(d.e.id)?.root.position || _v.set(sim.px * U, 0, pz);
@@ -429,6 +443,7 @@ export class World {
       default: break;
     }
   }
+  dustPuff(x, z, n) { for (let i = 0; i < n; i++) this.norm.emit(x + (Math.random() - 0.5) * 1.6, 0.3 + Math.random() * 0.8, z + (Math.random() - 0.5) * 1.2, (Math.random() - 0.5) * 3, 0.8 + Math.random() * 1.6, (Math.random() - 0.5) * 2.4, 1.1, 1.0, 3.0, COL.dust, 0.55, 0, 1); }
   burst(x, y, z, color, n, sp) {
     for (let i = 0; i < n; i++) {
       const a = Math.random() * Math.PI * 2, u = Math.random() * 2 - 1, s = sp * (0.4 + Math.random() * 0.6);
@@ -507,7 +522,7 @@ export class World {
     const m = this.mood, L = this.light;
     // in miniera il buio cresce quando la frakkera si consuma
     const dark = L.darkByFuel * (1 - fuelF);
-    this.skyU.uTop.value.copy(m.top); this.skyU.uMid.value.copy(m.mid); this.skyU.uHor.value.copy(m.hor); this.skyU.uSun.value = m.sun;
+    this.skyU.uTop.value.copy(m.top); this.skyU.uMid.value.copy(m.mid); this.skyU.uHor.value.copy(m.hor); this.skyU.uFog.value.copy(m.fog); this.skyU.uSun.value = m.sun;
     this.scene.fog.color.copy(m.fog); this.scene.fog.near = m.fogNear * (1 - dark * 0.4); this.scene.fog.far = m.fogFar * (1 - dark * 0.55);
     this.hemi.color.copy(m.hemiS); this.hemi.groundColor.copy(m.hemiG); this.hemi.intensity = m.hemiI * (1 - dark * 0.75);
     this.dir.color.copy(m.dirC); this.dir.intensity = m.dirI;

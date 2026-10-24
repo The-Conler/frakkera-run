@@ -7,6 +7,7 @@
 //  Coordinate: W = metri lungo il percorso (z del mondo = -W).
 // =====================================================================
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { BIOMES, CYCLE, biomeAt, nextBoundary, byId, LAP_NIGHT, NIGHT_MOOD, mapFromURL } from './config.js';
 import * as M from '../models.js';
 import * as BT from './textures.js';
@@ -16,7 +17,14 @@ import { buildChurchSquare } from './builders/church.js';
 import { Kit, G, rng, ROCK, LEAF } from './builders/common.js';
 
 export const ROAD_W = 11, WALK_W = 1.45, FACADE = ROAD_W / 2 + WALK_W;
-const SEG = 44, BLEND = 12, AHEAD = 190, BEHIND = 14;
+const SEG = 120, BLEND = 12, AHEAD = 190, BEHIND = 14;   // v5s5: tratti di suolo lunghi (UV nel mondo): meno draw call ora che si costruisce piu lontano
+// v5 stage 5: si costruisce sempre OLTRE la distanza visibile (nebbia / piano lontano della camera),
+// cosi' nessun pezzo compare "dal nulla" e non si vede mai il vuoto in fondo al percorso.
+// MUST = costruito subito (anche tutto in un frame); oltre, fino alla portata visibile, a tempo (BUDGET ms/frame).
+const MUST = 150, MARGIN = 40, BUDGET = 3.5, MAX_REACH = 600;
+// oltre LOD_D i pezzi ai lati si costruiscono senza i dettagli minuti (sassi, felci, ciuffi, pietre dei muretti:
+// a quella distanza sono sotto il pixel) e si completano quando arrivano a LOD_D - 20 m
+const LOD_D = 230, LOD_MIN = 0.8, BATCH = 70;   // i pezzi lontani sono uniti a gruppi di BATCH m per lato (pochi draw call)
 
 const _c = new THREE.Color();
 const MOOD_KEYS = ['top', 'mid', 'hor', 'fog', 'hemiS', 'hemiG', 'dirC', 'far'];
@@ -125,8 +133,10 @@ const LANDMARKS = {
   pinnacle: { at: 230, exist: [-290, 120] },
   valley: { at: 0, exist: [-30, 390] },
   pool: { at: 0, exist: [-40, 280] },
-  viaduct: { at: 150, exist: [-200, 130] },
-  valleyRiver: { at: 0, exist: [-70, 290] },
+  // reveal: il viadotto e la sua valle restano nascosti finche' si e' alla piscina naturale (luogo a se') e
+  // compaiono in dissolvenza solo nel passaggio (metri relativi all'inizio del bioma indicato)
+  viaduct: { at: 150, exist: [-200, 130], reveal: { biome: 'viaduct', from: -45, to: -10 } },
+  valleyRiver: { at: 0, exist: [-70, 290], reveal: { biome: 'viaduct', from: -45, to: -10 } },
   minePortal: { at: 150, exist: [-200, 30] },
   mineExit: { at: 250, exist: [-80, 20] },
   farVillage: null,
@@ -153,6 +163,7 @@ export class Env {
     this.marks = new Map();
     this.prefabs = new Map();       // prefab condivisi (case, giardini, festoni) per bioma
     this.pools = new Map();
+    this.batches = new Map();
     this.lampPool = [];
     this.stats = { built: 0, disposed: 0, segs: 0 };
     this.cur = { b: BIOMES[0], local: 0, lap: 0, bDist: 0 };
@@ -180,19 +191,28 @@ export class Env {
       gravelEdge: groundMat(this.tex.gravelEdge, { sx: 1 / 3, sz: 1 / 3, x0: 0, abs: true }),
       none: groundMat(this.tex.mineFloor, { phong: true, shininess: 30 }),
     };
-    this.waterMat = { pool: waterMat(nrm, '#12a088', 0.9), river: waterMat(nrm, '#3f7f7c', 0.86) };
+    this.waterMat = { pool: waterMat(nrm, '#16b09a', 0.88), river: waterMat(nrm, '#3f7f7c', 0.86) };
     this.tunnelMat = { rock: tunnelMat(false), blue: tunnelMat(true) };
     this.fallMat = new THREE.MeshBasicMaterial({ color: '#f4fbff', transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide, map: this.fallTexture() });
     this.fallMat.map.wrapT = THREE.RepeatWrapping; this.fallMat.map.repeat.set(1, 2);
     this.lit = new THREE.MeshLambertMaterial({ vertexColors: true });
+    this.shaftMat = new THREE.MeshBasicMaterial({ map: this.shaftTexture(), color: '#fff2c8', transparent: true, opacity: 0.2, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
     this.geo = {
       road: strip(-ROAD_W / 2, ROAD_W / 2),
       walk: (() => { const a = new THREE.BoxGeometry(WALK_W, 0.22, 1); a.translate(0, 0.11, -0.5); return a; })(),
       edge: strip(5.5, 9.5, 0.02),
       tfloor: strip(5.4, 7.6, 0.01),
-      waterPool: strip(8.0, 80, -0.35), waterRiver: strip(13.0, 85, -4.0),
+      waterPool: strip(6.1, 80, -0.3), edgeN: strip(5.5, 6.25, 0.02), waterRiver: strip(13.0, 85, -4.0),
     };
     this.miscGeo = new Map();
+  }
+  shaftTexture() {
+    const c = document.createElement('canvas'); c.width = 32; c.height = 128; const x = c.getContext('2d');
+    const g = x.createLinearGradient(0, 0, 0, 128); g.addColorStop(0, 'rgba(255,255,255,0.9)'); g.addColorStop(0.6, 'rgba(255,255,255,0.35)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+    x.fillStyle = g; x.fillRect(0, 0, 32, 128);
+    const h = x.createLinearGradient(0, 0, 32, 0); h.addColorStop(0, 'rgba(0,0,0,1)'); h.addColorStop(0.5, 'rgba(0,0,0,0)'); h.addColorStop(1, 'rgba(0,0,0,1)');
+    x.globalCompositeOperation = 'destination-out'; x.fillStyle = h; x.fillRect(0, 0, 32, 128);
+    return new THREE.CanvasTexture(c);
   }
   fallTexture() {
     const c = document.createElement('canvas'); c.width = 32; c.height = 128; const x = c.getContext('2d');
@@ -215,7 +235,7 @@ export class Env {
       if (g.left !== 'drop') one(80, 0.1, -(9.0 + 40), (g.terrainY ?? -0.06) - 0.05, g.terrain);   // con la valle a sinistra niente terreno piano
       if (!g.right) one(80, 0.1, 9.0 + 40, (g.terrainY ?? -0.06) - 0.05, g.terrain);
     }
-    if (g.right === 'water') one(80, 0.1, 8 + 40, -2.6, '#55744a');
+    if (g.right === 'water') one(80, 0.1, 6.2 + 40, -2.6, '#3f8a70');
     if (g.right === 'river') one(80, 0.1, 12 + 40, -6.0, '#5a5a48');
     if (g.rails) for (const lx of [0, 3.4]) for (const s of [-0.52, 0.52]) { one(0.1, 0.12, lx + s, 0.06, '#6a4a32'); one(0.05, 0.03, lx + s, 0.135, g.wet ? '#c4cfee' : '#9a7a62'); }
     const geom = k.build();
@@ -265,8 +285,9 @@ export class Env {
   }
 
   // ------------------------------------------------------------ terreno
+  over(W) { return W > this.mustW && performance.now() > this.deadline; }
   fillGround(front) {
-    while (this.gW < front) {
+    while (this.gW < front && !this.over(this.gW)) {
       const W0 = this.gW;
       const i = this.info(W0 + 0.01);
       let W1 = W0 + SEG, blend = null;
@@ -294,7 +315,7 @@ export class Env {
     add(this.geo.road, rm, 'road');
     if (g.shoulder === 'walk') { add(this.geo.walk, this.shoulderMat.walk, 'walkL'); meshes[meshes.length - 1].position.x = -(ROAD_W / 2 + WALK_W / 2); add(this.geo.walk, this.shoulderMat.walk, 'walkR'); meshes[meshes.length - 1].position.x = ROAD_W / 2 + WALK_W / 2; }
     else if (g.shoulder === 'none') { add(this.geo.tfloor, this.shoulderMat.none, 'tfR'); add(this.geo.tfloor, this.shoulderMat.none, 'tfL'); meshes[meshes.length - 1].scale.x = -1; }
-    else if (g.shoulder) { add(this.geo.edge, this.shoulderMat[g.shoulder], 'edgeR'); if (g.right !== 'water' && g.right !== 'river') { add(this.geo.edge, this.shoulderMat[g.shoulder], 'edgeL'); meshes[meshes.length - 1].scale.x = -1; } else { add(this.geo.edge, this.shoulderMat[g.shoulder], 'edgeL'); meshes[meshes.length - 1].scale.x = -1; } }
+    else if (g.shoulder) { add(g.right === 'water' ? this.geo.edgeN : this.geo.edge, this.shoulderMat[g.shoulder], g.right === 'water' ? 'edgeRn' : 'edgeR'); if (g.right !== 'water' && g.right !== 'river') { add(this.geo.edge, this.shoulderMat[g.shoulder], 'edgeL'); meshes[meshes.length - 1].scale.x = -1; } else { add(this.geo.edge, this.shoulderMat[g.shoulder], 'edgeL'); meshes[meshes.length - 1].scale.x = -1; } }
     add(this.misc(b.id), this.mats2, 'misc');
     if (g.right === 'water') add(this.geo.waterPool, this.waterMat.pool, 'water');
     if (g.right === 'river') add(this.geo.waterRiver, this.waterMat.river, 'water');
@@ -307,7 +328,7 @@ export class Env {
   // ------------------------------------------------------------ pezzi ai lati
   fillSide(sd, front) {
     let guard = 0;
-    while (sd.cur < front && guard++ < 60) {
+    while (sd.cur < front && guard++ < 60 && !this.over(sd.cur)) {
       const W = sd.cur, i = this.info(W + 0.01);
       const Wb = this.boundaryAfter(W + 0.01);
       const maxLen = Wb - W;
@@ -327,9 +348,13 @@ export class Env {
   }
   sidePiece(sd, W, i, lim) {
     const s = sd.s, r = sd.r, b = i.b, loc = i.local, len = b.to - b.from;
-    const own = (geom, w, extra = {}) => {
-      const mesh = new THREE.Mesh(geom, this.mats2); mesh.position.set(s * FACADE, 0, -W); mesh.scale.x = s < 0 ? 1 : -1; this.scene.add(mesh); this.stats.built++;
-      return { W0: W, W1: W + w, w, mesh, owned: true, lamps: [], ...extra };
+    const own = (make, w, extra = {}) => {
+      const lod = W - this.lastPW > LOD_D;
+      Kit.lodMin = lod ? LOD_MIN : 0; let geom; try { geom = make(); } finally { Kit.lodMin = 0; }
+      this.stats.built++;
+      if (lod) { const p = { W0: W, W1: W + w, w, mesh: null, geom, owned: true, lamps: [], make, lod, ...extra }; this.batchAdd(sd, p); return p; }
+      const mesh = new THREE.Mesh(geom, this.mats2); mesh.position.set(s * FACADE, 0, -W); mesh.scale.x = s < 0 ? 1 : -1; this.scene.add(mesh);
+      return { W0: W, W1: W + w, w, mesh, owned: true, lamps: [], make, lod, ...extra };
     };
     const fit = (a, bb) => Math.max(1.5, Math.min(lim, r.range(a, bb)));
     switch (b.sides) {
@@ -337,30 +362,32 @@ export class Env {
         const nearEnd = loc > len - 32 && Number.isFinite(lim);
         if (nearEnd || lim < 5.1) {   // fine del paese: orti, muretti, alberi
           const w = fit(5, 9);
-          return own(N.slopePiece(W, w, { Hs: 3, dist: 16, trees: 0.25, wall: true, wallH: 1.1, rocks: 0.1, ferns: 0, seed: 40 + i.lap, flowers: 0.3, ground: ['#7d8a4e', '#6e7a3e', '#8a9a56'] }), w);
+          return own(() => N.slopePiece(W, w, { Hs: 3, dist: 16, trees: 0.25, wall: true, wallH: 1.1, rocks: 0.1, ferns: 0, seed: 40 + i.lap, flowers: 0.3, ground: ['#7d8a4e', '#6e7a3e', '#8a9a56'] }), w);
         }
         const pf = r.chance(0.14) ? this.prefab('garden', r.int(5), () => M.buildGarden(r.lastInt + 1)) : this.prefab('house', r.int(26), () => M.buildHouse(r.lastInt + 1));
-        if (pf.w > lim) { const w = Math.min(lim, 6); return own(N.slopePiece(W, w, { Hs: 2, dist: 12, trees: 0.2, wall: true, wallH: 1.1, ferns: 0, rocks: 0.1 }), w); }
+        if (pf.w > lim) { const w = Math.min(lim, 6); return own(() => N.slopePiece(W, w, { Hs: 2, dist: 12, trees: 0.2, wall: true, wallH: 1.1, ferns: 0, rocks: 0.1 }), w); }
         return this.placePrefab(sd, W, pf);
       }
       case 'mountain': {        // parete di roccia a destra, muretto e strapiombo sulla valle a sinistra
         if (s > 0) {
-          if (loc < 28) { const w = fit(6, 10); return own(N.slopePiece(W, w, { Hs: 6 + loc * 0.3, dist: 22, trees: 0.3, rocks: 0.3, wall: loc < 12, seed: 5 }), w); }
-          const w = fit(8, 14); return own(N.cliffPiece(W, w, { H0: 15, Hamp: 9, lean: 0.16, pal: ROCK.granite, moss: 0.55, ochre: true, seed: 7 }), w);
+          if (loc < 28) { const w = fit(6, 10); return own(() => N.slopePiece(W, w, { Hs: 6 + loc * 0.3, dist: 22, trees: 0.3, rocks: 0.3, wall: loc < 12, seed: 5 }), w); }
+          const w = fit(8, 14); return own(() => N.cliffPiece(W, w, { H0: 15, Hamp: 9, lean: 0.16, pal: ROCK.granite, moss: 0.55, ochre: true, seed: 7 }), w);
         }
-        const w = fit(8, 12); return own(N.parapetPiece(W, w, { drop: 7 }), w);
+        const w = fit(8, 12); return own(() => N.parapetPiece(W, w, { drop: 7 }), w);
       }
       case 'river': {
-        if (s < 0) { const w = fit(7, 11); return own(N.slopePiece(W, w, { Hs: 9, dist: 30, trees: 0.35, ferns: 0.6, rocks: 0.35, fence: true, leaf: LEAF.fresh, rockPal: ROCK.limestone, ground: ['#4f7a2a', '#5f8a30', '#6b8a3c', '#3f6a24', '#7a8a4a'], seed: 9 }), w); }
-        const w = fit(8, 12); return own(N.poolBankPiece(W, w), w);
+        // target2-fiume: bosco fitto e alto a sinistra con alberi chini sul sentiero; a destra piscina larga,
+        // parete di travertino muschiata alta e lontana, massi bianchi e felci sulla riva
+        if (s < 0) { const w = fit(7, 11); return own(() => N.slopePiece(W, w, { Hs: 15, dist: 30, trees: 0.55, ferns: 0.8, rocks: 0.35, fence: true, canopy: true, leaf: LEAF.fresh, rockPal: ROCK.limestone, ground: ['#4f7a2a', '#5f8a30', '#6b8a3c', '#3f6a24', '#7a8a4a'], seed: 9 }), w); }
+        const w = fit(8, 12); return own(() => N.poolBankPiece(W, w, { cliffX: -15, cliffH: 27, beachW: 1.1, beachX0: 0.9, mossTo: 0.78, lush: true }), w);
       }
       case 'valley': {
-        if (s < 0) { const w = fit(8, 12); return own(N.slopePiece(W, w, { Hs: 16, dist: 30, trees: 0.22, rocks: 0.5, wall: true, wallH: 0.9, ferns: 0.05, seed: 13, ground: ['#7a7a44', '#6b7a3e', '#8a7a5a', '#9a8f6a', '#6e6a40'], conifers: true }), w); }
-        const w = fit(8, 12); return own(N.riverDropPiece(W, w, { depth: 4 }), w);
+        if (s < 0) { const w = fit(8, 12); return own(() => N.slopePiece(W, w, { Hs: 16, dist: 30, trees: 0.22, rocks: 0.5, wall: true, wallH: 0.9, ferns: 0.05, seed: 13, ground: ['#7a7a44', '#6b7a3e', '#8a7a5a', '#9a8f6a', '#6e6a40'], conifers: true }), w); }
+        const w = fit(8, 12); return own(() => N.riverDropPiece(W, w, { depth: 4 }), w);
       }
       case 'mineYard': {
-        if (s < 0) { const w = fit(8, 13); return own(N.cliffPiece(W, w, { H0: 17, Hamp: 7, lean: 0.12, pal: ['#7d7a74', '#8f8b83', '#6c6a65', '#9c978e'], moss: 0.2, mossCol: '#7a6a52', leaf: LEAF.dry, top: 'shrub', seed: 17 }), w); }
-        const w = fit(8, 12); return own(N.slopePiece(W, w, { Hs: 18, dist: 26, trees: 0.06, rocks: 0.6, wall: true, wallH: 1.4, leaf: LEAF.dry, ground: ['#8a857c', '#7a766e', '#9a958c', '#7a7a56'], rockPal: ['#7d7a74', '#8f8b83', '#6c6a65'], seed: 19, ferns: 0 }), w);
+        if (s < 0) { const w = fit(8, 13); return own(() => N.cliffPiece(W, w, { H0: 17, Hamp: 7, lean: 0.12, pal: ['#7d7a74', '#8f8b83', '#6c6a65', '#9c978e'], moss: 0.2, mossCol: '#7a6a52', leaf: LEAF.dry, top: 'shrub', seed: 17 }), w); }
+        const w = fit(8, 12); return own(() => N.slopePiece(W, w, { Hs: 18, dist: 26, trees: 0.06, rocks: 0.6, wall: true, wallH: 1.4, leaf: LEAF.dry, ground: ['#8a857c', '#7a766e', '#9a958c', '#7a7a56'], rockPal: ['#7d7a74', '#8f8b83', '#6c6a65'], seed: 19, ferns: 0 }), w);
       }
       case 'tunnel': default:
         return { W0: W, W1: W + Math.min(lim, 20), w: Math.min(lim, 20), mesh: null, lamps: [] };
@@ -375,6 +402,7 @@ export class Env {
   prewarm() {
     if (this._warm) return; this._warm = true;
     const jobs = [
+      () => this.warmShaders(),
       () => this.prefab('church', 0, () => { const s = buildChurchSquare(1); return { geom: s.geom, w: 0, lamps: s.lamps, houses: s.houses }; }),
       () => { for (const h of this.prefabs.get('church0').houses) this.prefab('house', h.seed % 26, () => M.buildHouse(h.seed % 26 + 1)); },
       () => this.markGeom('pinnacle', () => N.buildPinnacle(3)),
@@ -385,11 +413,38 @@ export class Env {
       () => this.prefab('portal', 0, () => ({ geom: S.buildMinePortal(5), w: 0, lamps: [] })),
       () => this.prefab('cartDecor', 0, () => ({ geom: S.buildMineCartDecor(), w: 0, lamps: [] })),
       () => this.prefab('exit', 0, () => ({ geom: S.buildMineExit(8), w: 0, lamps: [] })),
+      () => this.prefab('drill', 0, () => ({ geom: S.buildDrillMachine(), w: 0, lamps: [] })),
+      () => this.warmShaders(),
     ];
+    // nel menu: un lavoro per ogni momento libero. In corsa (partenza rapida): un lavoro ogni 0.7 s, mai a ridosso
+    // di un confine (li' il frame deve restare libero)
     const idle = window.requestIdleCallback || ((f) => setTimeout(() => f({ timeRemaining: () => 8 }), 60));
-    let n = 0;
-    const step = () => { if (!jobs.length) return; if (this.mode === 'run' && n >= 3) { setTimeout(step, 400); return; } n++; jobs.shift()(); idle(step); };
+    const step = () => {
+      if (!jobs.length) return;
+      if (this.mode === 'run') {
+        const pW = this.lastPW ?? 0, Wb = this.boundaryAfter(pW + 0.01), Wp = this.boundaryBefore(pW + 0.01);
+        if (performance.now() - (this._jobT || 0) < 700 || Wb - pW < 25 || pW - Wp < 15) { setTimeout(step, 120); return; }
+      }
+      this._jobT = performance.now(); jobs.shift()(); idle(step);
+    };
     idle(step);
+  }
+  // compila in anticipo TUTTI i materiali degli ambienti (anche i fondi di passaggio tra un ambiente e l'altro),
+  // cosi' al confine non c'e' la pausa di compilazione dello shader alla prima apparizione
+  warmShaders() {
+    const r = this.world.renderer; if (!r || !r.compile) return;
+    for (let k = 0; k < BIOMES.length; k++) this.blendMat(BIOMES[k].ground.road, BIOMES[(k + 1) % BIOMES.length].ground.road);
+    if (!this.signMat) this.signMat = new THREE.MeshLambertMaterial({ map: BT.mineSignTexture() });
+    if (!this.netMat) this.netMat = new THREE.MeshBasicMaterial({ map: (() => { const t = BT.netTexture(); t.repeat.set(18, 7); return t; })(), transparent: true, depthWrite: false, opacity: 0.55 });
+    const mats = [this.signMat, this.netMat, this.shaftMat, ...Object.values(this.roadMat), ...this.blendMats.values(), ...Object.values(this.shoulderMat), ...Object.values(this.waterMat), ...Object.values(this.tunnelMat), this.fallMat, ...this.mats2, this.lit];
+    const grp = new THREE.Group(); const geo = new THREE.PlaneGeometry(0.01, 0.01);
+    geo.setAttribute('aGlow', new THREE.BufferAttribute(new Float32Array(geo.attributes.position.count * 2), 2));
+    geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(geo.attributes.position.count * 3).fill(1), 3));
+    for (const m of mats) { const me = new THREE.Mesh(geo, m); me.frustumCulled = false; grp.add(me); }
+    grp.position.set(0, -500, 0);
+    this.scene.add(grp);
+    try { r.compile(this.scene, this.world.camera); } catch (e) { /* solo ottimizzazione */ }
+    this.scene.remove(grp); geo.dispose();
   }
   prefab(kind, idx, make) {
     const key = kind + idx;
@@ -452,7 +507,48 @@ export class Env {
     g.visible = true; g.position.set(x, y, z);
     return g;
   }
+  // ---- gruppi di pezzi lontani: geometrie LOD unite (in coordinate del mondo) in una sola mesh per tratto
+  batchAdd(sd, p) {
+    const key = sd.s + ':' + Math.floor(p.W0 / BATCH);
+    let b = this.batches.get(key); if (!b) { b = { key, s: sd.s, bin: Math.floor(p.W0 / BATCH), list: new Set(), mesh: null, dirty: true }; this.batches.set(key, b); }
+    // la geometria del pezzo portata nel mondo (lato destro specchiato: si inverte l'ordine dei vertici)
+    const g = p.geom; g.applyMatrix4(new THREE.Matrix4().makeTranslation(sd.s * FACADE, 0, -p.W0).multiply(new THREE.Matrix4().makeScale(sd.s < 0 ? 1 : -1, 1, 1)));
+    if (sd.s > 0) { const P = g.attributes.position, Nn = g.attributes.normal, C = g.attributes.color; for (const A of [P, Nn, C]) if (A) for (let i = 0; i < A.count; i += 3) for (let c = 0; c < A.itemSize; c++) { const t = A.array[(i + 1) * A.itemSize + c]; A.array[(i + 1) * A.itemSize + c] = A.array[(i + 2) * A.itemSize + c]; A.array[(i + 2) * A.itemSize + c] = t; } }
+    for (const k of Object.keys(g.attributes)) if (!['position', 'normal', 'color'].includes(k)) g.deleteAttribute(k);
+    g.clearGroups();
+    p.batch = b; p.off = null; b.list.add(p); b.dirty = true;
+  }
+  batchRemove(p) {
+    const b = p.batch; if (!b) return;
+    const first = b.list.values().next().value;
+    b.list.delete(p); p.batch = null;
+    // i pezzi si completano dal piu' vicino: se esce il primo basta spostare l'inizio del drawRange (niente fusione)
+    if (first === p && p.off != null && !b.removed) b.head = true; else b.removed = true;
+    b.dirty = true;
+    if (p.geom) { p.geom.dispose(); p.geom = null; }
+  }
+  flushBatches() {
+    for (const [key, b] of this.batches) {
+      if (!b.dirty) continue;
+      if (!b.list.size) { if (b.mesh) { this.scene.remove(b.mesh); b.mesh.geometry.dispose(); } this.batches.delete(key); continue; }
+      const added = [...b.list].some((p) => p.off == null);
+      if (b.head && !b.removed && !added && b.mesh) { b.mesh.geometry.setDrawRange(b.list.values().next().value.off, Infinity); b.head = false; b.dirty = false; continue; }
+      // un gruppo che si sta ancora riempiendo si fonde solo quando e' completo o sta per entrare nella vista
+      const binEnd = (b.bin + 1) * BATCH;
+      if (!b.removed && !b.head && !(this.front >= binEnd + 14 || b.bin * BATCH < this.front - MARGIN)) continue;
+      b.dirty = false; b.head = false; b.removed = false;
+      if (b.mesh) { this.scene.remove(b.mesh); b.mesh.geometry.dispose(); b.mesh = null; }
+      let off = 0; const list = [...b.list];
+      for (const q of list) { q.off = off; off += q.geom.attributes.position.count; }
+      const geo = mergeGeometries(list.map((q) => q.geom), false);
+      if (!geo) continue;
+      geo.computeBoundingSphere();
+      b.mesh = new THREE.Mesh(geo, this.mats2[0]); this.scene.add(b.mesh);
+      if (performance.now() > this.deadline + 4) break;       // al massimo un paio di fusioni per frame
+    }
+  }
   freePiece(p) {
+    if (p.batch) this.batchRemove(p);
     if (p.mesh) {
       if (p.owned) { this.scene.remove(p.mesh); p.mesh.geometry.dispose(); this.stats.disposed++; }
       else { p.mesh.visible = false; if (!this.pools.has(p.key)) this.pools.set(p.key, []); this.pools.get(p.key).push(p.mesh); }
@@ -464,7 +560,7 @@ export class Env {
   // ------------------------------------------------------------ galleria
   fillCenter(front) {
     let guard = 0;
-    while (this.cW < front && guard++ < 40) {
+    while (this.cW < front && guard++ < 40 && !this.over(this.cW)) {
       const W = this.cW, i = this.info(W + 0.01);
       const Wb = this.boundaryAfter(W + 0.01);
       if (!i.b.tunnel) { const step = Number.isFinite(Wb) ? Math.max(0.5, Wb - W) : 30; this.center.push({ W0: W, W1: W + step, mesh: null, lamps: [] }); this.cW = W + step; continue; }
@@ -500,7 +596,7 @@ export class Env {
   // ------------------------------------------------------------ festoni e fili di luci sopra la strada
   fillDecor(front) {
     let guard = 0;
-    while (this.dW < front && guard++ < 20) {
+    while (this.dW < front && guard++ < 20 && !this.over(this.dW)) {
       const W = this.dW, i = this.info(W + 0.01), r = this.dR;
       const step = r.range(18, 30);
       const inSquare = this.mode !== 'attract' && i.b.id === 'village' && i.local > 128 && i.local < 200;
@@ -519,6 +615,7 @@ export class Env {
 
   // ------------------------------------------------------------ monumenti
   updateMarks(back, front) {
+    if (this.upQ) { for (const r of this.upQ) r.traverse((o) => { if (o.isMesh) o.frustumCulled = true; }); } this.upQ = [];
     if (this.mode === 'attract') return;
     const b0 = this.bAt(back), b1 = this.bAt(front);
     const want = new Set();
@@ -529,8 +626,29 @@ export class Env {
       if (at + d.exist[0] < b1 && at + d.exist[1] > b0) want.add(`${id}@${lap}`);
     }
     for (const [key] of this.marks) if (!want.has(key)) this.freeMark(key);
-    for (const key of want) if (!this.marks.has(key)) this.buildMark(key);
+    // caricamento sulla GPU del monumento costruito al frame precedente: lo si disegna una volta anche fuori
+    // inquadratura (oltre il piano lontano: costa solo i vertici), cosi' i buffer sono pronti prima che si veda
+    for (const key of want) if (!this.marks.has(key)) {
+      this.buildMark(key);
+      const root = this.marks.get(key).root; root.traverse((o) => { if (o.isMesh) o.frustumCulled = false; }); this.upQ.push(root);
+      if (!this.mustMark(key, b0)) break;           // uno per frame, salvo che serva subito
+    }
   }
+  revealMarks(playerW) {
+    const pb = this.bAt(playerW);
+    for (const [key, m] of this.marks) {
+      const [id, lap] = key.split('@'); const rv = LANDMARKS[id].reveal; if (!rv) continue;
+      let k = 1;
+      if (this.mode !== 'attract') { const t = (pb - (lap * CYCLE + byId[rv.biome].from) - rv.from) / (rv.to - rv.from); k = Math.max(0, Math.min(1, t)); k = k * k * (3 - 2 * k); }
+      m.root.visible = k > 0.001;
+      if (m.fadeK === k) continue; m.fadeK = k;
+      if (!this.fadeMats) this.fadeMats = this.mats2.map((x) => { const c = x.clone(); c.transparent = true; c.depthWrite = true; return c; });
+      for (const f of this.fadeMats) f.opacity = k;
+      const mats = k < 0.999 ? this.fadeMats : this.mats2;
+      m.root.traverse((o) => { if (o.isMesh && Array.isArray(o.material)) o.material = mats; });
+    }
+  }
+  mustMark(key, b0) { const [id, lap] = key.split('@'); const b = BIOMES.find((x) => (x.landmarks || []).includes(id)); const d = LANDMARKS[id]; return lap * CYCLE + b.from + d.at + d.exist[0] < b0 + MUST; }
   buildMark(key) {
     const [id, lapS] = key.split('@'); const lap = +lapS;
     const b = BIOMES.find((x) => (x.landmarks || []).includes(id));
@@ -551,9 +669,15 @@ export class Env {
       mesh(sq.geom, this.mats2, true);
       root.scale.x = -1;                                   // piazza costruita a sinistra, specchiata a destra della via
       for (const [x, y, z, s] of sq.lamps) lamps.push(this.lamp(-x, y, z - W, '#ffd27a', s * 1.4, 0.8));
+      let chainZ = 0;
       for (const h of sq.houses) {
         const pf = this.prefab('house', h.seed % 26, () => M.buildHouse(h.seed % 26 + 1));
         const m = mesh(pf.geom, this.mats2, true);
+        if (h.road) {                                        // facciata verso la via, sul lato opposto alla chiesa
+          const z = h.z ?? chainZ; m.scale.x = -1; m.position.set(h.x, 0, z); chainZ = z - pf.w;
+          for (const l of pf.lamps) lamps.push(this.lamp(-(h.x - l.x), l.y, z + l.z - W, '#ffb85a', 2.6));
+          continue;
+        }
         m.rotation.y = h.ry;
         if (h.ry > 0) m.position.set(h.x, 0, h.z);          // facciata verso -z (dentro la piazza), corpo verso +z
         else m.position.set(h.x - pf.w, 0, h.z);            // facciata verso +z
@@ -563,9 +687,16 @@ export class Env {
     } else if (id === 'valley') {
       cached('valley', () => valleyRock(Bm)).position.z = Bm;
     } else if (id === 'pool') {
-      for (const [lz, h, w] of [[55, 17, 9], [95, 19, 7], [140, 20, 10], [185, 18, 8], [225, 16, 8]]) {
-        const fall = mesh(N.waterfallGeometry(h, w), this.fallMat); fall.position.set(14.6, h - 0.4, -lz); fall.rotation.y = -1.05;   // rivolta verso chi arriva
-        lamps.push(this.lamp(14.5, 0.6, -lz - W, '#ffffff', 7, 0.4));
+      // cascate grandi e ben visibili davanti alla parete (ora piu' lontana: piscina larga)
+      for (const [lz, h, w] of [[35, 24, 11], [70, 27, 9], [105, 26, 13], [140, 28, 10], [175, 25, 12], [210, 24, 9], [240, 22, 10]]) {
+        const fall = mesh(N.waterfallGeometry(h, w), this.fallMat); fall.position.set(18.2, h - 0.4, -lz); fall.rotation.y = -1.05;   // rivolta verso chi arriva
+        lamps.push(this.lamp(17.6, 0.7, -lz - W, '#ffffff', 10, 0.45));
+        lamps.push(this.lamp(16.4, 0.4, -lz - W + 3, '#e8fff8', 6, 0.3));
+      }
+      // fasci di luce che filtrano tra le chiome (piani additivi: 1 draw call ciascuno, solo qui)
+      const sg = this.shaftGeo || (this.shaftGeo = (() => { const g = new THREE.PlaneGeometry(3.2, 26); g.translate(0, -13, 0); return g; })());
+      for (const [sx, lz, rz] of [[2.5, 28, 0.42], [6.5, 64, 0.38], [1.5, 101, 0.45], [7.5, 138, 0.4], [3.5, 176, 0.42], [6, 214, 0.36]]) {
+        const sh = mesh(sg, this.shaftMat, true); sh.position.set(sx, 24, -lz); sh.rotation.set(0, -0.6, rz);
       }
     } else if (id === 'viaduct') {
       cached('viaduct', () => S.buildViaduct((x) => (x < 0 ? -2 : -5)));
@@ -575,9 +706,9 @@ export class Env {
     } else if (id === 'minePortal') {
       mesh(this.prefab('portal', 0, () => ({ geom: S.buildMinePortal(5), w: 0, lamps: [] })).geom, this.mats2, true);
       const cart = mesh(this.prefab('cartDecor', 0, () => ({ geom: S.buildMineCartDecor(), w: 0, lamps: [] })).geom, this.mats2, true); cart.position.set(8.6, 0, 7.5); cart.rotation.y = 0.15;
-      const sign = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 1.65), new THREE.MeshLambertMaterial({ map: this.signTex || (this.signTex = BT.mineSignTexture()) }));
+      const sign = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 1.65), this.signMat || (this.signMat = new THREE.MeshLambertMaterial({ map: BT.mineSignTexture() })));
       sign.position.set(9.6, 11.6, 1.9); sign.rotation.set(0, -0.12, 0.04); root.add(sign); own.push(sign.geometry);
-      const net = new THREE.Mesh(new THREE.PlaneGeometry(70, 26), new THREE.MeshBasicMaterial({ map: this.netTex || (this.netTex = (() => { const t = BT.netTexture(); t.repeat.set(18, 7); return t; })()), transparent: true, depthWrite: false, opacity: 0.55 }));
+      const net = new THREE.Mesh(new THREE.PlaneGeometry(70, 26), this.netMat || (this.netMat = new THREE.MeshBasicMaterial({ map: (() => { const t = BT.netTexture(); t.repeat.set(18, 7); return t; })(), transparent: true, depthWrite: false, opacity: 0.55 })));
       net.position.set(0, 27, -0.5); net.rotation.x = -0.18; root.add(net); own.push(net.geometry);
       lamps.push(this.lamp(0, 7.5, -W - 2, '#ffcf8a', 2.2, 0.7));
     } else if (id === 'mineExit') {
@@ -595,16 +726,40 @@ export class Env {
     this.marks.delete(key);
   }
 
+  // distanza fino a cui si vede dal giocatore: nebbia dell'ambiente corrente e (vicino al confine) del successivo,
+  // limitata dal piano lontano della camera; + margine (la camera sta ~10 m dietro al giocatore)
+  reach(playerW) {
+    if (this.mode === 'attract') return AHEAD;
+    const camFar = this.world.camera.far;
+    const ff = (B) => Math.max(B.mood.fogFar, (B.moodEnd && B.moodEnd.fogFar) || 0);
+    const i = this.info(playerW + 0.01);
+    let f = ff(i.b);
+    const Wb = this.boundaryAfter(playerW + 0.01);
+    // la nebbia del prossimo ambiente arriva negli ultimi metri (transitionOut) + inseguimento morbido: anticipo largo
+    if (Number.isFinite(Wb) && Wb - playerW < 200) f = Math.max(f, ff(this.info(Wb + 0.01).b));
+    return Math.max(AHEAD, Math.min(MAX_REACH, Math.min(camFar, f) + MARGIN));
+  }
   // ------------------------------------------------------------ frame
   update(camW, playerW, dt, clock) {
-    const back = camW - BEHIND, front = playerW + AHEAD;
+    const back = camW - BEHIND, front = playerW + this.reach(playerW);
+    this.lastPW = playerW; this.mustW = playerW + MUST; this.deadline = performance.now() + BUDGET;
+    this.front = front;
     this.fillGround(front); this.fillCenter(front); this.fillDecor(front);
     for (const sd of this.sides) this.fillSide(sd, front);
+    // pezzi lontani (LOD) che si avvicinano: si completano con tutti i dettagli (a tempo, salvo se gia' vicini)
+    for (const sd of this.sides) for (const p of sd.list) {
+      if (!p.lod || p.W0 - playerW > LOD_D - 20) continue;
+      if (p.W0 - playerW > 140 && performance.now() > this.deadline) break;
+      const g = p.make(); this.batchRemove(p); p.lod = false; this.stats.upgraded = (this.stats.upgraded || 0) + 1;
+      p.mesh = new THREE.Mesh(g, this.mats2); p.mesh.position.set(sd.s * FACADE, 0, -p.W0); p.mesh.scale.x = sd.s < 0 ? 1 : -1; this.scene.add(p.mesh);
+    }
     const cull = (list, rm) => { while (list.length && list[0].W1 < back) rm(list.shift()); };
+    this.flushBatches();
     cull(this.ground, (s) => this.freeSeg(s));
     for (const sd of this.sides) cull(sd.list, (p) => this.freePiece(p));
     cull(this.center, (p) => this.freePiece(p)); cull(this.decor, (p) => this.freePiece(p));
-    this.updateMarks(back, front + 160);
+    this.updateMarks(back, Math.max(front, playerW + AHEAD + 160));
+    this.revealMarks(playerW);
     // animazioni leggere
     for (const p of this.decor) if (p.mesh && p.mesh.userData.sway) p.mesh.rotation.x = Math.sin(clock * 1.3 + p.W0) * 0.04;
     for (const sd of this.sides) for (const p of sd.list) for (const g of p.lamps) g.material.opacity = g.userData.op * (0.85 + Math.sin(clock * 3 + g.userData.ph) * 0.12);

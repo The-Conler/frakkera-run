@@ -30,8 +30,13 @@ const C = {
   wood: ['#5a3f28', '#6b4a2e', '#4a3420'], grass: ['#5f7f36', '#6b8a3c', '#4f6e2e', '#7a8f48'],
   bulb: '#fff0c4', wire: '#3a3530', bronze: '#8a6a3a', dark: '#2a2420',
 };
-export const TOWER = { x: -10.4, z: -22.0, W: 4.4, H: 21.5 };   // vicino alla strada: si vede da lontano in fondo alla via   // H = cornice di coronamento
-export const CHURCH = { x0: -13.2, x1: -31, z0: -24.4, z1: -36.6, eave: 9, ridge: 12.2 };
+export const TOWER = { x: -10.4, z: -22.0, W: 4.4, H: 21.5 };   // misure del modello (H = cornice di coronamento)
+// v5 stage 5 (target2-villaggio): il campanile sta dall'ALTRA parte della via rispetto alla chiesa (a sinistra
+// di chi corre, quindi poco a sinistra del centro dell'inquadratura e mai dietro la fiamma, che e' a destra),
+// ingrandito (x TOWER_S) perche' domini la fine del rettilineo. Coordinate del costruttore: x > 0 = lato opposto.
+export const TOWER_S = 1.5;
+export const TOWER_AT = { x: 10.3, z: -22.0 };
+export const CHURCH = { x0: -11.0, x1: -29, z0: -21.4, z1: -35.6, eave: 9.5, ridge: 13.0 };
 
 // paramento in pietra irregolare su una faccia piana (corsi sfalsati, giunti chiari)
 function masonryFace(k, r, o) {
@@ -73,8 +78,8 @@ function masonryFace(k, r, o) {
 }
 
 // ------------------------------------------------------------------ campanile
-export function buildBellTower(k, r) {
-  const { x, z, W, H } = TOWER; const h2 = W / 2;
+export function buildBellTower(k, r, T = TOWER) {
+  const { x, z, W, H } = T; const h2 = W / 2;
   // nucleo (riempie gli spigoli) + 4 facce in pietra a vista
   k.add(G.box(W - 0.06, H, W - 0.06), '#7f7566', { x, y: H / 2, z });
   const belfry = { y0: 12.3, y1: 14.7, w: 1.3 };
@@ -209,10 +214,20 @@ export function buildNativityHut(k, r, lamps) {
   // fondo scuro (interno) con lucine calde
   k.add(G.box(0.2, h, z0 - z1), '#2e241c', { x: x1 + 0.3, y: h / 2, z: cz });
   for (let i = 0; i < 6; i++) { const lz = z0 - 2 - i * 3.3; k.add(G.box(0.18, 0.22, 0.18), '#ffc86a', { x: x1 + 1.2, y: 1.6 + r.range(-0.3, 0.3), z: lz, unlit: true }); lamps.push([x1 + 1.2, 1.6, lz, 1.4]); }
-  // tetto d'erba con bordo di coppi
-  k.add(G.box(x0 - x1 + 1.6, 0.35, z0 - z1 + 1.4), '#6b5236', { x: cx, y: h + 0.12, z: cz });
-  for (let i = 0; i < 40; i++) k.add(G.ico(r.range(0.5, 0.9), 0), r.pick(C.grass), { x: cx + r.range(-4.2, 4.2), y: h + 0.35, z: cz + r.range(-10.2, 10.2), sy: 0.35, flat: true, vary: 0.2 });
-  for (let z = z0 + 0.6; z > z1 - 0.6; z -= 0.42) k.add(G.cyl(0.13, 0.13, 0.4, 6, 1, true), r.pick(C.tile), { x: x0 + 0.85, y: h + 0.05, z, rx: Math.PI / 2, rz: 0.2 });
+  // tetto a una falda in coppi di terracotta (target2-villaggio), travi sporgenti verso la strada
+  const rw = x0 - x1 + 2.2, rd = z0 - z1 + 1.6, tilt = 0.2;
+  k.add(G.box(rw, 0.3, rd), '#6b5236', { x: cx + 0.4, y: h + 0.3, z: cz, rz: tilt });
+  for (let xx = -rw / 2 + 0.25; xx < rw / 2; xx += 0.42) {
+    const yy = h + 0.5 - Math.sin(tilt) * xx * 1.0;
+    k.add(G.cyl(0.16, 0.16, rd, 6, 1, true), r.pick(C.tile), { x: cx + 0.4 + xx * Math.cos(tilt), y: yy, z: cz, rx: Math.PI / 2, vary: 0.1 });
+  }
+  for (let z = z0 + 0.6; z > z1 - 0.6; z -= 2.5) k.add(G.box(1.2, 0.2, 0.22), r.pick(C.wood), { x: x0 + 0.9, y: h + 0.05, z });
+  // fioriere e vasi sul bordo verso la strada
+  for (let z = z0 - 0.8; z > z1; z -= 2.5) {
+    k.add(G.box(0.6, 0.45, 1.6), '#8a5a36', { x: x0 + 0.9, y: 0.23, z, vary: 0.1 });
+    for (let i = 0; i < 4; i++) k.add(G.ico(0.22, 0), r.pick(['#e83a4a', '#f06a8a', '#ffffff', '#ffd23a', '#d8244a']), { x: x0 + 0.9 + r.range(-0.2, 0.2), y: 0.6, z: z + r.range(-0.6, 0.6), flat: true });
+    k.add(G.ico(0.3, 0), r.pick(C.grass), { x: x0 + 0.9, y: 0.52, z, sy: 0.6, flat: true });
+  }
   // tronchi e pietre davanti (allestimento)
   for (let i = 0; i < 7; i++) k.add(G.cyl(0.22, 0.25, r.range(1.5, 3), 6), r.pick(C.wood), { x: x0 + r.range(1, 2.5), y: 0.25, z: z0 - r.range(1, 19), rx: Math.PI / 2, ry: r.range(-0.5, 0.5), flat: true });
   for (let i = 0; i < 12; i++) addRock(k, r, x0 + r.range(0.8, 3), 0.2, z0 - r.range(0, 20), r.range(0.25, 0.55), ROCK.limestone, { squash: 0.6 });
@@ -251,25 +266,46 @@ export function buildChurchSquare(seed = 1) {
   }
   // gradino verso la strada
   k.add(G.box(0.4, 0.25, LEN), '#9a8e80', { x: EDGE + 0.15, y: 0.12, z: -LEN / 2 });
-  const tw = buildBellTower(k, r);
-  buildChurch(k, r);
-  buildNativityHut(k, r, lamps);
-  // leccio a sinistra del campanile e qualche panchina
-  tree(k, r, -24, 0, -8, 1.6);
+  // campanile (ingrandito, ruotato in modo che le facce in pietra guardino strada e chi arriva)
+  const kt = new Kit(seed + 401);
+  buildBellTower(kt, r, { ...TOWER, x: 0, z: 0 });
+  const mT = new THREE.Matrix4().makeRotationY(-Math.PI / 2).premultiply(new THREE.Matrix4().makeScale(TOWER_S, TOWER_S, TOWER_S)).premultiply(new THREE.Matrix4().makeTranslation(TOWER_AT.x, 0, TOWER_AT.z));
+  for (const g of kt.lit) { g.applyMatrix4(mT); k.lit.push(g); }
+  const tw = { top: new THREE.Vector3(TOWER_AT.x, (TOWER.H + 0.4) * TOWER_S, TOWER_AT.z) };
+  // piazzetta del campanile sul lato opposto della via (vuoto "left" di config.js: locale 150-176)
+  const PX0 = -EDGE, PX1 = 21, PZ0 = -10, PZ1 = -36;
+  for (let x = PX0 + T / 2; x < PX1; x += T) for (let z = PZ0 - T / 2; z > PZ1; z -= T) {
+    const i = Math.round((x - PX0) / T), j = Math.round(-z / T);
+    k.add(G.box(T - 0.05, 0.12, T - 0.05), (i + j) % 2 ? r.pick(['#d9d6cf', '#e2dfd8', '#cfcbc3']) : r.pick(['#8e8c88', '#9a9792', '#85837f']), { x, y: 0.03, z, vary: 0.04 });
+  }
+  k.add(G.box(0.4, 0.25, PZ0 - PZ1), '#9a8e80', { x: PX0 - 0.15, y: 0.12, z: (PZ0 + PZ1) / 2 });
+  for (const [vx, vz] of [[8.2, -12], [8.2, -16], [8.2, -28], [8.2, -32], [14.5, -12.5], [14.5, -31.5]]) {   // vasi di fiori
+    k.add(G.cyl(0.42, 0.32, 0.7, 10), '#a8603a', { x: vx, y: 0.35, z: vz, vary: 0.08 });
+    shrub(k, r, vx, 0.55, vz, 0.55, ['#4f6e2e', '#5f7f36'], 1);
+    for (let i = 0; i < 6; i++) k.add(G.ico(0.16, 0), r.pick(['#e83a4a', '#f06a8a', '#ffffff', '#ffd23a']), { x: vx + r.range(-0.35, 0.35), y: 1.0 + r.range(0, 0.3), z: vz + r.range(-0.35, 0.35), flat: true });
+  }
+  tree(k, r, 18, 0, -14, 1.7);
+  tree(k, r, 18.5, 0, -31, 1.5);
+  // grande albero sul lato della chiesa, dietro la capanna (come nel target)
+  tree(k, r, -21, 0, -3, 2.3);
   tree(k, r, -30, 0, -44, 1.3);
   for (const [bx, bz] of [[-9.5, -40], [-9.5, -46], [-20, -19]]) {
     k.add(G.box(0.5, 0.08, 2), '#7a5434', { x: bx, y: 0.5, z: bz });
     for (const s of [-0.8, 0.8]) k.add(G.box(0.45, 0.45, 0.12), '#555050', { x: bx, y: 0.25, z: bz + s });
   }
-  // fili di luci a raggiera dalla cima del campanile verso le case e la piazza
+  // tanti fili di luci a raggiera dalla cima del campanile: attraverso la via verso la chiesa, la capanna,
+  // le case dei due lati prima e dopo la piazza
   const top = tw.top;
   const targets = [];
-  for (let i = 0; i < 9; i++) targets.push(new THREE.Vector3(7.0, 8.6 + r.range(-0.6, 0.6), 6 - i * 7.2));      // facciate a destra della strada
-  for (let i = 0; i < 4; i++) targets.push(new THREE.Vector3(-8, 7.6, 8 - i * 3));                              // case a sinistra prima della piazza
-  for (let i = 0; i < 4; i++) targets.push(new THREE.Vector3(-10, 6.8, -38 - i * 4));
-  for (const t of targets) catenary(k, top, t, r.range(1.0, 2.2), true, lamps);
-  // pali con lanterna ai bordi della piazza
-  for (const [lx, lz] of [[-8.2, -30], [-8.2, -48], [-30, -2]]) {
+  for (let i = 0; i < 10; i++) targets.push(new THREE.Vector3(7.0, 8.4 + r.range(-0.6, 0.6), 22 - i * 3.2));        // case del lato del campanile, prima
+  for (let i = 0; i < 4; i++) targets.push(new THREE.Vector3(7.0, 8.0 + r.range(-0.5, 0.5), -40 - i * 4));         // e dopo la piazzetta
+  for (let i = 0; i < 9; i++) targets.push(new THREE.Vector3(-7.0, 7.8 + r.range(-0.6, 0.6), 24 - i * 3.0));       // case di fronte, prima della piazza
+  for (let i = 0; i < 6; i++) targets.push(new THREE.Vector3(-8.6 - i * 1.4, 3.4, -2.5 - i * 2.8));                // capanna
+  for (let i = 0; i < 5; i++) targets.push(new THREE.Vector3(CHURCH.x0 - 0.2, CHURCH.eave + (CHURCH.ridge - CHURCH.eave) * (1 - Math.abs(i - 2) / 2), CHURCH.z0 - (CHURCH.z0 - CHURCH.z1) * i / 4));
+  for (let i = 0; i < 4; i++) targets.push(new THREE.Vector3(-10, 6.8, -40 - i * 4));
+  for (const t of targets) catenary(k, top, t, r.range(1.0, 2.6), true, lamps, 0.9, 7);
+  // pali con lanterna ai bordi della piazza e della piazzetta
+  for (const [lx, lz] of [[-8.2, -30], [-8.2, -48], [-30, -2], [8.0, -20], [8.0, -24.5]]) {
     k.add(G.cyl(0.08, 0.1, 3.6, 6), '#2b2a33', { x: lx, y: 1.8, z: lz });
     k.add(G.box(0.36, 0.46, 0.36), '#ffcf6a', { x: lx, y: 3.8, z: lz, unlit: true });
     k.add(G.cone(0.3, 0.3, 4), '#2b2a33', { x: lx, y: 4.2, z: lz, ry: Math.PI / 4 });
@@ -283,6 +319,8 @@ export function buildChurchSquare(seed = 1) {
     { seed: 5, x: -14.5, z: -LEN - 6.2, ry: -Math.PI / 2, flipZ: true },
     { seed: 9, x: -22.5, z: -LEN - 6.2, ry: -Math.PI / 2, flipZ: true },
     { seed: 13, x: -30.5, z: -LEN - 6.2, ry: -Math.PI / 2, flipZ: true },
+    // fondale della piazzetta del campanile: case con la facciata verso la via (lato opposto)
+    { seed: 15, x: PX1, z: PZ0, road: true }, { seed: 17, x: PX1, z: null, road: true }, { seed: 19, x: PX1, z: null, road: true },
   ];
-  return { geom: k.build({ ao: 0.25 }), lamps, houses, len: LEN, tower: { ...TOWER } };
+  return { geom: k.build({ ao: 0.25 }), lamps, houses, len: LEN, tower: { ...TOWER, ...TOWER_AT, S: TOWER_S } };
 }

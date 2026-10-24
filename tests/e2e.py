@@ -436,6 +436,20 @@ async def v2_section(page, name, mobile, cdp, check, shot, state, visible):
     check('v2 HUD tappeti', abs(int(hc) - s['stats']['carpets']) <= 1, f'{hc} vs {s["stats"]["carpets"]}')
     ins = await page.evaluate("window.__frk.state().inputs")
     check('v2 log eventi/input registrati', s['events'] > 0 and ins > 0, f"events={s['events']} inputs={ins}")
+    # v5s5: la pistola fa scappare la capra (balzo + polvere, poi sparisce; niente piu' collisione)
+    g0 = await page.evaluate("""(() => { const sim = window.__frk.game.sim; if (sim.mode !== 'run') return null;
+      sim.spawn({ kind: 'goat', d: sim.T - sim.genOffset + 150, len: 14, lane: 1, dir: 1, vx: 0 });
+      const g = sim.entities[sim.entities.length - 1]; g.x = sim.px - 5; g.vx = 0; window.__goat = g;
+      for (const o of sim.entities) if (o !== g && o.solid && !o.done && o.d < g.d + g.len) o.done = true;  // niente ostacoli davanti al colpo
+      sim.ammo = Math.max(1, sim.ammo); sim.fireCd = 0; sim.fire(); return sim.stats.goats; })()""")
+    if g0 is not None:
+        GJS = "(() => { const sim = window.__frk.game.sim, g = window.__goat, v = window.__frk.game.world.views.get(g.id); return { goats: sim.stats.goats, scared: !!g.scared, done: g.done, ev: sim.events.some(e => e[1] === 'g'), gone: !v || !!v.dead }; })()"
+        for _ in range(40):  # il balzo dura ~1.4 s di animazione: con SwiftShader lento serve piu' tempo reale
+            await page.wait_for_timeout(250)
+            if (await page.evaluate(GJS))['gone']: break
+        gs = await page.evaluate("(() => { const sim = window.__frk.game.sim, g = window.__goat, v = window.__frk.game.world.views.get(g.id); return { goats: sim.stats.goats, scared: !!g.scared, done: g.done, ev: sim.events.some(e => e[1] === 'g'), gone: !v || !!v.dead }; })()")
+        check('v5 capra colpita dalla pistola e messa in fuga', gs['goats'] == g0 + 1 and gs['scared'] and gs['done'] and gs['ev'], json.dumps(gs))
+        check('v5 capra sparita dopo il balzo', gs['gone'], json.dumps(gs))
     perf = await page.evaluate('window.__frk.perf()')
     print('  PERF', name, json.dumps(perf))
     PERF[name] = perf

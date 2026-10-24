@@ -14,12 +14,13 @@ export const BIOMES = [
     id: 'village', name: 'Gadoni - paese e piazza della chiesa', from: 0, to: 250,
     ground: { road: 'cobble', shoulder: 'walk', curb: true, terrain: '#7d8a4e', terrainY: -0.06 },
     sides: 'houses',            // architettura ai lati (env.js -> sidePiece, case da models.js)
-    gaps: { right: [[140, 192]] },  // piazza della chiesa a destra della via (builders/church.js)
+    gaps: { right: [[140, 192]], left: [[150, 176]] },  // piazza della chiesa a destra, piazzetta del campanile a sinistra (builders/church.js)
     landmarks: ['church', 'farVillage'],
     skins: { botte: 'barrel', botti: 'barrels', bottecoricata: 'barrelLying', rollbarrel: 'barrel', muretto: 'wall', goat: 'goat', pozza: 'puddle', narrow: 'house' },
     decor: { banners: true, bulbs: true, lanterns: true },
-    mood: { top: '#4f74c8', mid: '#f2a57e', hor: '#ffd592', fog: '#f4c9a0', hemiS: '#ffe6c4', hemiG: '#7a6658', hemiI: 1.35, dirC: '#ffd49a', dirI: 2.1, moon: 0, sun: 1, far: '#ffffff', fogNear: 40, fogFar: 175 },
-    moodEnd: { top: '#3f5cae', mid: '#e98d6e', hor: '#ffc27e', fog: '#eeb48e', hemiI: 1.2, dirI: 1.8 }, // verso sera a fine paese
+    // tramonto dorato-rosa (target2-villaggio); nebbia piu' lontana perche' il campanile si veda dal fondo della via
+    mood: { top: '#5f6fc0', mid: '#f59e7c', hor: '#ffcb80', fog: '#f7c296', hemiS: '#ffdcb0', hemiG: '#7a6050', hemiI: 1.35, dirC: '#ffc07a', dirI: 2.35, moon: 0, sun: 1.2, far: '#ffe2c8', fogNear: 60, fogFar: 240 },
+    moodEnd: { top: '#5257a8', mid: '#ee8c70', hor: '#ffb874', fog: '#f1ae88', hemiI: 1.22, dirI: 2.0 }, // verso sera a fine paese
     light: { flameDist: 11, flameK: 1, mineral: 0, lamp: 0, darkByFuel: 0, tunnel: 0, exposure: 1.05, camLook: 1.0, camFov: 4 },
     ambience: { wind: 0.06, water: 0, drips: 0, birds: 0.3, bells: 1, cave: 0 },
     transitionOut: 30,          // metri di dissolvenza di luce/nebbia verso il bioma successivo

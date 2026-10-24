@@ -263,6 +263,29 @@ La corsa attraversa gli ambienti veri di Gadoni, costruiti dalle foto in `refere
   - la camera è regolabile per ambiente (`light.camLook`, `light.camFov` in `src/game/biomes/config.js`): un po' più larga e meno inclinata dove servono i monumenti, invariata in miniera. Corsie e gameplay non cambiano.
 - **Tappeti Sa Burra ufficiali:** i 4 tappeti veri (`reference/sa-burra-1..4.png`) con lo sfondo bianco reso trasparente (frange mantenute) sono in `public/textures/sa-burra-N.webp` (512 px, ~70 KB) e `sa-burra-N-icon.png` (128 px, icona di HUD/menu/game over). Si usano nel gioco (stesse 4 varianti per indice, proporzioni vere, sRGB, anisotropia) e nell'interfaccia; se un file non si carica resta il disegno procedurale di prima.
 
+### Aggiornamento v5-stage5: passaggi tra ambienti senza "buchi", paese e piscina sui target2, capra e pistola
+- **Passaggi senza pop-in**: i pezzi dell'ambiente si costruiscono sempre oltre la distanza visibile (nebbia
+  dell'ambiente corrente e di quello successivo, limitata dal piano lontano della camera, + 40 m). Prima la
+  costruzione si fermava a 190 m mentre roccia/fiume/viadotto si vedono fino a 340-520 m, quindi i pezzi
+  "comparivano" in fondo e si vedeva il cielo attraverso. Entro 150 m tutto e' costruito subito; oltre, a tempo
+  (3.5 ms per frame). Oltre 230 m i pezzi ai lati sono in versione leggera (senza sassi/felci/pietre dei muretti)
+  e uniti a gruppi di 70 m in una sola mesh; si completano a 210 m. Tratti di suolo da 120 m.
+  Shader di tutti gli ambienti (compresi i fondi di passaggio) compilati nel menu; i monumenti pesanti sono
+  pre-costruiti nel menu e, se si parte subito, uno alla volta lontano dai confini; ogni monumento nuovo viene
+  caricato sulla GPU un frame dopo la costruzione, ancora fuori vista. Sotto l'orizzonte il cielo usa il colore
+  della nebbia: un eventuale vuoto lontano si legge come foschia, non come cielo arancione.
+- **Paese (target2-villaggio)**: campanile 1.5x, dall'altra parte della via rispetto alla chiesa (poco a sinistra
+  del centro, mai dietro la fiamma) su una piazzetta con vasi di fiori e lanterne; ~40 fili di luci a raggiera dalla
+  cima; capanna con tetto in coppi e fioriere; grande albero a destra; tramonto piu' dorato, nebbia a 240 m.
+- **Piscina naturale (target2-fiume)**: acqua smeraldo fino al bordo del sentiero, parete di travertino muschiata
+  alta 27 m e piu' lontana, 7 cascate grandi, massi bianchi e felci sulla riva, alberi grandi chini sul sentiero a
+  sinistra, fasci di luce. Il viadotto e la sua valle non si vedono piu' dalla piscina: compaiono in dissolvenza solo
+  negli ultimi 45 m prima del viadotto (le due acque restano distinte: il fiume del viadotto non e' cambiato).
+- **Capra e pistola**: un colpo fa scappare la capra (balzo, capriola, polvere, poi sparisce; niente sangue),
+  +100 punti (`SCORE.GOAT`, meno di una botte), evento `g` nel log della partita. Test: `node tests/sim-goat.test.mjs`.
+- Verifica dei passaggi: `python3 tests/transitions.py` (foglio provini per confine in `screenshots/v5s5-transizione-*.png`,
+  metriche in `screenshots/v5s5-transizioni-after.json`; `--tag before` contro la versione precedente).
+
 ### Salto di mappa (sviluppo)
 
 - `?map=village|rock|river|viaduct|mine-ext|mine-int|mine-blue` parte direttamente da quell'ambiente (anche nel menu), es. `index.html?map=mine-blue`.

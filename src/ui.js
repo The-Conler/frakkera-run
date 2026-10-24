@@ -84,7 +84,7 @@ export function initUI(game) {
     probe.onerror = () => { sym.innerHTML = procedural; };
     probe.src = carpetDataURL(0);
   }
-  document.documentElement.style.setProperty('--carpet-band', `url(${carpetURL(0)})`);
+  document.documentElement.style.setProperty('--carpet-band', `url(${new URL(carpetURL(0), document.baseURI).href})`); // assoluto: nel CSS di assets/ un url relativo puntava ad assets/textures (404)
   { const pb = new Image(); pb.onerror = () => { try { document.documentElement.style.setProperty('--carpet-band', `url(${carpetDataURL(0, false)})`); } catch { /* decorazione */ } }; pb.src = carpetURL(0); }
   // quando le texture dei tappeti sono pronte si rifanno le icone 3D del tappeto
   carpetsReady().then(() => { if ($$('img[data-icon="tappeto"]').length) renderIconImgs(['tappeto']); });

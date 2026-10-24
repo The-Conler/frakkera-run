@@ -83,6 +83,14 @@ export function slopePiece(W0, len, o = {}) {
   for (let i = 0; i < Math.round(len * (o.ferns ?? 0.3)); i++) { const zl = -r() * len, x = -r.range(0.5, 6), y = hAt(x, W0 - zl); fern(k, r, x, y, zl, r.range(0.7, 1.2)); }
   for (let i = 0; i < Math.round(len * (o.rocks ?? 0.25)); i++) { const zl = -r() * len, x = -r.range(0.4, 9), y = hAt(x, W0 - zl); addRock(k, r, x, y + 0.1, zl, r.range(0.3, 1.1), o.rockPal || ROCK.granite, { squash: 0.7 }); }
   for (let i = 0; i < Math.round(len * 0.4); i++) { const zl = -r() * len, x = -r.range(0, 4), y = hAt(x, W0 - zl); shrub(k, r, x, y, zl, r.range(0.5, 0.9), o.leaf || LEAF.holm, o.flowers || 0); }
+  // grandi alberi che si chinano sul sentiero (ombra in alto a sinistra, target2-fiume)
+  if (o.canopy) for (let z = -r.range(0, 4); z > -len; z -= r.range(6, 9.5)) {
+    const bx = -r.range(3.5, 5.5), by = hAt(bx, W0 - z) - 0.2, cx = r.range(-0.5, 1.8), cy = r.range(8.5, 11.5), dx = cx - bx, dy = cy - by;
+    const L = Math.hypot(dx, dy);
+    k.add(G.cyl(0.22, 0.42, L, 7), r.pick(['#5a4430', '#4e3c2a', '#66503a']), { x: bx + dx / 2, y: by + dy / 2, z, rz: -Math.atan2(dx, dy), flat: true, vary: 0.15 });
+    k.add(G.cyl(0.12, 0.2, 4, 5), '#5a4430', { x: bx + dx * 0.55 - 1.2, y: by + dy * 0.6 + 1.2, z: z + 0.6, rz: 0.7, flat: true });
+    for (let i = 0; i < 10; i++) k.add(G.ico(r.range(1.9, 3.1), 1), r.pick(i % 3 ? LEAF.fresh : LEAF.holm), { x: cx + r.range(-3, 2.2), y: cy + r.range(-1, 1.8), z: z + r.range(-3.2, 3.2), flat: true, vary: 0.25, sy: 0.72 });
+  }
   if (o.fence) fence(k, r, 0.9, 0, len);
   if (o.wall) dryWall(k, r, 0.9, 0, len, o.wallH || 0.8, o.wallPal || ROCK.granite, 0.7);
   return k.build({ ao: 0.2 });
@@ -113,16 +121,23 @@ export function poolBankPiece(W0, len, o = {}) {
   const r = rng((Math.floor(W0 * 19) ^ 77) >>> 0);
   const k = new Kit(Math.floor(W0) + 21);
   const CL = o.cliffX ?? -9;        // distanza della parete dalla facciata (vicina: entra nell'inquadratura)
+  const HB = o.cliffH ?? 19, BW = o.beachW ?? 3.2, BX = o.beachX0 ?? 1.3;
   // riva: ghiaia che scende nell'acqua
-  const beach = gridSurface(Math.max(2, Math.ceil(len / 2)), 3, (u, v) => [1.3 - v * 3.2, 0.05 - v * 0.75 + (v > 0 ? noise3((W0 + u * len) / 3, v, 4) * 0.12 : 0), -u * len],
+  const beach = gridSurface(Math.max(2, Math.ceil(len / 2)), 3, (u, v) => [BX - v * BW, 0.05 - v * 0.75 + (v > 0 ? noise3((W0 + u * len) / 3, v, 4) * 0.12 : 0), -u * len],
     (x, y, z) => pickN(['#d8d2c4', '#cbc4b4', '#e2ddd0', '#bdb6a6'], noise3((W0 - z) / 1.3, x, 2) * 0.5 + 0.5));
   addColored(k, beach);
   for (let z = -r() * 2; z > -len; z -= r.range(1.2, 3)) { if (r.chance(0.6)) addRock(k, r, r.range(-2.5, 0.8), r.range(-0.4, 0.1), z, r.range(0.2, 0.5), ROCK.limestone, { squash: 0.55 }); else grassTuft(k, r, 1.1, 0, z, 0.9, ['#6f9a3a', '#86ad4a']); }
+  // massi bianchi tondeggianti e felci tra il sentiero e l'acqua
+  if (o.lush) {
+    for (let z = -r() * 2; z > -len; z -= r.range(1.6, 3.2)) addRock(k, r, r.range(-2.2, 0.4), -0.1, z, r.range(0.5, 1.15), ROCK.limestone, { squash: 0.72, rough: 0.22 });
+    for (let z = -r() * 2; z > -len; z -= r.range(2.2, 4)) fern(k, r, r.range(0.6, 1.2), 0.05, z, r.range(0.9, 1.4));
+    for (let i = 0; i < 2; i++) if (r.chance(0.7)) addRock(k, r, r.range(-9, -3.5), -0.7, -r.range(1, len - 1), r.range(1.4, 2.8), ROCK.limestone, { squash: 0.5, rough: 0.25 });
+  }
   // massi bianchi grandi nell'acqua
   if (r.chance(0.55)) addRock(k, r, r.range(-6.5, -3.5), -0.6, -r.range(1, len - 1), r.range(1.8, 3.4), ROCK.limestone, { squash: 0.5, rough: 0.3 });
   if (r.chance(0.3)) addRock(k, r, r.range(-5, -3), -0.5, -r.range(1, len - 1), r.range(1.2, 2.2), ROCK.limestone, { squash: 0.55 });
   // parete di travertino: sopra roccia bruna/ocra, sotto muschio verde
-  const Hf = (W) => 19 + 6 * fbm(W / 40, 3, 1, 2);
+  const Hf = (W) => HB + 6 * fbm(W / 40, 3, 1, 2);
   const nu = Math.max(2, Math.ceil(len / 1.2)), nv = 14;
   const wall = gridSurface(nu, nv, (u, v) => {
     const W = W0 + u * len, H = Hf(W), y = -0.6 + v * (H + 0.6);
@@ -134,7 +149,7 @@ export function poolBankPiece(W0, len, o = {}) {
   }, (x, y, z) => {
     const W = W0 - z, H = Hf(W), t = y / H;
     const n = noise3(W / 3, y / 2.2, 8) * 0.5 + 0.5, n2 = noise3(W / 1.1, y / 4, 2) * 0.5 + 0.5;
-    if (t > 0.62 + (n - 0.5) * 0.3) { _c.set(pickN(ROCK.travertine, n)); if (n2 > 0.75) _c.lerp(_c2.set('#d8c8a8'), 0.5); return _c.getHex(); }
+    if (t > (o.mossTo ?? 0.62) + (n - 0.5) * 0.3) { _c.set(pickN(ROCK.travertine, n)); if (n2 > 0.75) _c.lerp(_c2.set('#d8c8a8'), 0.5); return _c.getHex(); }
     _c.set(pickN(['#6faa3a', '#86b84a', '#5f9a30', '#9ac25a', '#4f8a2a', '#b8c860'], n));
     if (n2 > 0.82) _c.lerp(_c2.set('#c8d8b8'), 0.35);      // gocciolamenti chiari
     if (t < 0.08) _c.multiplyScalar(0.7);
@@ -142,10 +157,10 @@ export function poolBankPiece(W0, len, o = {}) {
   });
   addColored(k, wall);
   // alberi e arbusti in cima alla parete
-  for (let z = -r() * 4; z > -len; z -= r.range(3, 6)) { const H = Hf(W0 - z); tree(k, r, CL - r.range(5, 9), H, z, r.range(1.3, 2), LEAF.fresh); }
+  for (let z = -r() * 4; z > -len; z -= r.range(3, 6) / (o.lush ? 1.5 : 1)) { const H = Hf(W0 - z); tree(k, r, CL - r.range(3, 9), H, z, r.range(1.3, 2) * (o.lush ? 1.35 : 1), LEAF.fresh); }
   for (let z = -r() * 3; z > -len; z -= r.range(2, 4)) { const H = Hf(W0 - z); shrub(k, r, CL - r.range(1.5, 4), H - 0.5, z, r.range(0.8, 1.4), LEAF.fresh); }
   // ciuffi di muschio pendenti
-  for (let i = 0; i < len * 0.6; i++) { const zl = -r() * len, H = Hf(W0 - zl), y = r.range(2, H * 0.6); k.add(G.ico(r.range(0.5, 1.0), 0), r.pick(['#7ab842', '#8cc450', '#6aa838']), { x: CL + 2.6 + r.range(0, 1.2), y, z: zl, sy: 1.5, flat: true, vary: 0.2 }); }
+  for (let i = 0; i < len * (o.lush ? 1.3 : 0.6); i++) { const zl = -r() * len, H = Hf(W0 - zl), y = r.range(2, H * (o.lush ? 0.8 : 0.6)); k.add(G.ico(r.range(0.5, 1.0) * (o.lush ? 1.4 : 1), 0), r.pick(['#7ab842', '#8cc450', '#6aa838']), { x: CL + 2.6 + r.range(0, 1.2), y, z: zl, sy: 1.5, flat: true, vary: 0.2 }); }
   return k.build({ ao: 0.15 });
 }
 

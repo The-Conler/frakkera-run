@@ -32,6 +32,7 @@ export const SCORE = {
   CARPET: 20,               // punti per tappeto (i tappeti restano soprattutto MONETA, contati a parte)
   BARREL: 150,              // botte distrutta con la pistola
   BARREL_GROUP: 300,        // gruppo di botti distrutto con un colpo
+  GOAT: 100,                // capra fatta scappare con un colpo (meno di una botte: i colpi sono 3 per pistola, nessun abuso)
   SURVIVAL_EVERY_S: 30,     // ogni X secondi con la fiamma accesa...
   SURVIVAL_BONUS: 250,      // ...bonus sopravvivenza
   // tetto anti-exploit: punti bonus (tutto tranne i metri) per finestra di 10 s

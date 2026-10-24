@@ -39,7 +39,7 @@ export class Sim {
 
   resetRunState() {
     this.score = 0; this.metersCredited = 0; this.fuel = FUEL.START; this.chain = 0;
-    this.stats = { pickups: 0, nearMiss: 0, chains: 0, milestones: 0, hits: 0, bonus: 0, carpets: 0, barrels: 0, shots: 0, pistols: 0, survival: 0, capped: 0 };
+    this.stats = { pickups: 0, nearMiss: 0, chains: 0, milestones: 0, hits: 0, bonus: 0, carpets: 0, barrels: 0, goats: 0, shots: 0, pistols: 0, survival: 0, capped: 0 };
     this.carpetStreak = 0; this.ammo = 0; this.fireCd = 0; this.recoilT = 0;
     this.shots = [];
     this.nextSurvival = SCORE.SURVIVAL_EVERY_S;
@@ -274,10 +274,11 @@ export class Sim {
       let gone = p.d - this.T > SHOT_RANGE;
       if (!gone) {
         for (const e of this.entities) {
-          if (e.done || e.pickup || !e.solid || e.kind === 'goat') continue; // le capre non si toccano
+          if (e.done || e.pickup || !e.solid) continue;
           const ex = this.entX(e);
           if (e.d <= p.d + 3 && e.d + e.len + 6 >= p.d && Math.abs(ex - p.x) <= (HALF_W[e.kind] || 10) + 2) {
-            if (DESTRUCTIBLE[e.kind]) this.destroyBarrel(e);
+            if (e.kind === 'goat') this.scareGoat(e);
+            else if (DESTRUCTIBLE[e.kind]) this.destroyBarrel(e);
             else this.fx('ricochet', { x: p.x, d: p.d });
             gone = true;
             break;
@@ -295,6 +296,18 @@ export class Sim {
     this.stats.barrels++;
     this.log('b', pts);
     this.fx('barrel', { e, big, pts, x: this.entX(e) });
+  }
+
+  // colpo alla capra: niente sangue, la capra fa un balzo e scappa via di corsa in una nuvola di polvere;
+  // da quel momento non e' piu' un ostacolo (done). Deterministico come le botti, registrato nel log ('g').
+  scareGoat(e) {
+    e.done = true; e.scared = true;
+    e.vx *= 3.2;
+    const pts = this.addBonus(SCORE.GOAT);
+    this.stats.goats++;
+    this.log('g', pts);
+    this.fx('goatScared', { e, pts, x: this.entX(e) });
+    this.fx('sound', 'goat');
   }
 
   collect(e) {

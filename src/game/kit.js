@@ -28,9 +28,15 @@ export function rng(seed) {
 }
 
 export class Kit {
+  static lodMin = 0;
   constructor(seed = 1) { this.lit = []; this.unlit = []; this.r = rng(seed); }
   // o: {x,y,z,rx,ry,rz,sx,sy,sz,vary,flat,unlit,ao}
   add(geom, color, o = {}) {
+    // versione lontana (LOD) dei pezzi ai lati: si saltano i dettagli piu' piccoli di Kit.lodMin (m di raggio)
+    if (Kit.lodMin > 0) {
+      if (!geom.boundingSphere) geom.computeBoundingSphere();
+      if (geom.boundingSphere.radius * Math.max(o.sx ?? 1, o.sy ?? 1, o.sz ?? 1) < Kit.lodMin) { geom.dispose?.(); return this; }
+    }
     let g = geom.index ? geom.toNonIndexed() : geom.clone();
     if (g.attributes.uv) g.deleteAttribute('uv');
     if (g.attributes.uv1) g.deleteAttribute('uv1');
