@@ -148,7 +148,7 @@ export function buildShopRoom() {
   const ceil = new THREE.PlaneGeometry(6.6, 3.4, 8, 4); place(ceil, { rx: Math.PI / 2, y: EAVE + 0.2, z: (ZF + ZB) / 2 }); solid(ceil, '#5a3820', 0.1, 3, 2); B.wood.add(ceil);
   // ------------------------------------------------ muro di fondo intonacato + taglieri
   const wallG = new THREE.PlaneGeometry(6.2, EAVE, 30, 20); warp(wallG, (v) => { v.z += vnoise(v.x * 2, v.y * 2, 0, 4) * 0.03; });
-  const cream = col('#f0dcb6'); paint(wallG, (v, o) => { const k = 1 + vnoise(v.x * 1.5, v.y * 1.5, 0, 7) * 0.05 + vnoise(v.x * 7, v.y * 7, 0, 2) * 0.02; o.setRGB(cream.r * k, cream.g * k, cream.b * k * 0.98); });
+  const cream = col('#f6d6a2'); paint(wallG, (v, o) => { const k = 1 + vnoise(v.x * 1.5, v.y * 1.5, 0, 7) * 0.05 + vnoise(v.x * 7, v.y * 7, 0, 2) * 0.02; o.setRGB(cream.r * k, cream.g * k, cream.b * k * 0.98); });
   place(wallG, { y: EAVE / 2, z: ZB + 0.08 }); B.plaster.add(wallG);
   B.stone.add(place(stone(6.2, 0.3, 0.3, '#bfa888', r, 0.04), { y: 0.14, z: ZB + 0.15 }));
   for (let i = 0; i < 9; i++) {
@@ -258,12 +258,12 @@ export function buildShopRoom() {
   add(cloud.build(), new THREE.MeshBasicMaterial({ vertexColors: true }), false, false);
   const wt = weaveTex(), wm = new THREE.MeshStandardMaterial({ map: wt, bumpMap: wt, bumpScale: 1.5, roughness: 0.9, side: THREE.DoubleSide });
   for (const g of tb) add(g, wm);
-  const pinu = buildPinu(); pinu.position.set(TX + 0.05, TH + 0.02 - 1.17 * 1.65, TZ - 0.95); pinu.scale.setScalar(1.65); scene.add(pinu);
+  const pinu = buildPinu(); pinu.position.set(TX + 0.02, TH + 0.075, TZ - TD / 2 - 0.02); pinu.scale.setScalar(1.22); scene.add(pinu);
 
   // ------------------------------------------------ luci: sole del tardo pomeriggio, cielo, rimbalzo caldo
-  scene.add(new THREE.HemisphereLight('#dcebff', '#a8784a', 1.1));
+  scene.add(new THREE.HemisphereLight('#ffe6c4', '#b07840', 1.1));
   const amb = new THREE.AmbientLight('#ffe0bc', 0.35); scene.add(amb);
-  const sun = new THREE.DirectionalLight('#ffc080', 3.4);
+  const sun = new THREE.DirectionalLight('#ffb466', 3.6);
   sun.position.set(-8, 10, 7); sun.target.position.set(0.5, 0, -0.5);
   sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.025; sun.shadow.radius = 3;
   Object.assign(sun.shadow.camera, { left: -8, right: 8, top: 9, bottom: -7, near: 1, far: 34 }); sun.shadow.camera.updateProjectionMatrix();
@@ -300,14 +300,14 @@ export function buildShopRoom() {
     update(dt, aspect, ui = { top: 0.1, bottom: 0.34 }) {
       t += dt; fit(aspect, ui);
       if (room.debugCam) { const d = room.debugCam; camera.position.set(d[0], d[1], d[2]); camera.lookAt(d[3], d[4], d[5]); camera.fov = d[6] || 30; camera.updateProjectionMatrix(); }   // solo test/screenshot
-      pinu.position.y = TH + 0.02 - 1.17 * 1.65 + Math.sin(t * 1.6) * 0.006;
+      pinu.position.y = TH + 0.075 + Math.sin(t * 1.6) * 0.006;
       pinu.rotation.y = Math.sin(t * 0.5) * 0.04;
       if (nodT > 0) { nodT = Math.max(0, nodT - dt); pinu.rotation.x = Math.sin((0.6 - nodT) / 0.6 * Math.PI * 2) * 0.05; } else pinu.rotation.x = 0;
       for (const [i, l] of lights.entries()) l.intensity = 4.5 + Math.sin(t * 7 + i * 2) * 0.25 + Math.sin(t * 13 + i) * 0.15;
     },
     // render con GTAO (occlusione ambientale) a meta' risoluzione; se non va, render semplice
     render(renderer, sz) {
-      const ex = renderer.toneMappingExposure; renderer.toneMappingExposure = 1.15;
+      const ex = renderer.toneMappingExposure; renderer.toneMappingExposure = 1.2;
       if (!aoFailed) {
         try {
           const pr = renderer.getPixelRatio(), w = Math.round(sz.x * pr), h = Math.round(sz.y * pr);
