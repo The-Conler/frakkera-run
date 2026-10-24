@@ -319,3 +319,17 @@ svg { display: block; }
 #scr-shop .shop-bubble { position: relative; right: auto; top: auto; align-self: auto; max-width: none; margin: 0 2px 7px; border-radius: 14px 14px 14px 4px; font-size: calc(var(--u) * 12.5); padding: 6px 10px; }
 #scr-shop .shop-top { padding: 0 2px; }
 @media (max-height: 700px) { #scr-shop .shop-title { font-size: calc(var(--u) * 24); } #scr-shop .shop-item .si-desc { display: none; } }
+
+/* v5s8: menu come reference/target-menu.jpg - contatori in alto, logo sopra la fiamma, pulsante grande, tessere scure */
+#scr-menu { justify-content: flex-start; padding-top: max(12px, env(safe-area-inset-top)); }
+#scr-menu .record-plate.menu-top { margin: 0 auto 2px; padding: 7px 26px; gap: 30px; min-width: 78%; justify-content: space-around; border-radius: 22px; background: rgba(28,22,52,0.62); box-shadow: inset 0 0 0 1.5px rgba(255,255,255,0.16), 0 4px 14px rgba(0,0,0,0.35); backdrop-filter: blur(4px); }
+#scr-menu .rp-sep { height: 34px; }
+#scr-menu .logo-wrap { margin-top: 3vh; }
+#scr-menu .menu-bottom { margin-top: auto; padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+#scr-menu .menu-bottom .btn-xl { min-height: calc(var(--u) * 66); font-size: calc(var(--u) * 30); border-radius: 999px; margin: 0 6px 18px; gap: 14px; }
+#scr-menu .menu-bottom .btn-xl .btn-ico { width: 1.15em; height: 1.15em; color: #3a1c08; }
+#scr-menu .menu-grid { gap: 10px; margin: 0 2px 8vh; }
+#scr-menu .tile { aspect-ratio: 1 / 1.18; border-radius: 18px; background: linear-gradient(rgba(52,46,84,0.92), rgba(30,26,52,0.94)); box-shadow: inset 0 1.5px 0 rgba(255,255,255,0.18), inset 0 0 0 1.5px rgba(255,255,255,0.08), 0 5px 0 rgba(10,8,24,0.75), 0 8px 16px rgba(0,0,0,0.35); color: #fff; }
+#scr-menu .tile svg { width: 50%; height: 44%; }
+#scr-menu .tile span { font-size: calc(var(--u) * 10.5); }
+@media (max-height: 700px) { #scr-menu .menu-grid { margin-bottom: 1.5vh; } #scr-menu .menu-bottom .btn-xl { min-height: calc(var(--u) * 54); font-size: calc(var(--u) * 26); margin-bottom: 10px; } #scr-menu .tile { aspect-ratio: 1 / 1.0; } #scr-menu .logo-wrap { margin-top: 1vh; } }

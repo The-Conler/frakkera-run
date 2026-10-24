@@ -303,6 +303,9 @@ Scena del negozio ricostruita da zero (src/game/shop3d.js) sul riferimento 9:16 
 ### Stage 7c — Garag di Pinu ad alta fedelta'
 Geometrie fatte a mano in src/game/shop/ (geo.js: assi smussate/imbarcate con venatura, travi grezze, pietre irregolari, lastre di Voronoi, torniti, tubi; tex.js: vimini, tappeto sardo, scozzese; pinu.js: testa scolpita da sfera deformata con naso, zigomi, arcate, occhi, rughe, coppola, giacca, camicia, braccia e mani giunte). Sole radente con ombre PCF 2048, GTAO (fallback a render semplice), luce rimbalzata, lanterne emissive con alone. Camera inclinata di 9 gradi, distanza/altezza calcolate proiettando tetto e lanterne nella fascia libera. Fumetto di Pinu spostato nel pannello.
 
+### Stage 8 — menu principale
+Menu come reference/target-menu.jpg: contatori RECORD / SA BURRA in una pillola in alto, logo FRAKKERA RUN con la striscia di tappeto dietro RUN e il sottotitolo, sfondo 3D dal vivo (via di Gadoni al tramonto, corridore con la frakkera accesa e le scintille) con una camera piu' larga, pulsante GIOCA ORA grande con il triangolo a sinistra, quattro tessere scure (CLASSIFICA, COME SI GIOCA, IS FRAKKERAS, IMPOSTAZIONI) collegate ai pannelli che c'erano gia'. Il gioco non cambia.
+
 ### Salto di mappa (sviluppo)
 
 - `?map=village|rock|river|viaduct|mine-ext|mine-int|mine-blue` parte direttamente da quell'ambiente (anche nel menu), es. `index.html?map=mine-blue`.

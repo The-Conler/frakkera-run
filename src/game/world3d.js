@@ -608,7 +608,7 @@ export class World {
     const aspect = this.camera.aspect;
     const wide = Math.max(0, Math.min(1, (aspect - 0.5) / 0.3));
     let cp, cl, fov;
-    if (view.cam === 'menu') { cp = _v.set(0.9 + wide * 1.2, 2.0 + wide * 0.6, pz + 10.5 - wide * 2.5); cl = _v2.set(0.1 - wide * 0.8, 1.2 + wide * 1.2, pz); fov = 58; }
+    if (view.cam === 'menu') { cp = _v.set(0.6 + wide * 1.2, 2.2 + wide * 0.4, pz + 12.6 - wide * 3); cl = _v2.set(0.05 - wide * 0.8, 3.0 + wide * 0.3, pz); fov = 58; }   // v5s8: piu' indietro, frakkera e fiamma intere sotto il logo
     else if (view.cam === 'over') { cp = _v.set(px * 0.45 + 2.0, 4.2, pz + 15.5); cl = _v2.set(px, -2.6, pz); fov = 52; }
     else {
       // per ambiente (config.light.camLook/camFov): un po' piu' larga e meno inclinata dove i monumenti devono entrare in verticale
