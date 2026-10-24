@@ -14,25 +14,25 @@ export const BIOMES = [
     id: 'village', name: 'Gadoni - paese e piazza della chiesa', from: 0, to: 250,
     ground: { road: 'cobble', shoulder: 'walk', curb: true, terrain: '#7d8a4e', terrainY: -0.06 },
     sides: 'houses',            // architettura ai lati (env.js -> sidePiece, case da models.js)
-    gaps: { left: [[140, 192]] },  // piazza della chiesa (builders/church.js)
+    gaps: { right: [[140, 192]] },  // piazza della chiesa a destra della via (builders/church.js)
     landmarks: ['church', 'farVillage'],
     skins: { botte: 'barrel', botti: 'barrels', bottecoricata: 'barrelLying', rollbarrel: 'barrel', muretto: 'wall', goat: 'goat', pozza: 'puddle', narrow: 'house' },
     decor: { banners: true, bulbs: true, lanterns: true },
     mood: { top: '#4f74c8', mid: '#f2a57e', hor: '#ffd592', fog: '#f4c9a0', hemiS: '#ffe6c4', hemiG: '#7a6658', hemiI: 1.35, dirC: '#ffd49a', dirI: 2.1, moon: 0, sun: 1, far: '#ffffff', fogNear: 40, fogFar: 175 },
     moodEnd: { top: '#3f5cae', mid: '#e98d6e', hor: '#ffc27e', fog: '#eeb48e', hemiI: 1.2, dirI: 1.8 }, // verso sera a fine paese
-    light: { flameDist: 11, flameK: 1, mineral: 0, lamp: 0, darkByFuel: 0, tunnel: 0, exposure: 1.05 },
+    light: { flameDist: 11, flameK: 1, mineral: 0, lamp: 0, darkByFuel: 0, tunnel: 0, exposure: 1.05, camLook: 1.0, camFov: 4 },
     ambience: { wind: 0.06, water: 0, drips: 0, birds: 0.3, bells: 1, cave: 0 },
     transitionOut: 30,          // metri di dissolvenza di luce/nebbia verso il bioma successivo
   },
   {
     id: 'rock', name: 'La roccia (Su Pranu / guglia)', from: 250, to: 500,
-    ground: { road: 'trail', shoulder: 'grassEdge', curb: false, terrain: '#6e7a3e', terrainY: -0.06, right: 'drop' },
+    ground: { road: 'trail', shoulder: 'grassEdge', curb: false, terrain: '#6e7a3e', terrainY: -0.06, left: 'drop' },
     sides: 'mountain',
     landmarks: ['pinnacle', 'valley'],
     skins: { botte: 'boulder', botti: 'boulders', bottecoricata: 'log', rollbarrel: 'log', muretto: 'wall', goat: 'goat', pozza: 'puddle', narrow: 'outcrop' },
     decor: { banners: false, bulbs: false, lanterns: false },
-    mood: { top: '#5d86cf', mid: '#a9c2e0', hor: '#f7d7a8', fog: '#b4c2bc', hemiS: '#fff0d6', hemiG: '#5f6a3e', hemiI: 1.2, dirC: '#ffe0aa', dirI: 1.8, moon: 0, sun: 0.9, far: '#ffffff', fogNear: 60, fogFar: 300 },
-    light: { flameDist: 11, flameK: 1, mineral: 0, lamp: 0, darkByFuel: 0, tunnel: 0, exposure: 1.05 },
+    mood: { top: '#5d86cf', mid: '#a9c2e0', hor: '#f7d7a8', fog: '#a9c0d6', hemiS: '#eef4ff', hemiG: '#4f5f32', hemiI: 1.15, dirC: '#fff0d0', dirI: 1.9, moon: 0, sun: 0.9, far: '#ffffff', fogNear: 120, fogFar: 650 },
+    light: { flameDist: 11, flameK: 1, mineral: 0, lamp: 0, darkByFuel: 0, tunnel: 0, exposure: 1.05, camLook: 1.2, camFov: 6 },
     ambience: { wind: 0.16, water: 0, drips: 0, birds: 0.5, bells: 0, cave: 0 },
     transitionOut: 35,
   },
@@ -43,8 +43,8 @@ export const BIOMES = [
     landmarks: ['pool'],
     skins: { botte: 'mossBoulder', botti: 'mossBoulders', bottecoricata: 'log', rollbarrel: 'log', muretto: 'mossWall', goat: 'goat', pozza: 'puddle', narrow: 'mossOutcrop' },
     decor: { banners: false, bulbs: false, lanterns: false },
-    mood: { top: '#6a9fd0', mid: '#bfe0c6', hor: '#f3e6b0', fog: '#a9c9a0', hemiS: '#f1ffd8', hemiG: '#3d5a2a', hemiI: 1.4, dirC: '#ffe7b8', dirI: 1.9, moon: 0, sun: 0.7, far: '#e6f2d8', fogNear: 35, fogFar: 190 },
-    light: { flameDist: 13, flameK: 1.15, mineral: 0, lamp: 0, darkByFuel: 0, tunnel: 0, exposure: 1.05 },
+    mood: { top: '#6a9fd0', mid: '#bfe0c6', hor: '#f3e6b0', fog: '#a9c9a0', hemiS: '#f1ffd8', hemiG: '#3d5a2a', hemiI: 1.4, dirC: '#ffe7b8', dirI: 1.9, moon: 0, sun: 0.7, far: '#e6f2d8', fogNear: 110, fogFar: 520 },
+    light: { flameDist: 13, flameK: 1.15, mineral: 0, lamp: 0, darkByFuel: 0, tunnel: 0, exposure: 1.05, camLook: 0.8, camFov: 5 },
     ambience: { wind: 0.04, water: 0.22, drips: 0, birds: 0.7, bells: 0, cave: 0 },
     transitionOut: 35,
   },
@@ -56,7 +56,7 @@ export const BIOMES = [
     skins: { botte: 'crate', botti: 'crates', bottecoricata: 'log', rollbarrel: 'log', muretto: 'wall', goat: 'goat', pozza: 'puddle', narrow: 'outcrop' },
     decor: { banners: false, bulbs: false, lanterns: false },
     mood: { top: '#3d5fae', mid: '#f0956a', hor: '#ffc66e', fog: '#e7a982', hemiS: '#ffdcae', hemiG: '#5e4c3a', hemiI: 1.25, dirC: '#ffbf78', dirI: 2.3, moon: 0, sun: 1.25, far: '#ffd9b8', fogNear: 70, fogFar: 340 },
-    light: { flameDist: 12, flameK: 1, mineral: 0, lamp: 0, darkByFuel: 0, tunnel: 0, exposure: 1.05 },
+    light: { flameDist: 12, flameK: 1, mineral: 0, lamp: 0, darkByFuel: 0, tunnel: 0, exposure: 1.05, camLook: 1.2, camFov: 6 },
     ambience: { wind: 0.14, water: 0.12, drips: 0, birds: 0.25, bells: 0, cave: 0 },
     transitionOut: 30,
   },
@@ -69,7 +69,7 @@ export const BIOMES = [
     skins: { botte: 'drum', botti: 'oreCart', bottecoricata: 'timbers', rollbarrel: 'drum', muretto: 'wall', goat: 'goat', pozza: 'puddle', narrow: 'outcrop' },
     decor: { banners: false, bulbs: false, lanterns: true },
     mood: { top: '#3a4f8c', mid: '#b98a7c', hor: '#e8b48a', fog: '#a3948a', hemiS: '#e8dccb', hemiG: '#4c4640', hemiI: 1.15, dirC: '#ffc89a', dirI: 1.5, moon: 0.3, sun: 0.6, far: '#d8c8c0', fogNear: 30, fogFar: 170 },
-    light: { flameDist: 12, flameK: 1.1, mineral: 0, lamp: 0.4, darkByFuel: 0, tunnel: 0, exposure: 1.05 },
+    light: { flameDist: 12, flameK: 1.1, mineral: 0, lamp: 0.4, darkByFuel: 0, tunnel: 0, exposure: 1.05, camLook: 0.8, camFov: 4 },
     ambience: { wind: 0.12, water: 0, drips: 0, birds: 0.1, bells: 0, cave: 0 },
     transitionOut: 14,          // si entra nel tunnel: passaggio rapido
   },
@@ -82,7 +82,7 @@ export const BIOMES = [
     decor: { banners: false, bulbs: false, lanterns: false, mineLamps: 22 },
     // luce ambientale quasi nulla: illumina la frakkera; il buio cresce quando la frakkera si consuma
     mood: { top: '#05060a', mid: '#05060a', hor: '#0a0c10', fog: '#0a1012', hemiS: '#a8c8c8', hemiG: '#1c2424', hemiI: 0.62, dirC: '#000000', dirI: 0, moon: 0, sun: 0, far: '#000000', fogNear: 8, fogFar: 80 },
-    light: { flameDist: 24, flameK: 1.9, mineral: 0, lamp: 0.95, darkByFuel: 1, tunnel: 1, exposure: 1.1 },
+    light: { flameDist: 24, flameK: 1.9, mineral: 0, lamp: 0.95, darkByFuel: 1, tunnel: 1, exposure: 1.1, camLook: 0, camFov: 0 },
     ambience: { wind: 0, water: 0, drips: 0.8, birds: 0, bells: 0, cave: 1 },
     transitionOut: 25,
   },
@@ -96,7 +96,7 @@ export const BIOMES = [
     // le pareti minerali hanno luce propria (non dipende dalla frakkera)
     // riempimento blu forte (luce di contorno blu su personaggio e frakkera), nebbia blu in profondita'
     mood: { top: '#05060a', mid: '#05060a', hor: '#0a0c18', fog: '#030820', hemiS: '#3f6cff', hemiG: '#0c1640', hemiI: 0.55, dirC: '#5a8cff', dirI: 0.7, moon: 0, sun: 0, far: '#000000', fogNear: 12, fogFar: 105 },
-    light: { flameDist: 20, flameK: 1.25, mineral: 1, lamp: 0.6, darkByFuel: 0.35, tunnel: 1, exposure: 1.15 },
+    light: { flameDist: 20, flameK: 1.25, mineral: 1, lamp: 0.6, darkByFuel: 0.35, tunnel: 1, exposure: 1.15, camLook: 0, camFov: 0 },
     ambience: { wind: 0, water: 0.05, drips: 1, birds: 0, bells: 0, cave: 1 },
     transitionOut: 16,          // uscita dalla miniera: di nuovo all'aperto
   },

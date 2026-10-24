@@ -7,7 +7,7 @@ import { bus } from './bus.js';
 import { audio } from './systems/audio.js';
 import * as store from './systems/storage.js';
 import { validateNick, cleanNick } from './systems/nickname.js';
-import { carpetDataURL } from './game/tex3d.js';
+import { carpetDataURL, carpetURL, carpetsReady } from './game/tex3d.js';
 import { BIOMES } from './game/biomes/config.js';
 
 const $ = (s) => document.querySelector(s);
@@ -67,12 +67,27 @@ export function initUI(game) {
   renderAudio();
 
   // --------------------------------------------------------- icone 3D e testi di configurazione
-  try {
-    const kinds = [...new Set($$('img[data-icon]').map((i) => i.dataset.icon))];
-    const icons = game.world.renderIcons(kinds, 160);
-    $$('img[data-icon]').forEach((img) => { if (icons[img.dataset.icon]) img.src = icons[img.dataset.icon]; });
-  } catch (err) { console.warn('icone non disponibili', err); }
-  try { document.documentElement.style.setProperty('--carpet-band', `url(${carpetDataURL(0)})`); } catch { /* decorazione */ }
+  const renderIconImgs = (only) => {
+    try {
+      const kinds = only || [...new Set($$('img[data-icon]').map((i) => i.dataset.icon))];
+      const icons = game.world.renderIcons(kinds, 160);
+      $$('img[data-icon]').forEach((img) => { if (icons[img.dataset.icon]) img.src = icons[img.dataset.icon]; });
+    } catch (err) { console.warn('icone non disponibili', err); }
+  };
+  renderIconImgs();
+  // tappeti ufficiali Sa Burra: icona dell'interfaccia (HUD, menu, game over) = foto del tappeto vero
+  const sym = document.getElementById('i-carpet');
+  if (sym) {
+    const procedural = sym.innerHTML;
+    const probe = new Image();
+    probe.onload = () => { sym.innerHTML = `<image href="${carpetDataURL(0)}" x="0" y="5.6" width="24" height="12.8" preserveAspectRatio="xMidYMid meet"/>`; };
+    probe.onerror = () => { sym.innerHTML = procedural; };
+    probe.src = carpetDataURL(0);
+  }
+  document.documentElement.style.setProperty('--carpet-band', `url(${carpetURL(0)})`);
+  { const pb = new Image(); pb.onerror = () => { try { document.documentElement.style.setProperty('--carpet-band', `url(${carpetDataURL(0, false)})`); } catch { /* decorazione */ } }; pb.src = carpetURL(0); }
+  // quando le texture dei tappeti sono pronte si rifanno le icone 3D del tappeto
+  carpetsReady().then(() => { if ($$('img[data-icon="tappeto"]').length) renderIconImgs(['tappeto']); });
   $$('[data-cfg]').forEach((el) => { el.textContent = `${FUEL[el.dataset.cfg]}%`; });
   $$('[data-pistol]').forEach((el) => { el.textContent = `${PISTOL[el.dataset.pistol]}`; });
   const first = SCORE.MILESTONES[0];

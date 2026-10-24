@@ -21,7 +21,7 @@ const SEG = 44, BLEND = 12, AHEAD = 190, BEHIND = 14;
 const _c = new THREE.Color();
 const MOOD_KEYS = ['top', 'mid', 'hor', 'fog', 'hemiS', 'hemiG', 'dirC', 'far'];
 const NUM_KEYS = ['hemiI', 'dirI', 'moon', 'sun', 'fogNear', 'fogFar'];
-const LIGHT_KEYS = ['flameDist', 'flameK', 'mineral', 'lamp', 'darkByFuel', 'tunnel', 'exposure'];
+const LIGHT_KEYS = ['flameDist', 'flameK', 'mineral', 'lamp', 'darkByFuel', 'tunnel', 'exposure', 'camLook', 'camFov'];
 const AMB_KEYS = ['wind', 'water', 'drips', 'birds', 'bells', 'cave'];
 
 // ---------------------------------------------------------------- materiali del suolo con UV nel mondo
@@ -115,15 +115,18 @@ function tunnelMat(blue) {
 // geometria di base lunga 1 m (scalata in z): piano largo w centrato in x
 function strip(x0, x1, y = 0) { const g = new THREE.PlaneGeometry(x1 - x0, 1).rotateX(-Math.PI / 2); g.translate((x0 + x1) / 2, y, -0.5); return g; }
 
+// valle della roccia: a sinistra del sentiero (la destra dell'inquadratura e' occupata dalla fiamma)
+// le montagne cominciano presto (floorW 70) cosi' entrano nell'inquadratura verticale dietro la guglia
+const valleyRock = (Bm) => N.valleyTerrain(Bm - 30, 430, { side: -1, x0: 14.5, topY: -7, floorY: -46, dropW: 24, floorW: 70, far: 300, mtnH: 120, seed: 7, trees: 900 });
 // ---------------------------------------------------------------- monumenti (per bioma, distanza locale)
 // at: punto di riferimento (distanza locale nel bioma); exist: [da, a] relativo ad at in cui esiste
 const LANDMARKS = {
   church: { at: 140, exist: [-200, 70] },
-  pinnacle: { at: 200, exist: [-260, 120] },
-  valley: { at: 0, exist: [-140, 330] },
+  pinnacle: { at: 230, exist: [-290, 120] },
+  valley: { at: 0, exist: [-30, 390] },
   pool: { at: 0, exist: [-40, 280] },
-  viaduct: { at: 150, exist: [-330, 130] },
-  valleyRiver: { at: 0, exist: [-150, 290] },
+  viaduct: { at: 150, exist: [-200, 130] },
+  valleyRiver: { at: 0, exist: [-70, 290] },
   minePortal: { at: 150, exist: [-200, 30] },
   mineExit: { at: 250, exist: [-80, 20] },
   farVillage: null,
@@ -177,9 +180,9 @@ export class Env {
       gravelEdge: groundMat(this.tex.gravelEdge, { sx: 1 / 3, sz: 1 / 3, x0: 0, abs: true }),
       none: groundMat(this.tex.mineFloor, { phong: true, shininess: 30 }),
     };
-    this.waterMat = { pool: waterMat(nrm, '#2e9a76', 0.8), river: waterMat(nrm, '#3f7f7c', 0.86) };
+    this.waterMat = { pool: waterMat(nrm, '#12a088', 0.9), river: waterMat(nrm, '#3f7f7c', 0.86) };
     this.tunnelMat = { rock: tunnelMat(false), blue: tunnelMat(true) };
-    this.fallMat = new THREE.MeshBasicMaterial({ color: '#e8f4f0', transparent: true, opacity: 0.45, depthWrite: false, side: THREE.DoubleSide, map: this.fallTexture() });
+    this.fallMat = new THREE.MeshBasicMaterial({ color: '#f4fbff', transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide, map: this.fallTexture() });
     this.fallMat.map.wrapT = THREE.RepeatWrapping; this.fallMat.map.repeat.set(1, 2);
     this.lit = new THREE.MeshLambertMaterial({ vertexColors: true });
     this.geo = {
@@ -209,7 +212,7 @@ export class Env {
     const one = (w, h, x, y, col) => k.add(G.box(w, h, 1), col, { x, y, z: -0.5 });
     if (g.curb) for (const s of [-1, 1]) one(0.22, 0.26, s * (ROAD_W / 2 + 0.05), 0.13, '#9a8e80');
     if (g.terrain) {
-      one(80, 0.1, -(9.0 + 40), (g.terrainY ?? -0.06) - 0.05, g.terrain);
+      if (g.left !== 'drop') one(80, 0.1, -(9.0 + 40), (g.terrainY ?? -0.06) - 0.05, g.terrain);   // con la valle a sinistra niente terreno piano
       if (!g.right) one(80, 0.1, 9.0 + 40, (g.terrainY ?? -0.06) - 0.05, g.terrain);
     }
     if (g.right === 'water') one(80, 0.1, 8 + 40, -2.6, '#55744a');
@@ -340,8 +343,8 @@ export class Env {
         if (pf.w > lim) { const w = Math.min(lim, 6); return own(N.slopePiece(W, w, { Hs: 2, dist: 12, trees: 0.2, wall: true, wallH: 1.1, ferns: 0, rocks: 0.1 }), w); }
         return this.placePrefab(sd, W, pf);
       }
-      case 'mountain': {
-        if (s < 0) {
+      case 'mountain': {        // parete di roccia a destra, muretto e strapiombo sulla valle a sinistra
+        if (s > 0) {
           if (loc < 28) { const w = fit(6, 10); return own(N.slopePiece(W, w, { Hs: 6 + loc * 0.3, dist: 22, trees: 0.3, rocks: 0.3, wall: loc < 12, seed: 5 }), w); }
           const w = fit(8, 14); return own(N.cliffPiece(W, w, { H0: 15, Hamp: 9, lean: 0.16, pal: ROCK.granite, moss: 0.55, ochre: true, seed: 7 }), w);
         }
@@ -375,7 +378,7 @@ export class Env {
       () => this.prefab('church', 0, () => { const s = buildChurchSquare(1); return { geom: s.geom, w: 0, lamps: s.lamps, houses: s.houses }; }),
       () => { for (const h of this.prefabs.get('church0').houses) this.prefab('house', h.seed % 26, () => M.buildHouse(h.seed % 26 + 1)); },
       () => this.markGeom('pinnacle', () => N.buildPinnacle(3)),
-      () => this.markGeom('valley', () => N.valleyTerrain(250 + 0 - 140, 480, { side: 1, x0: 14.5, topY: -7, floorY: -46, dropW: 24, floorW: 150, far: 330, mtnH: 75, seed: 7, trees: 600 })),
+      () => this.markGeom('valley', () => valleyRock(250)),
       () => this.markGeom('viaduct', () => S.buildViaduct((x) => (x < 0 ? -2 : -5))),
       () => this.markGeom('valleyRiverR', () => N.valleyTerrain(750 - 150, 460, { side: 1, x0: 70, topY: -4.4, floorY: -4.4, dropW: 2, floorW: 30, far: 340, mtnH: 85, seed: 11, trees: 520 })),
       () => this.markGeom('valleyRiverL', () => N.valleyTerrain(750 - 150, 460, { side: -1, x0: 36, topY: 14, floorY: 14, dropW: 2, floorW: 8, far: 320, mtnH: 70, seed: 12, trees: 420 })),
@@ -546,7 +549,8 @@ export class Env {
     if (id === 'church') {
       const sq = this.prefab('church', 0, () => { const s = buildChurchSquare(1); return { geom: s.geom, w: 0, lamps: s.lamps, houses: s.houses }; });
       mesh(sq.geom, this.mats2, true);
-      for (const [x, y, z, s] of sq.lamps) lamps.push(this.lamp(x, y, z - W, '#ffd27a', s * 1.4, 0.8));
+      root.scale.x = -1;                                   // piazza costruita a sinistra, specchiata a destra della via
+      for (const [x, y, z, s] of sq.lamps) lamps.push(this.lamp(-x, y, z - W, '#ffd27a', s * 1.4, 0.8));
       for (const h of sq.houses) {
         const pf = this.prefab('house', h.seed % 26, () => M.buildHouse(h.seed % 26 + 1));
         const m = mesh(pf.geom, this.mats2, true);
@@ -555,13 +559,13 @@ export class Env {
         else m.position.set(h.x - pf.w, 0, h.z);            // facciata verso +z
       }
     } else if (id === 'pinnacle') {
-      const m = cached('pinnacle', () => N.buildPinnacle(3)); m.position.set(64, 0, 0); m.rotation.y = 0.4;
+      const m = cached('pinnacle', () => N.buildPinnacle(3)); m.position.set(-30, 0, 0); m.rotation.y = 0.4;    // nella valle a SINISTRA del sentiero: a destra c'e' la fiamma che la coprirebbe
     } else if (id === 'valley') {
-      cached('valley', () => N.valleyTerrain(Bm - 140, 480, { side: 1, x0: 14.5, topY: -7, floorY: -46, dropW: 24, floorW: 150, far: 330, mtnH: 75, seed: 7, trees: 600 })).position.z = Bm;
+      cached('valley', () => valleyRock(Bm)).position.z = Bm;
     } else if (id === 'pool') {
-      for (const [lz, h, w] of [[60, 18, 3.2], [150, 21, 2.2], [205, 16, 4]]) {
-        const fall = mesh(N.waterfallGeometry(h, w), this.fallMat); fall.position.set(34.5, h - 0.4, -lz); fall.rotation.y = -Math.PI / 2 + 0.1;
-        lamps.push(this.lamp(33.5, 0.6, -lz - W, '#ffffff', 6, 0.35));
+      for (const [lz, h, w] of [[55, 17, 9], [95, 19, 7], [140, 20, 10], [185, 18, 8], [225, 16, 8]]) {
+        const fall = mesh(N.waterfallGeometry(h, w), this.fallMat); fall.position.set(14.6, h - 0.4, -lz); fall.rotation.y = -1.05;   // rivolta verso chi arriva
+        lamps.push(this.lamp(14.5, 0.6, -lz - W, '#ffffff', 7, 0.4));
       }
     } else if (id === 'viaduct') {
       cached('viaduct', () => S.buildViaduct((x) => (x < 0 ? -2 : -5)));
@@ -656,7 +660,7 @@ export class Env {
       out[k] = v + (NB.mood[k] - v) * t;
     }
     const L = out.light || (out.light = {}), A = out.amb || (out.amb = {});
-    for (const k of LIGHT_KEYS) L[k] = B.light[k] + (NB.light[k] - B.light[k]) * t;
+    for (const k of LIGHT_KEYS) { const a = B.light[k] ?? 0, c = NB.light[k] ?? 0; L[k] = a + (c - a) * t; }
     for (const k of AMB_KEYS) A[k] = B.ambience[k] + (NB.ambience[k] - B.ambience[k]) * t;
     out.farVis = (B.id === 'village' ? 1 : 0) * (1 - t) + (NB.id === 'village' ? 1 : 0) * t;
     // sera dei giri successivi (non dentro la miniera)

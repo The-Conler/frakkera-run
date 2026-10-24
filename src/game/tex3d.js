@@ -162,8 +162,30 @@ export function carpetTexture(v) {
   const t = tex(c);
   return t;
 }
-// icona del tappeto per l'interfaccia (stessa grafica)
-export function carpetDataURL(v = 0) { const t = carpetTexture(v); return t.image.toDataURL(); }
+// ---- tappeti ufficiali "Sa Burra" (foto dei 4 tappeti veri, sfondo reso trasparente) ----
+// public/textures/sa-burra-1..4.webp (512 px) e sa-burra-N-icon.png (128 px) per l'interfaccia.
+// La texture parte con il disegno procedurale e viene sostituita appena l'immagine e' caricata;
+// se il caricamento fallisce resta il disegno procedurale (fallback).
+export const CARPET_ASPECT = 512 / 272;          // lunghezza / larghezza, frange comprese
+const BASE = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.BASE_URL) || './';
+export const carpetURL = (v, icon = false) => `${BASE}textures/sa-burra-${(v % 4) + 1}${icon ? '-icon.png' : '.webp'}`;
+const carpetLoads = [];
+export function loadCarpetTexture(v, maxAniso = 8) {
+  const t = carpetTexture(v);
+  t.anisotropy = maxAniso;
+  const p = new Promise((res) => {
+    const img = new Image();
+    img.decoding = 'async';
+    img.onload = () => { t.image = img; t.colorSpace = THREE.SRGBColorSpace; t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter; t.needsUpdate = true; t.userData.official = true; res(true); };
+    img.onerror = () => { console.warn('tappeto ufficiale non caricato, uso il disegno procedurale', v); res(false); };
+    img.src = carpetURL(v);
+  });
+  carpetLoads.push(p);
+  return t;
+}
+export const carpetsReady = () => Promise.all(carpetLoads);
+// icona del tappeto per l'interfaccia: immagine ufficiale (URL) o, se manca, il disegno procedurale
+export function carpetDataURL(v = 0, official = true) { if (official) return carpetURL(v, true); const t = carpetTexture(v); return t.image.toDataURL(); }
 
 // bagliore radiale morbido (additivo)
 export function glowTexture() {

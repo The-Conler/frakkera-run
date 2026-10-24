@@ -253,6 +253,16 @@ La corsa attraversa gli ambienti veri di Gadoni, costruiti dalle foto in `refere
 - **Frakkera che si consuma:** il fascio si accorcia con il carburante; a zero brucia del tutto (game over senza nulla di cruento).
 - **Audio d'ambiente** sintetizzato: vento, acqua, gocce in galleria, uccelli, campane della chiesa.
 
+### Aggiornamento v5-stage4: inquadrature e tappeti ufficiali
+
+- **Monumenti dentro l'inquadratura verticale.** Nel telefono in verticale la camera vede solo ~35° in orizzontale e la fiamma della frakkera occupa la parte destra: per questo
+  - il **campanile** con chiesa rosa, presepe e fili di luci sta subito a destra della via (x ≈ +10 m), in fondo al rettilineo: si vede da lontano e cresce avvicinandosi;
+  - nella **roccia** la valle con la **guglia** è a *sinistra* del sentiero (muretto a secco sul ciglio, parete di roccia a destra), con montagne subito dietro, cielo limpido, foschia ridotta;
+  - nel **fiume** la parete di travertino con muschio, le **cascate** e la pozza verde smeraldo sono vicine al sentiero a destra, staccionata a sinistra;
+  - il **viadotto** corre quasi parallelo al sentiero, a destra: la fila di piloni si vede davanti;
+  - la camera è regolabile per ambiente (`light.camLook`, `light.camFov` in `src/game/biomes/config.js`): un po' più larga e meno inclinata dove servono i monumenti, invariata in miniera. Corsie e gameplay non cambiano.
+- **Tappeti Sa Burra ufficiali:** i 4 tappeti veri (`reference/sa-burra-1..4.png`) con lo sfondo bianco reso trasparente (frange mantenute) sono in `public/textures/sa-burra-N.webp` (512 px, ~70 KB) e `sa-burra-N-icon.png` (128 px, icona di HUD/menu/game over). Si usano nel gioco (stesse 4 varianti per indice, proporzioni vere, sRGB, anisotropia) e nell'interfaccia; se un file non si carica resta il disegno procedurale di prima.
+
 ### Salto di mappa (sviluppo)
 
 - `?map=village|rock|river|viaduct|mine-ext|mine-int|mine-blue` parte direttamente da quell'ambiente (anche nel menu), es. `index.html?map=mine-blue`.

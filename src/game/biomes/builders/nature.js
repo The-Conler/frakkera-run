@@ -112,15 +112,15 @@ export function parapetPiece(W0, len, o = {}) {
 export function poolBankPiece(W0, len, o = {}) {
   const r = rng((Math.floor(W0 * 19) ^ 77) >>> 0);
   const k = new Kit(Math.floor(W0) + 21);
-  const CL = o.cliffX ?? -29;        // distanza della parete dalla facciata
+  const CL = o.cliffX ?? -9;        // distanza della parete dalla facciata (vicina: entra nell'inquadratura)
   // riva: ghiaia che scende nell'acqua
   const beach = gridSurface(Math.max(2, Math.ceil(len / 2)), 3, (u, v) => [1.3 - v * 3.2, 0.05 - v * 0.75 + (v > 0 ? noise3((W0 + u * len) / 3, v, 4) * 0.12 : 0), -u * len],
     (x, y, z) => pickN(['#d8d2c4', '#cbc4b4', '#e2ddd0', '#bdb6a6'], noise3((W0 - z) / 1.3, x, 2) * 0.5 + 0.5));
   addColored(k, beach);
   for (let z = -r() * 2; z > -len; z -= r.range(1.2, 3)) { if (r.chance(0.6)) addRock(k, r, r.range(-2.5, 0.8), r.range(-0.4, 0.1), z, r.range(0.2, 0.5), ROCK.limestone, { squash: 0.55 }); else grassTuft(k, r, 1.1, 0, z, 0.9, ['#6f9a3a', '#86ad4a']); }
   // massi bianchi grandi nell'acqua
-  if (r.chance(0.55)) addRock(k, r, r.range(-12, -6), -0.6, -r.range(1, len - 1), r.range(1.8, 3.4), ROCK.limestone, { squash: 0.5, rough: 0.3 });
-  if (r.chance(0.3)) addRock(k, r, r.range(-20, -14), -0.5, -r.range(1, len - 1), r.range(1.2, 2.2), ROCK.limestone, { squash: 0.55 });
+  if (r.chance(0.55)) addRock(k, r, r.range(-6.5, -3.5), -0.6, -r.range(1, len - 1), r.range(1.8, 3.4), ROCK.limestone, { squash: 0.5, rough: 0.3 });
+  if (r.chance(0.3)) addRock(k, r, r.range(-5, -3), -0.5, -r.range(1, len - 1), r.range(1.2, 2.2), ROCK.limestone, { squash: 0.55 });
   // parete di travertino: sopra roccia bruna/ocra, sotto muschio verde
   const Hf = (W) => 19 + 6 * fbm(W / 40, 3, 1, 2);
   const nu = Math.max(2, Math.ceil(len / 1.2)), nv = 14;

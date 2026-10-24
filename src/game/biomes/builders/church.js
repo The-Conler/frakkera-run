@@ -30,8 +30,8 @@ const C = {
   wood: ['#5a3f28', '#6b4a2e', '#4a3420'], grass: ['#5f7f36', '#6b8a3c', '#4f6e2e', '#7a8f48'],
   bulb: '#fff0c4', wire: '#3a3530', bronze: '#8a6a3a', dark: '#2a2420',
 };
-export const TOWER = { x: -22.6, z: -19.6, W: 4.4, H: 21.5 };   // H = cornice di coronamento
-export const CHURCH = { x0: -24.2, x1: -42, z0: -21.6, z1: -33.8, eave: 9, ridge: 12.2 };
+export const TOWER = { x: -10.4, z: -22.0, W: 4.4, H: 21.5 };   // vicino alla strada: si vede da lontano in fondo alla via   // H = cornice di coronamento
+export const CHURCH = { x0: -13.2, x1: -31, z0: -24.4, z1: -36.6, eave: 9, ridge: 12.2 };
 
 // paramento in pietra irregolare su una faccia piana (corsi sfalsati, giunti chiari)
 function masonryFace(k, r, o) {
@@ -199,7 +199,7 @@ export function buildChurch(k, r) {
 
 // ------------------------------------------------------------------ capanna del presepe
 export function buildNativityHut(k, r, lamps) {
-  const x0 = -11.5, x1 = -19.5, z0 = -14.5, z1 = -34.5, h = 3.0;
+  const x0 = -8.6, x1 = -16.6, z0 = -2.5, z1 = -17.5, h = 3.0;     // davanti al campanile, verso chi arriva
   const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
   // muretti di pietra bassi e pali di tronco
   for (let z = z0; z >= z1; z -= 2.5) for (const xx of [x0, x1]) {
@@ -255,9 +255,9 @@ export function buildChurchSquare(seed = 1) {
   buildChurch(k, r);
   buildNativityHut(k, r, lamps);
   // leccio a sinistra del campanile e qualche panchina
-  tree(k, r, -28, 0, -9, 1.5);
-  tree(k, r, -33, 0, -44, 1.3);
-  for (const [bx, bz] of [[-9.5, -6], [-9.5, -40], [-9.5, -46]]) {
+  tree(k, r, -24, 0, -8, 1.6);
+  tree(k, r, -30, 0, -44, 1.3);
+  for (const [bx, bz] of [[-9.5, -40], [-9.5, -46], [-20, -19]]) {
     k.add(G.box(0.5, 0.08, 2), '#7a5434', { x: bx, y: 0.5, z: bz });
     for (const s of [-0.8, 0.8]) k.add(G.box(0.45, 0.45, 0.12), '#555050', { x: bx, y: 0.25, z: bz + s });
   }
@@ -269,7 +269,7 @@ export function buildChurchSquare(seed = 1) {
   for (let i = 0; i < 4; i++) targets.push(new THREE.Vector3(-10, 6.8, -38 - i * 4));
   for (const t of targets) catenary(k, top, t, r.range(1.0, 2.2), true, lamps);
   // pali con lanterna ai bordi della piazza
-  for (const [lx, lz] of [[-8.2, -2], [-8.2, -48], [-30, -2]]) {
+  for (const [lx, lz] of [[-8.2, -30], [-8.2, -48], [-30, -2]]) {
     k.add(G.cyl(0.08, 0.1, 3.6, 6), '#2b2a33', { x: lx, y: 1.8, z: lz });
     k.add(G.box(0.36, 0.46, 0.36), '#ffcf6a', { x: lx, y: 3.8, z: lz, unlit: true });
     k.add(G.cone(0.3, 0.3, 4), '#2b2a33', { x: lx, y: 4.2, z: lz, ry: Math.PI / 4 });

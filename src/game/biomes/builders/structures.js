@@ -11,14 +11,15 @@ const pickN = (pal, t) => pal[Math.max(0, Math.min(pal.length - 1, Math.floor(t 
 
 // ------------------------------------------------------------------ viadotto
 // coordinate locali: punto in cui l'impalcato passa sopra il sentiero = (0, deckY, 0)
-export const VIADUCT = { deckY: 47, dirX: 0.86, dirZ: -0.51, spacing: 37, sMin: -300, sMax: 320, pillarW: 2.9, pillarD: 5.2, deckW: 12, deckH: 3.3 };
+// asse quasi parallelo al sentiero, spostato a destra: la fila di piloni si vede davanti (come nella foto)
+export const VIADUCT = { deckY: 47, x0: 26, dirX: -0.06, dirZ: -0.998, spacing: 37, sMin: -170, sMax: 300, pillarW: 2.9, pillarD: 5.2, deckW: 12, deckH: 3.3 };
 export function buildViaduct(terrainY = () => -6) {
   const V = VIADUCT; const k = new Kit(77); const r = rng(77);
   const ang = Math.atan2(-V.dirZ, V.dirX);             // rotazione attorno a y dell'asse dell'impalcato
   const concrete = ['#e3e0d8', '#d8d5cc', '#ecebe4'], shade = '#b9b6ad';
   // pile (si salta quella che cadrebbe sul sentiero)
   for (let s = V.sMin + 12; s < V.sMax; s += V.spacing) {
-    const x = s * V.dirX, z = s * V.dirZ;
+    const x = V.x0 + s * V.dirX, z = s * V.dirZ;
     if (Math.abs(x) < 11) continue;
     const y0 = terrainY(x, z) - 2, h = V.deckY - V.deckH - y0;
     k.add(G.box(V.pillarW, h, V.pillarD), r.pick(concrete), { x, y: y0 + h / 2, z, ry: ang, vary: 0.03 });
@@ -31,7 +32,7 @@ export function buildViaduct(terrainY = () => -6) {
   const L = V.sMax - V.sMin, N = 24;
   for (let i = 0; i < N; i++) {
     const s0 = V.sMin + (L * i) / N, sl = L / N + 0.05, sc = s0 + sl / 2;
-    const x = sc * V.dirX, z = sc * V.dirZ;
+    const x = V.x0 + sc * V.dirX, z = sc * V.dirZ;
     k.add(G.box(sl, V.deckH, V.deckW * 0.62), '#c9c6bd', { x, y: V.deckY - V.deckH / 2, z, ry: ang });          // cassone
     k.add(G.box(sl, 0.5, V.deckW), '#eeebe2', { x, y: V.deckY + 0.05, z, ry: ang });                               // soletta (bordo chiaro)
     k.add(G.box(sl, 0.9, 0.25), '#efece4', { x: x + Math.sin(ang) * V.deckW / 2, y: V.deckY + 0.6, z: z + Math.cos(ang) * V.deckW / 2, ry: ang }); // cordolo

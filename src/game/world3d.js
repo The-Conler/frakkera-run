@@ -97,7 +97,7 @@ export class World {
     this.tex = {
       cobble: T3.cobbleTexture(), slab: T3.slabTexture(), stave: T3.staveTexture(), lid: T3.lidTexture(),
       glow: T3.glowTexture(), blob: T3.blobTexture(), flash: T3.flashTexture(), moon: T3.moonTexture(),
-      carpets: [0, 1, 2, 3].map((v) => T3.carpetTexture(v)),
+      carpets: [0, 1, 2, 3].map((v) => T3.loadCarpetTexture(v, Math.min(8, this.renderer.capabilities.getMaxAnisotropy()))),
     };
     this.mat = {
       lit: new THREE.MeshLambertMaterial({ vertexColors: true }),
@@ -123,7 +123,7 @@ export class World {
     this.geo.asfodelo = M.buildAsphodel();
     this.geo.ferula = M.buildFerula();
     this.geo.pistol = M.buildPistol();
-    this.geo.carpet = new THREE.PlaneGeometry(2.4, 2.4 * 176 / 256).rotateZ(Math.PI / 2);
+    this.geo.carpet = new THREE.PlaneGeometry(2.7, 2.7 / T3.CARPET_ASPECT).rotateZ(Math.PI / 2);   // proporzioni del tappeto vero
     this.geo.chock = new THREE.BoxGeometry(0.3, 0.3, 0.9);
     this.geo.ring = new THREE.TorusGeometry(0.95, 0.06, 6, 28);
     this.geo.shot = new THREE.SphereGeometry(0.16, 8, 6);
@@ -542,7 +542,11 @@ export class World {
     let cp, cl, fov;
     if (view.cam === 'menu') { cp = _v.set(0.9 + wide * 1.2, 2.0 + wide * 0.6, pz + 10.5 - wide * 2.5); cl = _v2.set(0.1 - wide * 0.8, 1.2 + wide * 1.2, pz); fov = 58; }
     else if (view.cam === 'over') { cp = _v.set(px * 0.45 + 2.0, 4.2, pz + 15.5); cl = _v2.set(px, -2.6, pz); fov = 52; }
-    else { cp = _v.set(px * 0.82 - 0.6, 6.4 - wide, pz + 9.4 - wide * 1.5); cl = _v2.set(px * 0.55 - 0.1, 1.8, pz - 15); fov = 64 - wide * 6; }
+    else {
+      // per ambiente (config.light.camLook/camFov): un po' piu' larga e meno inclinata dove i monumenti devono entrare in verticale
+      const L = this.light || {}, por = 1 - wide;
+      cp = _v.set(px * 0.82 - 0.6, 6.4 - wide, pz + 9.4 - wide * 1.5); cl = _v2.set(px * 0.55 - 0.1, 1.8 + (L.camLook || 0) * por, pz - 15); fov = 64 - wide * 6 + (L.camFov || 0) * por;
+    }
     const k = 1 - Math.exp(-dt * (view.cam === 'run' ? 7 : 2.6));
     this.camPos.lerp(cp, k);
     this.camLook.lerp(cl, k);
