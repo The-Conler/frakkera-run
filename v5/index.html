@@ -9,8 +9,8 @@
   <meta name="description" content="FRAKKERA RUN - Quanto lontano riuscirai a portare il fuoco? Minigioco arcade ispirato a Is Frakkeras di Gadoni." />
   <title>FRAKKERA RUN</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-  <script type="module" crossorigin src="./assets/index-ya0DTvqD.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-7bk7vTi9.css">
+  <script type="module" crossorigin src="./assets/index-C7pKgzVR.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-C4ONXLUd.css">
 </head>
 <body>
   <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -73,6 +73,11 @@
 
       <!-- MENU -->
       <section class="screen" id="scr-menu">
+        <div class="record-plate menu-top">
+            <div class="rp-cell"><svg><use href="#i-crown"/></svg><div><small>RECORD</small><b id="menu-best">0</b></div></div>
+            <div class="rp-sep"></div>
+            <div class="rp-cell"><svg><use href="#i-carpet"/></svg><div><small>SA BURRA</small><b id="menu-carpets">0</b></div></div>
+          </div>
         <div class="logo-wrap">
           <h1 class="logo" aria-label="FRAKKERA RUN">
             <span class="logo-l1">FRAKKERA</span>
@@ -81,17 +86,12 @@
           <p class="subtitle">Quanto lontano riuscirai a portare il fuoco?</p>
         </div>
         <div class="menu-bottom">
-          <button class="btn btn-primary btn-xl" data-act="play">GIOCA ORA <svg class="btn-ico"><use href="#i-play"/></svg></button>
+          <button class="btn btn-primary btn-xl" data-act="play"><svg class="btn-ico"><use href="#i-play"/></svg> GIOCA ORA</button>
           <div class="menu-grid">
             <button class="tile" data-act="board"><svg><use href="#i-trophy"/></svg><span>CLASSIFICA</span></button>
             <button class="tile" data-act="howto"><svg><use href="#i-book"/></svg><span>COME SI GIOCA</span></button>
             <button class="tile" data-act="info"><svg><use href="#i-carpet"/></svg><span>IS FRAKKERAS</span></button>
             <button class="tile" data-act="settings"><svg><use href="#i-gear"/></svg><span>IMPOSTAZIONI</span></button>
-          </div>
-          <div class="record-plate">
-            <div class="rp-cell"><svg><use href="#i-crown"/></svg><div><small>RECORD</small><b id="menu-best">0</b></div></div>
-            <div class="rp-sep"></div>
-            <div class="rp-cell"><svg><use href="#i-carpet"/></svg><div><small>SA BURRA</small><b id="menu-carpets">0</b></div></div>
           </div>
         </div>
       </section>
