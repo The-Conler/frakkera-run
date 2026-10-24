@@ -7,7 +7,7 @@ import { difficultyAt } from '../systems/generator.js';
 import { Sim } from './sim.js';
 import { World } from './world3d.js';
 import { audio } from '../systems/audio.js';
-import { getBest, addCarpets, getCarpetTotal } from '../systems/storage.js';
+import { getBest, addCarpets, getCarpetTotal, spendCarpets } from '../systems/storage.js';
 import { bus } from '../bus.js';
 
 export class Game {
@@ -15,7 +15,7 @@ export class Game {
     this.container = container;
     this.debug = new URLSearchParams(location.search).get('debug') || '';
     this.world = new World(container);
-    this.sim = new Sim((t, d) => this.onFx(t, d), { debug: this.debug, getBest, addCarpets, carpetTotal: getCarpetTotal(), mapOffsetM: (this.world.env && this.world.env.offset) || 0 });
+    this.sim = new Sim((t, d) => this.onFx(t, d), { debug: this.debug, getBest, addCarpets, spendCarpets, carpetTotal: getCarpetTotal(), mapOffsetM: (this.world.env && this.world.env.offset) || 0 });
     this.paused = false;
     this.accum = 0;
     this.last = 0;
@@ -48,6 +48,11 @@ export class Game {
     audio.setIntensity(0);
   }
   duck() { return this.sim.duck(); }
+  // v5s7: Garag di Pinu (tutte le regole nella sim, qui solo vista e audio)
+  enterShop() { const ok = this.sim.enterShop(); if (ok) { this.world.shopView = true; audio.click(); } return ok; }
+  buyItem(id) { const r = this.sim.buy(id); if (r.ok) { audio.pistolPickup(); this.world.shopNod(); } else audio.empty(); return r; }
+  leaveShopView() { this.world.shopView = false; }
+  exitShop() { this.world.shopView = false; this.accum = 0; return this.sim.exitShop(); }
   fire() { const ok = this.sim.fire(); if (ok) audio.shoot(); return ok; }
   pause() { this.paused = true; }
   resume() { this.paused = false; this.accum = 0; }
@@ -72,6 +77,10 @@ export class Game {
       case 'rockFall': audio.rockFall?.(); break;
       case 'duck': audio.duck?.(); break;
       case 'speedUp': bus.emit('speedup', d); break;
+      case 'shopOffer': bus.emit('shopOffer', d); audio.milestone(); break;
+      case 'shopOfferEnd': bus.emit('shopOfferEnd'); break;
+      case 'shopBuy': bus.emit('carpet', { run: this.sim.stats.carpets, total: d.total }); break;
+      case 'shieldBlock': audio.ricochet(); break;
       case 'beamHint': {
         // suggerimento la prima volta (poi resta salvato)
         let seen = false; try { seen = localStorage.getItem('frakkera.duckhint.v1') === '1'; localStorage.setItem('frakkera.duckhint.v1', '1'); } catch { /* privato */ }

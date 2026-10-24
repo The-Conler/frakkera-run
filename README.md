@@ -294,6 +294,9 @@ La corsa attraversa gli ambienti veri di Gadoni, costruiti dalle foto in `refere
 - **Piscina (solo il bioma fiume)** verso `reference/gadoni/target3-cascata.png`: acqua turchese/smeraldo trasparente che arriva al sentiero con fondale visibile (sassi e chiazze di luce), parete muschiata piu' lontana con 7 cascate grandi e 8 sottili, isolotti con tronco, massi e cespugli low-poly, lastre del sentiero calde arancio-sabbia, inquadratura girata un poco verso l'acqua.
 - Registro partita `v: 3` (con `mapOffsetM`). Test: `node tests/sim-s6.test.mjs`.
 
+### Stage 7 — Garag di Pinu
+Ad ogni ritorno al villaggio (dal giro 1, ~1600 m) compare per 5 s il pulsante «Entra da Pinu?». Entrando la simulazione si ferma (evento E), si compra con i tappeti di Sa Burra (B: indice*1000+prezzo, max 3 per visita; prezzi in config.js SHOP), «Esci» riprende dopo 3-2-1 (X). Oggetti: Pistola Broccu (3 colpi / +3), Fascio di asfodelo (fiamma piena), Scudo di sughero (para un urto, Z). Offerta scaduta: Q.
+
 ### Salto di mappa (sviluppo)
 
 - `?map=village|rock|river|viaduct|mine-ext|mine-int|mine-blue` parte direttamente da quell'ambiente (anche nel menu), es. `index.html?map=mine-blue`.

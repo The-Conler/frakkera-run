@@ -1,7 +1,7 @@
 """
 Test end-to-end di FRAKKERA RUN in un browser headless (Chromium/Chrome).
 Avvia prima il server:  npm run build && npm run preview   (porta 4173)
-Uso: python3 tests/e2e.py [--url http://127.0.0.1:4173/]
+Uso: python3 tests/e2e.py [--url http://127.0.0.1:4792/]
 Profili: mobile verticale 390x844 (touch) e desktop 1366x900 (tastiera).
 Salva gli screenshot in screenshots/ (prefisso v4-).
 v4: personaggio 3D (GLB) e macchina a stati delle animazioni: IDLE nel menu, RUN, cambio corsia, STUMBLE, GAME OVER.
@@ -11,7 +11,7 @@ impostazioni audio/musica, conteggio animato del punteggio, misura del tempo di 
 import asyncio, json, os, sys, time
 from playwright.async_api import async_playwright
 
-URL = 'http://127.0.0.1:4173/'
+URL = 'http://127.0.0.1:4792/'
 if '--url' in sys.argv: URL = sys.argv[sys.argv.index('--url') + 1]
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SHOTS = os.path.join(ROOT, 'screenshots')

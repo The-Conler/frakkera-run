@@ -15,6 +15,7 @@ import { Character3D } from './character3d.js';
 import { Flame3D } from './flame3d.js';
 import { rng } from './kit.js';
 import { Env } from './biomes/env.js';
+import { buildShopRoom } from './shop3d.js';
 import { MENU_MOOD, OVER_TINT } from './biomes/config.js';
 import { SKINS, SHARDS, outcropGeometry } from './biomes/builders/skins.js';
 
@@ -494,6 +495,7 @@ export class World {
       default: break;
     }
   }
+  shopNod() { if (this.shopRoom) this.shopRoom.nod(); }
   dustPuff(x, z, n) { for (let i = 0; i < n; i++) this.norm.emit(x + (Math.random() - 0.5) * 1.6, 0.3 + Math.random() * 0.8, z + (Math.random() - 0.5) * 1.2, (Math.random() - 0.5) * 3, 0.8 + Math.random() * 1.6, (Math.random() - 0.5) * 2.4, 1.1, 1.0, 3.0, COL.dust, 0.55, 0, 1); }
   burst(x, y, z, color, n, sp) {
     for (let i = 0; i < n; i++) {
@@ -722,6 +724,13 @@ export class World {
     }
     if (this.flashT > 0) { this.flashT -= dt; this.flash.position.copy(this.muzzleW); this.flash.scale.setScalar(1.4 + (0.09 - this.flashT) * 8); if (this.flashT <= 0) this.flash.visible = false; }
     this.add.update(dt); this.norm.update(dt); this.shards.update(dt);
+    if (this.shopView) {   // v5s7: dentro il Garag di Pinu (scena a parte)
+      const sh = this.shopRoom || (this.shopRoom = buildShopRoom());
+      const sz = this.renderer.getSize(this._sz || (this._sz = new THREE.Vector2()));
+      sh.update(dt, sz.x / Math.max(1, sz.y));
+      this.renderer.render(sh.scene, sh.camera);
+      return;
+    }
     this.renderer.render(this.scene, this.camera);
   }
 

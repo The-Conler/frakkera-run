@@ -2,7 +2,7 @@
 // Interfaccia HTML/CSS sopra il canvas 3D: menu, HUD, pannelli, game over.
 // Tutti i pulsanti sono elementi reali; le icone sono SVG inline.
 // =====================================================================
-import { SCORE, FUEL, DEMO_BOARD, PISTOL } from './config.js';
+import { SCORE, FUEL, DEMO_BOARD, PISTOL, SHOP } from './config.js';
 import { bus } from './bus.js';
 import { audio } from './systems/audio.js';
 import * as store from './systems/storage.js';
@@ -16,7 +16,7 @@ const fmt = (n) => String(Math.floor(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 const use = (id) => `<svg><use href="#${id}"/></svg>`;
 
 export function initUI(game) {
-  const screens = ['menu', 'settings', 'howto', 'info', 'board', 'pause', 'over'];
+  const screens = ['menu', 'settings', 'howto', 'info', 'board', 'pause', 'over', 'shop'];
   let state = 'menu';
   let backTo = 'menu';
   let lastRun = null;
@@ -214,6 +214,67 @@ export function initUI(game) {
   function back() { state = backTo; show(backTo); }
 
   bus.on('request-pause', pause);
+
+  // --------------------------------------------------------- v5s7: Garag di Pinu
+  const offerBtn = $('#shop-offer');
+  let offerT0 = 0, offerDur = 0, offerRaf = 0;
+  const hideOffer = () => { offerBtn.classList.add('hidden'); cancelAnimationFrame(offerRaf); };
+  bus.on('shopOffer', (d) => {
+    if (state !== 'play') return;
+    offerT0 = performance.now(); offerDur = d.s * 1000; offerBtn.classList.remove('hidden');
+    const tick = () => { const st = game.debugState(); const k = Math.max(0, st.shopOffer / d.s); $('#shop-offer-bar').style.transform = `scaleX(${k})`; if (k > 0 && st.mode === 'run') offerRaf = requestAnimationFrame(tick); else hideOffer(); };
+    tick();
+  });
+  bus.on('shopOfferEnd', hideOffer);
+  const SAY = { tappeti: 'Mi mancano un po\' di tappeti, eh!', tetto: 'Basta cos\u00ec per oggi, torna al prossimo giro!', esaurito: 'Quello l\'ho finito.', pieno: 'Ce l\'hai gi\u00e0, non ti serve!', ok: ['Ottima scelta!', 'Tieni, e occhio alle travi!', 'Fai buona strada!'] };
+  const icon = (id) => id === 'scudo' ? '<svg viewBox="0 0 24 24"><path d="M12 2l8 3v6c0 5-3.5 9-8 11-4.5-2-8-6-8-11V5z" fill="#c89a5a" stroke="#ffe7b0" stroke-width="1.5"/><path d="M12 6v12M7 10h10" stroke="#6b3a1a" stroke-width="1.6"/></svg>' : `<img src="${carpetDataURL(0)}" data-icon="${id}" alt="" />`;
+  function renderShop() {
+    const st = game.debugState(), sh = st.shop || { buys: {}, count: 0 };
+    $('#shop-total').textContent = fmt(st.carpetTotal);
+    $('#shop-count').textContent = sh.count; $('#shop-max').textContent = SHOP.MAX_PER_VISIT;
+    const box = $('#shop-items'); box.replaceChildren();
+    for (const it of SHOP.ITEMS) {
+      const b = document.createElement('button'); b.className = 'shop-item'; b.dataset.item = it.id;
+      const left = it.max - (sh.buys[it.id] || 0);
+      b.innerHTML = `<span class="si-ico">${icon(it.id)}</span><span><span class="si-name">${it.name}</span><span class="si-desc">${it.desc}${left <= 0 ? ' &middot; preso' : ''}</span></span><span class="si-price">${it.price}<svg><use href="#i-carpet"/></svg></span>`;
+      if (left <= 0 || sh.count >= SHOP.MAX_PER_VISIT || st.carpetTotal < it.price) b.disabled = true;
+      b.addEventListener('click', (e) => {
+        e.preventDefault(); e.stopPropagation();
+        const r = game.buyItem(it.id);
+        $('#shop-say').textContent = r.ok ? SAY.ok[(game.debugState().shop?.count || 1) - 1] || SAY.ok[0] : SAY[r.why] || 'Non si pu\u00f2.';
+        renderShop();
+        if (r.ok) { const nb = $(`.shop-item[data-item="${it.id}"]`); nb && nb.classList.add('bought'); }
+      });
+      box.appendChild(b);
+    }
+    // icone ufficiali gia' usate altrove (asfodelo, pistola)
+    $$('#shop-items img[data-icon]').forEach((im) => { const src = document.querySelector(`.items img[data-icon="${im.dataset.icon}"]`)?.src; if (src) im.src = src; });
+  }
+  offerBtn.addEventListener('pointerdown', (e) => {
+    e.preventDefault(); e.stopPropagation();
+    if (state !== 'play' || !game.enterShop()) return;
+    hideOffer();
+    state = 'shop';
+    $('#shop-say').textContent = 'Bentornato, piccioc\u00f9! Cosa ti serve per la strada?';
+    renderShop();
+    show('shop'); $('#hud').classList.add('hidden');
+  });
+  ['pointerup', 'pointermove', 'click', 'touchstart', 'touchend'].forEach((ev) => offerBtn.addEventListener(ev, (e) => { e.stopPropagation(); if (ev !== 'touchstart') e.preventDefault(); }, { passive: false }));
+  $('#scr-shop').addEventListener('pointerdown', (e) => e.stopPropagation());
+  function leaveShop() {
+    if (state !== 'shop') return;
+    state = 'shopcount';
+    game.leaveShopView();
+    show(null);
+    let n = 3;
+    const cd = $('#countdown'); cd.textContent = n; cd.classList.remove('hidden'); audio.click();
+    countdownTimer = setInterval(() => {
+      n--;
+      if (n <= 0) { cancelCountdown(); state = 'play'; game.exitShop(); }
+      else { cd.textContent = n; audio.click(); }
+    }, 420);
+  }
+  $('#shop-exit').addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); leaveShop(); });
 
   // --------------------------------------------------------- game over
   function countUp(el, target) {

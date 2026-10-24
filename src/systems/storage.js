@@ -45,6 +45,14 @@ export function addCarpets(n) {
   return t;
 }
 
+// v5s7: spesa nel Garag di Pinu. Ritorna il nuovo totale, oppure -1 se i tappeti non bastano.
+export function spendCarpets(n) {
+  const t = getCarpetTotal(), c = Math.max(0, Math.floor(n));
+  if (c > t) return -1;
+  set(K.carpets, String(t - c));
+  return t - c;
+}
+
 export const getMuted = () => get(K.mute) === '1';
 export const setMuted = (m) => set(K.mute, m ? '1' : '0');
 export const getMusic = () => get(K.music) !== '0';

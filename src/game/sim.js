@@ -5,7 +5,8 @@
 // tramite `fx(tipo, dati)`. Unita': px del mondo 2D (10 px = 1 m), corsie
 // centrate su x = 0.
 // =====================================================================
-import { SCORE, FUEL, WORLD, PX_PER_METER, PISTOL, SPEED_STEPS, BIOME_OBST, DUCK } from '../config.js';
+import { SCORE, FUEL, WORLD, PX_PER_METER, PISTOL, SPEED_STEPS, BIOME_OBST, DUCK, SHOP } from '../config.js';
+import { biomeAt } from './biomes/config.js';
 import { Generator, SOLID, DESTRUCTIBLE, PICKUP_KINDS, BIOME_KINDS, difficultyAt, speedAt, speedStepsAt, lerp } from '../systems/generator.js';
 import { randomSeed } from '../systems/rng.js';
 
@@ -28,6 +29,7 @@ export class Sim {
     this.mapOffsetM = opts.mapOffsetM || 0;   // salto di mappa (sviluppo)
     this.getBest = opts.getBest || (() => 0);
     this.addCarpets = opts.addCarpets || (() => 0);
+    this.spendCarpets = opts.spendCarpets || ((n) => (this.carpetTotal >= n ? this.carpetTotal - n : -1));
     this.carpetTotal = opts.carpetTotal || 0;
     this.mode = 'attract';
     this.T = 0; this.genOffset = 0; this.clock = 0;
@@ -40,7 +42,8 @@ export class Sim {
 
   resetRunState() {
     this.score = 0; this.metersCredited = 0; this.fuel = FUEL.START; this.chain = 0;
-    this.stats = { pickups: 0, nearMiss: 0, chains: 0, milestones: 0, hits: 0, bonus: 0, carpets: 0, barrels: 0, goats: 0, obst: 0, ducks: 0, beams: 0, slips: 0, speedSteps: 0, shots: 0, pistols: 0, survival: 0, capped: 0 };
+    this.stats = { pickups: 0, nearMiss: 0, chains: 0, milestones: 0, hits: 0, bonus: 0, carpets: 0, barrels: 0, goats: 0, shopVisits: 0, shopBuys: 0, shopSpent: 0, shields: 0, obst: 0, ducks: 0, beams: 0, slips: 0, speedSteps: 0, shots: 0, pistols: 0, survival: 0, capped: 0 };
+    this.shopLap = 0; this.shopOffer = 0; this.shop = null; this.shield = 0;
     this.duckT = 0; this.duckCd = 0; this.slipT = 0; this.speedStep = 0; this.beamHint = false;
     this.carpetStreak = 0; this.ammo = 0; this.fireCd = 0; this.recoilT = 0;
     this.shots = [];
@@ -112,6 +115,53 @@ export class Sim {
     return true;
   }
 
+  // ------------------------------------------------------------ v5s7: Garag di Pinu
+  enterShop() {
+    if (this.mode !== 'run' || this.shopOffer <= 0) return false;
+    this.mode = 'shop'; this.shopOffer = 0;
+    this.shop = { lap: this.shopLap, buys: {}, count: 0 };
+    this.stats.shopVisits++;
+    this.inputs.push([this.step, 'E']);
+    this.log('E', this.shopLap);
+    for (const p of this.shots) this.fx('shotEnd', p);
+    this.shots = [];
+    this.fx('shopEnter', { lap: this.shopLap });
+    return true;
+  }
+  // ritorna { ok, why } - tutte le regole qui (prezzo, tetto per visita, per articolo)
+  buy(id) {
+    if (this.mode !== 'shop' || !this.shop) return { ok: false, why: 'chiuso' };
+    const idx = SHOP.ITEMS.findIndex((x) => x.id === id), it = SHOP.ITEMS[idx];
+    if (!it) return { ok: false, why: 'articolo' };
+    if (this.shop.count >= SHOP.MAX_PER_VISIT) return { ok: false, why: 'tetto' };
+    if ((this.shop.buys[id] || 0) >= it.max) return { ok: false, why: 'esaurito' };
+    if (id === 'pistola' && this.ammo >= SHOP.AMMO_CAP) return { ok: false, why: 'pieno' };
+    if (id === 'asfodelo' && this.fuel >= FUEL.MAX - 0.5) return { ok: false, why: 'pieno' };
+    if (id === 'scudo' && this.shield > 0) return { ok: false, why: 'pieno' };
+    if (this.carpetTotal < it.price) return { ok: false, why: 'tappeti' };
+    const left = this.spendCarpets(it.price);
+    if (left < 0) return { ok: false, why: 'tappeti' };
+    this.carpetTotal = left;
+    this.shop.buys[id] = (this.shop.buys[id] || 0) + 1; this.shop.count++;
+    this.stats.shopBuys++; this.stats.shopSpent += it.price;
+    if (id === 'pistola') { this.ammo = Math.min(SHOP.AMMO_CAP, this.ammo > 0 ? this.ammo + PISTOL.AMMO : PISTOL.AMMO); this.fireCd = 0; }
+    else if (id === 'asfodelo') this.fuel = FUEL.MAX;
+    else if (id === 'scudo') this.shield = 1;
+    this.inputs.push([this.step, 'B', idx]);
+    this.log('B', idx * 1000 + it.price);
+    this.fx('shopBuy', { id, price: it.price, total: this.carpetTotal });
+    return { ok: true, total: this.carpetTotal };
+  }
+  exitShop() {
+    if (this.mode !== 'shop') return false;
+    this.mode = 'run';
+    this.inputs.push([this.step, 'X']);
+    this.log('X', this.shop ? this.shop.count : 0);
+    this.fx('shopExit', { count: this.shop ? this.shop.count : 0 });
+    this.shop = null;
+    return true;
+  }
+
   fire() {
     if (this.mode !== 'run' || this.ammo <= 0 || this.fireCd > 0) return false;
     this.ammo--;
@@ -128,6 +178,7 @@ export class Sim {
 
   // ------------------------------------------------------------ passo fisso
   tick(dt) {
+    if (this.mode === 'shop') { this.currentSpeed = 0; return; }   // v5s7: nel negozio la corsa e' congelata (nessun passo)
     this.clock += dt;
     if (this.mode === 'attract') {
       this.currentSpeed = ATTRACT_SPEED;
@@ -157,6 +208,12 @@ export class Sim {
       this.fx('popup', { text: SPEED_STEPS.BANNER, style: 'speed' });
       this.fx('sound', 'speedUp');
     }
+    // v5s7: offerta del Garag di Pinu a ogni ritorno al paese (giro >= 1)
+    if (this.shopOffer > 0) { this.shopOffer = Math.max(0, this.shopOffer - dt); if (this.shopOffer === 0) { this.log('Q', 0); this.fx('shopOfferEnd'); } }
+    { const bi = biomeAt(rd / PX_PER_METER + this.mapOffsetM);
+      if (bi.b.id === 'village' && bi.lap >= 1 && bi.lap > this.shopLap && bi.local >= SHOP.OFFER_AT_M) {
+        this.shopLap = bi.lap; this.shopOffer = SHOP.OFFER_S; this.log('O', bi.lap); this.fx('shopOffer', { lap: bi.lap, s: SHOP.OFFER_S });
+      } }
     if (this.duckT > 0) { this.duckT = Math.max(0, this.duckT - dt); if (this.duckT === 0) this.duckCd = DUCK.COOLDOWN_S; }
     else this.duckCd = Math.max(0, this.duckCd - dt);
     this.slipT = Math.max(0, this.slipT - dt);
@@ -415,6 +472,14 @@ export class Sim {
 
   hitSolid(e) {
     e.hit = true; e.done = true;
+    if (this.shield > 0) {             // v5s7: lo scudo di sughero para un urto (log 'Z')
+      this.shield--; this.stats.shields++;
+      this.invuln = WORLD.HIT_INVULN_S;
+      this.log('Z', 0);
+      this.fx('shieldBlock', { e });
+      this.fx('popup', { text: 'SCUDO!', style: 'gold' });
+      return;
+    }
     this.lastHitStep = this.step;
     const loss = isMoving(e.kind) || e.kind === 'rollin' ? FUEL.HIT_GOAT : e.kind === 'trave' ? FUEL.HIT_BEAM : FUEL.HIT_SOLID;
     this.log('h', loss);
@@ -434,14 +499,14 @@ export class Sim {
     this.fx('over', {
       score: this.score, meters, ...this.stats, time: Math.round(this.runTime * 10) / 10,
       seed: this.seed, carpetTotal: this.carpetTotal, debug: this.debug,
-      log: { v: 3, mapOffsetM: this.mapOffsetM, seed: this.seed, steps: this.step, inputs: this.inputs.slice(), events: this.events.slice() },
+      log: { v: 4, mapOffsetM: this.mapOffsetM, seed: this.seed, steps: this.step, inputs: this.inputs.slice(), events: this.events.slice() },
     });
   }
 
   debugState() {
     return {
       mode: this.mode, score: this.score, fuel: this.fuel, meters: Math.floor(this.runD / PX_PER_METER),
-      lane: this.targetLane, px: this.px, T: this.T, stats: { ...this.stats }, speed: this.currentSpeed, baseSpeed: speedAt(Math.max(0, this.runD), this.mapOffsetM), speedStep: this.speedStep, duckT: this.duckT, slipT: this.slipT,
+      lane: this.targetLane, px: this.px, T: this.T, stats: { ...this.stats }, speed: this.currentSpeed, baseSpeed: speedAt(Math.max(0, this.runD), this.mapOffsetM), speedStep: this.speedStep, shopOffer: this.shopOffer, shopLap: this.shopLap, shield: this.shield, shop: this.shop && { ...this.shop, buys: { ...this.shop.buys } }, duckT: this.duckT, slipT: this.slipT,
       ammo: this.ammo, shotsInFlight: this.shots.length, carpetTotal: this.carpetTotal, events: this.events.length, inputs: this.inputs.length,
       entities: this.entities.filter((e) => !e.done).map((e) => ({ kind: e.kind, lane: e.lane, x: e.x, ahead: e.d - this.T, len: e.len, pickup: !!e.pickup, solid: e.solid, destructible: !!DESTRUCTIBLE[e.kind] })),
     };

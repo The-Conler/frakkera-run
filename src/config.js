@@ -5,7 +5,7 @@
 //  indicato; 1 metro = PX_PER_METER px.
 // =====================================================================
 
-export const GAME_VERSION = '0.6.0';
+export const GAME_VERSION = '0.7.0';
 
 // ---- Punteggio --------------------------------------------------------
 export const SCORE = {
@@ -157,4 +157,21 @@ export const DUCK = {
   BEAM_P_END: 0.07,
   BEAM_MIN_GAP_ROWS: 12,
   BEAM_LEN: 10,            // px di profondita' della trave
+};
+
+// ---- v5s7: 'Garag di Pinu' (negozio a ogni ritorno al paese, pagato in tappeti Sa Burra) ----
+// Ogni volta che il giro torna al paese (dopo la galleria blu, ~1600 m, e ogni giro dopo) compare
+// per OFFER_S secondi il pulsante 'Entra da Pinu?'. Entrando la corsa si ferma (sim congelata,
+// registrata nel log), gli acquisti passano dalla sim e dal log (convalida futura sul server).
+export const SHOP = {
+  NAME: 'Garag di Pinu',
+  OFFER_AT_M: 6,           // metri dentro il paese a cui compare l'offerta
+  OFFER_S: 5,              // secondi (di corsa) per decidere
+  MAX_PER_VISIT: 3,        // acquisti al massimo per visita
+  AMMO_CAP: 9,
+  ITEMS: [
+    { id: 'pistola', name: 'Pistola Broccu', desc: '3 colpi (o +3 se ce l\'hai gi\u00e0)', price: 40, max: 1 },
+    { id: 'asfodelo', name: 'Fascio di asfodelo', desc: 'Fiamma piena', price: 20, max: 2 },
+    { id: 'scudo', name: 'Scudo di sughero', desc: 'Para il prossimo urto', price: 35, max: 1 },
+  ],
 };
