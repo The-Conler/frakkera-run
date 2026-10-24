@@ -1,297 +1,329 @@
 // =====================================================================
-// v5 stage 7: "Garag di Pinu" - bottega rustica low-poly (scena 3D a parte,
-// renderizzata al posto della strada mentre la corsa e' in pausa nel negozio).
-// Riferimento (v5s7b): reference/gadoni/target2-garage-di-pinu.jpg (9:16) (pali e travi di legno,
-// lanterne, zucche e taglieri appesi, cesti, tappeto sardo rosso/bianco, bancone
-// con coperta scozzese rossa, Pinu con coppola e giacca scura, giocattoli di legno,
-// pavimento di lastre di pietra). Solo grafica: nessuna logica di gioco qui.
+// v5 stage 7c: "Garag di Pinu" - ricostruzione completa sul riferimento 9:16
+// reference/gadoni/target2-garage-di-pinu.jpg. Tutto e' geometria 3D fatta a mano
+// (assi smussate e imbarcate, travi grezze, pietre irregolari, lastre di Voronoi,
+// cesti torniti con trama di vimini, zucche tornite, tessuti drappeggiati, Pinu scolpito).
+// Solo grafica: nessuna logica di gioco qui.
 // =====================================================================
 import * as THREE from 'three';
-import { Kit, G, rng } from './kit.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { rng, vnoise, warp, rough, paint, solid, place, Bucket, plank, beam, stone, turned, tube, slab, col } from './shop/geo.js';
+import { weaveTex, sardTex, tartanTex, glowTex, skyTex } from './shop/tex.js';
+import { buildPinu } from './shop/pinu.js';
 
-function canvasTex(w, h, draw) {
-  const c = document.createElement('canvas'); c.width = w; c.height = h;
-  draw(c.getContext('2d'), w, h);
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
-}
-// tappeto sardo: rombi e greche bianchi su rosso
-function rugTexture() {
-  return canvasTex(512, 320, (x, w, h) => {
-    x.fillStyle = '#a8202a'; x.fillRect(0, 0, w, h);
-    x.strokeStyle = '#f2e6d0'; x.lineWidth = 10; x.strokeRect(14, 14, w - 28, h - 28);
-    x.lineWidth = 5; x.strokeRect(30, 30, w - 60, h - 60);
-    const dia = (cx, cy, r, col) => { x.fillStyle = col; x.beginPath(); x.moveTo(cx, cy - r); x.lineTo(cx + r, cy); x.lineTo(cx, cy + r); x.lineTo(cx - r, cy); x.closePath(); x.fill(); };
-    dia(w / 2, h / 2, 95, '#f2e6d0'); dia(w / 2, h / 2, 72, '#a8202a'); dia(w / 2, h / 2, 48, '#f2e6d0'); dia(w / 2, h / 2, 26, '#2a1a20');
-    for (const s of [-1, 1]) { dia(w / 2 + s * 170, h / 2, 50, '#f2e6d0'); dia(w / 2 + s * 170, h / 2, 32, '#a8202a'); dia(w / 2 + s * 170, h / 2, 14, '#f2e6d0'); }
-    x.fillStyle = '#f2e6d0';
-    for (let i = 0; i < 22; i++) { dia(50 + i * 19.5, 50, 6, '#f2e6d0'); dia(50 + i * 19.5, h - 50, 6, '#f2e6d0'); }
-    for (let i = 0; i < 40; i++) { x.fillRect(10 + i * 12.5, h - 8, 4, 8); }
-  });
-}
-// coperta scozzese rossa del bancone
-function tartanTexture() {
-  return canvasTex(256, 256, (x, w, h) => {
-    x.fillStyle = '#b81c24'; x.fillRect(0, 0, w, h);
-    const band = (p, s, col, a) => { x.globalAlpha = a; x.fillStyle = col; x.fillRect(p, 0, s, h); x.fillRect(0, p, w, s); x.globalAlpha = 1; };
-    for (const o of [0, 128]) { band(o + 20, 26, '#1a1414', 0.55); band(o + 56, 6, '#1a1414', 0.6); band(o + 84, 4, '#f2d24a', 0.8); band(o + 100, 14, '#2a2a60', 0.4); }
-  });
-}
-function signTexture(text) {
-  return canvasTex(512, 128, (x, w, h) => {
-    x.fillStyle = '#6b4126'; x.fillRect(0, 0, w, h);
-    for (let i = 0; i < 6; i++) { x.fillStyle = i % 2 ? '#5f3a22' : '#74482a'; x.fillRect(0, i * 22, w, 20); }
-    x.font = 'bold 64px Georgia, serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
-    x.fillStyle = '#2a160c'; x.fillText(text, w / 2 + 3, h / 2 + 4); x.fillStyle = '#ffd98a'; x.fillText(text, w / 2, h / 2);
-  });
-}
-function banner() {
-  return canvasTex(128, 320, (x, w, h) => {
-    x.fillStyle = '#b81c2a'; x.fillRect(0, 0, w, h); x.strokeStyle = '#f2e6d0'; x.lineWidth = 6; x.strokeRect(10, 10, w - 20, h - 20);
-    x.fillStyle = '#f2e6d0';
-    for (let i = 0; i < 4; i++) { const cy = 60 + i * 66; x.beginPath(); x.moveTo(w / 2, cy - 26); x.lineTo(w / 2 + 26, cy); x.lineTo(w / 2, cy + 26); x.lineTo(w / 2 - 26, cy); x.closePath(); x.fill(); x.fillStyle = '#b81c2a'; x.fillRect(w / 2 - 7, cy - 7, 14, 14); x.fillStyle = '#f2e6d0'; }
-  });
-}
+const X0 = 3.0, ZF = 0.35, ZB = -2.7, EAVE = 4.15, RID = 6.35, ZR = -1.1, ZE = 1.45;
+const WOOD = ['#8a5430', '#7c4a28', '#965e36', '#70421f', '#a06838'];
+const ROOF = ['#b07640', '#a26a36', '#bc844c', '#94602e', '#c48e56', '#a8703e'];
 
-// cielo: gradiente azzurro
-function skyTexture() {
-  return canvasTex(8, 256, (x, w, h) => {
-    const g = x.createLinearGradient(0, 0, 0, h);
-    g.addColorStop(0, '#2f7fd8'); g.addColorStop(0.55, '#6fb2ec'); g.addColorStop(1, '#cfe6f6');
-    x.fillStyle = g; x.fillRect(0, 0, w, h);
-  });
-}
-// occlusione finta "di bottega": scurisce sotto il tetto, contro il muro di fondo e vicino al suolo
-function bakeAO(geo, { ground = 0.28, roof = 0.22, wall = 0.18 } = {}) {
-  const p = geo.attributes.position, c = geo.attributes.color;
-  for (let i = 0; i < p.count; i++) {
-    const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
-    const inside = Math.abs(x) < 3.2 && z < 0.6 && z > -3;
-    let k = 1 - ground * Math.max(0, 1 - y / 0.9) * (y > 0.08 ? 1 : 0);
-    if (inside && y > 3.0 && y < 4.4) k -= roof * Math.min(1, (y - 3.0) / 1.2);
-    if (inside && z < -2.0) k -= wall * Math.min(1, (-2.0 - z) / 0.7) * Math.max(0, 1 - y / 4.2);
-    c.setXYZ(i, c.getX(i) * k, c.getY(i) * k, c.getZ(i) * k);
+// cortile: celle di Voronoi da una griglia sfalsata, estruse e smussate
+function pavement(b, r) {
+  const pts = [];
+  for (let z = -3.5, row = 0; z < 22; row++) {
+    const s = 0.62 + Math.max(0, z) * 0.085;
+    for (let x = -9 + (row % 2) * s * 0.5; x < 9; x += s) pts.push([x + r.range(-0.28, 0.28) * s, z + r.range(-0.25, 0.25) * s, s]);
+    z += s * 0.82;
   }
+  const tones = ['#e4cfaa', '#dcc39a', '#d6ba90', '#e9d7b6', '#cfb088', '#e0c8a0', '#d2b68e'];
+  for (let i = 0; i < pts.length; i++) {
+    const [px, pz, s] = pts[i];
+    let poly = [[px - s * 1.5, pz - s * 1.5], [px + s * 1.5, pz - s * 1.5], [px + s * 1.5, pz + s * 1.5], [px - s * 1.5, pz + s * 1.5]];
+    for (let j = 0; j < pts.length; j++) {
+      if (j === i) continue; const [qx, qz] = pts[j]; const dx = qx - px, dz = qz - pz; if (dx * dx + dz * dz > (s * 2.6) ** 2) continue;
+      const mx = (px + qx) / 2, mz = (pz + qz) / 2, out = [];
+      for (let k = 0; k < poly.length; k++) {
+        const a = poly[k], c = poly[(k + 1) % poly.length];
+        const da = (a[0] - mx) * dx + (a[1] - mz) * dz, dc = (c[0] - mx) * dx + (c[1] - mz) * dz;
+        if (da <= 0) out.push(a);
+        if ((da <= 0) !== (dc <= 0)) { const t = da / (da - dc); out.push([a[0] + (c[0] - a[0]) * t, a[1] + (c[1] - a[1]) * t]); }
+      }
+      poly = out; if (poly.length < 3) break;
+    }
+    if (poly.length < 3) continue;
+    let cx = 0, cz = 0; for (const p of poly) { cx += p[0]; cz += p[1]; } cx /= poly.length; cz /= poly.length;
+    const gap = 0.045 + s * 0.02, shp = poly.map(([x, z]) => { const dx = x - cx, dz = z - cz, d = Math.hypot(dx, dz) || 1; const k = Math.max(0.2, (d - gap) / d); return [dx * k, -dz * k]; });
+    const g = slab(shp, 0.05, Math.min(0.05, s * 0.05), 2);
+    place(g, { rx: -Math.PI / 2, x: cx, z: cz, y: 0.0 });
+    warp(g, (v) => { if (v.y > 0.02) v.y += vnoise(v.x * 1.3, 0, v.z * 1.3, i) * 0.025 + 0.02; });
+    const base = col(r.pick(tones)), sd = i * 7;
+    paint(g, (v, o) => { const k = 1 + vnoise(v.x * 2.2, 3, v.z * 2.2, sd) * 0.08 + vnoise(v.x * 9, 1, v.z * 9, sd) * 0.03; const e = v.y < 0.06 ? 0.78 : 1; o.setRGB(base.r * k * e, base.g * k * e, base.b * k * e); });
+    b.add(g);
+  }
+  const grout = new THREE.PlaneGeometry(30, 34, 1, 1); place(grout, { rx: -Math.PI / 2, z: 9, y: 0.005 }); solid(grout, '#8a6c4c'); b.add(grout);
+}
+
+// cesto: corpo tornito (trama di vimini in texture + rilievo), bordo a treccia, manico
+function basket(tb, wb, r, x, y, z, s, o = {}) {
+  const prof = o.prof || [[0.001, 0], [0.18, 0], [0.24, 0.04], [0.29, 0.18], [0.31, 0.32], [0.3, 0.36]];
+  const body = new THREE.LatheGeometry(prof.map(([a, b]) => new THREE.Vector2(a * s, b * s)), 20);
+  rough(body, 0.006 * s, 6, Math.floor(r() * 1e6)); body.computeVertexNormals();
+  place(body, { x, y, z, ry: r.range(0, 6) }); tb.push(body);
+  const top = prof[prof.length - 1], R = top[0] * s, H = top[1] * s, pts = [];
+  for (let i = 0; i <= 24; i++) { const a = (i / 24) * Math.PI * 2; pts.push([x + Math.cos(a) * R, y + H + Math.sin(a * 9) * 0.006 * s, z + Math.sin(a) * R]); }
+  pts.pop(); const rim = tube(pts, 0.028 * s, 48, 6, true); solid(rim, '#8a5a2c', 0.12, 4, 20); wb.add(rim);
+  if (o.handle !== false) {
+    const a0 = r.range(0, Math.PI), cx = Math.cos(a0) * R * 0.92, cz = Math.sin(a0) * R * 0.92;
+    const hd = tube([[x + cx, y + H, z + cz], [x + cx * 0.6, y + H + R * 0.75, z + cz * 0.6], [x, y + H + R * 0.95, z], [x - cx * 0.6, y + H + R * 0.75, z - cz * 0.6], [x - cx, y + H, z - cz]], 0.024 * s, 20, 6);
+    solid(hd, '#8a5a2c', 0.12, 4, 20); wb.add(hd);
+  }
+}
+// zucca appesa (cucuzza/lampada): profilo tornito a pera con collo, picciolo e cordino
+function gourd(gb, wb, r, x, yTop, z, s, L) {
+  wb.add(solid(tube([[x, yTop, z], [x + r.range(-0.01, 0.01), yTop - L * 0.5, z], [x, yTop - L, z]], 0.008, 4, 4), '#2a1c12'));
+  const p = [[0.001, -0.62], [0.05, -0.61], [0.12, -0.575], [0.18, -0.5], [0.21, -0.4], [0.2, -0.3], [0.16, -0.21], [0.1, -0.13], [0.05, -0.06], [0.04, 0]].map(([a, b]) => [a * s, b * s]);
+  const g = new THREE.LatheGeometry(p.map(([a, b]) => new THREE.Vector2(a, b)), 14);
+  warp(g, (v) => { v.x *= 1 + vnoise(v.y * 9, 0, 1, x * 9) * 0.06; v.z *= 1 + vnoise(v.y * 9, 1, 0, z * 9) * 0.06; });
+  g.computeVertexNormals();
+  const a = col(r.pick(['#e8823a', '#dc7230', '#f0904a'])), dk = col('#a8481c');
+  paint(g, (v, o) => { const t = Math.min(1, Math.max(0, -v.y / (0.62 * s))); o.copy(dk).lerp(a, 0.35 + 0.65 * Math.sin(Math.PI * t) ); const k = 1 + vnoise(Math.atan2(v.x, v.z) * 3, v.y * 20, 0, 9) * 0.06; o.multiplyScalar(k); });
+  place(g, { x, y: yTop - L - 0.04 * s, z, rz: r.range(-0.06, 0.06) }); gb.add(g);
+  gb.add(solid(place(turned([[0.001, 0.07], [0.02, 0.05], [0.035, 0.0], [0.03, -0.02]], 8, r), { x, y: yTop - L - 0.04 * s, z, s }), '#7a3a18'));
+}
+// telo drappeggiato su un volume: piano superiore + gonne con pieghe sinusoidali
+function drape(w, d, h, tex, opt = {}) {
+  const grp = new THREE.Group(), mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95, side: THREE.DoubleSide });
+  const top = new THREE.PlaneGeometry(w, d, 12, 6); place(top, { rx: -Math.PI / 2 }); warp(top, (v) => { v.y += vnoise(v.x * 3, 0, v.z * 3, 2) * 0.006; });
+  const sides = [[w, 0, d / 2, 0], [w, 0, -d / 2, Math.PI], [d, w / 2, 0, Math.PI / 2], [d, -w / 2, 0, -Math.PI / 2]];
+  const parts = [top];
+  for (const [len, sx, sz, ry] of sides) {
+    const g = new THREE.PlaneGeometry(len, h, Math.round(len * 14), 8);
+    warp(g, (v) => { const t = (h / 2 - v.y) / h; const fold = Math.sin(v.x * (opt.freq || 9) + Math.sin(v.x * 2.3) * 2) * 0.03 * t + t * t * (opt.flare ?? 0.06); v.z += fold; v.y -= h / 2; v.x *= 1 + t * 0.015; });
+    place(g, { x: sx, z: sz, ry }); parts.push(g);
+  }
+  for (const g of parts) { g.computeVertexNormals(); const m = new THREE.Mesh(g, mat); m.castShadow = m.receiveShadow = true; grp.add(m); }
+  return grp;
 }
 
 export function buildShopRoom() {
   const scene = new THREE.Scene();
-  scene.background = skyTexture();
-  scene.fog = new THREE.Fog('#cfe6f6', 22, 60);
-  const lit = new THREE.MeshLambertMaterial({ vertexColors: true }), unlit = new THREE.MeshBasicMaterial({ vertexColors: true });
-  const mats = [lit, unlit];
-  const k = new Kit(77), r = rng(91);
-  const W = ['#8a5530', '#7a4a2a', '#94603a', '#6f4226'], PL = ['#a8703c', '#9a6434', '#b47c46', '#8c5a30', '#c08850'];
-  const STONE = ['#e6d0ae', '#dcc49e', '#d2b892', '#ead8ba', '#ccb08a'];
-  const X0 = 3.0, ZF = 0.35, ZB = -2.7, EAVE = 4.55;
+  scene.background = skyTex();
+  scene.fog = new THREE.Fog('#c8dcea', 26, 70);
+  const r = rng(2026);
+  const M = (o = {}) => new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.88, metalness: 0, flatShading: o.flat ?? true, ...o.extra });
+  const B = { wood: new Bucket(), stone: new Bucket(), smooth: new Bucket(), leaf: new Bucket(), wicker: new Bucket(), gourd: new Bucket(), floor: new Bucket(), plaster: new Bucket() };
 
-  // ---------------------------------------------------------- cortile di lastre irregolari
-  const fk = new Kit(13);
-  fk.add(G.box(30, 0.1, 40), '#9c8262', { y: -0.05, z: 12 });
-  for (let row = 0, z = -3.2; z < 26; row++) {
-    const sz = 0.75 + Math.max(0, z) * 0.07;          // lastre un po' piu' grandi verso la camera (come nel riferimento)
-    for (let x = -9 + (row % 2) * sz * 0.5; x < 9; x += sz * r.range(0.95, 1.2)) {
-      fk.add(G.cyl(sz * 0.56, sz * 0.6, 0.07, r.pick([5, 6, 6, 7])), r.pick(STONE), { x: x + r.range(-0.1, 0.1), y: 0.03, z: z + r.range(-0.08, 0.08), ry: r.range(0, 6), sz: r.range(0.62, 0.8), sx: r.range(0.95, 1.15), vary: 0.06 });
+  // ------------------------------------------------ cortile e muretti
+  pavement(B.floor, r);
+  const wall = (x0, z0, z1, h, side) => {
+    for (let z = z0; z < z1;) {
+      const d = r.range(0.55, 0.85); let y = 0;
+      while (y < h) { const hh = r.range(0.38, 0.55), ww = r.range(0.7, 0.95); B.stone.add(place(stone(ww, hh, d, r.pick(['#d8ccb6', '#cdbfa6', '#e2d6c2', '#c4b498', '#d4c4a8']), r, 0.12), { x: x0 + side * r.range(-0.05, 0.08), y: y + hh / 2, z: z + d / 2 + r.range(-0.05, 0.05), ry: r.range(-0.12, 0.12) })); y += hh * 0.92; }
+      z += d * 0.95;
     }
-    z += sz * 0.62;
-  }
-  const floor = new THREE.Mesh(fk.build(), mats); floor.receiveShadow = true; scene.add(floor);
-
-  // ---------------------------------------------------------- muretti e basi di pietra
-  const block = (x, y, z, w, h, d) => k.add(G.box(w, h, d), r.pick(['#d9cfbd', '#cbbfa8', '#e2d9c8', '#c2b59c']), { x, y, z, ry: r.range(-0.06, 0.06), vary: 0.08 });
+  };
   for (const s of [-1, 1]) {
-    // base dei pali davanti
-    block(s * X0, 0.32, ZF, 0.95, 0.64, 0.95); block(s * X0, 0.7, ZF, 0.75, 0.14, 0.75);
-    // muretti a secco ai lati, in primo piano
-    for (let z = -2.6; z < 1.0; z += 0.72) { block(s * (X0 + 0.9 + r.range(0, 0.1)), 0.32, z, 0.8, 0.62, 0.7); block(s * (X0 + 0.95), 0.92, z + 0.3, 0.75, 0.58, 0.68); }
-    for (let z = 1.2; z < 5.5; z += 0.8) { const xx = s * (X0 + 0.25 + (z - 1.2) * 0.05); block(xx, 0.36, z, 0.9, 0.72, 0.78); block(xx + s * 0.05, 1.05, z + 0.35, 0.85, 0.66, 0.74); if (z > 2) block(xx + s * 0.1, 1.65, z + 0.1, 0.8, 0.56, 0.7); }
-    
+    wall(s * (X0 + 0.55), 1.0, 4.8, 1.35, s); wall(s * (X0 + 0.7), -2.9, 1.0, 1.0, s); wall(s * (X0 + 1.2), 4.8, 9, 1.1, s);
+    B.stone.add(place(stone(1.0, 0.75, 0.95, '#d6cab4', r, 0.08), { x: s * X0, y: 0.37, z: ZF }));                 // base del palo
+    B.stone.add(place(stone(0.82, 0.22, 0.8, '#cbbda4', r, 0.06), { x: s * X0, y: 0.84, z: ZF }));
   }
-  // ---------------------------------------------------------- struttura di legno
+  // ------------------------------------------------ struttura di legno
   for (const s of [-1, 1]) {
-    k.add(G.box(0.42, EAVE - 0.75, 0.42), W[0], { x: s * X0, y: 0.77 + (EAVE - 0.75) / 2, z: ZF, vary: 0.08 });     // pali davanti
-    k.add(G.box(0.3, 0.3, 0.46), W[3], { x: s * X0, y: 1.1, z: ZF });                                              // collari
-    k.add(G.box(0.36, EAVE, 0.36), W[1], { x: s * X0, y: EAVE / 2, z: ZB + 0.2, vary: 0.08 });                    // pali dietro
-    k.add(G.box(0.12, 1.0, 0.16), W[2], { x: s * (X0 - 0.42), y: EAVE - 0.5, z: ZF, rz: s * 0.78 });              // saette
-    k.add(G.box(0.34, 0.34, 3.6), W[2], { x: s * X0, y: EAVE - 0.05, z: (ZF + ZB) / 2, vary: 0.08 });             // correnti laterali
+    B.wood.add(place(beam(0.44, 0.44, EAVE - 0.9, WOOD[0], r), { x: s * X0, y: 0.92 + (EAVE - 0.9) / 2, z: ZF, rx: Math.PI / 2, ry: r.range(-0.1, 0.1) }));
+    B.wood.add(place(beam(0.36, 0.36, EAVE, WOOD[3], r), { x: s * X0, y: EAVE / 2, z: ZB + 0.25, rx: Math.PI / 2 }));
+    B.wood.add(place(beam(0.16, 0.18, 1.25, WOOD[2], r), { x: s * (X0 - 0.45), y: EAVE - 0.55, z: ZF + 0.02, rx: Math.PI / 2, rz: -s * 0.78, order: 'ZXY' }));  // saette
+    B.wood.add(place(beam(0.34, 0.34, 3.9, WOOD[1], r), { x: s * X0, y: EAVE - 0.08, z: (ZF + ZB) / 2 }));      // correnti laterali
   }
-  k.add(G.box(0.3, EAVE, 0.3), W[1], { x: -1.35, y: EAVE / 2, z: ZB + 0.15 });
-  k.add(G.box(7.0, 0.42, 0.42), W[0], { y: EAVE, z: ZF, vary: 0.06 });                 // trave maestra davanti
-  k.add(G.box(6.6, 0.22, 0.26), W[3], { y: EAVE - 0.38, z: ZF + 0.02 });               // seconda trave
-  k.add(G.box(6.6, 0.32, 0.32), W[1], { y: EAVE - 0.3, z: -1.1 });                     // trave a meta'
-  k.add(G.box(6.6, 0.34, 0.34), W[0], { y: EAVE, z: ZB + 0.2 });
-  for (let x = -2.7; x <= 2.75; x += 0.9) k.add(G.box(0.2, 0.2, 0.8), W[2], { x, y: EAVE + 0.02, z: ZF + 0.55, vary: 0.1 });   // teste dei travetti
-  // tetto a due falde di assi spesse con gronda sporgente (falda davanti verso la camera)
-  const RID = 7.0, ZR = -1.0, ZE = 1.35;
-  const run = ZE - ZR, rise = RID - EAVE - 0.25, len = Math.hypot(run, rise) + 0.3, ang = Math.atan2(rise, run);
-  for (let x = -3.7; x < 3.75; x += 0.44) {
-    const l = len + r.range(-0.15, 0.2), dz = r.range(-0.05, 0.05);
-    k.add(G.box(0.42, 0.14, l), r.pick(PL), { x: x + r.range(-0.02, 0.02), y: (RID + EAVE + 0.25) / 2 + r.range(-0.03, 0.03), z: (ZR + ZE) / 2 + dz, rx: ang + r.range(-0.03, 0.03), rz: r.range(-0.04, 0.04), vary: 0.1 });
-    k.add(G.box(0.42, 0.14, 2.2), r.pick(PL), { x, y: RID - 0.55, z: ZR - 0.95, rx: -0.55, vary: 0.1 });     // falda dietro
+  B.wood.add(place(beam(0.3, 0.3, EAVE, WOOD[3], r), { x: -1.25, y: EAVE / 2, z: ZB + 0.2, rx: Math.PI / 2 }));
+  B.wood.add(place(beam(0.46, 0.46, 7.3, WOOD[0], r), { y: EAVE, z: ZF, ry: Math.PI / 2 }));
+  B.wood.add(place(beam(0.24, 0.26, 6.6, WOOD[3], r), { y: EAVE - 0.42, z: ZF + 0.04, ry: Math.PI / 2 }));
+  B.wood.add(place(beam(0.3, 0.3, 6.6, WOOD[1], r), { y: EAVE - 0.3, z: -1.15, ry: Math.PI / 2 }));
+  B.wood.add(place(beam(0.34, 0.34, 6.6, WOOD[0], r), { y: EAVE, z: ZB + 0.25, ry: Math.PI / 2 }));
+  for (let x = -3.1; x <= 3.15; x += 0.78) B.wood.add(place(beam(0.18, 0.2, 1.0, WOOD[2], r), { x: x + r.range(-0.05, 0.05), y: EAVE + 0.28, z: ZF + 0.6, rx: 0.75 }));   // teste dei travetti
+  // tetto: assi spesse irregolari, sporgenza sfrangiata, doppio strato
+  const run = ZE - ZR, rise = RID - EAVE - 0.3, ang = Math.atan2(rise, run), len = Math.hypot(run, rise);
+  for (let x = -3.85; x < 3.9;) {
+    const w = r.range(0.34, 0.52), l = len + r.range(0.0, 0.45), th = r.range(0.11, 0.16);
+    const g = plank(w - 0.02, th, l, r.pick(ROOF), r, { bend: 0.05, rough: 0.018, endDark: 0.35 });
+    const off = r.range(-0.15, 0.2);
+    place(g, { x: x + w / 2, y: (RID + EAVE + 0.3) / 2 + r.range(-0.02, 0.03) + Math.sin(ang) * off * 0.5, z: (ZR + ZE) / 2 + Math.cos(ang) * off * 0.5, rx: ang + r.range(-0.03, 0.03), rz: r.range(-0.05, 0.05) });
+    B.wood.add(g);
+    if (r() < 0.55) B.wood.add(place(plank(r.range(0.2, 0.3), 0.08, len * 0.6, r.pick(ROOF), r), { x: x + w * r.range(0.2, 0.8), y: (RID + EAVE + 0.3) / 2 + 0.1 + 0.3 * Math.sin(ang), z: (ZR + ZE) / 2 - 0.25, rx: ang }));
+    x += w;
   }
-  k.add(G.box(7.6, 0.24, 0.3), W[3], { y: RID + 0.05, z: ZR - 0.05 });                  // colmo
-  for (let x = -3.4; x <= 3.5; x += 1.15) k.add(G.box(0.18, 0.2, 2.6), W[3], { x, y: (RID + EAVE) / 2 - 0.05, z: (ZR + ZE) / 2 - 0.1, rx: ang });   // puntoni sotto le assi
-  k.add(G.box(6.4, 0.1, 3.3), '#6a4226', { y: EAVE + 0.2, z: (ZF + ZB) / 2 });           // soffitto scuro sotto il tetto
-
-  // ---------------------------------------------------------- muro di fondo color crema + taglieri appesi
-  k.add(G.box(6.4, EAVE, 0.25), '#f0e2c4', { y: EAVE / 2, z: ZB, vary: 0.02 });
-  k.add(G.box(6.4, 0.25, 0.3), '#c8b494', { y: 0.12, z: ZB + 0.05 });
+  for (let x = -3.6; x < 3.7; x += 0.45) B.wood.add(place(plank(0.44, 0.1, 2.4, r.pick(ROOF), r), { x, y: RID - 0.6, z: ZR - 1.0, rx: -0.6 }));   // falda dietro
+  B.wood.add(place(beam(0.26, 0.3, 7.8, WOOD[3], r), { y: RID - 0.02, z: ZR - 0.02, ry: Math.PI / 2 }));
+  for (let x = -3.3; x <= 3.4; x += 1.1) B.wood.add(place(beam(0.16, 0.2, len, WOOD[1], r), { x, y: (RID + EAVE) / 2 + 0.02, z: (ZR + ZE) / 2 - 0.12, rx: ang }));
+  const ceil = new THREE.PlaneGeometry(6.6, 3.4, 8, 4); place(ceil, { rx: Math.PI / 2, y: EAVE + 0.2, z: (ZF + ZB) / 2 }); solid(ceil, '#5a3820', 0.1, 3, 2); B.wood.add(ceil);
+  // ------------------------------------------------ muro di fondo intonacato + taglieri
+  const wallG = new THREE.PlaneGeometry(6.2, EAVE, 30, 20); warp(wallG, (v) => { v.z += vnoise(v.x * 2, v.y * 2, 0, 4) * 0.03; });
+  const cream = col('#f0dcb6'); paint(wallG, (v, o) => { const k = 1 + vnoise(v.x * 1.5, v.y * 1.5, 0, 7) * 0.05 + vnoise(v.x * 7, v.y * 7, 0, 2) * 0.02; o.setRGB(cream.r * k, cream.g * k, cream.b * k * 0.98); });
+  place(wallG, { y: EAVE / 2, z: ZB + 0.08 }); B.plaster.add(wallG);
+  B.stone.add(place(stone(6.2, 0.3, 0.3, '#bfa888', r, 0.04), { y: 0.14, z: ZB + 0.15 }));
   for (let i = 0; i < 9; i++) {
-    const x = -1.95 + i * 0.6 + r.range(-0.05, 0.05), h = r.range(0.55, 0.95), w = r.range(0.32, 0.44);
-    k.add(G.box(w, h, 0.07), r.pick(['#8a5a34', '#7a4c2a', '#9a6a3e', '#6b4126']), { x, y: 2.95 - h / 2, z: ZB + 0.17, rz: r.range(-0.03, 0.03), vary: 0.06 });
-    k.add(G.box(0.1, 0.16, 0.07), '#6b4126', { x, y: 3.0, z: ZB + 0.17 });
-    k.add(G.cyl(0.025, 0.025, 0.05, 6), '#3a2614', { x, y: 3.12, z: ZB + 0.18, rx: Math.PI / 2 });
+    const x = -0.85 + i * 0.44 + r.range(-0.04, 0.04), h = r.range(0.55, 0.98), w = r.range(0.28, 0.38);
+    if (x > 2.0) break;
+    const hw = w * 0.22, hl = 0.16, R = w * 0.12;
+    const shp = [[-w / 2 + R, 0], [w / 2 - R, 0], [w / 2, R], [w / 2, h - R], [w / 2 - R, h], [hw, h], [hw, h + hl], [hw * 0.6, h + hl + 0.05], [-hw * 0.6, h + hl + 0.05], [-hw, h + hl], [-hw, h], [-w / 2 + R, h], [-w / 2, h - R], [-w / 2, R]];
+    const g = slab(shp, 0.035, 0.012, 1); place(g, { x, y: 3.25 - h - hl, z: ZB + 0.14, rz: r.range(-0.04, 0.04) });
+    const bc = col(r.pick(['#8a5832', '#7a4a28', '#9a6638', '#6c4022'])), sd = i * 13; paint(g, (v, o) => { const k = 1 + Math.sin(v.y * 40 + vnoise(v.x * 9, v.y * 3, 0, sd) * 4) * 0.05; o.setRGB(bc.r * k, bc.g * k, bc.b * k); });
+    B.wood.add(g);
+    B.smooth.add(solid(place(new THREE.TorusGeometry(0.025, 0.006, 4, 8), { x, y: 3.28, z: ZB + 0.16 }), '#2a1c12'));
   }
-  // scaffale con cesti a sinistra
-  const basket = (x, y, z, s, handle = true) => {
-    k.add(G.cyl(0.3 * s, 0.24 * s, 0.38 * s, 9), r.pick(['#c08a4c', '#b07a40', '#cc985a']), { x, y: y + 0.19 * s, z, vary: 0.1, flat: true });
-    for (let i = 1; i < 4; i++) k.add(G.torus(0.3 * s - (3 - i) * 0.018 * s, 0.014 * s, 3, 12), '#8a5a2a', { x, y: y + i * 0.1 * s, z, rx: Math.PI / 2 });
-    k.add(G.torus(0.3 * s, 0.03 * s, 4, 12), '#8a5a2a', { x, y: y + 0.38 * s, z, rx: Math.PI / 2 });
-    if (handle) k.add(G.torus(0.22 * s, 0.025 * s, 4, 10), '#8a5a2a', { x, y: y + 0.38 * s, z, sz: 0.4 });
-  };
-  for (const y of [1.25, 1.95, 2.6]) { k.add(G.box(1.2, 0.08, 0.5), W[2], { x: -2.15, y, z: ZB + 0.38 }); k.add(G.box(0.07, 0.25, 0.4), W[3], { x: -2.15, y: y - 0.15, z: ZB + 0.38 }); }
-  basket(-2.15, 1.29, ZB + 0.38, 1.2); basket(-2.15, 1.99, ZB + 0.38, 1.1); basket(-2.15, 2.64, ZB + 0.38, 1.0);
-  // tavolino rosso (telo sardo, mesh a parte) e cesti a terra
-  basket(-2.25, 0, 0.4, 1.55); basket(-1.45, 0, 0.55, 1.25, false); basket(-0.95, 0, -0.35, 1.2); basket(-1.3, 0.62, -1.1, 0.85);
-  basket(2.45, 0, 0.55, 1.1, false);
-  // arcolaio/telaio di legno tra il tavolino e il bancone
-  k.add(G.box(0.08, 1.7, 0.08), W[2], { x: -1.1, y: 0.85, z: -1.55, rz: 0.12 });
-  k.add(G.box(0.08, 1.4, 0.08), W[2], { x: -0.7, y: 0.7, z: -1.6, rz: -0.18 });
-  k.add(G.torus(0.34, 0.035, 4, 14), W[1], { x: -0.9, y: 1.45, z: -1.6, ry: 0.5 });
-  for (let a = 0; a < 3; a++) k.add(G.box(0.03, 0.66, 0.03), W[3], { x: -0.9, y: 1.45, z: -1.6, ry: 0.5, rz: a * 1.05 });
-  k.add(G.box(1.0, 0.06, 0.06), W[0], { x: -0.9, y: 0.5, z: -1.6, ry: 0.5 });
-  k.add(G.box(0.7, 0.06, 0.5), W[2], { x: -1.3, y: 0.62, z: -1.1 }); for (const dx of [-0.3, 0.3]) for (const dz of [-0.2, 0.2]) k.add(G.box(0.05, 0.6, 0.05), W[3], { x: -1.3 + dx, y: 0.3, z: -1.1 + dz });
-  // cassette di frutta a destra
+  // ------------------------------------------------ sinistra: scaffali con cesti, cassa col tappeto, cesti a terra, arcolaio
+  const tb = [];
+  for (const y of [1.45, 2.15, 2.85]) { B.wood.add(place(plank(0.48, 0.07, 1.15, WOOD[2], r), { x: -2.1, y, z: ZB + 0.38, ry: Math.PI / 2 })); B.wood.add(place(beam(0.07, 0.24, 0.4, WOOD[3], r), { x: -2.1, y: y - 0.14, z: ZB + 0.32 })); }
+  basket(tb, B.wicker, r, -2.1, 1.49, ZB + 0.4, 1.15); basket(tb, B.wicker, r, -2.1, 2.19, ZB + 0.4, 1.0, { prof: [[0.001, 0], [0.16, 0], [0.26, 0.08], [0.3, 0.26], [0.29, 0.3]] }); basket(tb, B.wicker, r, -2.05, 2.89, ZB + 0.4, 0.9);
+  basket(tb, B.wicker, r, -2.55, 0, 0.45, 1.75, { handle: false, prof: [[0.001, 0], [0.2, 0], [0.26, 0.05], [0.3, 0.3], [0.31, 0.45], [0.3, 0.48]] });
+  basket(tb, B.wicker, r, -1.75, 0, 0.6, 1.5, { handle: false, prof: [[0.001, 0], [0.22, 0], [0.28, 0.05], [0.3, 0.22], [0.31, 0.3]] });
+  basket(tb, B.wicker, r, -0.95, 0, -0.2, 1.3, { handle: false, prof: [[0.001, 0], [0.2, 0], [0.26, 0.05], [0.29, 0.25], [0.3, 0.3]] });
+  basket(tb, B.wicker, r, -0.75, 0.72, -1.25, 0.8); basket(tb, B.wicker, r, -1.35, 1.3, -1.55, 0.75);
+  // sgabello
+  B.wood.add(place(plank(0.55, 0.07, 0.55, WOOD[2], r), { x: -0.75, y: 0.68, z: -1.25 }));
+  for (const [dx, dz] of [[-0.2, -0.2], [0.2, -0.2], [-0.2, 0.2], [0.2, 0.2]]) B.wood.add(place(beam(0.06, 0.06, 0.66, WOOD[3], r), { x: -0.75 + dx, y: 0.33, z: -1.25 + dz, rx: Math.PI / 2 }));
+  // arcolaio: ruota con raggi, montanti torniti, base
+  const wx = -1.3, wz = -1.75;
+  const ringPts = []; for (let i = 0; i < 20; i++) { const a = i / 20 * Math.PI * 2; ringPts.push([wx + Math.cos(a) * 0.36 * 0.6, 1.55 + Math.sin(a) * 0.36, wz + Math.cos(a) * 0.36 * 0.8]); }
+  B.smooth.add(solid(tube(ringPts, 0.03, 40, 6, true), WOOD[1], 0.1));
+  for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI; B.smooth.add(solid(tube([[wx + Math.cos(a) * 0.216, 1.55 + Math.sin(a) * 0.36, wz + Math.cos(a) * 0.288], [wx - Math.cos(a) * 0.216, 1.55 - Math.sin(a) * 0.36, wz - Math.cos(a) * 0.288]], 0.012, 2, 4), WOOD[2])); }
+  for (const [dx, dz, tilt] of [[-0.25, 0.1, 0.12], [0.25, -0.1, -0.12]]) B.smooth.add(solid(place(turned([[0.04, 0], [0.03, 0.2], [0.045, 0.35], [0.025, 0.6], [0.035, 0.9], [0.02, 1.35], [0.03, 1.5]], 8, r), { x: wx + dx, z: wz + dz, rz: tilt }), WOOD[2]));
+  B.smooth.add(solid(tube([[wx - 0.6, 0.12, wz + 0.25], [wx + 0.6, 0.12, wz - 0.25]], 0.05, 2, 6), WOOD[3]));
+  B.smooth.add(solid(tube([[wx - 0.1, 1.2, wz + 0.5], [wx + 0.45, 0.7, wz + 0.4], [wx + 0.7, 0.05, wz + 0.35]], 0.025, 8, 5), WOOD[1]));   // pedale/braccio
+  // ------------------------------------------------ destra: cassette di frutta, graticcio
   for (let i = 0; i < 3; i++) for (let j = 0; j < (i < 2 ? 2 : 1); j++) {
-    const x = 2.35 + j * 0.05, z = -1.7 - j * 0.65 + 0.3;
-    k.add(G.box(0.85, 0.42, 0.6), r.pick(W), { x, y: 0.22 + i * 0.44, z, ry: r.range(-0.05, 0.05), vary: 0.1 });
-    for (const yy of [-0.08, 0.1]) k.add(G.box(0.87, 0.04, 0.62), '#5a3a22', { x, y: 0.22 + i * 0.44 + yy, z });
+    const cx = 2.35 + r.range(-0.04, 0.04), cz = -1.45 - j * 0.66, cy = i * 0.46;
+    for (let k = 0; k < 3; k++) for (const sgn of [-1, 1]) B.wood.add(place(plank(0.88, 0.12, 0.03, r.pick(WOOD), r, { bend: 0 }), { x: cx, y: cy + 0.08 + k * 0.14, z: cz + sgn * 0.29, rz: Math.PI / 2, ry: Math.PI / 2, order: 'YXZ', rx: 0 }));
+    for (let k = 0; k < 3; k++) for (const sgn of [-1, 1]) B.wood.add(place(plank(0.03, 0.12, 0.58, r.pick(WOOD), r, { bend: 0 }), { x: cx + sgn * 0.43, y: cy + 0.08 + k * 0.14, z: cz }));
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) B.wood.add(place(beam(0.05, 0.05, 0.44, WOOD[3], r), { x: cx + sx * 0.42, y: cy + 0.22, z: cz + sz * 0.28, rx: Math.PI / 2 }));
   }
-  for (let i = 0; i < 9; i++) k.add(G.ico(0.1, 0), r.pick(['#c8202e', '#d83040', '#b01a26']), { x: 2.35 + r.range(-0.3, 0.3), y: 1.36 + r.range(0, 0.06), z: -1.4 + r.range(-0.2, 0.2), flat: true });
-  k.add(G.box(0.85, 0.85, 0.08), '#a8783e', { x: 2.4, y: 2.2, z: ZB + 0.2 }); for (let i = 0; i < 4; i++) k.add(G.box(0.85, 0.05, 0.1), '#7a4c2a', { x: 2.4, y: 1.85 + i * 0.24, z: ZB + 0.26 });  // graticcio
-  // bancone (il telo scozzese e' a parte), gambe sotto il telo
-  for (const dx of [-1.6, 1.6]) for (const dz of [-0.45, 0.45]) k.add(G.box(0.14, 0.3, 0.14), W[3], { x: 0.25 + dx, y: 0.15, z: -0.35 + dz });
-  // piramide di legno a gradini sul bancone e scatolina
-  for (let i = 0; i < 6; i++) k.add(G.box(0.62 - i * 0.1, 0.12, 0.5 - i * 0.08), i % 2 ? '#c8945a' : '#a8743e', { x: 1.4, y: 1.17 + i * 0.12, z: -0.5 });
-  k.add(G.cone(0.06, 0.18, 6), '#8a5a2a', { x: 1.4, y: 1.94, z: -0.5 });
-  k.add(G.box(0.42, 0.14, 0.3), '#c49058', { x: -0.95, y: 1.18, z: -0.35 }); k.add(G.box(0.44, 0.04, 0.32), '#8a5a2a', { x: -0.95, y: 1.27, z: -0.35 });
-
-  // ---------------------------------------------------------- zucche appese e lanterne
-  for (const [x, z, s, L] of [[-1.85, 0.0, 1.0, 0.55], [-1.2, -0.3, 0.8, 0.65], [-0.45, 0.1, 1.15, 0.5], [0.95, -0.2, 1.1, 0.6], [1.75, -0.9, 0.7, 0.4], [2.45, 0.05, 0.95, 0.85], [-1.6, -1.3, 0.6, 0.35]]) {
-    const y0 = EAVE - 0.2;
-    k.add(G.cyl(0.012, 0.012, L, 4), '#3a2a1a', { x, y: y0 - L / 2, z });
-    k.add(G.cyl(0.05 * s, 0.07 * s, 0.14 * s, 6), '#b05a28', { x, y: y0 - L - 0.04, z, flat: true });
-    k.add(G.sph(0.24 * s, 7, 6), r.pick(['#e47a34', '#d86a2a', '#ec8a44']), { x, y: y0 - L - 0.3 * s, z, sx: 1.25, sz: 1.25, sy: 1.6, flat: true, vary: 0.08 });
-  }
-  k.add(G.box(0.2, 0.3, 0.2), '#3a2a1a', { x: 1.75, y: EAVE - 0.85, z: -0.9 }); k.add(G.box(0.14, 0.2, 0.22), '#ffd36a', { x: 1.75, y: EAVE - 0.85, z: -0.9, unlit: true });
+  const fruit = new Bucket();
+  for (let i = 0; i < 14; i++) { const g = new THREE.IcosahedronGeometry(r.range(0.07, 0.09), 2); rough(g, 0.008, 9, i); warp(g, (v) => { v.y *= 0.9; }); g.computeVertexNormals(); solid(g, r.pick(['#c41a26', '#d82a34', '#a8121e', '#e03a3a']), 0.1, i, 14); fruit.add(place(g, { x: 2.35 + r.range(-0.32, 0.32), y: 0.98 + r.range(0, 0.05), z: -1.45 + r.range(-0.2, 0.2) })); }
+  for (let i = 0; i < 5; i++) B.wood.add(place(plank(0.9, 0.06, 0.08, WOOD[1], r), { x: 2.4, y: 1.95 + i * 0.22, z: ZB + 0.25 }));
+  for (const sx of [-0.4, 0.4]) B.wood.add(place(beam(0.06, 0.06, 1.0, WOOD[3], r), { x: 2.4 + sx, y: 2.38, z: ZB + 0.28, rx: Math.PI / 2 }));
+  // ------------------------------------------------ bancone: telaio + telo scozzese drappeggiato, piramide di legno
+  const TX = 0.7, TZ = -0.45, TW = 3.3, TD = 1.25, TH = 1.08;
+  B.wood.add(place(plank(TW, 0.08, TD, WOOD[2], r), { x: TX, y: TH - 0.04, z: TZ, ry: 0 }));
+  for (const dx of [-1, 1]) for (const dz of [-1, 1]) B.wood.add(place(beam(0.12, 0.12, TH, WOOD[3], r), { x: TX + dx * (TW / 2 - 0.12), y: TH / 2, z: TZ + dz * (TD / 2 - 0.1), rx: Math.PI / 2 }));
+  B.wood.add(place(beam(0.1, 0.1, TW - 0.3, WOOD[3], r), { x: TX, y: 0.2, z: TZ + TD / 2 - 0.1, ry: Math.PI / 2 }));
+  const tab = drape(TW + 0.06, TD + 0.06, 0.82, tartanTex(), { freq: 7, flare: 0.05 }); tab.position.set(TX, TH + 0.01, TZ); scene.add(tab);
+  for (let i = 0; i < 7; i++) { const w = 0.7 - i * 0.095; const g = plank(w, 0.1, w * 0.8, i % 2 ? '#c8945a' : '#a8743e', r, { bend: 0, twist: 0, taper: 0 }); B.wood.add(place(g, { x: TX + 1.15, y: TH + 0.06 + i * 0.1, z: TZ - 0.15, ry: 0.2 + i * 0.03 })); }
+  B.smooth.add(solid(place(turned([[0.04, 0], [0.05, 0.05], [0.02, 0.12], [0.03, 0.17], [0.001, 0.24]], 10, r), { x: TX + 1.15, y: TH + 0.76, z: TZ - 0.15 }), '#8a5a2a'));
+  B.wood.add(place(plank(0.42, 0.13, 0.3, '#c49058', r), { x: TX - 1.15, y: TH + 0.08, z: TZ + 0.05, ry: 0.15 }));
+  B.wood.add(place(plank(0.46, 0.04, 0.34, '#8a5a2a', r), { x: TX - 1.15, y: TH + 0.16, z: TZ + 0.05, ry: 0.15 }));
+  // cassa coperta dal tappeto sardo a sinistra
+  B.wood.add(place(plank(1.45, 0.95, 0.85, WOOD[3], r), { x: -2.05, y: 0.47, z: -0.95 }));
+  const rug = drape(1.55, 0.95, 0.85, sardTex('#a8182a', '#f1e4c8', 512, 256, [1, 1]), { freq: 11, flare: 0.03 }); rug.position.set(-2.05, 0.97, -0.95); scene.add(rug);
+  // stendardo sardo appeso al palo sinistro
+  const banTex = sardTex('#b0162a', '#f3e6cc', 128, 384);
+  const banG = new THREE.PlaneGeometry(0.62, 1.7, 8, 16); warp(banG, (v) => { v.z += Math.sin(v.y * 3 + v.x * 2) * 0.025 + (0.85 - v.y) * 0.02; });
+  banG.computeVertexNormals();
+  const ban = new THREE.Mesh(banG, new THREE.MeshStandardMaterial({ map: banTex, roughness: 0.95, side: THREE.DoubleSide })); ban.position.set(-X0 + 0.55, 2.75, ZF + 0.28); ban.castShadow = true; scene.add(ban);
+  B.smooth.add(solid(tube([[-X0 + 0.15, 3.62, ZF + 0.28], [-X0 + 0.95, 3.62, ZF + 0.28]], 0.022, 2, 6), '#4a2c18'));
+  // ------------------------------------------------ zucche appese
+  for (const [x, z, s, L] of [[-1.75, 0.1, 1.0, 0.5], [-1.25, -0.25, 0.85, 0.62], [-0.85, 0.15, 1.15, 0.45], [-0.2, -0.3, 0.9, 0.6], [1.55, 0.2, 1.2, 0.4], [2.1, -0.6, 0.8, 0.55], [2.55, 0.1, 1.05, 0.95], [-1.95, -1.3, 0.6, 0.3]]) gourd(B.gourd, B.smooth, r, x, EAVE - 0.22, z, s, L);
+  // ------------------------------------------------ lanterne sui pali davanti
+  const lights = [], glow = new THREE.SpriteMaterial({ map: glowTex(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+  const glass = new THREE.MeshStandardMaterial({ color: '#ffd27a', emissive: '#ffb648', emissiveIntensity: 2.2, roughness: 0.4 });
+  const iron = new Bucket();
   for (const s of [-1, 1]) {
-    const lx = s * (X0 + 0.38), ly = 3.15, lz = ZF + 0.05;
-    k.add(G.box(0.3, 0.06, 0.1), '#2a1a12', { x: s * (X0 + 0.2), y: ly + 0.42, z: lz });   // braccio
-    k.add(G.box(0.36, 0.06, 0.36), '#2a1a12', { x: lx, y: ly - 0.25, z: lz });
-    for (const [dx, dz] of [[-0.16, -0.16], [0.16, -0.16], [-0.16, 0.16], [0.16, 0.16]]) k.add(G.box(0.05, 0.46, 0.05), '#2a1a12', { x: lx + dx, y: ly, z: lz + dz });
-    k.add(G.box(0.28, 0.42, 0.28), '#ffcf5a', { x: lx, y: ly, z: lz, unlit: true });
-    k.add(G.cone(0.3, 0.22, 4), '#2a1a12', { x: lx, y: ly + 0.33, z: lz, ry: Math.PI / 4 });
-    k.add(G.sph(0.05, 6, 4), '#2a1a12', { x: lx, y: ly + 0.47, z: lz });
+    const lx = s * (X0 + 0.48), ly = 3.35, lz = ZF + 0.08;
+    iron.add(solid(tube([[s * (X0 + 0.2), ly + 0.62, lz], [s * (X0 + 0.42), ly + 0.66, lz], [lx, ly + 0.55, lz], [lx, ly + 0.42, lz]], 0.018, 12, 5), '#1e1612'));
+    const cage = turned([[0.001, -0.3], [0.1, -0.3], [0.13, -0.24], [0.12, -0.2], [0.16, 0.18], [0.12, 0.22], [0.15, 0.26], [0.05, 0.38], [0.02, 0.42]], 4, r);
+    place(cage, { x: lx, y: ly, z: lz, ry: Math.PI / 4 });
+    // gabbia: solo i montanti (filo) + tetto e base piene
+    for (let k = 0; k < 4; k++) { const a = Math.PI / 4 + k * Math.PI / 2; iron.add(solid(tube([[lx + Math.cos(a) * 0.12, ly - 0.22, lz + Math.sin(a) * 0.12], [lx + Math.cos(a) * 0.155, ly + 0.18, lz + Math.sin(a) * 0.155]], 0.012, 2, 4), '#1e1612')); }
+    iron.add(solid(place(turned([[0.001, 0], [0.18, 0], [0.12, 0.08], [0.05, 0.16], [0.02, 0.2]], 4, r), { x: lx, y: ly + 0.2, z: lz, ry: Math.PI / 4 }), '#241a14'));
+    iron.add(solid(place(turned([[0.001, 0], [0.14, 0], [0.13, 0.06], [0.001, 0.07]], 4, r), { x: lx, y: ly - 0.28, z: lz, ry: Math.PI / 4 }), '#241a14'));
+    const gl = new THREE.Mesh(place(turned([[0.001, -0.22], [0.11, -0.22], [0.145, 0.18], [0.001, 0.18]], 4, r), { ry: Math.PI / 4 }), glass); gl.position.set(lx, ly, lz); scene.add(gl);
+    const sp = new THREE.Sprite(glow); sp.scale.set(1.1, 1.1, 1); sp.position.set(lx, ly, lz + 0.05); scene.add(sp);
+    const pl = new THREE.PointLight('#ffa44a', 4.5, 4.5, 1.6); pl.position.set(lx, ly - 0.05, lz + 0.25); scene.add(pl); lights.push(pl);
   }
-  // ---------------------------------------------------------- fuori: alberi, casa di pietra, nuvole
-  const tree = (x, z, h, s) => {
-    k.add(G.cyl(0.14 * s, 0.22 * s, h, 6), '#6a4a30', { x, y: h / 2, z, flat: true });
-    for (const [dx, dy, dz, rr] of [[0, 0.2, 0, 1.25], [-0.75, -0.3, 0.25, 0.95], [0.8, -0.2, -0.2, 1.0], [0.1, 0.95, -0.1, 0.9]]) k.add(G.ico(rr * s, 1), r.pick(['#4f8f2e', '#5ea036', '#47822a', '#69ad3e']), { x: x + dx * s, y: h + dy * s, z: z + dz * s, flat: true, vary: 0.12 });
+  // ------------------------------------------------ fuori: alberi low-poly, casa di pietra, nuvole
+  const tree = (x, z, h, s, lean = 0) => {
+    B.smooth.add(solid(tube([[x, 0, z], [x + lean * 0.3, h * 0.5, z], [x + lean, h, z]], 0.16 * s, 8, 7), '#6a4a30', 0.1));
+    for (const [dx, dy, dz, rr] of [[0, 0.3, 0, 1.25], [-0.8, -0.25, 0.3, 0.95], [0.85, -0.15, -0.2, 1.0], [0.15, 1.05, -0.1, 0.9], [-0.3, 0.5, 0.6, 0.8]]) {
+      const g = new THREE.IcosahedronGeometry(rr * s, 1); rough(g, 0.12 * s, 1.2, Math.floor(x * 100 + dx * 10));
+      const gc = col(r.pick(['#4c8c2c', '#5c9e36', '#447e28', '#68ac3e'])); paint(g, (v, o) => { const k = 0.85 + Math.max(0, (v.y) / (rr * s)) * 0.25 + vnoise(v.x * 3, v.y * 3, v.z * 3, 3) * 0.06; o.setRGB(gc.r * k, gc.g * k, gc.b * k); });
+      B.leaf.add(place(g, { x: x + lean + dx * s, y: h + dy * s, z: z + dz * s }));
+    }
   };
-  tree(-4.6, -3.6, 5.6, 1.5); tree(-5.0, -1.2, 3.0, 1.1); tree(3.9, -5.4, 6.3, 1.4); tree(5.4, -2.6, 2.8, 1.0);
-  for (let y = 0; y < 9; y += 0.55) for (let x = 0; x < 3; x += 0.75) k.add(G.box(0.72, 0.52, 0.5), r.pick(['#d8b894', '#cfae88', '#e0c4a0', '#c4a07a']), { x: 4.9 + x + ((y / 0.55) % 2) * 0.35, y: y + 0.27, z: -4.0, vary: 0.08 });
-  k.add(G.box(3.6, 0.3, 2.0), '#b8553a', { x: 6.1, y: 9.1, z: -4.6, rz: 0.25 });
-  k.add(G.box(1.2, 9.5, 1.2), '#c8a47e', { x: -7.6, y: 4.75, z: -7, vary: 0.05 });
-  const rk = new Kit(3); for (const [x, y, z, s] of [[-6, 10.5, -14, 1.6], [-4.2, 10.8, -14, 1.2], [-7.6, 10.2, -14, 1.1], [6.5, 11.6, -16, 1.0], [7.8, 11.4, -16, 0.8]]) rk.add(G.ico(s, 1), '#ffffff', { x, y, z, sy: 0.55, flat: true, unlit: true });
-  scene.add(new THREE.Mesh(rk.build(), mats));
+  tree(-4.9, -3.4, 5.2, 1.55, 0.3); tree(-5.3, -0.6, 2.8, 1.05); tree(4.4, -5.2, 6.6, 1.45, -0.3); tree(5.6, -2.4, 3.0, 1.0);
+  for (let y = 0; y < 10; y += 0.5) for (let x = 0; x < 3.2; x += 0.72) B.stone.add(place(stone(0.7, 0.46, 0.5, r.pick(['#d8b894', '#cfae88', '#e0c4a0', '#c4a07a', '#d6b48c']), r, 0.08), { x: 5.0 + x + ((y / 0.5) % 2) * 0.34, y: y + 0.24, z: -4.3 }));
+  for (let i = 0; i < 9; i++) B.smooth.add(solid(place(new THREE.CylinderGeometry(0.16, 0.16, 2.4, 8, 1, true, 0, Math.PI), { x: 5.1 + i * 0.3, y: 10.3, z: -4.6, rx: Math.PI / 2 - 0.35, rz: Math.PI / 2 }), '#b4523a', 0.08));
+  const cloud = new Bucket(); for (const [x, y, z, s] of [[-5.6, 9.6, -12, 1.6], [-4.0, 9.9, -12, 1.2], [-7.0, 9.4, -12, 1.1], [7.5, 11.6, -16, 1.0], [8.6, 11.3, -16, 0.8]]) { const g = new THREE.IcosahedronGeometry(s, 1); rough(g, 0.1, 1, s * 10); warp(g, (v) => { v.y *= 0.55; }); g.computeVertexNormals(); cloud.add(solid(place(g, { x, y, z }), '#ffffff')); }
 
-  const geo = k.build(); bakeAO(geo);
-  const stall = new THREE.Mesh(geo, mats); stall.castShadow = true; stall.receiveShadow = true; scene.add(stall);
+  // ------------------------------------------------ mesh
+  const add = (geo, mat, cast = true, recv = true) => { const m = new THREE.Mesh(geo, mat); m.castShadow = cast; m.receiveShadow = recv; scene.add(m); return m; };
+  add(B.floor.build(), M(), false, true);
+  add(B.stone.build(), M());
+  add(B.wood.build(), M());
+  add(B.plaster.build(), M({ flat: false }), false, true);
+  add(B.smooth.build(), M({ flat: false }));
+  add(B.leaf.build(), M());
+  add(B.wicker.build(), M({ flat: false }));
+  add(B.gourd.build(), M({ flat: false, extra: { emissive: new THREE.Color('#ff6a20'), emissiveIntensity: 0.12 } }));
+  add(iron.build(), M({ flat: false }));
+  add(fruit.build(), M({ flat: false, extra: { roughness: 0.45 } }));
+  add(cloud.build(), new THREE.MeshBasicMaterial({ vertexColors: true }), false, false);
+  const wt = weaveTex(), wm = new THREE.MeshStandardMaterial({ map: wt, bumpMap: wt, bumpScale: 1.5, roughness: 0.9, side: THREE.DoubleSide });
+  for (const g of tb) add(g, wm);
+  const pinu = buildPinu(); pinu.position.set(TX + 0.05, TH + 0.02 - 1.17 * 1.65, TZ - 0.95); pinu.scale.setScalar(1.65); scene.add(pinu);
 
-  // ---------------------------------------------------------- tessuti (texture su volumi 3D)
-  const tm = (tex) => new THREE.MeshLambertMaterial({ map: tex });
-  const clothBox = (w, h, d, mat, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); m.castShadow = m.receiveShadow = true; scene.add(m); return m; };
-  const tart = tartanTexture(); tart.wrapS = tart.wrapT = THREE.RepeatWrapping; tart.repeat.set(2.2, 1);
-  clothBox(3.6, 0.84, 1.3, tm(tart), 0.25, 0.7, -0.35);                       // telo scozzese del bancone
-  clothBox(3.66, 0.06, 1.36, tm(tart), 0.25, 1.12, -0.35);
-  clothBox(1.55, 0.95, 0.95, tm(rugTexture()), -2.05, 0.48, -1.15);            // cassa coperta col tappeto sardo
-  const ban = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.45, 0.04), tm(banner()));
-  ban.position.set(-X0 + 0.5, 2.55, ZF + 0.06); ban.castShadow = true; scene.add(ban);
-  const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.66, 5), new THREE.MeshLambertMaterial({ color: '#4a2c18' })); rod.rotation.z = Math.PI / 2; rod.position.set(-X0 + 0.5, 3.3, ZF + 0.08); scene.add(rod);
-
-  // ---------------------------------------------------------- Pinu
-  const pinu = new THREE.Group();
-  const pk = new Kit(5);
-  const SK = '#d9946c', SK2 = '#c07a58', JK = '#2a2a32', JK2 = '#1f1f26';
-  // busto con spalle e risvolti
-  pk.add(G.cyl(0.36, 0.3, 0.62, 7), JK, { y: 1.3, sz: 0.62, flat: true, vary: 0.04 });
-  pk.add(G.box(0.86, 0.16, 0.42), JK, { y: 1.58 });
-  pk.add(G.box(0.2, 0.36, 0.03), '#f4f2ea', { y: 1.5, z: 0.21 });
-  pk.add(G.box(0.07, 0.26, 0.03), '#3a1c1c', { y: 1.48, z: 0.23 });
-  for (const s of [-1, 1]) {
-    pk.add(G.box(0.12, 0.42, 0.03), JK2, { x: s * 0.13, y: 1.47, z: 0.225, rz: s * 0.32 });            // risvolti
-    pk.add(G.box(0.2, 0.42, 0.24), JK, { x: s * 0.42, y: 1.34, z: 0.05, rz: s * 0.12, flat: true });   // braccio
-    pk.add(G.box(0.18, 0.17, 0.48), JK, { x: s * 0.33, y: 1.08, z: 0.34, ry: s * 0.45 });               // avambraccio sul tavolo
-    pk.add(G.box(0.15, 0.13, 0.16), SK, { x: s * 0.07, y: 1.1, z: 0.6, ry: s * 0.3, vary: 0.04 });     // mani giunte
-    pk.add(G.box(0.05, 0.06, 0.13), SK2, { x: s * 0.03, y: 1.17, z: 0.6 });
-  }
-  pk.add(G.box(0.2, 0.1, 0.16), SK, { y: 1.69, z: 0.03 });                                // collo
-  // testa angolosa: mascella, zigomi, naso, sopracciglia
-  pk.add(G.box(0.36, 0.3, 0.34), SK, { y: 1.9, vary: 0.03 });
-  pk.add(G.box(0.3, 0.12, 0.3), SK2, { y: 1.73, z: 0.01 });                              // mascella
-  pk.add(G.box(0.2, 0.06, 0.06), SK2, { y: 1.71, z: 0.16 });                             // mento
-  for (const s of [-1, 1]) {
-    pk.add(G.box(0.09, 0.07, 0.08), SK2, { x: s * 0.12, y: 1.84, z: 0.15, ry: s * 0.4 });  // zigomi
-    pk.add(G.box(0.07, 0.035, 0.03), '#1e1410', { x: s * 0.085, y: 1.93, z: 0.175 });     // occhi
-    pk.add(G.box(0.11, 0.035, 0.05), '#8a8478', { x: s * 0.085, y: 1.98, z: 0.17, rz: -s * 0.18 }); // sopracciglia
-    pk.add(G.box(0.04, 0.1, 0.07), SK2, { x: s * 0.19, y: 1.9, z: 0 });                    // orecchie
-    pk.add(G.box(0.04, 0.11, 0.2), '#d8d2c6', { x: s * 0.182, y: 1.98, z: -0.04 });        // capelli bianchi
-    pk.add(G.box(0.03, 0.08, 0.02), '#b07058', { x: s * 0.09, y: 1.79, z: 0.165, rz: s * 0.5 }); // pieghe del sorriso
-  }
-  pk.add(G.cone(0.065, 0.17, 4), SK2, { y: 1.86, z: 0.21, rx: Math.PI / 2, ry: Math.PI / 4, sy: 1.2 });   // naso
-  pk.add(G.box(0.13, 0.025, 0.02), '#8a4a3a', { y: 1.78, z: 0.172 });                    // bocca sorridente
-  pk.add(G.box(0.38, 0.07, 0.36), '#2c2824', { y: 2.07, z: -0.01 });                     // coppola
-  pk.add(G.box(0.36, 0.06, 0.3), '#34302b', { y: 2.12, z: -0.04, rx: -0.12 });
-  pk.add(G.box(0.42, 0.035, 0.17), '#24201c', { y: 2.05, z: 0.23, rx: 0.22 });              // visiera
-  const pm = new THREE.Mesh(pk.build(), mats); pm.castShadow = true; pinu.add(pm);
-  pinu.position.set(0.15, 0.1, -1.3); pinu.scale.setScalar(1.3); scene.add(pinu);
-
-  // ---------------------------------------------------------- luci: sole caldo del pomeriggio con ombre morbide
-  scene.add(new THREE.HemisphereLight('#ffe2bc', '#8a6a48', 1.25));
-  const sun = new THREE.DirectionalLight('#ffc884', 1.8);
-  sun.position.set(-7, 10, 7); sun.target.position.set(0, 0, -0.5);
-  sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); sun.shadow.radius = 4; sun.shadow.bias = -0.0008; sun.shadow.normalBias = 0.03;
-  const sc = sun.shadow.camera; sc.left = -8; sc.right = 8; sc.top = 9; sc.bottom = -6; sc.near = 1; sc.far = 30;
+  // ------------------------------------------------ luci: sole del tardo pomeriggio, cielo, rimbalzo caldo
+  scene.add(new THREE.HemisphereLight('#dcebff', '#a8784a', 1.1));
+  const amb = new THREE.AmbientLight('#ffe0bc', 0.35); scene.add(amb);
+  const sun = new THREE.DirectionalLight('#ffc080', 3.4);
+  sun.position.set(-8, 10, 7); sun.target.position.set(0.5, 0, -0.5);
+  sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.025; sun.shadow.radius = 3;
+  Object.assign(sun.shadow.camera, { left: -8, right: 8, top: 9, bottom: -7, near: 1, far: 34 }); sun.shadow.camera.updateProjectionMatrix();
   scene.add(sun, sun.target);
-  const fill = new THREE.DirectionalLight('#bcd6ff', 0.35); fill.position.set(6, 4, 8); scene.add(fill);
-  for (const s of [-1, 1]) { const l = new THREE.PointLight('#ffb050', 6, 5, 1.6); l.position.set(s * (X0 + 0.38), 3.0, ZF + 0.5); scene.add(l); }
-  const pl = new THREE.PointLight('#ffcf88', 3, 5, 1.6); pl.position.set(0.3, 3.0, -0.6); scene.add(pl);
+  const bounce = new THREE.PointLight('#ffb878', 2.2, 7, 1.4); bounce.position.set(0.5, 0.4, 1.4); scene.add(bounce);   // luce rimbalzata dal selciato
+  const inner = new THREE.PointLight('#ffd49a', 5.0, 7, 1.3); inner.position.set(0.4, 3.0, 0.2); scene.add(inner);
 
-  const camera = new THREE.PerspectiveCamera(62, 0.5625, 0.1, 80);
-  let t = 0, nodT = 0;
-  return {
+  const camera = new THREE.PerspectiveCamera(55, 0.5625, 0.1, 90);
+  // punti che devono restare dentro l'inquadratura (tetto con gronde, pali, lanterne, piede della bancarella)
+  const FIT = [[-3.2, RID + 0.1, ZR, 0.04], [3.2, RID + 0.1, ZR, 0.04], [-(X0 + 0.48), 3.3, ZF, 0.005], [X0 + 0.48, 3.3, ZF, 0.005]];
+  const FOOT = [0, 0, ZF + 0.9];
+  let composer = null, ao = null, cw = 0, ch = 0, t = 0, nodT = 0, aoFailed = false;
+  // inquadratura: camera centrata e un po' alta che guarda leggermente in giu' (si vede la falda del tetto
+  // come nel riferimento). Per ogni distanza si cerca l'altezza che mette il piede della bancarella sul bordo
+  // del pannello, poi si controlla che tetto e lanterne stiano nella fascia libera.
+  const _p = new THREE.Vector3(), PITCH = THREE.MathUtils.degToRad(9);
+  const setCam = (zc, cy) => { camera.position.set(0.1, cy, zc); camera.rotation.set(-PITCH, 0, 0); camera.updateMatrixWorld(); };
+  const proj = (x, y, z) => { _p.set(x, y, z).project(camera); return [(_p.x + 1) / 2, (1 - _p.y) / 2]; };
+  const fit = (aspect, ui) => {
+    camera.fov = 52; camera.aspect = aspect; camera.updateProjectionMatrix();
+    const sBot = 1 - ui.bottom - 0.01, sTop = ui.top + 0.01;
+    for (let zc = 6; zc < 40; zc += 0.1) {
+      let lo = -5, hi = 15;
+      for (let k = 0; k < 24; k++) { const cy = (lo + hi) / 2; setCam(zc, cy); if (proj(...FOOT)[1] > sBot) hi = cy; else lo = cy; }
+      setCam(zc, (lo + hi) / 2);
+      let ok = true;
+      for (const [x, y, z, m] of FIT) { const [sx, sy] = proj(x, y, z); if (sy < sTop || sx < m || sx > 1 - m) { ok = false; break; } }
+      if (ok) return;
+    }
+  };
+  const room = {
     scene, camera, pinu,
     nod() { nodT = 0.6; },
-    // ui: frazioni di schermo occupate in alto (titolo) e in basso (pannello acquisti)
     update(dt, aspect, ui = { top: 0.1, bottom: 0.34 }) {
-      t += dt;
-      // inquadratura calcolata dall'aspetto: tutta la bancarella (tetto con gronde, pali, lanterne)
-      // nella fascia libera tra il titolo e il pannello; camera frontale e centrata.
-      const fov = 62, tn = Math.tan(THREE.MathUtils.degToRad(fov / 2));
-      const halfW = 3.5, top = 7.25, bot = -0.2, zp = ZF + 0.5;
-      const band = Math.max(0.3, 1 - ui.top - ui.bottom);
-      const dW = halfW / (tn * aspect);                       // distanza che fa entrare la larghezza
-      const dH = (top - bot) / (2 * tn * band);               // distanza che fa entrare l'altezza nella fascia
-      const D = Math.max(dW, dH);
-      const H = 2 * D * tn;                                   // altezza visibile al piano della bancarella
-      const sBot = 1 - ui.bottom - 0.015;                      // il piede della bancarella appoggia sul bordo del pannello
-      const cy = bot + (sBot - 0.5) * H;          // camera senza beccheggio: sposto in altezza
-      camera.aspect = aspect; camera.fov = fov;
-      camera.position.set(0, cy, zp + D);
-      camera.lookAt(0, cy, zp);                                // frontale, senza beccheggio (il calcolo della fascia resta esatto)
-      camera.updateProjectionMatrix();
-      pinu.position.y = Math.sin(t * 1.6) * 0.008;
-      pinu.rotation.y = Math.sin(t * 0.5) * 0.05;
-      if (nodT > 0) { nodT = Math.max(0, nodT - dt); pinu.rotation.x = Math.sin((0.6 - nodT) / 0.6 * Math.PI * 2) * 0.06; } else pinu.rotation.x = 0;
+      t += dt; fit(aspect, ui);
+      if (room.debugCam) { const d = room.debugCam; camera.position.set(d[0], d[1], d[2]); camera.lookAt(d[3], d[4], d[5]); camera.fov = d[6] || 30; camera.updateProjectionMatrix(); }   // solo test/screenshot
+      pinu.position.y = TH + 0.02 - 1.17 * 1.65 + Math.sin(t * 1.6) * 0.006;
+      pinu.rotation.y = Math.sin(t * 0.5) * 0.04;
+      if (nodT > 0) { nodT = Math.max(0, nodT - dt); pinu.rotation.x = Math.sin((0.6 - nodT) / 0.6 * Math.PI * 2) * 0.05; } else pinu.rotation.x = 0;
+      for (const [i, l] of lights.entries()) l.intensity = 4.5 + Math.sin(t * 7 + i * 2) * 0.25 + Math.sin(t * 13 + i) * 0.15;
+    },
+    // render con GTAO (occlusione ambientale) a meta' risoluzione; se non va, render semplice
+    render(renderer, sz) {
+      const ex = renderer.toneMappingExposure; renderer.toneMappingExposure = 1.15;
+      if (!aoFailed) {
+        try {
+          const pr = renderer.getPixelRatio(), w = Math.round(sz.x * pr), h = Math.round(sz.y * pr);
+          if (!composer) {
+            composer = new EffectComposer(renderer); composer.addPass(new RenderPass(scene, camera));
+            ao = new GTAOPass(scene, camera, w, h); ao.output = GTAOPass.OUTPUT.Default; ao.blendIntensity = 0.85;
+            ao.updateGtaoMaterial({ radius: 0.45, distanceExponent: 1.4, thickness: 1.2, scale: 1.0, samples: 12 });
+            ao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: 12 });
+            composer.addPass(ao); composer.addPass(new OutputPass());
+          }
+          if (w !== cw || h !== ch) { cw = w; ch = h; composer.setPixelRatio(1); composer.setSize(w, h); }
+          composer.render();
+        } catch (e) { aoFailed = true; console.warn('shop AO off', e); renderer.render(scene, camera); }
+      } else renderer.render(scene, camera);
+      renderer.toneMappingExposure = ex;
     },
   };
+  return room;
 }

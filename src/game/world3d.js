@@ -729,7 +729,7 @@ export class World {
       const sh = this.shopRoom || (this.shopRoom = buildShopRoom());
       const sz = this.renderer.getSize(this._sz || (this._sz = new THREE.Vector2()));
       sh.update(dt, sz.x / Math.max(1, sz.y), this.shopUI);
-      this.renderer.render(sh.scene, sh.camera);
+      if (sh.render) sh.render(this.renderer, sz); else this.renderer.render(sh.scene, sh.camera);
       return;
     }
     this.renderer.render(this.scene, this.camera);

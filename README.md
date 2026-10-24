@@ -300,6 +300,9 @@ Ad ogni ritorno al villaggio (dal giro 1, ~1600 m) compare per 5 s il pulsante �
 ### Stage 7b — bancarella di Pinu rifatta
 Scena del negozio ricostruita da zero (src/game/shop3d.js) sul riferimento 9:16 reference/gadoni/target2-garage-di-pinu.jpg: bancarella di legno con tetto di assi spesse e gronda, lanterne accese sui pali, zucche appese, muro crema con taglieri, cesti, cassa col tappeto sardo, stendardo, telaio, cassette di frutta, piramide di legno, bancone col telo scozzese e Pinu nuovo; cortile di lastre, muretti, alberi, casa di pietra, cielo. Sole caldo con ombre morbide (solo nel negozio) + AO cotta nei vertici. La camera e' calcolata dall'aspetto e dallo spazio lasciato libero da titolo e pannello (ora tre carte in fila). Logica, prezzi e log invariati. Corretto lo scatto della camera durante il 3-2-1.
 
+### Stage 7c — Garag di Pinu ad alta fedelta'
+Geometrie fatte a mano in src/game/shop/ (geo.js: assi smussate/imbarcate con venatura, travi grezze, pietre irregolari, lastre di Voronoi, torniti, tubi; tex.js: vimini, tappeto sardo, scozzese; pinu.js: testa scolpita da sfera deformata con naso, zigomi, arcate, occhi, rughe, coppola, giacca, camicia, braccia e mani giunte). Sole radente con ombre PCF 2048, GTAO (fallback a render semplice), luce rimbalzata, lanterne emissive con alone. Camera inclinata di 9 gradi, distanza/altezza calcolate proiettando tetto e lanterne nella fascia libera. Fumetto di Pinu spostato nel pannello.
+
 ### Salto di mappa (sviluppo)
 
 - `?map=village|rock|river|viaduct|mine-ext|mine-int|mine-blue` parte direttamente da quell'ambiente (anche nel menu), es. `index.html?map=mine-blue`.

@@ -314,3 +314,8 @@ svg { display: block; }
 #scr-shop .shop-item .si-price { font-size: calc(var(--u) * 15); padding: 4px 8px; }
 #scr-shop .shop-meta { margin: 5px 0; font-size: calc(var(--u) * 12); }
 #scr-shop #shop-exit { margin-bottom: 4px; padding-top: 10px; padding-bottom: 10px; }
+
+/* v5s7c: fumetto di Pinu dentro il pannello (non copre piu' il tetto); titolo piu' piccolo sugli schermi bassi */
+#scr-shop .shop-bubble { position: relative; right: auto; top: auto; align-self: auto; max-width: none; margin: 0 2px 7px; border-radius: 14px 14px 14px 4px; font-size: calc(var(--u) * 12.5); padding: 6px 10px; }
+#scr-shop .shop-top { padding: 0 2px; }
+@media (max-height: 700px) { #scr-shop .shop-title { font-size: calc(var(--u) * 24); } #scr-shop .shop-item .si-desc { display: none; } }
