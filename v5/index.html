@@ -9,8 +9,8 @@
   <meta name="description" content="FRAKKERA RUN - Quanto lontano riuscirai a portare il fuoco? Minigioco arcade ispirato a Is Frakkeras di Gadoni." />
   <title>FRAKKERA RUN</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-  <script type="module" crossorigin src="./assets/index-gqgxg2c6.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-C4ONXLUd.css">
+  <script type="module" crossorigin src="./assets/index-CCFUFc0-.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-DsgGnwIl.css">
 </head>
 <body>
   <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -41,6 +41,18 @@
     <div id="game"></div>
     <div id="ui">
       <div id="popups" aria-hidden="true"></div>
+      <!-- v5s11: BALLU TUNDU (minigioco a ritmo, facoltativo) -->
+      <section id="dance-ui" class="hidden" aria-label="Ballu tundu">
+        <div class="dn-head"><b>BALLU TUNDU</b><span id="dn-round">GIRO 1</span></div>
+        <canvas id="dn-canvas"></canvas>
+        <div id="dn-judge"></div>
+        <div id="dn-combo"></div>
+        <div class="dn-pads">
+          <button class="dn-pad" data-dir="left" aria-label="sinistra"></button><button class="dn-pad" data-dir="down" aria-label="giu"></button><button class="dn-pad" data-dir="up" aria-label="su"></button><button class="dn-pad" data-dir="right" aria-label="destra"></button>
+        </div>
+        <p class="dn-hint">Scorri o tocca la freccia sul battito</p>
+      </section>
+      <button id="dance-skip" class="hidden" aria-label="Salta il ballo">SALTA <small>il ballo</small></button>
 
       <!-- HUD -->
       <div id="hud" class="hidden">
