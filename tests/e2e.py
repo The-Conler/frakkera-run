@@ -427,6 +427,9 @@ async def v2_section(page, name, mobile, cdp, check, shot, state, visible):
     check('v2 pistola raccolta (debug=pistol)', got_pistol)
     check('v2 colpi sparati', s['stats']['shots'] > 0, str(s['stats']['shots']))
     check('v2 botte distrutta', s['stats']['barrels'] > 0, str(s['stats']['barrels']))
+    if not zero_checked and s['ammo'] == 0 and s['stats']['shots'] > 0:   # v5s9: lo zero puo' arrivare fuori dal ramo di sparo
+        zero_checked = True
+        check('v2 colpi a zero: HUD colpi nascosto', not await visible('#hud-ammo'))
     check('v2 colpi arrivati a zero', zero_checked)
     if mobile: check('v2 il tocco su SPARA non cambia corsia', fire_lane_ok)
     check('v2 tappeti raccolti', s['stats']['carpets'] > 0, str(s['stats']['carpets']))

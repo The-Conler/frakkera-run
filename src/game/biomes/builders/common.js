@@ -29,7 +29,7 @@ export function fbm(x, y, z, oct = 3) { let a = 0.5, f = 1, s = 0; for (let i = 
 const _col = new THREE.Color();
 // roccia sfaccettata: icosaedro deformato dal rumore, colori a macchie
 export function rockGeom(r, size, { detail = 1, squash = 0.8, rough = 0.35, seed = 0 } = {}) {
-  const g = new THREE.IcosahedronGeometry(1, detail).toNonIndexed();
+  const g = new THREE.IcosahedronGeometry(1, detail);   // v5s9: e' gia' non indicizzata (niente warning)
   const p = g.attributes.position; const o = seed || r() * 100;
   for (let i = 0; i < p.count; i++) {
     const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
