@@ -425,6 +425,58 @@ class AudioSys {
     if (p) { p.pan.value = Math.max(-1, Math.min(1, pan)); p.connect(this.sfx); }
     for (const f of [612, 893]) this._tone({ t: 0.05, f, fEnd: f * 0.97, dur: 1.1, type: 'triangle', vol: 0.12, dest: p || this.sfx });
   }
+  // ---------------- v5s11: ballu tundu (launeddas generate + tamburo + canto a tenore) ----------------
+  _drone(f, vol, t = 0, dur = 0) {
+    const c = this.ctx, when = c.currentTime + t;
+    const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f;
+    const fl = c.createBiquadFilter(); fl.type = 'bandpass'; fl.frequency.value = f * 3; fl.Q.value = 1.2;
+    const g = c.createGain(); g.gain.setValueAtTime(0.0001, when); g.gain.exponentialRampToValueAtTime(vol, when + 0.25);
+    o.connect(fl); fl.connect(g); g.connect(this.music || this.sfx); o.start(when);
+    if (dur) { g.gain.setValueAtTime(vol, when + dur - 0.3); g.gain.exponentialRampToValueAtTime(0.0001, when + dur); o.stop(when + dur + 0.05); }
+    return { o, g };
+  }
+  danceCue() {        // launeddas che attaccano + coro a tenore (2-3 s prima del ballo)
+    if (!this.ok) return;
+    this._drone(147, 0.09, 0, 2.6);                      // tumbu (Re)
+    this._drone(73.5, 0.12, 0.2, 2.4);                    // bassu del tenore
+    this._drone(110, 0.07, 0.4, 2.2);                     // contra
+    const mel = [294, 330, 370, 330, 294, 440, 392, 370, 330, 294];
+    mel.forEach((f, i) => this._tone({ t: 0.3 + i * 0.2, f, dur: 0.18, type: 'square', vol: 0.05 }));
+  }
+  danceStart(bpm) {
+    if (!this.ok) return;
+    this.danceStop();
+    this._dn = [this._drone(147, 0.07), this._drone(220, 0.035)];   // tumbu + mancosa
+    this._danceI = 0; this._bpm = bpm;
+  }
+  danceBeat(b) {
+    if (!this.ok) return;
+    const bt = 60 / (b.bpm || 100);
+    // tamburo: colpo basso sul battere, leggero sugli altri; sonagli in controtempo
+    this._tone({ f: b.down ? 95 : 120, fEnd: 50, dur: 0.16, type: 'sine', vol: b.down ? 0.42 : 0.24 });
+    this._burst({ t: bt / 2, dur: 0.05, type: 'highpass', f: 6000, vol: 0.07 });
+    // mancosedda: melodia a terzine sul modo di Re (fiorassiu)
+    const SC = [294, 330, 370, 392, 440, 494, 587];
+    const PAT = [0, 2, 4, 2, 1, 3, 5, 3, 4, 2, 0, 1, 2, 4, 6, 4];
+    const i = this._danceI = (this._danceI || 0) + 1;
+    for (let k = 0; k < 3; k++) {
+      const f = SC[(PAT[(i * 3 + k) % PAT.length] + (b.r ? 1 : 0)) % SC.length];
+      this._tone({ t: k * bt / 3, f, dur: bt / 3 * 0.9, type: 'square', vol: 0.035 });
+      this._tone({ t: k * bt / 3, f: f * 2, dur: bt / 3 * 0.6, type: 'triangle', vol: 0.015 });
+    }
+  }
+  danceHit(res) {
+    if (!this.ok) return;
+    if (res === 'perfect') { this._tone({ f: 880, dur: 0.08, type: 'triangle', vol: 0.09 }); this._tone({ t: 0.04, f: 1320, dur: 0.1, type: 'triangle', vol: 0.06 }); }
+    else if (res === 'good') this._tone({ f: 660, dur: 0.08, type: 'triangle', vol: 0.07 });
+    else this._tone({ f: 140, fEnd: 90, dur: 0.15, type: 'sawtooth', vol: 0.05 });
+  }
+  danceStop() {
+    if (!this._dn) return;
+    const c = this.ctx, now = c.currentTime;
+    for (const d of this._dn) { try { d.g.gain.cancelScheduledValues(now); d.g.gain.setValueAtTime(d.g.gain.value, now); d.g.gain.exponentialRampToValueAtTime(0.0001, now + 0.5); d.o.stop(now + 0.6); } catch { /* gia' fermo */ } }
+    this._dn = null;
+  }
   spindle() {          // il fuso lanciato: fruscio che scende
     if (!this.ok) return;
     this._burst({ dur: 0.35, type: 'bandpass', f: 2600, fEnd: 700, q: 1.5, vol: 0.1 });

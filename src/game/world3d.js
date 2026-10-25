@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { WORLD, BIOME_OBST } from '../config.js';
 import { laneX, isMoving, ROAD_HALF } from './sim.js';
+import { DanceRing } from './dance/dance3d.js';
 import { buildMaimoni, buildStramaione, buildGrastula, animateFigure, spindleGeom } from './masks/figures.js';
 import * as T3 from './tex3d.js';
 import * as M from './models.js';
@@ -91,6 +92,7 @@ export class World {
     this.scene.add(this.charShadow);
     this.shots = new Map();
     this.popupQ = [];
+    this.dance = new DanceRing(this);      // v5s11: ballu tundu
     this.tipW = new THREE.Vector3(0, 4, 0);
     this.muzzleW = new THREE.Vector3(0, 3, 0);
   }
@@ -479,6 +481,7 @@ export class World {
     const pz = -sim.T * U;
     switch (type) {
       case 'spawn': this.spawnView(d); break;
+      case 'danceCue': case 'danceStart': case 'danceBeat': case 'danceEnd': case 'danceJudge': this.dance.on(type, d, sim); break;
       case 'despawn': this.despawnView(d); break;
       case 'shot': this.shotStart(d); break;
       case 'shotEnd': this.shotEnd(d); break;
@@ -650,11 +653,13 @@ export class World {
     this.clock += dt;
     const pz = -sim.T * U, px = sim.px * U;
     this.updateMood(dt, view.fuelF);
+    const dpos = this.dance.update(dt, sim);
     // camera: preset per modalita' + inseguimento morbido
     const aspect = this.camera.aspect;
     const wide = Math.max(0, Math.min(1, (aspect - 0.5) / 0.3));
     let cp, cl, fov;
     if (view.cam === 'menu') { cp = _v.set(0.6 + wide * 1.2, 2.2 + wide * 0.4, pz + 12.6 - wide * 3); cl = _v2.set(0.05 - wide * 0.8, 3.0 + wide * 0.3, pz); fov = 58; }   // v5s8: piu' indietro, frakkera e fiamma intere sotto il logo
+    else if (view.cam === 'dance' && this.dance.state !== 'off') { cp = _v; cl = _v2; fov = this.dance.camera(cp, cl); }
     else if (view.cam === 'over') { cp = _v.set(px * 0.45 + 2.0, 4.2, pz + 15.5); cl = _v2.set(px, -2.6, pz); fov = 52; }
     else {
       // per ambiente (config.light.camLook/camFov): un po' piu' larga e meno inclinata dove i monumenti devono entrare in verticale
@@ -667,7 +672,7 @@ export class World {
     this.camLook.lerp(cl, k);
     // la camera non resta mai indietro rispetto al corridore
     const lagZ = cp.z - this.camPos.z;
-    if (Math.abs(lagZ) > 6) { this.camPos.z = cp.z - Math.sign(lagZ) * 6; this.camLook.z = cl.z - Math.sign(lagZ) * 6; }
+    if (Math.abs(lagZ) > 6 && view.cam !== 'dance') { this.camPos.z = cp.z - Math.sign(lagZ) * 6; this.camLook.z = cl.z - Math.sign(lagZ) * 6; }
     this.camera.fov += (fov - this.camera.fov) * k; this.camera.updateProjectionMatrix();
     this.camera.position.copy(this.camPos);
     if (this.shake > 0) {
@@ -713,11 +718,12 @@ export class World {
       if (this.burnT < 0.7 && Math.random() < dt * 30) { const t2 = this.tipW; this.add.emit(t2.x + (Math.random() - 0.5) * 0.5, t2.y, t2.z, (Math.random() - 0.5) * 2, 1 + Math.random() * 2, (Math.random() - 0.5), 0.5, 0.2, 0.03, COL.ember, 1, -0.5, 0.8); }
     } else if (use3d && c3.setFuel) c3.setFuel(view.cam === 'menu' ? 1 : fuelF0, dt);
     if (use3d) {
-      c3.update(dt, view.char, px, pz);
+      if (dpos) { view.char.danceRy = dpos.ry; view.char.danceHop = dpos.hop; } else view.char.danceRy = null;
+      c3.update(dt, view.char, dpos ? dpos.x : px, dpos ? dpos.z : pz);
       c3.tipWorld(this.tipW);
       if (view.char.armed) c3.muzzleWorld(this.muzzleW);
       else this.muzzleW.set(px - 0.5, 2.0, pz - 0.8);
-      this.charShadow.position.set(px, 0.03, pz - 0.2);
+      this.charShadow.position.set(dpos ? dpos.x : px, 0.03, (dpos ? dpos.z : pz) - 0.2);
       this.charShadow.scale.set(2.3, 1, 2.0);
       c3.setOcclusion(view.cam === 'run' && this.occludes(px, pz) ? 0.38 : 1, dt);
     } else {
@@ -743,7 +749,7 @@ export class World {
     this.flameGlow.position.copy(this.tipW); if (use3d) this.flameGlow.position.y += 0.9;
     this.flameGlow.scale.setScalar((2.2 + 1.8 * fuelF) * (1 + flick));
     this.groundGlow.visible = lit;
-    this.groundGlow.position.set(px, 0.04, pz - 0.5);
+    this.groundGlow.position.set(dpos ? dpos.x : px, 0.04, (dpos ? dpos.z : pz) - 0.5);
     this.groundGlow.material.opacity = (0.18 + 0.2 * fuelF) * (1 + L.tunnel * 0.9);
     // scintille dalla fiamma (piu' fuoco => piu' scintille)
     if (lit) {

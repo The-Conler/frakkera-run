@@ -2,7 +2,7 @@
 // Interfaccia HTML/CSS sopra il canvas 3D: menu, HUD, pannelli, game over.
 // Tutti i pulsanti sono elementi reali; le icone sono SVG inline.
 // =====================================================================
-import { SCORE, FUEL, DEMO_BOARD, PISTOL, SHOP } from './config.js';
+import { SCORE, FUEL, DEMO_BOARD, PISTOL, SHOP, DANCE } from './config.js';
 import { bus } from './bus.js';
 import { audio } from './systems/audio.js';
 import * as store from './systems/storage.js';
@@ -218,6 +218,54 @@ export function initUI(game) {
   function back() { state = backTo; show(backTo); }
 
   bus.on('request-pause', pause);
+
+  // --------------------------------------------------------- v5s11: ballu tundu
+  {
+    const ui = $('#dance-ui'), skip = $('#dance-skip'), cv = $('#dn-canvas'), jd = $('#dn-judge'), cb = $('#dn-combo');
+    const COLS = { left: '#3aa0ff', down: '#2ee6c8', up: '#ff8a3a', right: '#ff4f9a' };
+    const DIRS = ['left', 'down', 'up', 'right'];
+    const ROT = { left: Math.PI, down: Math.PI / 2, up: -Math.PI / 2, right: 0 };
+    let raf = 0;
+    const arrow = (x, y, s, dir, col, glow, alpha = 1, fill = false) => {
+      x.save(); x.translate(y[0], y[1]); x.rotate(ROT[dir]); x.globalAlpha = alpha;
+      x.beginPath(); x.moveTo(s * 0.5, 0); x.lineTo(0, -s * 0.45); x.lineTo(0, -s * 0.18); x.lineTo(-s * 0.48, -s * 0.18); x.lineTo(-s * 0.48, s * 0.18); x.lineTo(0, s * 0.18); x.lineTo(0, s * 0.45); x.closePath();
+      x.lineJoin = 'round'; x.shadowColor = col; x.shadowBlur = glow; x.lineWidth = s * 0.09; x.strokeStyle = col;
+      if (fill) { x.fillStyle = col + '55'; x.fill(); }
+      x.stroke(); x.shadowBlur = 0; x.lineWidth = s * 0.035; x.strokeStyle = '#ffffffcc'; x.stroke(); x.restore();
+    };
+    const draw = () => {
+      const d = game.sim.dance;
+      if (!d) { raf = 0; ui.classList.add('hidden'); skip.classList.add('hidden'); return; }
+      raf = requestAnimationFrame(draw);
+      const dpr = Math.min(2, window.devicePixelRatio || 1), W = cv.clientWidth, H = cv.clientHeight;
+      if (cv.width !== Math.round(W * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+      const x = cv.getContext('2d'); x.setTransform(dpr, 0, 0, dpr, 0, 0); x.clearRect(0, 0, W, H);
+      const pads = [...document.querySelectorAll('.dn-pad')].map((p) => { const r = p.getBoundingClientRect(), o = cv.getBoundingClientRect(); return [r.left - o.left + r.width / 2, r.top - o.top + r.height / 2, r.width]; });
+      if (!pads.length) return;
+      const top = H * 0.2, py = pads[0][1], lead = DANCE.LEAD_S;
+      const flash = d.last && d.t - d.last.t < 0.18 && d.last.res !== 'miss' ? d.last.dir : -1;
+      DIRS.forEach((dir, i) => arrow(x, [pads[i][0], py], pads[i][2] * 0.92, dir, COLS[dir], flash === i ? 30 : 12, 1, flash === i));
+      for (const n of d.notes) {
+        const dtn = n.t - d.t; if (dtn > lead || dtn < -0.3) continue;
+        if (n.res && n.res !== 'miss') continue;
+        const y = py - (dtn / lead) * (py - top);
+        const dir = DIRS[n.dir];
+        arrow(x, [pads[n.dir][0], y], pads[0][2] * 0.8, dir, n.res === 'miss' ? '#777777' : COLS[dir], 14, n.res === 'miss' ? 0.5 : 1, true);
+      }
+      // battito
+      const bt = 60 / ((d.rounds[d.round] || d.rounds[0]).bpm), k = 1 - ((d.t - DANCE.INTRO_S + 99 * bt) % bt) / bt;
+      x.globalAlpha = 0.25 * k * k; x.fillStyle = '#ffcc66'; x.fillRect(0, py - 2, W, 4); x.globalAlpha = 1;
+      cb.textContent = d.combo >= 2 ? `COMBO x${d.combo}  \u00b7  ${d.pts}` : d.pts ? `${d.pts}` : '';
+      $('#dn-round').textContent = d.t < DANCE.INTRO_S ? 'ENTRA NEL CERCHIO...' : `GIRO ${d.round + 1} / ${d.rounds.length}  \u00b7  ${Math.round(d.rounds[d.round].bpm)} BPM`;
+    };
+    bus.on('danceCue', () => { if (state === 'play') skip.classList.remove('hidden'); });
+    bus.on('danceStart', () => { ui.classList.remove('hidden'); skip.classList.remove('hidden'); jd.textContent = ''; cb.textContent = ''; if (!raf) draw(); });
+    bus.on('danceEnd', () => { ui.classList.add('hidden'); skip.classList.add('hidden'); cancelAnimationFrame(raf); raf = 0; });
+    bus.on('danceJudge', (j) => { jd.textContent = j.res === 'perfect' ? 'PERFETTO!' : j.res === 'good' ? 'BENE' : 'MANCATO'; jd.className = j.res; void jd.offsetWidth; jd.classList.add('pop'); });
+    skip.addEventListener('click', (e) => { e.stopPropagation(); game.skipDance(); });
+    skip.addEventListener('pointerdown', (e) => e.stopPropagation());
+    for (const p of document.querySelectorAll('.dn-pad')) { p.addEventListener('pointerdown', (e) => { e.stopPropagation(); game.danceInput(p.dataset.dir); }); }
+  }
 
   // --------------------------------------------------------- v5s7: Garag di Pinu
   const offerBtn = $('#shop-offer');

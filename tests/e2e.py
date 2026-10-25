@@ -88,6 +88,8 @@ async def run_profile(p, name, mobile):
                                         user_agent='Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1')
     else:
         ctx = await browser.new_context(viewport={'width': 1366, 'height': 900}, device_scale_factor=1)
+    # v5s11: negli altri controlli il ballu tundu viene saltato subito (come col pulsante SALTA)
+    await ctx.add_init_script("setInterval(() => { const g = window.__frk && window.__frk.game; if (g && !window.__keepDance && (g.sim.danceCue || g.sim.mode === 'dance')) g.skipDance(); }, 40)")
     page = await ctx.new_page()
     errors = []
     page.on('pageerror', lambda e: errors.append(f'pageerror: {e}'))
@@ -506,6 +508,32 @@ async def v2_section(page, name, mobile, cdp, check, shot, state, visible):
     ls2 = await page.evaluate("localStorage.getItem('frakkera.carpets.v1')")
     check('v2 totale tappeti dopo ricarica', mc == str(ls2) and int(ls2) >= ls1, f'{mc} vs {ls2}')
     await shot('16-menu-dopo')
+    # ---- v5s11: ballu tundu nella piazza (cue, ballo, freccia, SALTA senza penalita') ----
+    await page.goto(f'{URL}?test=1&fixeddpr&map=village&at=120')
+    await page.wait_for_function('window.__frk && document.querySelector("#loading").classList.contains("hidden")', timeout=20000)
+    await page.evaluate('window.__keepDance = true')
+    await page.click('[data-act=play]')
+    clr = "(() => { const s = window.__frk.game.sim; s.fuel = Math.max(s.fuel, 70); s.invuln = 3; s.entities.forEach((e) => { if (!e.pickup) e.done = true; }); return [s.mode, !!s.danceCue]; })()"
+    cue = False
+    for _ in range(600):
+        m = await page.evaluate(clr)
+        if m[1] and not cue: cue = True; check('v5s11 cue del ballo: SALTA visibile', await visible('#dance-skip'))
+        if m[0] == 'dance': break
+        await page.wait_for_timeout(30)
+    check('v5s11 ballu tundu nella piazza', m[0] == 'dance' and cue)
+    check('v5s11 frecce del ballo visibili', await visible('#dance-ui'))
+    await page.wait_for_timeout(2600)
+    if mobile: await swipe(cdp, 195, 500, 195, 380)
+    else: await page.keyboard.press('ArrowUp')
+    await page.wait_for_timeout(100)
+    ins = await page.evaluate("window.__frk.game.sim.inputs.filter((x) => x[1] === 'a').length")
+    check('v5s11 swipe/freccia registrata nel ballo', ins >= 1, str(ins))
+    f0 = await page.evaluate("[window.__frk.game.sim.fuel, window.__frk.game.sim.score]")
+    if mobile: await page.tap('#dance-skip')
+    else: await page.click('#dance-skip')
+    await page.wait_for_timeout(150)
+    f1 = await page.evaluate("[window.__frk.game.sim.mode, window.__frk.game.sim.fuel, window.__frk.game.sim.score, window.__frk.game.sim.stats.danceSkips]")
+    check('v5s11 SALTA: si riparte senza penalita\'', f1[0] == 'run' and f1[3] == 1 and f1[1] >= f0[0] - 1 and not await visible('#dance-ui'), str(f1))
 
 async def main():
     async with async_playwright() as p:

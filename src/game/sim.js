@@ -5,10 +5,11 @@
 // tramite `fx(tipo, dati)`. Unita': px del mondo 2D (10 px = 1 m), corsie
 // centrate su x = 0.
 // =====================================================================
-import { SCORE, FUEL, WORLD, PX_PER_METER, PISTOL, SPEED_STEPS, BIOME_OBST, DUCK, SHOP, MASKS } from '../config.js';
+import { SCORE, FUEL, WORLD, PX_PER_METER, PISTOL, SPEED_STEPS, BIOME_OBST, DUCK, SHOP, MASKS, DANCE } from '../config.js';
 import { biomeAt } from './biomes/config.js';
 import { Generator, SOLID, DESTRUCTIBLE, PICKUP_KINDS, BIOME_KINDS, MASK_KINDS, difficultyAt, speedAt, speedStepsAt, lerp } from '../systems/generator.js';
-import { randomSeed } from '../systems/rng.js';
+import { randomSeed, makeRng } from '../systems/rng.js';
+export const DANCE_DIRS = ['left', 'down', 'up', 'right'];
 
 export const HALF_W = { muretto: 12, botte: 7, bottecoricata: 11, botti: 12, pozza: 9, narrow: 17, goat: 7, rollbarrel: 7, rollin: 7, sasso: 8, bagnato: 9, trave: 60, maimoni: 8, fune: 26, fuso: 7, asfodelo: 10, ferula: 10, tappeto: 11, pistola: 11 };
 export const ATTRACT_SPEED = 34;
@@ -42,8 +43,9 @@ export class Sim {
 
   resetRunState() {
     this.score = 0; this.metersCredited = 0; this.fuel = FUEL.START; this.chain = 0;
-    this.stats = { pickups: 0, nearMiss: 0, chains: 0, milestones: 0, hits: 0, bonus: 0, carpets: 0, barrels: 0, goats: 0, shopVisits: 0, shopBuys: 0, shopSpent: 0, shields: 0, obst: 0, ducks: 0, beams: 0, slips: 0, speedSteps: 0, shots: 0, pistols: 0, masks: 0, parades: 0, ropes: 0, spindles: 0, survival: 0, capped: 0 };
+    this.stats = { pickups: 0, nearMiss: 0, chains: 0, milestones: 0, hits: 0, bonus: 0, carpets: 0, barrels: 0, goats: 0, shopVisits: 0, shopBuys: 0, shopSpent: 0, shields: 0, obst: 0, ducks: 0, beams: 0, slips: 0, speedSteps: 0, shots: 0, pistols: 0, masks: 0, parades: 0, ropes: 0, spindles: 0, dances: 0, danceSkips: 0, dancePerfect: 0, danceGood: 0, danceMiss: 0, danceBest: 0, survival: 0, capped: 0 };
     this.shopLap = 0; this.shopOffer = 0; this.shop = null; this.shield = 0;
+    this.danceLap = -1; this.danceCue = null; this.dance = null;
     this.duckT = 0; this.duckCd = 0; this.slipT = 0; this.speedStep = 0; this.beamHint = false;
     this.carpetStreak = 0; this.ammo = 0; this.fireCd = 0; this.recoilT = 0;
     this.shots = [];
@@ -71,6 +73,7 @@ export class Sim {
   }
 
   toAttract() {
+    if (this.dance || this.danceCue) { this.dance = null; this.danceCue = null; this.fx('danceEnd', { skipped: true, quit: true }); }
     this.mode = 'attract';
     this.genOffset = this.T;
     this.score = 0;
@@ -168,6 +171,118 @@ export class Sim {
     return true;
   }
 
+  // ------------------------------------------------------------ v5s11: ballu tundu
+  // spartito deterministico (seed + giro): frecce sul battito, piu' fitte e veloci nei giri successivi
+  danceChart(lap) {
+    const rng = makeRng((this.seed ^ Math.imul(lap + 1, 2654435761)) >>> 0);
+    const bpm0 = Math.min(DANCE.BPM_MAX, DANCE.BPM0 + DANCE.BPM_LAP * lap);
+    const notes = [], beats = [], rounds = [];
+    let t = DANCE.INTRO_S;
+    for (let r = 0; r < DANCE.ROUNDS; r++) {
+      const bpm = Math.min(DANCE.BPM_MAX, bpm0 * (r ? DANCE.ROUND2_K : 1)), bt = 60 / bpm;
+      const n = Math.floor(DANCE.ROUND_S / bt);
+      rounds.push({ t0: t, bpm, n });
+      let last = -1;
+      for (let i = 0; i < n; i++) {
+        const tb = t + i * bt; beats.push({ t: tb, i, r, bpm, down: i % 4 === 0 });
+        if (i < 2) continue;                                       // due battute di attacco senza frecce
+        if (i % 4 !== 0 && rng() < 0.18 - Math.min(0.1, lap * 0.03)) continue;   // qualche pausa
+        let dir = rng.int(0, 3); if (dir === last && rng() < 0.6) dir = (dir + rng.int(1, 3)) % 4; last = dir;
+        notes.push({ t: tb, dir, res: null });
+        if (lap + r >= 2 && i % 2 === 1 && rng() < 0.12 * (lap + r) && i < n - 1) notes.push({ t: tb + bt / 2, dir: (dir + 2) % 4, res: null });   // controtempo
+      }
+      t += n * bt + DANCE.ROUND_GAP_S;
+    }
+    return { bpm: bpm0, notes, beats, rounds, end: t - DANCE.ROUND_GAP_S + DANCE.OUT_S };
+  }
+  startDance(lap) {
+    const ch = this.danceChart(lap);
+    this.mode = 'dance'; this.currentSpeed = 0; this.duckT = 0;
+    this.dance = { lap, t: 0, ...ch, beatIdx: 0, idx: 0, combo: 0, maxCombo: 0, perf: 0, good: 0, miss: 0, pts: 0, carpets: 0, round: 0, last: null };
+    this.stats.dances++;
+    for (const p of this.shots) this.fx('shotEnd', p);
+    this.shots = [];
+    // la piazza resta libera: via gli ostacoli vicini (davanti e appena dietro)
+    for (const e of this.entities) if (!e.done && e.d + e.len > this.T - 60 && e.d < this.T + 700) { e.done = true; this.fx('despawn', e); e.gone = true; }
+    this.entities = this.entities.filter((e) => !e.gone);
+    this.log('A', 100 + lap);
+    this.fx('danceStart', { lap, bpm: ch.bpm, notes: ch.notes.length });
+  }
+  tickDance(dt) {
+    const d = this.dance;
+    this.step++; this.clock += dt;
+    d.t += dt;
+    while (d.beatIdx < d.beats.length && d.beats[d.beatIdx].t <= d.t) { const b = d.beats[d.beatIdx++]; if (b.i === 0) { d.round = b.r; this.fx('danceRound', { r: b.r, bpm: b.bpm }); } this.fx('danceBeat', b); }
+    for (const n of d.notes) {
+      if (n.res || n.t > d.t - DANCE.WINDOW_S) continue;
+      this.judge(n, 'miss');
+    }
+    if (d.t >= d.end) this.finishDance(false);
+  }
+  judge(n, res) {
+    const d = this.dance; n.res = res; d.last = { res, t: d.t, dir: n.dir };
+    if (res === 'miss') { d.miss++; d.combo = 0; this.stats.danceMiss++; this.log('N', n.dir); this.fx('danceJudge', { res, dir: n.dir, combo: 0 }); return; }
+    d.combo++; d.maxCombo = Math.max(d.maxCombo, d.combo);
+    const base = res === 'perfect' ? DANCE.PTS_PERFECT : DANCE.PTS_GOOD;
+    const pts = Math.round(base * (1 + Math.min(d.combo, DANCE.COMBO_MAX) * DANCE.COMBO_K));
+    d.pts += pts;
+    if (res === 'perfect') { d.perf++; this.stats.dancePerfect++; this.fuel = Math.min(FUEL.MAX, this.fuel + DANCE.FUEL_PERFECT); this.log('P', pts); }
+    else { d.good++; this.stats.danceGood++; this.fuel = Math.min(FUEL.MAX, this.fuel + DANCE.FUEL_GOOD); this.log('H', pts); }
+    this.fx('danceJudge', { res, dir: n.dir, combo: d.combo, pts });
+  }
+  // swipe / freccia durante il ballo
+  danceInput(dir) {
+    if (this.mode !== 'dance' || !this.dance) return false;
+    const d = this.dance;
+    if (typeof dir === 'string') dir = DANCE_DIRS.indexOf(dir);
+    if (dir < 0 || dir > 3) return false;
+    this.inputs.push([this.step, 'a', dir]);
+    let best = null, bd = 9;
+    for (const n of d.notes) { if (n.res) continue; const e = Math.abs(n.t - d.t); if (e <= DANCE.WINDOW_S && e < bd) { best = n; bd = e; } if (n.t > d.t + DANCE.WINDOW_S) break; }
+    if (!best) return false;                                       // nessuna freccia vicina: nessuna penalita'
+    if (best.dir !== dir) { this.judge(best, 'miss'); return true; }
+    this.judge(best, bd <= DANCE.PERFECT_S ? 'perfect' : bd <= DANCE.GOOD_S ? 'good' : 'miss');
+    return true;
+  }
+  // SALTA: facoltativo, nessuna penalita' (si perde solo il bonus del ballo)
+  skipDance() {
+    if (this.mode === 'run' && this.danceCue) {
+      this.danceLap = this.danceCue.lap; this.danceCue = null;
+      this.inputs.push([this.step, 'K']); this.log('K', 0); this.stats.danceSkips++; this.fx('danceEnd', { skipped: true }); return true;
+    }
+    if (this.mode !== 'dance') return false;
+    this.inputs.push([this.step, 'K']);
+    this.finishDance(true);
+    return true;
+  }
+  finishDance(skipped) {
+    const d = this.dance;
+    const total = d.notes.length, hits = d.perf + d.good;
+    let pts = 0, carpets = 0, win = false;
+    if (skipped) { this.stats.danceSkips++; this.log('K', 1); }
+    else {
+      win = total > 0 && hits / total >= DANCE.WIN_RATIO;
+      if (win) {
+        pts = d.pts + d.maxCombo * DANCE.COMBO_BONUS;
+        carpets = Math.min(DANCE.CARPET_MAX, Math.floor(d.perf / DANCE.CARPET_EVERY));
+        this.addBonus(pts, false);
+        this.fuel = Math.min(FUEL.MAX, this.fuel + DANCE.FUEL_WIN);
+        if (carpets) { this.stats.carpets += carpets; for (let i = 0; i < carpets; i++) this.carpetTotal = this.addCarpets(1); }
+        this.fx('popup', { text: `BALLU TUNDU +${pts}`, style: 'gold' });
+        if (carpets) this.fx('popup', { text: `+${carpets} TAPPET${carpets > 1 ? 'I' : 'O'}`, style: 'small' });
+        this.fx('sound', 'bravu');
+      } else {
+        this.fuel = Math.max(1, this.fuel - DANCE.FAIL_FUEL);
+        this.fx('popup', { text: 'BALLO PERSO', style: 'grey' });
+      }
+      this.stats.danceBest = Math.max(this.stats.danceBest, pts);
+      this.log('Y', pts);
+    }
+    this.mode = 'run'; this.dance = null;
+    this.invuln = Math.max(this.invuln, 1.2); this.slowT = 0;
+    this.fx('danceEnd', { skipped, win, pts, carpets, perf: d.perf, good: d.good, miss: d.miss, total, maxCombo: d.maxCombo });
+  }
+
   fire() {
     if (this.mode !== 'run' || this.ammo <= 0 || this.fireCd > 0) return false;
     this.ammo--;
@@ -184,7 +299,8 @@ export class Sim {
 
   // ------------------------------------------------------------ passo fisso
   tick(dt) {
-    if (this.mode === 'shop') { this.currentSpeed = 0; return; }   // v5s7: nel negozio la corsa e' congelata (nessun passo)
+    if (this.mode === 'shop') { this.currentSpeed = 0; return; }
+    if (this.mode === 'dance') { this.tickDance(dt); return; }      // v5s11: ballu tundu (corsa ferma, passi registrati)   // v5s7: nel negozio la corsa e' congelata (nessun passo)
     this.clock += dt;
     if (this.mode === 'attract') {
       this.currentSpeed = ATTRACT_SPEED;
@@ -220,10 +336,22 @@ export class Sim {
       if (bi.b.id === 'village' && bi.lap >= 1 && bi.lap > this.shopLap && bi.local >= SHOP.OFFER_AT_M) {
         this.shopLap = bi.lap; this.shopOffer = SHOP.OFFER_S; this.log('O', bi.lap); this.fx('shopOffer', { lap: bi.lap, s: SHOP.OFFER_S });
       } }
+    // v5s11: ballu tundu una volta per giro nella piazza della chiesa (launeddas e coro qualche secondo prima)
+    { const bi = biomeAt(rd / PX_PER_METER + this.mapOffsetM);
+      if (bi.b.id === 'village' && bi.lap > this.danceLap && bi.local < DANCE.AT_M + 5) {
+        const toGo = (DANCE.AT_M - bi.local) * PX_PER_METER;
+        const sp = speedAt(rd, this.mapOffsetM);
+        if (!this.danceCue && toGo > 0 && toGo <= sp * DANCE.CUE_S) {
+          this.danceCue = { lap: bi.lap, d0: toGo }; this.log('A', bi.lap);
+          this.fx('danceCue', { lap: bi.lap }); this.fx('popup', { text: 'BALLU TUNDU!', style: 'gold' }); this.fx('sound', 'danceCue');
+        }
+        if (this.danceCue && toGo <= 0) { this.danceLap = bi.lap; this.danceCue = null; this.startDance(bi.lap); return; }
+      } }
     if (this.duckT > 0) { this.duckT = Math.max(0, this.duckT - dt); if (this.duckT === 0) this.duckCd = DUCK.COOLDOWN_S; }
     else this.duckCd = Math.max(0, this.duckCd - dt);
     this.slipT = Math.max(0, this.slipT - dt);
-    const speed = speedAt(rd, this.mapOffsetM) * slow;
+    let speed = speedAt(rd, this.mapOffsetM) * slow;
+    if (this.danceCue) speed *= lerp(DANCE.CUE_SLOW, 1, Math.max(0, Math.min(1, ((DANCE.AT_M - biomeAt(rd / PX_PER_METER + this.mapOffsetM).local) * PX_PER_METER) / this.danceCue.d0)));
     this.currentSpeed = speed;
     this.T += speed * dt;
     this.invuln = Math.max(0, this.invuln - dt);
@@ -549,7 +677,7 @@ export class Sim {
   debugState() {
     return {
       mode: this.mode, score: this.score, fuel: this.fuel, meters: Math.floor(this.runD / PX_PER_METER),
-      lane: this.targetLane, px: this.px, T: this.T, stats: { ...this.stats }, speed: this.currentSpeed, baseSpeed: speedAt(Math.max(0, this.runD), this.mapOffsetM), speedStep: this.speedStep, shopOffer: this.shopOffer, shopLap: this.shopLap, shield: this.shield, shop: this.shop && { ...this.shop, buys: { ...this.shop.buys } }, duckT: this.duckT, slipT: this.slipT,
+      lane: this.targetLane, px: this.px, dance: this.dance && { lap: this.dance.lap, t: this.dance.t, bpm: this.dance.bpm, combo: this.dance.combo, perf: this.dance.perf, good: this.dance.good, miss: this.dance.miss, pts: this.dance.pts, notes: this.dance.notes.length, round: this.dance.round, end: this.dance.end }, danceCue: !!this.danceCue, T: this.T, stats: { ...this.stats }, speed: this.currentSpeed, baseSpeed: speedAt(Math.max(0, this.runD), this.mapOffsetM), speedStep: this.speedStep, shopOffer: this.shopOffer, shopLap: this.shopLap, shield: this.shield, shop: this.shop && { ...this.shop, buys: { ...this.shop.buys } }, duckT: this.duckT, slipT: this.slipT,
       ammo: this.ammo, shotsInFlight: this.shots.length, carpetTotal: this.carpetTotal, events: this.events.length, inputs: this.inputs.length,
       entities: this.entities.filter((e) => !e.done).map((e) => ({ kind: e.kind, lane: e.lane, x: e.x, ahead: e.d - this.T, len: e.len, pickup: !!e.pickup, solid: e.solid, group: e.group || 0, side: e.side, idle: !!e.idle, destructible: !!DESTRUCTIBLE[e.kind] })),
     };

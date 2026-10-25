@@ -177,6 +177,25 @@ export const MASKS = {
   HIT_MAIMONI: 24, HIT_FUNE: 16, HIT_FUSO: 14,  // carburante perso
 };
 
+// ---- v5s11: ballu tundu nella piazza della chiesa (una volta per giro, facoltativo: SALTA) ----
+export const DANCE = {
+  AT_M: 150,               // metri dentro il paese (piazza della chiesa) a cui parte il ballo
+  CUE_S: 1.9,              // distanza del cue = X s a piena velocita' (rallentando diventano ~2.5-3 s)
+  CUE_SLOW: 0.45,          // velocita' minima mentre ci si avvicina al cerchio
+  INTRO_S: 2.0,            // entrata nel cerchio + battute di attacco
+  ROUNDS: 2, ROUND_S: 9,   // giri di ballo (8-10 s ciascuno)
+  ROUND_GAP_S: 1.4,
+  BPM0: 96, BPM_LAP: 10, BPM_MAX: 150, ROUND2_K: 1.08,   // il tempo sale a ogni giro della corsa
+  LEAD_S: 1.6,             // anticipo con cui le frecce scorrono
+  PERFECT_S: 0.075, GOOD_S: 0.16, WINDOW_S: 0.24,
+  PTS_PERFECT: 40, PTS_GOOD: 20, COMBO_K: 0.05, COMBO_MAX: 20, COMBO_BONUS: 10,
+  FUEL_PERFECT: 1.2, FUEL_GOOD: 0.6, FUEL_WIN: 12,   // la fiamma cresce ballando
+  CARPET_EVERY: 6, CARPET_MAX: 3,                    // un tappeto ogni X Perfetto
+  WIN_RATIO: 0.5,          // sotto questa quota di colpi: niente bonus e un po' di carburante perso
+  FAIL_FUEL: 6,
+  OUT_S: 1.2,
+};
+
 // ---- v5s7: 'Garag di Pinu' (negozio a ogni ritorno al paese, pagato in tappeti Sa Burra) ----
 // Ogni volta che il giro torna al paese (dopo la galleria blu, ~1600 m, e ogni giro dopo) compare
 // per OFFER_S secondi il pulsante 'Entra da Pinu?'. Entrando la corsa si ferma (sim congelata,

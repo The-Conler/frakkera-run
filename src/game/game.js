@@ -53,6 +53,8 @@ export class Game {
   buyItem(id) { const r = this.sim.buy(id); if (r.ok) { audio.pistolPickup(); this.world.shopNod(); } else audio.empty(); return r; }
   leaveShopView() { this.world.shopView = false; }
   exitShop() { this.world.shopView = false; this.accum = 0; return this.sim.exitShop(); }
+  skipDance() { return this.sim.skipDance(); }
+  danceInput(dir) { return this.sim.danceInput(dir); }
   bellPan(e) { return Math.max(-1, Math.min(1, (this.sim.entX(e) - this.sim.px) / 45)); }
   fire() { const ok = this.sim.fire(); if (ok) audio.shoot(); return ok; }
   pause() { this.paused = true; }
@@ -80,6 +82,13 @@ export class Game {
       case 'speedUp': bus.emit('speedup', d); break;
       case 'shopOffer': bus.emit('shopOffer', d); audio.milestone(); break;
       case 'shopOfferEnd': bus.emit('shopOfferEnd'); break;
+      // v5s11: ballu tundu
+      case 'danceCue': bus.emit('danceCue', d); break;
+      case 'danceStart': bus.emit('danceStart', d); audio.danceStart(d.bpm); break;
+      case 'danceBeat': audio.danceBeat(d); break;
+      case 'danceRound': bus.emit('danceRound', d); break;
+      case 'danceJudge': bus.emit('danceJudge', d); audio.danceHit(d.res); break;
+      case 'danceEnd': bus.emit('danceEnd', d); audio.danceStop(); break;
       case 'shopBuy': bus.emit('carpet', { run: this.sim.stats.carpets, total: d.total }); break;
       case 'shieldBlock': audio.ricochet(); break;
       case 'beamHint': {
@@ -104,6 +113,10 @@ export class Game {
       const q = this.ptr;
       if (!q || q.swiped || q.id !== p.pointerId) return;
       const dx = p.clientX - q.x, dy = p.clientY - q.y;
+      if (this.sim.mode === 'dance') {             // v5s11: nel ballo ogni swipe e' una freccia
+        if (Math.max(Math.abs(dx), Math.abs(dy)) < 22) return;
+        this.sim.danceInput(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up')); q.swiped = true; return;
+      }
       if (Math.abs(dx) >= 20 && Math.abs(dx) > Math.abs(dy) * 1.1) { this.sim.move(dx > 0 ? 1 : -1); q.swiped = true; }
       else if (dy <= -26 && Math.abs(dy) > Math.abs(dx) * 1.3) { this.fire(); q.swiped = true; }
       else if (dy >= 26 && Math.abs(dy) > Math.abs(dx) * 1.3) { this.duck(); q.swiped = true; }
@@ -112,7 +125,7 @@ export class Game {
       const q = this.ptr;
       if (!q || q.id !== p.pointerId) return;
       const dt = performance.now() - q.t;
-      if (!q.swiped && dt < 350 && Math.abs(p.clientX - q.x) < 20) {
+      if (!q.swiped && dt < 350 && Math.abs(p.clientX - q.x) < 20 && this.sim.mode !== 'dance') {
         const r = el.getBoundingClientRect();
         this.sim.move(p.clientX < r.left + r.width / 2 ? -1 : 1);
       }
@@ -124,6 +137,11 @@ export class Game {
       if (e.target && e.target.tagName === 'INPUT') return;
       if (this.paused) return;
       const k = e.code;
+      if (this.sim.mode === 'dance') {
+        const m = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down' }[k];
+        if (m && !e.repeat) { this.sim.danceInput(m); e.preventDefault(); }
+        return;
+      }
       if (k === 'ArrowLeft' || k === 'KeyA') { if (!e.repeat) this.sim.move(-1); }
       else if (k === 'ArrowRight' || k === 'KeyD') { if (!e.repeat) this.sim.move(1); }
       else if (k === 'Space' || k === 'KeyW' || k === 'ArrowUp') this.fire();
@@ -154,9 +172,9 @@ export class Game {
     const ch = this.character || (this.character = {});
     ch.mode = mode; ch.speed = sim.currentSpeed; ch.clock = sim.clock; ch.vx = sim.vx; ch.invuln = sim.invuln; ch.targetLane = sim.targetLane;
     ch.duck = mode === 'run' ? sim.duckT : 0; ch.slip = sim.slipT; ch.fuelLow = sim.fuel < FUEL.LOW_WARNING; ch.armed = mode === 'run' && (sim.ammo > 0 || sim.recoilT > 0);
-    ch.recoil = sim.recoilT; ch.flameOn = mode === 'run' || mode === 'attract'; ch.downT = this.downT;
+    ch.recoil = sim.recoilT; ch.flameOn = mode === 'run' || mode === 'attract' || mode === 'dance'; ch.raise = mode === 'dance' ? 1 : 0; ch.downT = this.downT;
     const view = this.view || (this.view = {});
-    view.cam = mode === 'attract' ? 'menu' : (mode === 'run' || mode === 'shop') ? 'run' : 'over';   // v5s7b: in negozio/3-2-1 resta la camera di corsa
+    view.cam = mode === 'attract' ? 'menu' : mode === 'dance' ? 'dance' : (mode === 'run' || mode === 'shop') ? 'run' : 'over';   // v5s7b: in negozio/3-2-1 resta la camera di corsa
     view.char = ch; view.fuelF = mode === 'attract' ? 1 : fuelF; view.speed = sim.currentSpeed; view.smoke = mode === 'dying' || mode === 'over';
     this.world.render(sim, dt, view);
     // passi

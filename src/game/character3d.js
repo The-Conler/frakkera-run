@@ -16,6 +16,7 @@ import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.j
 
 export const MODEL_URL = `${import.meta.env.BASE_URL}models/frakkera-man.glb`;
 export const CHAR_SCALE = 1.6;         // il mondo e' "cartoon": uomo ~2.8 u, frakkera ~5.4 u
+const RAISE_TILT = 0.3;
 export const CLIP_NAMES = ['idle', 'run', 'left', 'right', 'stumble', 'gameover'];
 const FADE = { idle: 0.35, run: 0.25, left: 0.09, right: 0.09, stumble: 0.08, gameover: 0.3 };
 
@@ -104,7 +105,7 @@ export class Character3D {
   // st: stato del personaggio da game.js (mode, speed, vx, invuln, armed, recoil...)
   update(dt, st, px, pz) {
     if (!this.ready) return;
-    const want = st.mode === 'attract' ? 'idle' : st.mode === 'run' ? 'run' : 'over';
+    const want = st.mode === 'attract' ? 'idle' : (st.mode === 'run' || st.mode === 'dance') ? 'run' : 'over';
     if (want !== this.state) {
       const prev = this.state;
       this.state = want; this.stateT = 0;
@@ -155,7 +156,7 @@ export class Character3D {
     const sp = st.speed || 0;
     const ts = this.state === 'run' ? 0.95 + Math.max(0, Math.min(1, (sp - 82) / 158)) * 0.55 : 1;
     const run = this.actions.run;
-    run.timeScale = ts;
+    run.timeScale = st.raise ? 0.62 : ts;          // v5s11: nel ballo passo lento
     for (const k of ['left', 'right']) { const a = this.actions[k]; if (a) { a.timeScale = ts; a.time = run.time; } }
     this.mixer.update(dt);
     this.phase = run.time / run.getClip().duration;
@@ -166,6 +167,7 @@ export class Character3D {
     this.facing += (fTarget - this.facing) * Math.min(1, dt * (this.state === 'run' ? 7 : this.state === 'over' ? 1.6 : 2.5));
     this.root.position.set(px, 0, pz);
     this.root.rotation.y = this.facing + (this.state === 'run' ? (st.vx || 0) * 0.22 : 0);
+    if (st.danceRy != null) { this.root.rotation.y = st.danceRy; this.root.position.y = st.danceHop || 0; }   // v5s11: nel cerchio del ballo
     // lampeggio durante l'invulnerabilita'
     this.model.visible = !(st.invuln > 0 && Math.floor(st.invuln * 14) % 2);
     // v5s6: abbassata (swipe giu'): corsa accovacciata = corpo compresso e piegato in avanti,
@@ -182,14 +184,15 @@ export class Character3D {
     sg.v += ((tgt - sg.a) * 70 - sg.v * 7.5) * dt; sg.a += sg.v * dt;
     sg.pv += ((0 - sg.p) * 55 - sg.pv * 6) * dt; sg.p += sg.pv * dt;
     const c = this.bones.carry;
-    if (c && (Math.abs(sg.a) > 1e-4 || Math.abs(sg.p) > 1e-4 || k > 1e-3)) {
+    this.raiseK = (this.raiseK || 0) + ((st.raise ? 1 : 0) - (this.raiseK || 0)) * Math.min(1, dt * 4);
+    if (c && (Math.abs(sg.a) > 1e-4 || Math.abs(sg.p) > 1e-4 || k > 1e-3 || this.raiseK > 1e-3)) {
       c.parent.updateWorldMatrix(true, false);
       c.parent.getWorldQuaternion(_q2).invert();
       // assi del modello (avanti / lato) nello spazio del genitore dell'osso
       _v.copy(AX_FWD).applyQuaternion(this.root.quaternion).applyQuaternion(_q2);
       _q.setFromAxisAngle(_v, sg.a); c.quaternion.premultiply(_q);
       _v.copy(AX_SIDE).applyQuaternion(this.root.quaternion).applyQuaternion(_q2);
-      _q.setFromAxisAngle(_v, sg.p + DUCK_TILT * k); c.quaternion.premultiply(_q);
+      _q.setFromAxisAngle(_v, sg.p + DUCK_TILT * k + RAISE_TILT * this.raiseK); c.quaternion.premultiply(_q);   // v5s11: frakkera alzata nel ballo
     }
     this.root.updateMatrixWorld(true);
     this.bones.tip.getWorldPosition(this.tipW);

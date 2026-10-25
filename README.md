@@ -485,3 +485,13 @@ Ostacoli del paese (non Mamuthones), dalle fonti in `reference/gadoni/` (Gadoni2
 - Solo nel paese, piu' frequenti nei giri successivi (`MASKS` in config.js). Registro: `q` nuovo corteo, `j` fune passata abbassandosi, `J` fuso lanciato, `M` bonus corteo, `h` urto.
 - Stendardo di cuoio "Ass. Culturale Maimoni e Grastula - Gadoni" con la testa di capra, a bordo via prima della piazza.
 - Test: `tests/sim-masks.test.mjs` (nuovo), `tests/generator.test.mjs` (cortei completi, solo nel paese, percorso sempre libero). Screenshot: `screenshots/v5s10-*`.
+
+## v5 stage 11: ballu tundu nella piazza della chiesa
+- **Una volta per giro** a 150 m dentro il paese (piazza della chiesa). ~2.5-3 s prima: launeddas e coro a tenore generati, popup "BALLU TUNDU!", la corsa rallenta e si vede il cerchio.
+- **Cerchio** di 9 ballerini nel costume di Gadoni (`reference/gadoni/costume-gadoni.jpg`): donne con velo di pizzo bianco, giacca verde scuro bordata di rosso e giallo, polsini di pizzo, gonna rosso scuro con orlo verde, grembiule nero col bordo a fiori; uomini con berritta nera alta, camicia bianca e nastrino rosso, gilet nero coi bottoni d'argento, giacca scura foderata di rosso, cintura di cuoio, gonnellino nero plissettato su calzoni bianchi larghi, gambali neri. Braccia allacciate, passo a tempo con saltello sul battere, il cerchio ondeggia; il corridore entra nel posto davanti con la **frakkera alzata**. A fine ballo il cerchio si apre e si passa in mezzo.
+- **Minigioco a ritmo**: frecce (sinistra/giu'/su'/destra) che scorrono sul battito; swipe, frecce/WASD o tocco sui bersagli. PERFETTO / BENE / MANCATO + combo. 2 giri di ~9 s; il tempo sale a ogni giro della corsa (96, 106, 116... BPM, +8% nel secondo giro, controtempi dai giri successivi).
+- **Premi**: punti (con moltiplicatore di combo + bonus combo massima), 1 tappeto ogni 6 Perfetto (max 3), la fiamma cresce a ogni colpo e alla fine. **Fallito** (meno del 50% di colpi): niente bonus e -6 di carburante, nient'altro.
+- **SALTA** (in alto a destra, anche durante il cue): nessuna penalita'.
+- Musica generata a tempo: tumbu e mancosa (bordone), mancosedda a terzine, tamburo e sonagli.
+- Deterministico (spartito da seed + giro, passi fissi). Registro: `A` cue/inizio, `P` perfetto, `H` bene, `N` mancato, `Y` fine (punti), `K` saltato; input `a` (direzione), `K`.
+- Test: `tests/sim-dance.test.mjs` (nuovo), e2e con i controlli del ballo (negli altri controlli il ballo viene saltato). Screenshot: `screenshots/v5s11-*`.
