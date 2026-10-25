@@ -5,12 +5,12 @@
 // tramite `fx(tipo, dati)`. Unita': px del mondo 2D (10 px = 1 m), corsie
 // centrate su x = 0.
 // =====================================================================
-import { SCORE, FUEL, WORLD, PX_PER_METER, PISTOL, SPEED_STEPS, BIOME_OBST, DUCK, SHOP } from '../config.js';
+import { SCORE, FUEL, WORLD, PX_PER_METER, PISTOL, SPEED_STEPS, BIOME_OBST, DUCK, SHOP, MASKS } from '../config.js';
 import { biomeAt } from './biomes/config.js';
-import { Generator, SOLID, DESTRUCTIBLE, PICKUP_KINDS, BIOME_KINDS, difficultyAt, speedAt, speedStepsAt, lerp } from '../systems/generator.js';
+import { Generator, SOLID, DESTRUCTIBLE, PICKUP_KINDS, BIOME_KINDS, MASK_KINDS, difficultyAt, speedAt, speedStepsAt, lerp } from '../systems/generator.js';
 import { randomSeed } from '../systems/rng.js';
 
-export const HALF_W = { muretto: 12, botte: 7, bottecoricata: 11, botti: 12, pozza: 9, narrow: 17, goat: 7, rollbarrel: 7, rollin: 7, sasso: 8, bagnato: 9, trave: 60, asfodelo: 10, ferula: 10, tappeto: 11, pistola: 11 };
+export const HALF_W = { muretto: 12, botte: 7, bottecoricata: 11, botti: 12, pozza: 9, narrow: 17, goat: 7, rollbarrel: 7, rollin: 7, sasso: 8, bagnato: 9, trave: 60, maimoni: 8, fune: 26, fuso: 7, asfodelo: 10, ferula: 10, tappeto: 11, pistola: 11 };
 export const ATTRACT_SPEED = 34;
 const PLAYER_BACK = 3, PLAYER_FRONT = 5, PLAYER_HALF = 3;
 export const GUTTER = 4;
@@ -19,7 +19,7 @@ export const VIEW_AHEAD = 1150;   // px generati davanti (orizzonte 3D)
 const MOVE_AHEAD = 336;           // gli ostacoli mobili si muovono solo da qui (come la v2)
 const SHOT_RANGE = 360;           // gittata del colpo (come la v2)
 const BEHIND = 140;               // px dietro il giocatore prima di riciclare
-export const isMoving = (k) => k === 'goat' || k === 'rollbarrel';
+export const isMoving = (k) => k === 'goat' || k === 'rollbarrel' || k === 'maimoni';
 export const laneX = (i) => (i - (WORLD.LANES - 1) / 2) * WORLD.LANE_W;
 
 export class Sim {
@@ -33,7 +33,7 @@ export class Sim {
     this.carpetTotal = opts.carpetTotal || 0;
     this.mode = 'attract';
     this.T = 0; this.genOffset = 0; this.clock = 0;
-    this.entities = []; this.shots = [];
+    this.entities = []; this.shots = []; this.parades = {};
     this.currentSpeed = ATTRACT_SPEED;
     this.uid = 1;
     this.resetRunState();
@@ -42,7 +42,7 @@ export class Sim {
 
   resetRunState() {
     this.score = 0; this.metersCredited = 0; this.fuel = FUEL.START; this.chain = 0;
-    this.stats = { pickups: 0, nearMiss: 0, chains: 0, milestones: 0, hits: 0, bonus: 0, carpets: 0, barrels: 0, goats: 0, shopVisits: 0, shopBuys: 0, shopSpent: 0, shields: 0, obst: 0, ducks: 0, beams: 0, slips: 0, speedSteps: 0, shots: 0, pistols: 0, survival: 0, capped: 0 };
+    this.stats = { pickups: 0, nearMiss: 0, chains: 0, milestones: 0, hits: 0, bonus: 0, carpets: 0, barrels: 0, goats: 0, shopVisits: 0, shopBuys: 0, shopSpent: 0, shields: 0, obst: 0, ducks: 0, beams: 0, slips: 0, speedSteps: 0, shots: 0, pistols: 0, masks: 0, parades: 0, ropes: 0, spindles: 0, survival: 0, capped: 0 };
     this.shopLap = 0; this.shopOffer = 0; this.shop = null; this.shield = 0;
     this.duckT = 0; this.duckCd = 0; this.slipT = 0; this.speedStep = 0; this.beamHint = false;
     this.carpetStreak = 0; this.ammo = 0; this.fireCd = 0; this.recoilT = 0;
@@ -57,7 +57,7 @@ export class Sim {
   get runD() { return this.T - this.genOffset; }
   log(code, v = 0) { this.events.push([this.step, code, v]); }
 
-  clearEntities() { for (const e of this.entities) this.fx('despawn', e); this.entities = []; }
+  clearEntities() { for (const e of this.entities) this.fx('despawn', e); this.entities = []; this.parades = {}; }
 
   startRun(seed) {
     this.clearEntities();
@@ -84,7 +84,13 @@ export class Sim {
     e.d += this.genOffset;
     e.solid = !!SOLID[e.kind];
     e.hit = false; e.done = false; e.near = false;
-    if (e.kind === 'goat' || e.kind === 'rollbarrel') e.x = e.dir > 0 ? -ROAD_HALF - 6 : ROAD_HALF + 6;
+    if (e.kind === 'fuso' && e.idle) e.solid = false;
+    if (e.group) {                     // v5s10: corteo di Gadoni
+      const pr = this.parades[e.group] || (this.parades[e.group] = { n: 0, ok: 0, fail: false, closed: false });
+      pr.n++; if (e.last) pr.closed = true;
+      if (e.kind === 'maimoni') this.log('q', e.group);   // nuovo corteo nel registro
+    }
+    if (isMoving(e.kind)) e.x = e.dir > 0 ? -ROAD_HALF - 6 : ROAD_HALF + 6;
     this.entities.push(e);
     this.fx('spawn', e);
   }
@@ -298,7 +304,7 @@ export class Sim {
     return pts;
   }
 
-  entX(e) { return isMoving(e.kind) ? e.x : laneX(e.lane); }
+  entX(e) { return isMoving(e.kind) ? e.x : e.kind === 'fune' ? laneX(e.lane) + WORLD.LANE_W / 2 : laneX(e.lane); }
 
   updateEntities(dt) {
     const T = this.T;
@@ -307,6 +313,14 @@ export class Sim {
     for (const e of this.entities) {
       if (isMoving(e.kind)) {
         if (e.d - T < MOVE_AHEAD) { e.x += e.vx * e.dir * dt; e.moving = true; }
+        if (e.kind === 'maimoni') {
+          // v5s10: su Maimoni carica a zig-zag: rimbalza tra la prima e l'ultima corsia
+          if (!e.bell && e.d - T < MOVE_AHEAD + MASKS.BELL_AHEAD) { e.bell = true; this.fx('sound', 'cowbell'); this.fx('maskBell', { e }); }
+          if (e.moving && !e.done) {
+            if (e.dir > 0 && e.x > laneX(WORLD.LANES - 1) && e.x < ROAD_HALF) { e.dir = -1; e.zig = (e.zig || 0) + 1; }
+            else if (e.dir < 0 && e.x < laneX(0) && e.x > -ROAD_HALF) { e.dir = 1; e.zig = (e.zig || 0) + 1; }
+          }
+        }
         if (e.kind === 'goat' && !e.bleat && e.d - T < MOVE_AHEAD - 10) { e.bleat = true; this.fx('sound', 'goat'); }
       }
       if (e.kind === 'rollin' && !e.done && e.d - T < MOVE_AHEAD) {
@@ -316,6 +330,12 @@ export class Sim {
       }
       if (e.kind === 'sasso' && !e.landed && e.d - T < (this.currentSpeed || 0) * BIOME_OBST.ROCK_LEAD_S + 40) {
         e.landed = true; this.fx('rockFall', { e });       // l'ombra era gia' sulla corsia: ora il masso cade e resta li'
+      }
+      if (e.kind === 'fuso' && !e.idle) {
+        // v5s10: sa Grastula lancia il fuso: prima il segno a terra, ~1 s dopo il fuso arriva sulla corsia
+        const sp = this.currentSpeed || 0;
+        if (!e.warned && e.d - T < sp * MASKS.FUSO_WARN_S + 30) { e.warned = true; this.fx('spindleWarn', { e }); }
+        if (!e.landed && e.d - T < sp * MASKS.FUSO_THROW_S + 30) { e.landed = true; this.stats.spindles++; this.log('J', e.lane); this.fx('spindleThrow', { e }); this.fx('sound', 'spindle'); }
       }
       if (e.kind === 'trave' && !e.hint && !this.beamHint && e.d - T < (this.currentSpeed || 0) * 1.7) {
         e.hint = true; this.beamHint = true; this.fx('beamHint', { e });
@@ -336,6 +356,10 @@ export class Sim {
       if (overlapD && Math.abs(ex - px) <= hw + PLAYER_HALF && !e.hit) {
         if (e.kind === 'pozza') { this.hitPuddle(e); continue; }
         if (e.kind === 'bagnato') { this.hitWet(e); continue; }
+        if (e.kind === 'fune') {
+          if (this.duckT > 0) { e.hit = true; e.ducked = true; this.stats.ropes++; this.log('j', 0); this.fx('ducked', { e }); this.maskPass(e); continue; }
+          if (this.invuln <= 0) { this.hitSolid(e); continue; }
+        }
         if (e.kind === 'trave') {
           if (this.duckT > 0) { e.hit = true; e.ducked = true; this.stats.beams++; this.log('u', 0); this.fx('ducked', { e }); continue; }
           if (this.invuln <= 0) { this.hitSolid(e); continue; }
@@ -344,6 +368,7 @@ export class Sim {
       }
       if (e.d + e.len < pBack) {
         e.done = true;
+        if (e.group && !e.hit) this.maskPass(e);
         if (e.near && !e.hit && this.clock - this.lastNearMiss >= SCORE.NEAR_MISS_COOLDOWN_S) {
           this.lastNearMiss = this.clock;
           const pts = this.addBonus(SCORE.NEAR_MISS);
@@ -369,6 +394,7 @@ export class Sim {
       let gone = p.d - this.T > SHOT_RANGE;
       if (!gone) {
         for (const e of this.entities) {
+          if (MASK_KINDS[e.kind]) continue;          // v5s10: le maschere non si colpiscono: il colpo passa
           if (e.done || e.pickup || (!e.solid && !(e.kind === 'bagnato' && !e.hit))) continue;
           const ex = this.entX(e);
           if (e.d <= p.d + 3 && e.d + e.len + 6 >= p.d && Math.abs(ex - p.x) <= (HALF_W[e.kind] || 10) + 2) {
@@ -470,8 +496,25 @@ export class Sim {
     this.fx('puddle', { e });
   }
 
+  // v5s10: un membro del corteo passato senza urti; corteo intero = BRAVU! (log 'M')
+  maskPass(e) {
+    const pr = this.parades[e.group];
+    if (!pr || pr.fail) return;
+    pr.ok++;
+    if (pr.closed && pr.ok === pr.n) {
+      pr.done = true;
+      const pts = this.addBonus(MASKS.BONUS);
+      this.stats.parades++;
+      this.log('M', pts);
+      this.fx('popup', { text: `BRAVU! +${pts}`, style: 'gold' });
+      this.fx('sound', 'bravu');
+    }
+  }
+
   hitSolid(e) {
     e.hit = true; e.done = true;
+    if (e.group && this.parades[e.group]) this.parades[e.group].fail = true;
+    if (MASK_KINDS[e.kind]) this.stats.masks++;
     if (this.shield > 0) {             // v5s7: lo scudo di sughero para un urto (log 'Z')
       this.shield--; this.stats.shields++;
       this.invuln = WORLD.HIT_INVULN_S;
@@ -481,7 +524,7 @@ export class Sim {
       return;
     }
     this.lastHitStep = this.step;
-    const loss = isMoving(e.kind) || e.kind === 'rollin' ? FUEL.HIT_GOAT : e.kind === 'trave' ? FUEL.HIT_BEAM : FUEL.HIT_SOLID;
+    const loss = e.kind === 'maimoni' ? MASKS.HIT_MAIMONI : e.kind === 'fune' ? MASKS.HIT_FUNE : e.kind === 'fuso' ? MASKS.HIT_FUSO : isMoving(e.kind) || e.kind === 'rollin' ? FUEL.HIT_GOAT : e.kind === 'trave' ? FUEL.HIT_BEAM : FUEL.HIT_SOLID;
     this.log('h', loss);
     this.carpetStreak = 0;
     this.fuel -= loss;
@@ -508,7 +551,7 @@ export class Sim {
       mode: this.mode, score: this.score, fuel: this.fuel, meters: Math.floor(this.runD / PX_PER_METER),
       lane: this.targetLane, px: this.px, T: this.T, stats: { ...this.stats }, speed: this.currentSpeed, baseSpeed: speedAt(Math.max(0, this.runD), this.mapOffsetM), speedStep: this.speedStep, shopOffer: this.shopOffer, shopLap: this.shopLap, shield: this.shield, shop: this.shop && { ...this.shop, buys: { ...this.shop.buys } }, duckT: this.duckT, slipT: this.slipT,
       ammo: this.ammo, shotsInFlight: this.shots.length, carpetTotal: this.carpetTotal, events: this.events.length, inputs: this.inputs.length,
-      entities: this.entities.filter((e) => !e.done).map((e) => ({ kind: e.kind, lane: e.lane, x: e.x, ahead: e.d - this.T, len: e.len, pickup: !!e.pickup, solid: e.solid, destructible: !!DESTRUCTIBLE[e.kind] })),
+      entities: this.entities.filter((e) => !e.done).map((e) => ({ kind: e.kind, lane: e.lane, x: e.x, ahead: e.d - this.T, len: e.len, pickup: !!e.pickup, solid: e.solid, group: e.group || 0, side: e.side, idle: !!e.idle, destructible: !!DESTRUCTIBLE[e.kind] })),
     };
   }
 }

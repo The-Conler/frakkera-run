@@ -462,7 +462,7 @@ export function initUI(game) {
       texCanvas: (k) => game.world.character.store.textures.get(k).canvas,
       perf: () => game.perfStats(),
       env: () => game.world.env.debug(),
-      game,
+      game, audio,
     };
   }
 }

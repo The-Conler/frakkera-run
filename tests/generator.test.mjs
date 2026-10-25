@@ -11,13 +11,16 @@ import { WORLD, DIFFICULTY } from '../src/config.js';
 
 const CELL = 5;
 const L = WORLD.LANES;
-const SEEDS = 400;
+const SEEDS = +(process.env.SEEDS || 400);
 const LENGTH = 60000; // px (6000 m)
 const switchS = Math.log(20) / WORLD.LANE_EASE;               // cambio corsia al 95%
 const switchPx = switchS * DIFFICULTY.SPEED_MAX;
 const K = Math.ceil(switchPx / CELL) + 1;
 const PAD = 1;
-const MOVING = new Set(['goat', 'rollbarrel']);
+const MOVING = new Set(['goat', 'rollbarrel', 'maimoni']);
+const DUCKABLE = new Set(['trave', 'fune']);   // v5s10: la fune degli Stramaionis si passa come la trave
+import { biomeAt } from '../src/game/biomes/config.js';
+let parades = 0; const paradeLaps = {};
 
 let failures = 0, totalObs = 0, totalPick = 0, kinds = {}, carpetsReach = 0, carpetsTot = 0, pistols = 0;
 for (let s = 1; s <= SEEDS; s++) {
@@ -31,7 +34,8 @@ for (let s = 1; s <= SEEDS; s++) {
     if (e.pickup) { totalPick++; continue; }
     totalObs++;
     if (MOVING.has(e.kind)) continue; // verificati a parte: finestra calma
-    if (e.kind === 'trave') { beams.push(e); continue; } // si passa abbassandosi in qualunque corsia (controllata a parte)
+    if (DUCKABLE.has(e.kind)) { beams.push(e); continue; }
+    if (e.kind === 'fuso' && e.idle) continue;     // sa Grastula senza lancio: non ferma // si passa abbassandosi in qualunque corsia (controllata a parte)
     // botte / carrello che rotola verso il giocatore: occupa la corsia per tutto il tratto che percorre
     const d0 = e.kind === 'rollin' ? e.d - e.sweep : e.d;
     const c0 = Math.max(0, Math.floor(d0 / CELL) - PAD), c1 = Math.ceil((e.d + e.len) / CELL) + PAD;
@@ -61,7 +65,7 @@ for (let s = 1; s <= SEEDS; s++) {
     if (!e.pickup) continue;
     // controllo stretto: nessuna sovrapposizione reale (senza margine)
     for (const o of ents) {
-      if (o.pickup || MOVING.has(o.kind) || o.kind === 'trave' || o.lane !== e.lane) continue;
+      if (o.pickup || MOVING.has(o.kind) || DUCKABLE.has(o.kind) || o.lane !== e.lane) continue;
       if (o.d < e.d + e.len && o.d + o.len > e.d) { ok = false; console.log(`seed ${s}: ${e.kind} sovrapposto a ${o.kind} @${e.d}`); }
     }
     const cm = Math.floor((e.d + e.len / 2) / CELL);
@@ -70,7 +74,7 @@ for (let s = 1; s <= SEEDS; s++) {
     if (e.kind === 'pistola') { pistols++; if (!reachable) { ok = false; console.log(`seed ${s}: pistola irraggiungibile @${e.d}`); } }
     if (e.kind === 'tappeto') {
       // la corsia deve restare libera per almeno 25 px dopo il tappeto
-      const after = ents.find((o) => !o.pickup && !MOVING.has(o.kind) && o.kind !== 'trave' && o.lane === e.lane && o.d >= e.d + e.len && o.d < e.d + e.len + 25);
+      const after = ents.find((o) => !o.pickup && !MOVING.has(o.kind) && !DUCKABLE.has(o.kind) && o.lane === e.lane && o.d >= e.d + e.len && o.d < e.d + e.len + 25);
       if (after) { ok = false; console.log(`seed ${s}: trappola dopo un tappeto @${e.d} (${after.kind})`); }
     }
   }
@@ -81,11 +85,23 @@ for (let s = 1; s <= SEEDS; s++) {
   }
   // v5s6: nessun ostacolo (fermo) sulla stessa fila della trave, in nessuna corsia: abbassarsi basta sempre
   for (const t of beams) {
-    const clash = ents.find((o) => !o.pickup && o !== t && o.kind !== 'trave' && !MOVING.has(o.kind) && o.d < t.d + t.len + 4 && o.d + o.len > t.d - 4 && o.kind !== 'rollin' && o.kind !== 'narrow');
+    const clash = ents.find((o) => !o.pickup && o !== t && !DUCKABLE.has(o.kind) && !MOVING.has(o.kind) && o.d < t.d + t.len + 4 && o.d + o.len > t.d - 4 && o.kind !== 'rollin' && o.kind !== 'narrow');
     if (clash) { ok = false; console.log(`seed ${s}: ostacolo sotto la trave @${t.d} (${clash.kind})`); }
   }
+  // v5s10: ogni corteo = Maimoni + fune + fuso (ultimo), tutti nel paese e nell'ordine giusto
+  const groups = {};
+  for (const e of ents) if (e.group) (groups[e.group] || (groups[e.group] = [])).push(e);
+  for (const [gid, m] of Object.entries(groups)) {
+    const ks = m.map((x) => x.kind).join(',');
+    if (ks !== 'maimoni,fune,fuso' || !m[2].last) { ok = false; console.log(`seed ${s}: corteo ${gid} incompleto (${ks})`); }
+    for (const x of m) if (biomeAt(x.d / 10).b.id !== 'village' && biomeAt((x.d - 400) / 10).b.id !== 'village') { ok = false; console.log(`seed ${s}: maschera fuori dal paese @${x.d}`); }
+    parades++; const lap = biomeAt(m[0].d / 10).lap; paradeLaps[lap] = (paradeLaps[lap] || 0) + 1;
+  }
+  for (const e of ents) if (e.kind === 'fuso' && !e.idle && ents.some((o) => o !== e && !o.pickup && o.lane === e.lane && !MOVING.has(o.kind) && o.d < e.d + e.len + 2 && o.d + o.len > e.d - 2)) { ok = false; console.log(`seed ${s}: fuso sovrapposto @${e.d}`); }
   if (!ok) failures++;
 }
+console.log(`cortei di Gadoni: ${parades}  per giro: ${JSON.stringify(paradeLaps)}`);
+if (!parades) { console.log('FALLITO: nessun corteo'); failures++; }
 console.log(`seed testati: ${SEEDS}, metri per seed: ${LENGTH / 10}, ostacoli: ${totalObs}, pickup: ${totalPick}`);
 console.log('tipi:', JSON.stringify(kinds));
 console.log(`tappeti raggiungibili: ${(100 * carpetsReach / carpetsTot).toFixed(2)}%  pistole: ${pistols} (tutte raggiungibili)`);

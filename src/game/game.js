@@ -53,6 +53,7 @@ export class Game {
   buyItem(id) { const r = this.sim.buy(id); if (r.ok) { audio.pistolPickup(); this.world.shopNod(); } else audio.empty(); return r; }
   leaveShopView() { this.world.shopView = false; }
   exitShop() { this.world.shopView = false; this.accum = 0; return this.sim.exitShop(); }
+  bellPan(e) { return Math.max(-1, Math.min(1, (this.sim.entX(e) - this.sim.px) / 45)); }
   fire() { const ok = this.sim.fire(); if (ok) audio.shoot(); return ok; }
   pause() { this.paused = true; }
   resume() { this.paused = false; this.accum = 0; }
@@ -72,7 +73,7 @@ export class Game {
       case 'fuel': audio.pickup(d.e.kind); break;
       case 'pistol': audio.pistolPickup(); break;
       case 'puddle': audio.puddle(); break;
-      case 'hit': audio.hit(); break;
+      case 'hit': audio.hit(); if (d.e && (d.e.kind === 'maimoni' || d.e.kind === 'fune')) audio.bellRing(this.bellPan(d.e)); break;
       case 'slip': audio.puddle(); break;
       case 'rockFall': audio.rockFall?.(); break;
       case 'duck': audio.duck?.(); break;
@@ -166,6 +167,12 @@ export class Game {
       audio.fire(fuelF, dtReal, mode === 'run' || mode === 'attract');
       if ((this._ambT = (this._ambT || 0) + dtReal) > 0.25) { this._ambT = 0; audio.ambience(this.world.amb); }
       if (mode === 'run') audio.setIntensity(1, difficultyAt(sim.runD));
+      // v5s10: campanacci di su Maimoni e degli Stramaionis (volume per distanza, pan per corsia)
+      if (mode === 'run' && !this.paused) {
+        const bl = this._bl || (this._bl = []); bl.length = 0;
+        for (const e of sim.entities) if ((e.kind === 'maimoni' || e.kind === 'fune') && !(e.hit && !e.ducked)) bl.push({ id: e.id, kind: e.kind, dist: e.d - sim.T, pan: this.bellPan(e) });
+        audio.bells(bl, dtReal);
+      }
     }
     // popup posizionati nel mondo
     const q = this.world.popupQ;

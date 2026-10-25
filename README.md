@@ -474,3 +474,14 @@ Un punteggio calcolato solo dal client si può sempre falsificare. Per questo il
 - Prestazioni misurate solo in Chrome headless con WebGL software (SwiftShader): lì il tempo di frame è dominato dalla CPU che emula la GPU (circa 50-110 ms) e non è rappresentativo; il lavoro JavaScript per frame è di circa 3-4 ms (p95). Circa 270-320 draw call e 190-200 mila triangoli in corsa (il personaggio: 9 draw call e 19.745 triangoli, più 4 quadrati per la fiamma): vanno verificati su telefoni reali di fascia media; se serve si possono ridurre i dettagli delle case lontane.
 - Il bundle JS supera i 500 KB non compressi (Three.js): Vite lo segnala, ma compresso sono circa 211 KB.
 - Il testo sulla tradizione è volutamente breve e generale e va validato con gli organizzatori.
+
+## v5 stage 10: le maschere del carnevale di Gadoni (Giobia Lardaiolu)
+Ostacoli del paese (non Mamuthones), dalle fonti in `reference/gadoni/` (Gadoni2009.pdf, foto del gruppo, figura velata, stendardo):
+- **su Maimoni**: abiti scuri e pelli di capra/pecora, corna di capra, maschera di lana di pecora, campanacci sulla schiena con imbragatura di corda, spiedo col lardo. Carica a zig-zag rimbalzando tra le corsie (finestra calma come la capra).
+- **Stramaionis**: stracci scuri, mantello di orbace scuro o grigio-beige col cappuccio, viso di fuliggine, bastone/forcone/clava. In coppia tengono una **fune tesa su 2 corsie**: ci si abbassa (non c'e' il salto nel gioco) oppure si va nella terza corsia, sempre libera.
+- **sa Grastula**: vedova in stracci scuri, velo nero (sa facciola), conocchia con la lana bianca. A bordo strada lancia il **fuso**: segno rosso a terra ~1 s prima che arrivi sulla corsia (mai sul sentiero sicuro).
+- **Campanacci posizionali**: ritmo di scuotimento (piu' fitto per Maimoni) che cresce di volume avvicinandosi e va a destra/sinistra secondo la corsia; urto = campanacci che risuonano forte.
+- La pistola le **attraversa** senza effetto. Urto: carburante (Maimoni 24, fune 16, fuso 14). Corteo intero passato senza urti: **BRAVU! +200**.
+- Solo nel paese, piu' frequenti nei giri successivi (`MASKS` in config.js). Registro: `q` nuovo corteo, `j` fune passata abbassandosi, `J` fuso lanciato, `M` bonus corteo, `h` urto.
+- Stendardo di cuoio "Ass. Culturale Maimoni e Grastula - Gadoni" con la testa di capra, a bordo via prima della piazza.
+- Test: `tests/sim-masks.test.mjs` (nuovo), `tests/generator.test.mjs` (cortei completi, solo nel paese, percorso sempre libero). Screenshot: `screenshots/v5s10-*`.

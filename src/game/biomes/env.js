@@ -14,6 +14,7 @@ import * as BT from './textures.js';
 import * as N from './builders/nature.js';
 import * as S from './builders/structures.js';
 import { buildChurchSquare } from './builders/church.js';
+import { buildBanner } from '../masks/figures.js';
 import { Kit, G, rng, ROCK, LEAF } from './builders/common.js';
 
 export const ROAD_W = 11, WALK_W = 1.45, FACADE = ROAD_W / 2 + WALK_W;
@@ -668,6 +669,8 @@ export class Env {
       const sq = this.prefab('church', 0, () => { const s = buildChurchSquare(1); return { geom: s.geom, w: 0, lamps: s.lamps, houses: s.houses }; });
       mesh(sq.geom, this.mats2, true);
       root.scale.x = -1;                                   // piazza costruita a sinistra, specchiata a destra della via
+      // v5s10: stendardo di cuoio dell'Ass. Culturale Maimoni e Grastula (testa di capra), a bordo via
+      const ban = buildBanner(this.mats2); ban.scale.x = -1; ban.position.set(6.0, 0, 52); ban.rotation.y = 0.4; root.add(ban);
       for (const [x, y, z, s] of sq.lamps) lamps.push(this.lamp(-x, y, z - W, '#ffd27a', s * 1.4, 0.8));
       let chainZ = 0;
       for (const h of sq.houses) {

@@ -6,7 +6,8 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { WORLD, BIOME_OBST } from '../config.js';
-import { laneX, isMoving } from './sim.js';
+import { laneX, isMoving, ROAD_HALF } from './sim.js';
+import { buildMaimoni, buildStramaione, buildGrastula, animateFigure, spindleGeom } from './masks/figures.js';
 import * as T3 from './tex3d.js';
 import * as M from './models.js';
 import { PointPool, Shards } from './particles.js';
@@ -287,6 +288,25 @@ export class World {
       v.body.add(rim, w);
     } else if (kind === 'goat') {
       v.body = new THREE.Mesh(this.geo.goat, this.mats2); v.shadow = this.blob(2.0, 1.1);
+    } else if (kind === 'maimoni') {               // v5s10: maschere di Gadoni
+      v.fig = buildMaimoni(this.mats2); v.body = v.fig.root; v.fig.root.scale.setScalar(1.12); v.shadow = this.blob(1.6, 1.3);
+    } else if (kind === 'fune') {
+      v.body = new THREE.Group();
+      const HX = WORLD.LANE_W * U - 0.15;
+      v.figs = [0, 1].map((i) => { const f = buildStramaione(this.mats2, (e.id + i) % 4); f.holdRope = true; f.root.position.x = i ? HX : -HX; if (i) f.root.scale.x = -1; v.body.add(f.root); return f; });
+      for (const f of v.figs) { f.arms[1].rotation.z = 0.75; f.arms[1].rotation.x = -0.25; f.root.scale.y = f.root.scale.z = 1.12; f.root.scale.x *= 1.12; }
+      const pts = []; const X0 = HX - 1.0;
+      for (let i = 0; i <= 12; i++) { const q = i / 12; pts.push(new THREE.Vector3(-X0 + 2 * X0 * q, 1.32 - Math.sin(q * Math.PI) * 0.16, 0.2)); }
+      v.rope = new THREE.Mesh(this.geo.ropeG || (this.geo.ropeG = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 24, 0.065, 6)), this.mat.rope || (this.mat.rope = new THREE.MeshLambertMaterial({ color: '#c9b088' })));
+      v.body.add(v.rope);
+      v.shadow = this.blob(9.2, 1.0);
+    } else if (kind === 'fuso') {
+      v.body = new THREE.Group();
+      v.fig = buildGrastula(this.mats2); v.fig.fig.scale.setScalar(1.12); v.body.add(v.fig.root);
+      v.spin = new THREE.Mesh(spindleGeom(), this.mats2); v.body.add(v.spin);
+      const wm = this.mat.warn || (this.mat.warn = new THREE.MeshBasicMaterial({ color: '#ff5a2a', transparent: true, opacity: 0.85, depthWrite: false, fog: false }));
+      const ring = new THREE.Mesh(this.geo.ring, wm); ring.rotation.x = Math.PI / 2; ring.position.y = 0.06; ring.scale.setScalar(1.3); ring.renderOrder = 4; v.warn = ring; v.body.add(ring);
+      v.gshadow = this.blob(1.4, 1.2); v.body.add(v.gshadow);
     } else if (kind === 'asfodelo' || kind === 'ferula') {
       v.body = new THREE.Group();
       const m = new THREE.Mesh(this.geo[kind], this.mats2); m.rotation.z = 1.0; m.position.set(-0.55, -0.3, 0);
@@ -340,7 +360,7 @@ export class World {
     v.root.visible = true; v.body.visible = true;
     if (v.glow) v.glow.visible = true;
     v.t = Math.random() * 6;
-    v.dead = false; v.hitT = 0; v.fallT = 0; v.landFx = false;
+    v.dead = false; v.hitT = 0; v.fallT = 0; v.landFx = false; v.flyT = 0;
     if (e.kind === 'botte' || e.kind === 'muretto') v.body.rotation.y = (e.id * 1.37) % 6.28 * (e.kind === 'botte' ? 1 : 0.06);
     this.views.set(e.id, v);
     this.placeView(e, v);
@@ -408,6 +428,32 @@ export class World {
           const p = v.root.position;
           if (Math.random() < dt * 22) this.norm.emit(p.x + (Math.random() - 0.5) * 1.6, 0.25, p.z - 0.9, (Math.random() - 0.5) * 1.2, 0.5 + Math.random() * 0.8, -0.6, 0.9, 0.7, 1.8, COL.dust, 0.45, 0, 1);
           if (!v.spin && Math.random() < dt * 10) this.add.emit(p.x + (Math.random() < 0.5 ? -0.6 : 0.6), 0.15, p.z + 0.6, (Math.random() - 0.5) * 2, 1 + Math.random() * 2, 1.5, 0.3, 0.14, 0.03, COL.spark, 1, 6, 2);
+        }
+      } else if (e.kind === 'maimoni') {
+        // v5s10: carica a saltelli, piegato in avanti, si volta verso dove corre; campanacci che ballano
+        const f = v.fig;
+        f.root.rotation.y = e.moving && !e.done ? (e.dir > 0 ? 0.9 : -0.9) : 0;
+        animateFigure(f, v.t * (e.moving ? 11 : 5), e.moving ? 0.75 : 0.25, e.moving ? 0.28 : 0.06);
+      } else if (e.kind === 'fune') {
+        for (let i = 0; i < 2; i++) animateFigure(v.figs[i], v.t * 4 + i * 1.7, 0.3, 0.07);
+        v.rope.rotation.x = Math.sin(v.t * 3) * 0.04; v.rope.position.y = Math.sin(v.t * 4) * 0.04;
+      } else if (e.kind === 'fuso') {
+        // v5s10: sa Grastula a bordo strada; segno a terra, poi il fuso vola sulla corsia e resta li'
+        const side = e.side || 1, gx = side * (ROAD_HALF * U + 1.3) - laneX(e.lane) * U;
+        const f = v.fig; f.root.position.set(gx, 0, 0); f.root.rotation.y = -side * 0.9;
+        animateFigure(f, v.t * 3, 0.15, 0.03);
+        v.gshadow.position.set(gx, 0.025, 0);
+        if (e.warned && !e.landed) { v.warn.visible = true; v.warn.scale.setScalar(1.1 + 0.35 * (0.5 + 0.5 * Math.sin(t * 12))); }
+        else v.warn.visible = false;
+        if (!e.landed) {
+          f.arms[1].rotation.x = e.warned ? -2.2 - Math.sin(v.t * 9) * 0.3 : -0.3; f.hand.visible = true; v.spin.visible = false;
+        } else {
+          v.flyT += dt; const q = Math.min(1, v.flyT / 0.4);
+          f.hand.visible = false; f.arms[1].rotation.x = -0.8 * (1 - q);
+          v.spin.visible = true;
+          v.spin.position.set(gx * (1 - q), 2.6 * (1 - q) + Math.sin(q * Math.PI) * 2.2 + 0.08 * q, 0);
+          v.spin.rotation.set(q < 1 ? v.flyT * 14 : Math.PI / 2, 0, q < 1 ? v.flyT * 9 : 0.4);
+          if (q >= 1 && !v.landFx) { v.landFx = true; const p = v.root.position; this.dustPuff(p.x, p.z, 10); }
         }
       } else if (e.kind === 'sasso') {
         // v5s6: prima solo l'ombra che pulsa sulla corsia, poi il masso cade e resta li'

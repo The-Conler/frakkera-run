@@ -7,7 +7,7 @@
 // mobili compaiono solo in "finestre calme" senza altri ostacoli.
 // Tappeti, combustibile e pistola si piazzano solo in celle libere.
 // =====================================================================
-import { DIFFICULTY as DF, WORLD, PX_PER_METER, CARPETS as CP, PISTOL, SPEED_STEPS as SS, BIOME_OBST as BO, DUCK } from '../config.js';
+import { DIFFICULTY as DF, WORLD, PX_PER_METER, CARPETS as CP, PISTOL, SPEED_STEPS as SS, BIOME_OBST as BO, DUCK, MASKS as MK } from '../config.js';
 import { biomeAt, BIOMES } from '../game/biomes/config.js';
 import { makeRng } from './rng.js';
 
@@ -43,6 +43,8 @@ export const SOLID = {
   muretto: true, botte: true, bottecoricata: true, botti: true, narrow: true, goat: true, rollbarrel: true, pozza: false,
   // v5s6: ostacoli d'ambiente (la pietra bagnata non ferma: fa scivolare) e trave bassa (si passa abbassandosi)
   rollin: true, sasso: true, bagnato: false, trave: false,
+  // v5s10: maschere di Gadoni (la fune si passa abbassandosi, come la trave)
+  maimoni: true, fune: false, fuso: true,
 };
 // distruttibili con la pistola: tutte e sole le botti
 export const DESTRUCTIBLE = { botte: true, bottecoricata: true, botti: true, rollbarrel: true, rollin: true, sasso: true, bagnato: true };
@@ -50,6 +52,8 @@ export const DESTRUCTIBLE = { botte: true, bottecoricata: true, botti: true, rol
 export const BIOME_KINDS = { rollin: true, sasso: true, bagnato: true };
 // ambiente -> ostacolo tipico (il viadotto non ne ha)
 export const BIOME_OBST_KIND = { village: 'rollin', rock: 'sasso', river: 'bagnato', 'mine-ext': 'rollin', 'mine-int': 'rollin', 'mine-blue': 'rollin' };
+// v5s10: maschere del carnevale di Gadoni: la pistola le attraversa senza effetto
+export const MASK_KINDS = { maimoni: true, fune: true, fuso: true };
 export const PICKUP_KINDS = { asfodelo: 'fuel', ferula: 'fuel', tappeto: 'carpet', pistola: 'pistol' };
 
 const SHORT_LEN = { muretto: 14, botte: 18, bottecoricata: 14, pozza: 13 };
@@ -81,6 +85,8 @@ export class Generator {
     this.pistols = 0;
     this.nextPistolRow = Math.ceil((PISTOL.FROM_M * PX_PER_METER - WORLD.LEAD_IN) / WORLD.ROW);
     this.barrelBoostUntil = -1;
+    // v5s10: corteo delle maschere di Gadoni
+    this.parade = null; this.paradeG = 0; this.nextParadeAt = 0;
   }
 
   rowDist(r) { return WORLD.LEAD_IN + r * WORLD.ROW; }
@@ -109,6 +115,22 @@ export class Generator {
       return;
     }
     const longActive = this.blockedUntil.some((b) => b >= r);
+    // ---- v5s10: corteo di Gadoni (solo nel paese): parte con su Maimoni in una finestra calma ----
+    if (!this.parade && !longActive && r >= this.nextParadeAt && D / PX_PER_METER >= MK.FROM_M &&
+        biomeIdAt(D, this.offM) === 'village') {
+      const bi = biomeAt(D / PX_PER_METER + this.offM), lap = bi.lap;
+      if (bi.local < bi.b.to - bi.b.from - 90 && rng() < MK.P_LAP[Math.min(lap, MK.P_LAP.length - 1)]) {
+        const g = ++this.paradeG;
+        this.calmUntil = r + 6;
+        this.nextMovingAt = Math.max(this.nextMovingAt, r + 14);
+        this.nextParadeAt = r + MK.MIN_GAP_ROWS + rng.int(0, 10);
+        this.parade = { g, stage: 1, next: r + 7 + MK.FUNE_GAP_ROWS, tries: 0 };
+        const dir = rng() < 0.5 ? 1 : -1;
+        emit({ kind: 'maimoni', lane: dir > 0 ? 0 : L - 1, d: D + 3 * ROW + 4, len: 12, dir,
+          vx: lerp(MK.MAIMONI_VX[0], MK.MAIMONI_VX[1], diff), group: g });
+        return;
+      }
+    }
     if (diff >= DF.MOVING_FROM && r >= this.nextMovingAt && !longActive &&
         rng() < 0.07 + 0.12 * diff) {
       this.calmUntil = r + 6;
@@ -140,6 +162,30 @@ export class Generator {
     const required = new Array(L).fill(false);
     for (let l = 0; l < L; l++) required[l] = this.freeUntil[l] >= r || l === this.path;
 
+    // ---- v5s10: i due Stramaionis con la fune tesa su 2 corsie (ci si abbassa), poi sa Grastula ----
+    const pa = this.parade;
+    if (pa && r >= pa.next && !longActive) {
+      if (pa.stage === 1) {
+        const left = this.path === 0 ? 1 : this.path === L - 1 ? 0 : (rng() < 0.5 ? 0 : 1);  // il sentiero resta libero se si puo'
+        for (let l = 0; l < L; l++) { used[l] = true; this.laneCool[l] = Math.max(this.laneCool[l], r + 1); }
+        this.nextBeamAt = Math.max(this.nextBeamAt, r + 8);
+        emit({ kind: 'fune', lane: left, d: D + 10, len: DUCK.BEAM_LEN, group: pa.g });
+        pa.stage = 2; pa.next = r + 1 + MK.FUSO_GAP_ROWS;
+        this.carpetRow(r, D, diff, used, emit);
+        return;
+      }
+      const free = [];
+      for (let l = 0; l < L; l++) if (!required[l] && !used[l] && this.blockedUntil[l] < r && this.laneCool[l] < r) free.push(l);
+      if (free.length || ++pa.tries > 8) {
+        const l = free.length ? free[rng.int(0, free.length - 1)] : (this.path === 0 ? L - 1 : 0);
+        const side = l === 0 ? -1 : l === L - 1 ? 1 : (rng() < 0.5 ? -1 : 1);
+        if (free.length) { used[l] = true; this.laneCool[l] = Math.max(this.laneCool[l], r + 1); }
+        // senza corsia libera sa Grastula resta a guardare (idle: niente lancio, non ferma)
+        emit({ kind: 'fuso', lane: l, d: D + 8, len: 12, side, group: pa.g, last: true, idle: !free.length });
+        this.nextBeamAt = Math.max(this.nextBeamAt, r + 4);
+        this.parade = null;
+      }
+    }
     // ---- v5s6: trave bassa (tutte le corsie, si passa abbassandosi: niente altro sulla fila) ----
     if (diff >= DUCK.BEAM_FROM && r >= this.nextBeamAt && !longActive && rng() < lerp(DUCK.BEAM_P_START, DUCK.BEAM_P_END, diff)) {
       this.nextBeamAt = r + DUCK.BEAM_MIN_GAP_ROWS + rng.int(0, 8);

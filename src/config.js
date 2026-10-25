@@ -159,6 +159,24 @@ export const DUCK = {
   BEAM_LEN: 10,            // px di profondita' della trave
 };
 
+// ---- v5s10: maschere del carnevale di Gadoni (Giobia Lardaiolu) nel paese ----
+// Un corteo = su Maimoni (carica a zig-zag tra le corsie, campanacci come avviso), due Stramaionis
+// con la fune tesa su 2 corsie (ci si abbassa) e sa Grastula a bordo strada che lancia il fuso
+// (segno a terra prima). Non si possono colpire con la pistola. Passato tutto il corteo: BRAVU!
+export const MASKS = {
+  FROM_M: 90,              // non prima di X metri di corsa
+  P_LAP: [0.05, 0.09, 0.13, 0.16], // probabilita' per fila nel paese, per giro (poi l'ultimo)
+  MIN_GAP_ROWS: 30,        // file minime tra due cortei
+  MAIMONI_VX: [26, 40],    // velocita' laterale (px/s) da diff 0 a 1
+  FUNE_GAP_ROWS: 3,        // file tra Maimoni (fine finestra calma) e la fune
+  FUSO_GAP_ROWS: 3,        // file tra la fune e il fuso
+  FUSO_WARN_S: 1.9,        // il segno a terra compare X s prima
+  FUSO_THROW_S: 0.95,      // il fuso arriva a terra X s prima del passaggio (~1 s dopo il segno)
+  BELL_AHEAD: 140,         // px oltre MOVE_AHEAD a cui si sentono i campanacci
+  BONUS: 200,              // corteo intero passato senza urti
+  HIT_MAIMONI: 24, HIT_FUNE: 16, HIT_FUSO: 14,  // carburante perso
+};
+
 // ---- v5s7: 'Garag di Pinu' (negozio a ogni ritorno al paese, pagato in tappeti Sa Burra) ----
 // Ogni volta che il giro torna al paese (dopo la galleria blu, ~1600 m, e ogni giro dopo) compare
 // per OFFER_S secondi il pulsante 'Entra da Pinu?'. Entrando la corsa si ferma (sim congelata,
