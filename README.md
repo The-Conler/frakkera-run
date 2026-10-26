@@ -495,3 +495,9 @@ Ostacoli del paese (non Mamuthones), dalle fonti in `reference/gadoni/` (Gadoni2
 - Musica generata a tempo: tumbu e mancosa (bordone), mancosedda a terzine, tamburo e sonagli.
 - Deterministico (spartito da seed + giro, passi fissi). Registro: `A` cue/inizio, `P` perfetto, `H` bene, `N` mancato, `Y` fine (punti), `K` saltato; input `a` (direzione), `K`.
 - Test: `tests/sim-dance.test.mjs` (nuovo), e2e con i controlli del ballo (negli altri controlli il ballo viene saltato). Screenshot: `screenshots/v5s11-*`.
+
+## v5 stage 11b: Pinu rifatto (mesh a faccette da Blender)
+- Modellato in **Blender headless** (`tools/pinu_blender.py`, `blender -b -P tools/pinu_blender.py -- public/models/pinu.glb`): ogni pezzo e' un convex hull di punti (faccette vere), colori per faccia con pieghe piu' scure, ~930 facce, GLB 96 KB caricato in anticipo.
+- Sul riferimento dell'utente: faccia lunga e spigolosa, mascella forte, sopracciglia scure piegate (sguardo severo), bocca dritta, **niente baffi ne' sorriso**, coppola piatta con visiera, spalle larghe e spioventi, giacca antracite a pieghe con risvolti, camicia bianca e cravatta, mani grandi a dita intrecciate sul tavolo.
+- Luce calda di lato (spot da sinistra) nel negozio. Confronto: `screenshots/v5s11b-pinu-confronto.png`.
+- Fix: il testo PERFETTO/BENE del ballo era spostato a sinistra (la classe `pop` collideva con quella dei popup).

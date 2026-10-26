@@ -270,6 +270,9 @@ export function buildShopRoom() {
   scene.add(sun, sun.target);
   const bounce = new THREE.PointLight('#ffb878', 2.2, 7, 1.4); bounce.position.set(0.5, 0.4, 1.4); scene.add(bounce);   // luce rimbalzata dal selciato
   const inner = new THREE.PointLight('#ffd49a', 5.0, 7, 1.3); inner.position.set(0.4, 3.0, 0.2); scene.add(inner);
+  // v5s11b: luce calda di lato su Pinu (come nel riferimento: faccia e mani modellate da sinistra)
+  const key = new THREE.SpotLight('#ffb870', 9, 6, 0.55, 0.6, 1.2);
+  key.position.set(TX - 1.9, TH + 2.1, TZ - TD / 2 + 1.5); key.target.position.set(TX, TH + 0.9, TZ - TD / 2 - 0.2); scene.add(key, key.target);
 
   const camera = new THREE.PerspectiveCamera(55, 0.5625, 0.1, 90);
   // punti che devono restare dentro l'inquadratura (tetto con gronde, pali, lanterne, piede della bancarella)

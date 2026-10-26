@@ -18,6 +18,7 @@ import { Flame3D } from './flame3d.js';
 import { rng } from './kit.js';
 import { Env } from './biomes/env.js';
 import { buildShopRoom } from './shop3d.js';
+import { loadPinuGeometry } from './shop/pinu.js';
 import { MENU_MOOD, OVER_TINT } from './biomes/config.js';
 import { SKINS, SHARDS, outcropGeometry } from './biomes/builders/skins.js';
 
@@ -93,6 +94,7 @@ export class World {
     this.shots = new Map();
     this.popupQ = [];
     this.dance = new DanceRing(this);      // v5s11: ballu tundu
+    loadPinuGeometry();                    // v5s11b: Pinu (GLB) caricato in anticipo
     this.tipW = new THREE.Vector3(0, 4, 0);
     this.muzzleW = new THREE.Vector3(0, 3, 0);
   }

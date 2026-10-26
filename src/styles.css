@@ -344,7 +344,7 @@ svg { display: block; }
 #dn-judge.perfect { color: #ffe066; text-shadow: 0 0 16px #ffb000, 0 3px 6px #000b; }
 #dn-judge.good { color: #8ff7d8; text-shadow: 0 0 12px #20c0a0, 0 3px 6px #000b; }
 #dn-judge.miss { color: #ff8080; }
-#dn-judge.pop { animation: dnpop .35s ease-out; }
+#dn-judge.dn-pop { animation: dnpop .35s ease-out; }
 @keyframes dnpop { from { transform: scale(1.5); opacity: .4; } to { transform: scale(1); opacity: 1; } }
 #dn-combo { position: absolute; left: 0; right: 0; top: calc(58% + 40px); text-align: center; font: 800 16px/1 system-ui; color: #ffd890; text-shadow: 0 2px 4px #000b; }
 .dn-pads { position: absolute; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 70px); transform: translateX(-50%); display: flex; gap: 10px; pointer-events: auto; }

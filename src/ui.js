@@ -261,7 +261,7 @@ export function initUI(game) {
     bus.on('danceCue', () => { if (state === 'play') skip.classList.remove('hidden'); });
     bus.on('danceStart', () => { ui.classList.remove('hidden'); skip.classList.remove('hidden'); jd.textContent = ''; cb.textContent = ''; if (!raf) draw(); });
     bus.on('danceEnd', () => { ui.classList.add('hidden'); skip.classList.add('hidden'); cancelAnimationFrame(raf); raf = 0; });
-    bus.on('danceJudge', (j) => { jd.textContent = j.res === 'perfect' ? 'PERFETTO!' : j.res === 'good' ? 'BENE' : 'MANCATO'; jd.className = j.res; void jd.offsetWidth; jd.classList.add('pop'); });
+    bus.on('danceJudge', (j) => { jd.textContent = j.res === 'perfect' ? 'PERFETTO!' : j.res === 'good' ? 'BENE' : 'MANCATO'; jd.className = j.res; void jd.offsetWidth; jd.classList.add('dn-pop'); });
     skip.addEventListener('click', (e) => { e.stopPropagation(); game.skipDance(); });
     skip.addEventListener('pointerdown', (e) => e.stopPropagation());
     for (const p of document.querySelectorAll('.dn-pad')) { p.addEventListener('pointerdown', (e) => { e.stopPropagation(); game.danceInput(p.dataset.dir); }); }
