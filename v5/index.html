@@ -9,8 +9,8 @@
   <meta name="description" content="FRAKKERA RUN - Quanto lontano riuscirai a portare il fuoco? Minigioco arcade ispirato a Is Frakkeras di Gadoni." />
   <title>FRAKKERA RUN</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-  <script type="module" crossorigin src="./assets/index-CrlAl_Vr.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-Bz7w9wLN.css">
+  <script type="module" crossorigin src="./assets/index-DuwmErGB.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-KLrlJ3Tj.css">
 </head>
 <body>
   <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -161,7 +161,7 @@
             </ul>
             <h3>Punti</h3>
             <table class="pts" id="pts-table"></table>
-            <p class="note">Pausa: tasto P / Esc o il pulsante in alto. Dopo il game over: RIPROVA, oppure Invio / R.</p>
+            <p class="note">Pausa: tasto P / Esc o il pulsante in alto. Dopo il game over: RIGIOCA, oppure Invio / R.</p>
           </div>
           <button class="btn btn-navy" data-act="back"><svg class="btn-ico"><use href="#i-back"/></svg> INDIETRO</button>
         </div>
@@ -206,32 +206,37 @@
         </div>
       </section>
 
-      <!-- GAME OVER -->
+      <!-- GAME OVER (v5s15: stile menu) -->
       <section class="screen hidden" id="scr-over">
-        <h2 class="logo over-logo"><span class="logo-l1">FIAMMA</span><span class="logo-l1 l1b">SPENTA</span></h2>
+        <div class="go-head">
+          <h2 class="logo over-logo"><span class="logo-l1">FIAMMA SPENTA</span></h2>
+          <div class="go-band" aria-hidden="true"></div>
+        </div>
         <div class="over-spacer"></div>
         <div class="over-panel">
+          <div class="go-confetti" id="go-confetti" aria-hidden="true"></div>
           <small class="go-label">PUNTEGGIO</small>
           <span class="final-score" id="go-score">0</span>
           <span class="new-rec hidden" id="go-newrec"><svg><use href="#i-crown"/></svg>NUOVO RECORD!</span>
-          <div class="go-rows">
-            <div class="go-row"><svg><use href="#i-road"/></svg><span>DISTANZA</span><b id="go-dist">0 m</b></div>
-            <div class="go-row"><svg><use href="#i-carpet"/></svg><span>SA BURRA</span><b id="go-carpets">0</b></div>
-            <div class="go-row"><svg><use href="#i-barrel"/></svg><span>BARILI DISTRUTTI</span><b id="go-barrels">0</b></div>
+          <div class="go-tiles">
+            <div class="go-tile t-best"><svg><use href="#i-crown"/></svg><small>RECORD</small><b id="go-best">0</b></div>
+            <div class="go-tile t-carp"><svg><use href="#i-carpet"/></svg><small>TAPPETI</small><b id="go-carpets">0</b></div>
+            <div class="go-tile"><svg><use href="#i-road"/></svg><small>DISTANZA</small><b id="go-dist">0 m</b></div>
+            <div class="go-tile"><svg><use href="#i-flame"/></svg><small>ZONA</small><b id="go-biome" class="go-biome">Gadoni</b></div>
           </div>
-          <p class="go-meta"><span>Record <b id="go-best">0</b></span> &middot; <span id="go-rank"></span></p>
+          <p class="go-meta"><span><svg><use href="#i-barrel"/></svg> Botti distrutte <b id="go-barrels">0</b></span> &middot; <span id="go-rank"></span></p>
           <form class="nick-form" id="nick-form" autocomplete="off">
             <input id="nick" maxlength="12" placeholder="IL TUO NICKNAME" spellcheck="false" autocapitalize="characters" enterkeyhint="done" />
             <button class="btn btn-navy small" type="submit">SALVA</button>
           </form>
           <p class="nick-msg" id="nick-msg"></p>
         </div>
-        <button class="btn btn-primary btn-xl" data-act="retry" id="btn-retry"><svg class="btn-ico"><use href="#i-retry"/></svg> RIPROVA</button>
+        <button class="btn btn-primary btn-xl" data-act="retry" id="btn-retry"><svg class="btn-ico"><use href="#i-retry"/></svg> RIGIOCA</button>
         <div class="row-btns">
           <button class="btn btn-navy" data-act="board"><svg class="btn-ico gold"><use href="#i-trophy"/></svg> CLASSIFICA</button>
           <button class="btn btn-navy" data-act="quit"><svg class="btn-ico"><use href="#i-home"/></svg> MENU</button>
         </div>
-        <p class="go-total">Collezione: <b id="go-total">0</b> tappeti Sa Burra</p>
+        <p class="go-total">Collezione: <b id="go-total">0</b> tappeti Sa Burra<span class="go-hint"> &middot; Invio / R per rigiocare</span></p>
       </section>
 
       <!-- v5s7: GARAG DI PINU -->
@@ -242,14 +247,14 @@
       </button>
       <section class="screen hidden" id="scr-shop">
         <div class="shop-top">
-          <h2 class="shop-title">Garag di Pinu</h2>
+          <div class="shop-head"><h2 class="shop-title">Garag di Pinu</h2><div class="go-band shop-band" aria-hidden="true"></div></div>
           <div class="chip shop-wallet"><svg class="ico"><use href="#i-carpet"/></svg><span id="shop-total">0</span></div>
         </div>
         <div class="shop-spacer"></div>
         <div class="shop-panel">
           <div class="shop-bubble" id="shop-say">Bentornato, piccioc&ugrave;! Cosa ti serve per la strada?</div>
           <div class="shop-items" id="shop-items"></div>
-          <p class="shop-meta">Acquisti: <b id="shop-count">0</b>/<b id="shop-max">3</b> &middot; si paga in tappeti Sa Burra</p>
+          <p class="shop-meta"><span class="shop-pips" id="shop-pips"><i></i><i></i><i></i></span> Acquisti <b id="shop-count">0</b>/<b id="shop-max">3</b> &middot; si paga in tappeti Sa Burra</p>
           <button class="btn btn-primary btn-xl" id="shop-exit"><svg class="btn-ico"><use href="#i-play"/></svg> ESCI</button>
         </div>
       </section>
