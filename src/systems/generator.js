@@ -7,7 +7,7 @@
 // mobili compaiono solo in "finestre calme" senza altri ostacoli.
 // Tappeti, combustibile e pistola si piazzano solo in celle libere.
 // =====================================================================
-import { DIFFICULTY as DF, WORLD, PX_PER_METER, CARPETS as CP, PISTOL, SPEED_STEPS as SS, BIOME_OBST as BO, DUCK, MASKS as MK, FIRE } from '../config.js';
+import { DIFFICULTY as DF, WORLD, PX_PER_METER, CARPETS as CP, PISTOL, SPEED_STEPS as SS, BIOME_OBST as BO, DUCK, MASKS as MK, FIRE, MINE } from '../config.js';
 import { biomeAt, BIOMES } from '../game/biomes/config.js';
 import { makeRng } from './rng.js';
 
@@ -55,7 +55,7 @@ export const BIOME_OBST_KIND = { village: 'rollin', rock: 'sasso', river: 'bagna
 // v5s10: maschere del carnevale di Gadoni: la pistola le attraversa senza effetto
 export const MASK_KINDS = { maimoni: true, fune: true, fuso: true };
 // v5s16: frakkere accese a bordo strada (non occupano corsie)
-export const SIDE_KINDS = { falo: true };
+export const SIDE_KINDS = { falo: true, minatore: true, lampada: true };
 export const PICKUP_KINDS = { asfodelo: 'fuel', ferula: 'fuel', tappeto: 'carpet', pistola: 'pistol' };
 
 const SHORT_LEN = { muretto: 14, botte: 18, bottecoricata: 14, pozza: 13 };
@@ -90,8 +90,34 @@ export class Generator {
     // v5s10: corteo delle maschere di Gadoni
     this.parade = null; this.paradeG = 0; this.nextParadeAt = 0;
     // v5s16: flusso RNG separato per le frakkere a bordo strada (non cambia il resto del percorso)
+    this.sideBlocks = [];
     this.frng = makeRng(((seed >>> 0) ^ 0x5f17e3) >>> 0);
     this.nextFireRow = 0; this.fireSide = this.frng() < 0.5 ? -1 : 1; this.fires = 0;
+    // v5s17: flusso separato anche per minatori e lampade della miniera
+    this.mrng = makeRng(((seed >>> 0) ^ 0x3a17e5) >>> 0);
+    this.nextMinerRow = 0; this.nextLampRow = 0; this.minerSide = 1; this.lampSide = -1; this.miners = 0; this.lamps = 0;
+  }
+
+  // v5s17: minatori lungo le pareti e lampade a muro (lato -1/+1, fuori dalle corsie)
+  maybeMine(r, D, emit) {
+    const bid = biomeIdAt(D, this.offM), cfg = bid === biomeIdAt(D + 14, this.offM) ? MINE.BIOMES[bid] : null;
+    if (!cfg) { this.nextMinerRow = Math.max(this.nextMinerRow, r + 1); this.nextLampRow = Math.max(this.nextLampRow, r + 1); return; }
+    const mr = this.mrng, L = WORLD.LANES;
+    const free = (side) => this.blockedUntil[side < 0 ? 0 : L - 1] < r - 1;
+    if (r >= this.nextMinerRow) {
+      const side = mr() < 0.65 ? -this.minerSide : this.minerSide;
+      this.nextMinerRow = r + mr.int(cfg.miners[0], cfg.miners[1]);
+      if (free(side)) {
+        this.minerSide = side; this.miners++;
+        this.sideBlocks.push({ edge: side < 0 ? 0 : L - 1, until: r + 3 });
+        emit({ kind: 'minatore', lane: side < 0 ? 0 : L - 1, side, d: D + 10, len: 10, variant: mr.int(0, MINE.POSES - 1), look: mr() < 0.5 ? 1 : 0, miner: this.miners });
+      }
+    }
+    if (cfg.lamps && r >= this.nextLampRow) {
+      this.nextLampRow = r + mr.int(cfg.lamps[0], cfg.lamps[1]);
+      this.lampSide = -this.lampSide;
+      if (free(this.lampSide)) this.lamps++, emit({ kind: 'lampada', lane: this.lampSide < 0 ? 0 : L - 1, side: this.lampSide, d: D + 4, len: 6, lamp: this.lamps });
+    }
   }
 
   // v5s16: falo' o paesano con la frakkera sul marciapiede, lato -1 (sinistra) / +1 (destra)
@@ -105,7 +131,7 @@ export class Generator {
     if (this.blockedUntil[edge] >= r - 1) { this.nextFireRow = r + 2; return; } // casa che sporge da quel lato
     this.fireSide = side;
     this.nextFireRow = r + fr.int(cfg.gap[0], cfg.gap[1]);
-    this.fireBlock = { edge, until: r + 3 };
+    this.sideBlocks.push({ edge, until: r + 3 });
     this.fires++;
     emit({ kind: 'falo', lane: edge, side, d: D + 8, len: 16, variant: fr() < FIRE.VILLAGER_SHARE ? 1 : 0, fire: this.fires });
   }
@@ -128,6 +154,8 @@ export class Generator {
     const used = new Array(L).fill(false);
     for (let l = 0; l < L; l++) if (this.blockedUntil[l] >= r) used[l] = true;
     this.maybeFire(r, D, emit);
+    this.maybeMine(r, D, emit);
+    if (this.sideBlocks.length > 4) this.sideBlocks = this.sideBlocks.filter((b) => b.until >= r);
 
     // ---- finestra calma con ostacolo mobile -------------------------
     if (r <= this.calmUntil) {
@@ -242,7 +270,7 @@ export class Generator {
     if (diff >= DF.NARROW_FROM && rng() < 0.035 + 0.05 * diff) {
       const l = rng() < 0.5 ? 0 : L - 1;
       const rows = 3 + rng.int(0, Math.round(1 + 2 * diff));
-      if (canLong(l) && !(this.fireBlock && this.fireBlock.edge === l && this.fireBlock.until >= r)) {
+      if (canLong(l) && !this.sideBlocks.some((b) => b.edge === l && b.until >= r)) {
         this.blockedUntil[l] = r + rows - 1;
         this.laneCool[l] = r + rows;
         used[l] = true;

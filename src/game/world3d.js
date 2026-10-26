@@ -5,7 +5,7 @@
 // =====================================================================
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { WORLD, BIOME_OBST, FIRE } from '../config.js';
+import { WORLD, BIOME_OBST, FIRE, MINE } from '../config.js';
 import { laneX, isMoving, ROAD_HALF } from './sim.js';
 import { DanceRing } from './dance/dance3d.js';
 import { buildMaimoni, buildStramaione, buildGrastula, animateFigure, spindleGeom } from './masks/figures.js';
@@ -16,6 +16,7 @@ import { Character } from './character.js';
 import { Character3D } from './character3d.js';
 import { Flame3D, sharedFlameMats } from './flame3d.js';
 import { fireGeoms, FLAME_AT } from './fires3d.js';
+import { minerGeoms, HEADLAMP, LAMP_BULB } from './miners3d.js';
 import { rng } from './kit.js';
 import { Env } from './biomes/env.js';
 import { buildShopRoom } from './shop3d.js';
@@ -339,6 +340,29 @@ export class World {
       v.body.add(m);
       v.glow = this.glowSprite(kind === 'ferula' ? '#f2ff9a' : '#fff1cf', 3.0, 0.55);
       v.shadow = this.blob(1.6, 1.0);
+    } else if (kind === 'minatore') {           // v5s17: minatore di Funtana Raminosa
+      const mg = minerGeoms();
+      if (!this.minerMats) {
+        // nel buio della galleria le figure restano leggibili: un po' di luce propria (dal colore per vertice)
+        const lit = new THREE.MeshLambertMaterial({ vertexColors: true });
+        lit.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n totalEmissiveRadiance += diffuseColor.rgb * 0.42;'); };
+        lit.customProgramCacheKey = () => 'miner-self';
+        this.minerMats = [lit, this.mat.unlit];
+      }
+      v.body = new THREE.Group();
+      v.poses = mg.poses.map((g) => { const m = new THREE.Mesh(g, this.minerMats); v.body.add(m); return m; });
+      v.arm = new THREE.Group(); v.arm.position.set(0.36, 1.68, 0); v.arm.add(new THREE.Mesh(mg.wave, this.minerMats)); v.body.add(v.arm);
+      v.glow = this.glowSprite('#fff0c0', 1.1, 0.75); v.glow.position.set(HEADLAMP.x, HEADLAMP.y, HEADLAMP.z + 0.05); v.body.add(v.glow);
+      v.halo = this.glowSprite('#ffb060', 4.2, 0.28); v.halo.position.set(0, 1.3, 0.4); v.body.add(v.halo);
+      v.shadow = this.blob(1.2, 1.0);
+    } else if (kind === 'lampada') {            // v5s17: lampada a muro (si accende al passaggio)
+      const mg = minerGeoms();
+      if (!this.lampMats) this.lampMats = { off: new THREE.MeshBasicMaterial({ color: '#2a2620' }), on: new THREE.MeshBasicMaterial({ color: '#ffe6a8', toneMapped: false }), geo: new THREE.SphereGeometry(0.085, 10, 8) };
+      v.body = new THREE.Group();
+      v.body.add(new THREE.Mesh(mg.lamp, this.mats2));
+      v.bulb = new THREE.Mesh(this.lampMats.geo, this.lampMats.off); v.bulb.position.set(LAMP_BULB.x, LAMP_BULB.y, LAMP_BULB.z); v.body.add(v.bulb);
+      v.glow = this.glowSprite('#ffc068', 2.2, 0); v.glow.position.copy(v.bulb.position); v.body.add(v.glow);
+      v.halo = this.glowSprite('#ff9a40', 7.5, 0); v.halo.position.set(0.3, -0.6, 0); v.body.add(v.halo);
     } else if (kind === 'falo') {               // v5s16: falo' o paesano con la frakkera accesa
       const fg = fireGeoms();
       if (!this.fireMats) { this.fireMats = sharedFlameMats(); this.fireGeo = new THREE.PlaneGeometry(1, 1).translate(0, 0.5, 0); }
@@ -398,6 +422,14 @@ export class World {
     if (v.glow) v.glow.visible = true;
     v.t = Math.random() * 6;
     v.dead = false; v.hitT = 0; v.fallT = 0; v.landFx = false; v.flyT = 0;
+    if (e.kind === 'minatore') {
+      v.poses.forEach((m, i) => { m.visible = i === (e.variant || 0); }); v.arm.visible = e.variant === 3;
+      v.body.rotation.y = e.side < 0 ? 0.95 : -0.95; v.waveT = 0; v.body.scale.setScalar(1.5);
+    }
+    if (e.kind === 'lampada') {
+      v.body.position.y = 3.4; v.body.rotation.y = e.side < 0 ? 0 : Math.PI; v.body.scale.setScalar(1.7);
+      v.litT = -1; v.bulb.material = this.lampMats.off; v.glow.material.opacity = 0; v.halo.material.opacity = 0;
+    }
     if (e.kind === 'falo') {
       const vil = e.variant === 1; v.bon.visible = !vil; v.vil.visible = vil;
       v.fa = FLAME_AT[vil ? 1 : 0]; v.litT = -1;
@@ -421,7 +453,7 @@ export class World {
   placeView(e, v) {
     const zc = -(e.d + e.len / 2) * U;
     if (v.kind === 'narrow') { v.root.position.set(v.root.userData.x, 0, -e.d * U); return; }
-    const x = (e.kind === 'falo' ? e.side * FIRE.X : isMoving(e.kind) ? e.x : laneX(e.lane)) * U;
+    const x = (e.kind === 'falo' ? e.side * FIRE.X : e.kind === 'minatore' ? e.side * MINE.MINER_X : e.kind === 'lampada' ? e.side * MINE.LAMP_X : isMoving(e.kind) ? e.x : laneX(e.lane)) * U;
     v.root.position.set(x, 0, zc);
   }
   animateViews(sim, dt) {
@@ -442,6 +474,19 @@ export class World {
         v.body.rotation.set(-Math.PI / 2 + 0.22 + Math.sin(t * 2.3 + e.d) * 0.05, 0, Math.sin(t * 1.7 + e.d) * 0.12);
         v.glow.position.y = 0.4; v.glow.material.opacity = 0.32 * (1 + this.light.tunnel * 1.3);
         if (v.shadow) v.shadow.visible = true;
+      } else if (e.kind === 'minatore') {
+        v.body.scale.y = 1.5 * (1 + Math.sin(t * 2.1 + e.id) * 0.012);
+        v.glow.material.opacity = 0.6 + Math.sin(t * 13 + e.id) * 0.08;
+        if (e.variant === 3) { if (e.seen) v.waveT += dt; v.arm.rotation.z = e.seen ? -0.5 + Math.sin(v.waveT * 9) * 0.4 : Math.PI + 0.12; }
+        if (v.shadow) v.shadow.visible = true;
+      } else if (e.kind === 'lampada') {
+        if (e.lit && v.litT < 0) v.litT = 0;
+        if (v.litT >= 0) {
+          v.litT += dt;
+          const k = v.litT < 0.4 ? (Math.sin(v.litT * 70) > 0.1 ? 0.9 : 0.15) : 0.92 + Math.sin(t * 9 + e.id) * 0.05;
+          v.bulb.material = k > 0.5 ? this.lampMats.on : this.lampMats.off;
+          v.glow.material.opacity = 0.85 * k; v.halo.material.opacity = 0.3 * k;
+        }
       } else if (e.kind === 'falo') {
         // fiamma rivolta alla camera (il corpo ruota: si compensa in coordinate locali)
         const fa = v.fa; _up.set(0, 1, 0);

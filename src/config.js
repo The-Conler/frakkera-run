@@ -65,6 +65,17 @@ export const PISTOL = {
 
 export const PX_PER_METER = 10;
 
+// ---- v5s17: minatori di Funtana Raminosa e lampade a muro nella miniera (solo scena, non bloccano) ----
+// Generati da un flusso RNG separato (deterministici); le lampade si accendono quando il giocatore
+// arriva a LAMP_ON_PX di distanza (registrato nelle statistiche, la sim resta deterministica).
+export const MINE = {
+  MINER_X: 55,             // px dal centro: lungo la parete (TUNNEL.halfW = 6.8 m)
+  LAMP_X: 60,
+  LAMP_ON_PX: 140,         // ~14 m davanti al giocatore la lampada si accende
+  BIOMES: { 'mine-ext': { miners: [14, 24], lamps: null }, 'mine-int': { miners: [9, 16], lamps: [6, 8] }, 'mine-blue': { miners: [11, 18], lamps: [7, 9] } },
+  POSES: 4,                // piccone, pala, lanterna in mano, carrello/saluto
+};
+
 // ---- v5s16: frakkeras accese lungo il percorso (falo' e paesani con la frakkera) -------
 // Stanno sul marciapiede, fuori dalle corsie: passandoci accanto nella corsia laterale
 // (sfiorandole) la fiamma riprende fuoco. Generate da un flusso RNG separato (deterministico,

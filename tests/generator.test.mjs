@@ -6,7 +6,7 @@
 // 3) ogni pistola e' raggiungibile; i tappeti sono raggiungibili;
 // 4) dopo un tappeto fuori dal sentiero la corsia resta libera (niente trappole).
 // Uso: node tests/generator.test.mjs
-import { Generator, SOLID } from '../src/systems/generator.js';
+import { Generator, SOLID, SIDE_KINDS } from '../src/systems/generator.js';
 import { WORLD, DIFFICULTY } from '../src/config.js';
 
 const CELL = 5;
@@ -23,13 +23,16 @@ import { biomeAt } from '../src/game/biomes/config.js';
 let parades = 0; const paradeLaps = {};
 
 import { FIRE } from '../src/config.js';
+const totalMine = {};
 let totalFires = 0, ok0 = true; const fireBiomes = {};
 let failures = 0, totalObs = 0, totalPick = 0, kinds = {}, carpetsReach = 0, carpetsTot = 0, pistols = 0;
 for (let s = 1; s <= SEEDS; s++) {
   const g = new Generator(s * 7919);
   const ents = [], beams = [];
   const fires = [];
-  g.fillUntil(LENGTH, (e) => (e.kind === 'falo' ? fires : ents).push(e));
+  const mines = [];
+  g.fillUntil(LENGTH, (e) => (e.kind === 'falo' ? fires : SIDE_KINDS[e.kind] ? mines : ents).push(e));
+  for (const m of mines) { totalMine[m.kind] = (totalMine[m.kind] || 0) + 1; const bid = biomeAt(m.d / 10).b.id; if (!bid.startsWith('mine') || (m.kind === 'lampada' && bid === 'mine-ext')) { ok0 = false; console.log(`seed ${s}: ${m.kind} fuori dalla miniera @${m.d} (${bid})`); } if (m.kind === 'minatore' && ents.some((o) => o.kind === 'narrow' && o.lane === m.lane && o.d < m.d + m.len && o.d + o.len > m.d)) { ok0 = false; console.log(`seed ${s}: minatore dentro la roccia @${m.d}`); } }
   // v5s16: frakkere a bordo strada: solo negli ambienti previsti, sul lato giusto, mai dentro una casa che sporge
   for (const f of fires) {
     totalFires++;
@@ -113,6 +116,8 @@ for (let s = 1; s <= SEEDS; s++) {
   if (!ok || !ok0) failures++; ok0 = true;
 }
 console.log(`frakkere a bordo strada: ${totalFires} (${(totalFires / SEEDS).toFixed(1)} per seed su ${LENGTH / 10} m)`);
+console.log(`miniera: ${JSON.stringify(totalMine)}`);
+if (!totalMine.minatore || !totalMine.lampada) { console.log('FALLITO: niente minatori/lampade'); failures++; }
 if (!totalFires) { console.log('FALLITO: nessuna frakkera'); failures++; }
 console.log(`cortei di Gadoni: ${parades}  per giro: ${JSON.stringify(paradeLaps)}`);
 if (!parades) { console.log('FALLITO: nessun corteo'); failures++; }
