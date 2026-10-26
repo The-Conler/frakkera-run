@@ -73,20 +73,24 @@ function groundMat(map, o = {}) {
   m.customProgramCacheKey = () => (o.mapB ? 'gb' : 'g') + (o.phong ? 'p' : 'l') + (o.wet ? 'w' : '');
   return m;
 }
-function waterMat(normalMap, color, opacity = 0.84) {
+function waterMat(normalMap, color, opacity = 0.84, deep = null) {
   const m = new THREE.MeshPhongMaterial({ color, specular: '#fff0d0', shininess: 110, normalMap, normalScale: new THREE.Vector2(0.45, 0.45), transparent: true, opacity, depthWrite: false });
   const u = { uFlow: { value: new THREE.Vector2() } };
   m.userData.u = u;
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, u);
-    sh.vertexShader = 'uniform vec2 uFlow;\n' + sh.vertexShader.replace('#include <uv_vertex>', '#include <uv_vertex>\n  vNormalMapUv = (modelMatrix * vec4(position, 1.0)).xz * 0.09 + uFlow;');
+    sh.vertexShader = 'uniform vec2 uFlow;\nvarying float vWX;\n' + sh.vertexShader.replace('#include <uv_vertex>', '#include <uv_vertex>\n  vNormalMapUv = (modelMatrix * vec4(position, 1.0)).xz * 0.09 + uFlow; vWX = (modelMatrix * vec4(position, 1.0)).x;');
+    sh.fragmentShader = 'varying float vWX;\n' + sh.fragmentShader;
+    if (deep) sh.fragmentShader = sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+      { float t = smoothstep(${deep.x0.toFixed(1)}, ${deep.x1.toFixed(1)}, abs(vWX));
+        diffuseColor.rgb = mix(vec3(${deep.a}), vec3(${deep.b}), t); diffuseColor.a = mix(${opacity.toFixed(2)}, 0.97, t); }`);
     // un po' di cielo riflesso ai bordi (fresnel) + verde smeraldo in profondita'
     sh.fragmentShader = sh.fragmentShader.replace('#include <opaque_fragment>', `
       float fr = pow(1.0 - clamp(dot(normalize(vViewPosition), -normal), 0.0, 1.0), 3.0);
-      outgoingLight = mix(outgoingLight, outgoingLight * 0.6 + vec3(0.55, 0.62, 0.6) * 0.35, fr * 0.6);
+      outgoingLight = mix(outgoingLight, outgoingLight * 0.6 + vec3(0.55, 0.62, 0.6) * 0.35, fr * ${deep ? '0.18' : '0.6'});
       #include <opaque_fragment>`);
   };
-  m.customProgramCacheKey = () => 'water';
+  m.customProgramCacheKey = () => 'water' + (deep ? 'D' : '');
   return m;
 }
 function tunnelMat(blue) {
@@ -192,7 +196,7 @@ export class Env {
       gravelEdge: groundMat(this.tex.gravelEdge, { sx: 1 / 3, sz: 1 / 3, x0: 0, abs: true }),
       none: groundMat(this.tex.mineFloor, { phong: true, shininess: 30 }),
     };
-    this.waterMat = { pool: waterMat(nrm, '#0f8a72', 0.78), river: waterMat(nrm, '#3f7f7c', 0.86) };
+    this.waterMat = { pool: waterMat(nrm, '#0f8a72', 0.8, { x0: 6.5, x1: 16, a: '0.03, 0.21, 0.17', b: '0.004, 0.075, 0.062' }), river: waterMat(nrm, '#3f7f7c', 0.86) };
     this.tunnelMat = { rock: tunnelMat(false), blue: tunnelMat(true) };
     this.fallMat = new THREE.MeshBasicMaterial({ color: '#f4fbff', transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide, map: this.fallTexture() });
     this.fallMat.map.wrapT = THREE.RepeatWrapping; this.fallMat.map.repeat.set(1, 2);
@@ -379,7 +383,7 @@ export class Env {
       case 'river': {
         // target2-fiume: bosco fitto e alto a sinistra con alberi chini sul sentiero; a destra piscina larga,
         // parete di travertino muschiata alta e lontana, massi bianchi e felci sulla riva
-        if (s < 0) { const w = fit(7, 11); return own(() => N.slopePiece(W, w, { Hs: 15, dist: 30, trees: 0.75, ferns: 1.0, rocks: 0.7, fence: true, canopy: true, leaf: LEAF.fresh, rockPal: ROCK.limestone, ground: ['#4f7a2a', '#5f8a30', '#6b8a3c', '#3f6a24', '#7a8a4a'], seed: 9 }), w); }
+        if (s < 0) { const w = fit(7, 11); return own(() => N.slopePiece(W, w, { Hs: 15, dist: 30, trees: 0.75, ferns: 1.0, rocks: 0.7, fence: true, bigFence: true, canopy: true, leaf: LEAF.fresh, rockPal: ROCK.limestone, ground: ['#4f7a2a', '#5f8a30', '#6b8a3c', '#3f6a24', '#7a8a4a'], seed: 9 }), w); }
         const w = fit(8, 12); return own(() => N.poolBankPiece(W, w, { cliffX: -21, cliffH: 30, mossy: true, beachW: 1.4, beachX0: 0.95, mossTo: 0.8, lush: true, shallow: true }), w);
       }
       case 'valley': {
