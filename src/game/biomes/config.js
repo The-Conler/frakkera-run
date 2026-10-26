@@ -19,7 +19,7 @@ export const BIOMES = [
     skins: { botte: 'barrel', botti: 'barrels', bottecoricata: 'barrelLying', rollbarrel: 'barrel', muretto: 'wall', goat: 'goat', pozza: 'puddle', narrow: 'house', rollin: 'rollBarrel', trave: 'beamVillage' },
     decor: { banners: true, bulbs: true, lanterns: true },
     // tramonto dorato-rosa (target2-villaggio); nebbia piu' lontana perche' il campanile si veda dal fondo della via
-    mood: { top: '#5f6fc0', mid: '#f59e7c', hor: '#ffcb80', fog: '#f7c296', hemiS: '#ffdcb0', hemiG: '#7a6050', hemiI: 1.35, dirC: '#ffc07a', dirI: 2.35, moon: 0, sun: 1.2, far: '#ffe2c8', fogNear: 60, fogFar: 240 },
+    mood: { top: '#6a78c4', mid: '#f7a070', hor: '#ffc870', fog: '#f8c590', hemiS: '#ffd8a0', hemiG: '#7a5c48', hemiI: 1.4, dirC: '#ffb860', dirI: 2.6, moon: 0, sun: 1.2, far: '#ffe2c8', fogNear: 60, fogFar: 240 },
     moodEnd: { top: '#5257a8', mid: '#ee8c70', hor: '#ffb874', fog: '#f1ae88', hemiI: 1.22, dirI: 2.0 }, // verso sera a fine paese
     light: { flameDist: 11, flameK: 1, mineral: 0, lamp: 0, darkByFuel: 0, tunnel: 0, exposure: 1.05, camLook: 1.0, camFov: 4 },
     ambience: { wind: 0.06, water: 0, drips: 0, birds: 0.3, bells: 1, cave: 0 },

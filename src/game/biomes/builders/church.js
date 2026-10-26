@@ -267,8 +267,8 @@ export function buildChurchSquare(seed = 1) {
   // gradino verso la strada
   k.add(G.box(0.4, 0.25, LEN), '#9a8e80', { x: EDGE + 0.15, y: 0.12, z: -LEN / 2 });
   // campanile (ingrandito, ruotato in modo che le facce in pietra guardino strada e chi arriva)
+  // v5s12: il campanile vero e' ora il fondale centrato in fondo alla via (buildVista); qui niente doppione
   const kt = new Kit(seed + 401);
-  buildBellTower(kt, r, { ...TOWER, x: 0, z: 0 });
   const mT = new THREE.Matrix4().makeRotationY(-Math.PI / 2).premultiply(new THREE.Matrix4().makeScale(TOWER_S, TOWER_S, TOWER_S)).premultiply(new THREE.Matrix4().makeTranslation(TOWER_AT.x, 0, TOWER_AT.z));
   for (const g of kt.lit) { g.applyMatrix4(mT); k.lit.push(g); }
   const tw = { top: new THREE.Vector3(TOWER_AT.x, (TOWER.H + 0.4) * TOWER_S, TOWER_AT.z) };
@@ -295,15 +295,31 @@ export function buildChurchSquare(seed = 1) {
   }
   // tanti fili di luci a raggiera dalla cima del campanile: attraverso la via verso la chiesa, la capanna,
   // le case dei due lati prima e dopo la piazza
-  const top = tw.top;
-  const targets = [];
-  for (let i = 0; i < 10; i++) targets.push(new THREE.Vector3(7.0, 8.4 + r.range(-0.6, 0.6), 22 - i * 3.2));        // case del lato del campanile, prima
-  for (let i = 0; i < 4; i++) targets.push(new THREE.Vector3(7.0, 8.0 + r.range(-0.5, 0.5), -40 - i * 4));         // e dopo la piazzetta
-  for (let i = 0; i < 9; i++) targets.push(new THREE.Vector3(-7.0, 7.8 + r.range(-0.6, 0.6), 24 - i * 3.0));       // case di fronte, prima della piazza
-  for (let i = 0; i < 6; i++) targets.push(new THREE.Vector3(-8.6 - i * 1.4, 3.4, -2.5 - i * 2.8));                // capanna
-  for (let i = 0; i < 5; i++) targets.push(new THREE.Vector3(CHURCH.x0 - 0.2, CHURCH.eave + (CHURCH.ridge - CHURCH.eave) * (1 - Math.abs(i - 2) / 2), CHURCH.z0 - (CHURCH.z0 - CHURCH.z1) * i / 4));
-  for (let i = 0; i < 4; i++) targets.push(new THREE.Vector3(-10, 6.8, -40 - i * 4));
-  for (const t of targets) catenary(k, top, t, r.range(1.0, 2.6), true, lamps, 0.9, 7);
+  // v5s12: fili di luci a zig-zag ATTRAVERSO la via (target4), da una facciata all'altra
+  for (let z = 30; z > -70; z -= 4.5) {
+    const y1 = 7.6 + r.range(-0.5, 0.5), y2 = 7.6 + r.range(-0.5, 0.5);
+    catenary(k, new THREE.Vector3(7.0, y1, z), new THREE.Vector3(-7.0, y2, z - 2.2), r.range(1.2, 2.0), true, lamps, 0.9, 7);
+  }
+  // v5s12: pergolato di legno con bancarella, botti e vasi di fiori sul bordo della piazza (target4, a destra)
+  {
+    const px = -10.5, pz = -6, PW = 4.2, PL = 7;
+    for (const [dx, dz] of [[0, 0], [-PW, 0], [0, -PL], [-PW, -PL]]) k.add(G.box(0.22, 2.9, 0.22), '#6b4a2e', { x: px + dx, y: 1.45, z: pz + dz, vary: 0.06 });
+    for (const dx of [0, -PW]) k.add(G.box(0.2, 0.2, PL + 0.6), '#5a3f28', { x: px + dx, y: 2.95, z: pz - PL / 2 });
+    for (let i = 0; i <= 8; i++) k.add(G.box(PW + 0.6, 0.12, 0.14), '#6b4a2e', { x: px - PW / 2, y: 3.1, z: pz + 0.3 - i * (PL + 0.6) / 8 });
+    for (let i = 0; i < 26; i++) k.add(G.ico(r.range(0.35, 0.6), 0), r.pick(C.grass), { x: px - r.range(0, PW), y: 3.25 + r.range(-0.1, 0.2), z: pz - r.range(0, PL), flat: true });
+    k.add(G.box(1.0, 0.9, PL - 1.2), '#7a5434', { x: px - 0.7, y: 0.45, z: pz - PL / 2 });           // banco
+    for (let i = 0; i < 7; i++) k.add(G.box(0.4, 0.3, 0.6), r.pick(['#e8a23a', '#c94a3a', '#e6d49a', '#9a6a3a']), { x: px - 0.7, y: 1.05, z: pz - 1.1 - i * 0.75, vary: 0.08 });
+    for (const [bx, bz] of [[px + 0.9, pz + 1.2], [px + 1.5, pz + 0.2], [px + 0.9, pz - PL - 0.8]]) {
+      k.add(G.cyl(0.42, 0.42, 1.0, 12), '#7a4e2c', { x: bx, y: 0.5, z: bz, vary: 0.06 });
+      k.add(G.cyl(0.47, 0.47, 0.06, 12), '#3a3530', { x: bx, y: 0.25, z: bz }); k.add(G.cyl(0.47, 0.47, 0.06, 12), '#3a3530', { x: bx, y: 0.75, z: bz });
+    }
+    for (const [vx, vz] of [[px + 0.6, pz - 2.5], [px + 0.6, pz - 4.8], [-8, -20], [-8, -36]]) {
+      k.add(G.cyl(0.35, 0.27, 0.55, 10), '#a8603a', { x: vx, y: 0.28, z: vz });
+      for (let i = 0; i < 7; i++) k.add(G.ico(0.15, 0), r.pick(['#e83a4a', '#f06a8a', '#ffffff', '#ffd23a', '#c04ad0']), { x: vx + r.range(-0.3, 0.3), y: 0.7 + r.range(0, 0.3), z: vz + r.range(-0.3, 0.3), flat: true });
+    }
+    for (let i = 0; i < 8; i++) { const t = i / 7; const g = new THREE.Vector3(px - t * PW, 2.8 - Math.sin(t * Math.PI) * 0.4, pz + 0.3); k.add(G.ico(0.1, 0), C.bulb, { x: g.x, y: g.y, z: g.z, unlit: true }); }
+    lamps.push([px - PW / 2, 2.6, pz - PL / 2, 3.2]);
+  }
   // pali con lanterna ai bordi della piazza e della piazzetta
   for (const [lx, lz] of [[-8.2, -30], [-8.2, -48], [-30, -2], [8.0, -20], [8.0, -24.5]]) {
     k.add(G.cyl(0.08, 0.1, 3.6, 6), '#2b2a33', { x: lx, y: 1.8, z: lz });
@@ -323,4 +339,33 @@ export function buildChurchSquare(seed = 1) {
     { seed: 15, x: PX1, z: PZ0, road: true }, { seed: 17, x: PX1, z: null, road: true }, { seed: 19, x: PX1, z: null, road: true },
   ];
   return { geom: k.build({ ao: 0.25 }), lamps, houses, len: LEN, tower: { ...TOWER, ...TOWER_AT, S: TOWER_S } };
+}
+
+// v5 stage 12 (target4-confronto-villaggio): "fondale" del paese - campanile grande e chiesa rosa centrati
+// in fondo alla via. Coordinate: campanile centrato in x=0, faccia con orologio verso +z (chi arriva),
+// chiesa con la facciata a capanna verso +z, a SINISTRA (a destra la coprirebbe la fiamma). world3d lo tiene davanti alla camera.
+export const VISTA = { S: 1.25, D: 70, X: 1.2 };
+export function buildVista(seed = 1) {
+  const r = rng(seed * 131 + 7);
+  const kt = new Kit(seed + 501);
+  buildBellTower(kt, r, { ...TOWER, x: 0, z: 0 });
+  const k = new Kit(seed + 502);
+  const mT = new THREE.Matrix4().makeScale(VISTA.S, VISTA.S, VISTA.S);
+  for (const g of kt.lit) { g.applyMatrix4(mT); k.lit.push(g); }
+  for (const g of kt.unlit || []) { g.applyMatrix4(mT); k.unlit.push(g); }
+  const kc = new Kit(seed + 503);
+  buildChurch(kc, r);
+  const gs = [...kc.lit];
+  const bb = new THREE.Box3();
+  const rot = new THREE.Matrix4().makeRotationY(-Math.PI / 2);
+  for (const g of gs) { g.applyMatrix4(rot); g.computeBoundingBox(); bb.union(g.boundingBox); }
+  // facciata (max z) poco dietro la faccia del campanile, lato sinistro attaccato al campanile
+  const tw = TOWER.W * VISTA.S / 2;
+  const mv = new THREE.Matrix4().makeTranslation(-(tw - 0.3) / 0.85 - bb.max.x, 0, 1.5 - bb.max.z);
+  const sc = new THREE.Matrix4().makeScale(0.85, 0.85, 0.85);
+  for (const g of gs) { g.applyMatrix4(mv); g.applyMatrix4(sc); k.lit.push(g); }
+  for (const g of kc.unlit || []) { g.applyMatrix4(rot); g.applyMatrix4(mv); g.applyMatrix4(sc); k.unlit.push(g); }
+  // basamento e case basse ai piedi (chiude il fondo della via)
+  k.add(G.box(34, 0.4, 14), '#9a8e80', { x: 2, y: 0.2, z: -4 });
+  return k.build({ ao: 0.2 });
 }

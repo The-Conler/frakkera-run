@@ -20,6 +20,7 @@ import { Env } from './biomes/env.js';
 import { buildShopRoom } from './shop3d.js';
 import { loadPinuGeometry } from './shop/pinu.js';
 import { MENU_MOOD, OVER_TINT } from './biomes/config.js';
+import { buildVista, VISTA } from './biomes/builders/church.js';
 import { SKINS, SHARDS, outcropGeometry } from './biomes/builders/skins.js';
 
 const U = 0.1;                    // 1 px del mondo 2D = 0.1 unita' 3D (1 m = 1 unita')
@@ -177,6 +178,8 @@ export class World {
     this.scene.add(this.stars);
     this.far = new THREE.Mesh(M.buildFar(), new THREE.MeshBasicMaterial({ vertexColors: true, fog: false }));
     this.scene.add(this.far);
+    // v5s12: campanile + chiesa rosa centrati in fondo alla via del paese (segue la camera come il fondale)
+    this.vista = new THREE.Mesh(buildVista(1), this.mats2); this.scene.add(this.vista);
   }
   buildLights() {
     this.hemi = new THREE.HemisphereLight('#ffe6c4', '#7a6658', 1.35);
@@ -693,6 +696,8 @@ export class World {
     this.stars.position.copy(this.camera.position);
     this.far.visible = this.farVis > 0.01;
     this.far.position.set(0, -70 * (1 - this.farVis), camZ - FAR_Z);
+    this.vista.visible = this.farVis > 0.02;
+    this.vista.position.set(VISTA.X, -60 * (1 - this.farVis) ** 0.7, this.camPos.z - VISTA.D - 40 * (1 - this.farVis));
     this.moon.position.set(this.camera.position.x - 70, 150, camZ - 300);
     this.sunGlow.position.set(this.camera.position.x + 60, 16, camZ - 360);
     for (const c of this.clouds) c.position.set(c.userData.x + this.camera.position.x * 0.0 + Math.sin(this.clock * 0.02 + c.userData.y) * 10, c.userData.y, camZ - 320 + c.userData.z);
