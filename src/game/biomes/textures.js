@@ -58,24 +58,20 @@ export function trailTexture() {
 }
 // lastricato naturale di pietra chiara con muschio (sentiero del fiume)
 export function stoneTrailTexture() {
+  // v5s13 (target4 cascata): letto di torrente - ciottoli chiari grigio-beige tondeggianti, sabbia e muschio
   const S = 512; const [c, ctx] = cv(S, S); const r = rng(33);
-  ctx.fillStyle = '#7a5838'; ctx.fillRect(0, 0, S, S);   // v5s6 (target3-cascata): lastre calde arancio-sabbia
-  // lastre irregolari (griglia deformata)
-  const N = 7;
-  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
-    const cx = (i + 0.5 + (j % 2) * 0.5) * S / N + r.range(-8, 8), cy = (j + 0.5) * S / N + r.range(-8, 8);
-    const rad = S / N * 0.48;
-    const col = r.pick(['#dcaa72', '#d09a62', '#e4b680', '#c88e58', '#d8a46e']);
-    const pts = []; for (let k = 0; k < 7; k++) { const a = k / 7 * Math.PI * 2 + r() * 0.4; pts.push([Math.cos(a) * rad * r.range(0.78, 1.02), Math.sin(a) * rad * r.range(0.78, 1.02)]); }
-    wrapDraw(S, cx, cy, (X, Y) => {
-      ctx.fillStyle = 'rgba(30,30,20,0.45)'; ctx.beginPath(); pts.forEach(([x, y], k) => (k ? ctx.lineTo : ctx.moveTo).call(ctx, X + x + 2, Y + y + 3)); ctx.fill();
-      ctx.fillStyle = col; ctx.beginPath(); pts.forEach(([x, y], k) => (k ? ctx.lineTo : ctx.moveTo).call(ctx, X + x, Y + y)); ctx.fill();
-      ctx.fillStyle = 'rgba(255,255,255,0.14)'; blob(ctx, X - rad * 0.2, Y - rad * 0.25, rad * 0.45, rad * 0.25, 0.3);
+  ctx.fillStyle = '#8a857a'; ctx.fillRect(0, 0, S, S);
+  speckle(ctx, S, r, 4000, ['#9a958a', '#7c776c', '#a8a296', '#6f6a60'], 1, 3, 0.8);
+  const cols = ['#cfcabe', '#bdb8ac', '#dcd8cc', '#aaa598', '#9c978a', '#c8c0ae', '#b4ae9e'];
+  for (let i = 0; i < 340; i++) {
+    const x = r() * S, y = r() * S, rx = r.range(6, 18), ry = rx * r.range(0.55, 0.9), a = r() * 3, col = r.pick(cols);
+    wrapDraw(S, x, y, (X, Y) => {
+      ctx.fillStyle = 'rgba(40,36,28,0.45)'; blob(ctx, X + 2, Y + 3, rx, ry, a);
+      ctx.fillStyle = col; blob(ctx, X, Y, rx, ry, a);
+      ctx.fillStyle = 'rgba(255,255,255,0.22)'; blob(ctx, X - rx * 0.25, Y - ry * 0.3, rx * 0.45, ry * 0.35, a);
     });
   }
-  // muschio nelle fughe
-  speckle(ctx, S, r, 260, ['#6f9a3a', '#5f8a30', '#86ad4a'], 2, 5, 0.45);
-  gutters(ctx, S, 'rgba(70,50,30,0.4)');
+  speckle(ctx, S, r, 180, ['#6f9a3a', '#5f8a30', '#86ad4a'], 2, 4, 0.4);
   return tex(c);
 }
 // ghiaia grigia del piazzale della miniera, con traversine dei binari
