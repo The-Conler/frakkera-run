@@ -283,7 +283,10 @@ export class Env {
     const dropFrom = (list, rm) => { while (list.length && list[list.length - 1].W0 >= cut) rm(list.pop()); return list.length ? list[list.length - 1].W1 : W - 40; };
     this.gW = dropFrom(this.ground, (s) => this.freeSeg(s));
     for (const sd of this.sides) sd.cur = dropFrom(sd.list, (p) => this.freePiece(p));
-    this.cW = dropFrom(this.center, (p) => this.freePiece(p));
+    // v5s14: anche i "vuoti" della galleria (segnaposto lunghi del menu) che scavalcano il taglio: se no la galleria
+    // vera comincia solo dopo di loro e all'ingresso si vede il cielo nero (fascia nera sul soffitto)
+    while (this.center.length) { const l = this.center[this.center.length - 1]; if (l.W0 >= cut || (!l.mesh && l.W1 > cut)) this.freePiece(this.center.pop()); else break; }
+    this.cW = this.center.length ? this.center[this.center.length - 1].W1 : W - 40;
     this.dW = dropFrom(this.decor, (p) => this.freePiece(p));
     for (const [key] of this.marks) this.freeMark(key);
     if (full) { this.fade = 0; for (const sd of this.sides) sd.cur = W - 40; this.gW = W - 40; this.cW = W - 40; this.dW = W - 30; }
@@ -425,7 +428,7 @@ export class Env {
     // di un confine (li' il frame deve restare libero)
     const idle = window.requestIdleCallback || ((f) => setTimeout(() => f({ timeRemaining: () => 8 }), 60));
     const step = () => {
-      if (!jobs.length) return;
+      if (!jobs.length) { this._warmDone = true; return; }
       if (this.mode === 'run') {
         const pW = this.lastPW ?? 0, Wb = this.boundaryAfter(pW + 0.01), Wp = this.boundaryBefore(pW + 0.01);
         if (performance.now() - (this._jobT || 0) < 700 || Wb - pW < 25 || pW - Wp < 15) { setTimeout(step, 120); return; }
@@ -450,6 +453,16 @@ export class Env {
     this.scene.add(grp);
     try { r.compile(this.scene, this.world.camera); } catch (e) { /* solo ottimizzazione */ }
     this.scene.remove(grp); geo.dispose();
+    // v5s14: carica in anticipo sulla GPU anche tutte le texture (mipmap comprese): al primo uso non c'e' piu' il picco
+    this.uploadTextures([...mats, ...Object.values(this.world.mat || {})]);
+  }
+  uploadTextures(mats) {
+    const r = this.world.renderer; if (!r.initTexture) return;
+    const seen = this._upTex || (this._upTex = new Set());
+    const visit = (m) => { if (!m) return; if (Array.isArray(m)) return m.forEach(visit);
+      for (const k of ['map', 'normalMap', 'alphaMap', 'emissiveMap', 'roughnessMap', 'bumpMap']) { const t = m[k]; if (t && t.isTexture && !seen.has(t)) { seen.add(t); try { r.initTexture(t); } catch (e) { /* */ } } }
+      if (m.uniforms) for (const u of Object.values(m.uniforms)) { const t = u && u.value; if (t && t.isTexture && !seen.has(t)) { seen.add(t); try { r.initTexture(t); } catch (e) { /* */ } } } };
+    mats.forEach(visit);
   }
   prefab(kind, idx, make) {
     const key = kind + idx;

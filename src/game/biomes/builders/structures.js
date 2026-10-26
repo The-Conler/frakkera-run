@@ -159,13 +159,15 @@ export function tunnelProps(W0, len, type, lamps, o = {}) {
     if (type === 'blue') {   // centina a tre pezzi che segue la volta, tutta sopra l'altezza della camera
       for (const s of [-1, 1]) {
         k.add(G.box(th, 6.4, th), r.pick(['#6b4a2e', '#5a3f28']), { x: s * hw, y: 3.2, z, vary: 0.15 });
-        k.add(G.box(th, 2.7, th), '#5a3f28', { x: s * 4.55, y: 7.5, z, rz: s * 0.78, vary: 0.1 });
+        k.add(G.box(th, 2.7, th), '#4a3322', { x: s * 4.55, y: 7.5, z, rz: s * 0.78, vary: 0.1, unlit: true });
       }
-      k.add(G.box(7.4, th * 1.1, th * 1.1), '#5a3f28', { x: 0, y: 8.45, z, vary: 0.1 });
+      k.add(G.box(7.4, th * 1.1, th * 1.1), '#4a3322', { x: 0, y: 8.6, z, vary: 0.1, unlit: true });   // v5s14: senza fascia nera
       continue;
     }
-    for (const s of [-1, 1]) k.add(G.box(th, 7.2, th), r.pick(['#6b4a2e', '#5a3f28']), { x: s * hw, y: 3.6, z, rz: s * 0.04, vary: 0.15 });
-    k.add(G.box(12.6, 0.45, 0.45), '#5a3f28', { x: 0, y: 7.4, z, vary: 0.1 });
+    // v5s14: traversa piu' alta (la camera e' a 6.4 m: a 7.4 passava a un metro sopra e riempiva l'alto dello schermo
+    // con una fascia nera) e "cotta" calda (senza luce dal basso il lato inferiore restava nero)
+    for (const s of [-1, 1]) k.add(G.box(th, 7.9, th), r.pick(['#6b4a2e', '#5a3f28']), { x: s * hw, y: 3.95, z, rz: s * 0.04, vary: 0.15 });
+    k.add(G.box(12.6, 0.45, 0.45), '#4a3322', { x: 0, y: 8.1, z, vary: 0.1, unlit: true });
   }
   return k.lit.length || k.unlit.length ? k.build() : null;
 }

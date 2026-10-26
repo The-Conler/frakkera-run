@@ -1,0 +1,170 @@
+{
+ "village": {
+  "steady": {
+   "calls": 340,
+   "tris": 322054,
+   "cpuAvg": 19.39,
+   "cpuP95": 32.9,
+   "cpuMax": 34.4,
+   "gapMax": 150,
+   "gapP95": 133,
+   "gapsOver100": 19,
+   "b": null
+  },
+  "transitionOut": {
+   "calls": 251,
+   "tris": 355387,
+   "cpuAvg": 22.39,
+   "cpuP95": 39.7,
+   "cpuMax": 52.8,
+   "gapMax": 183,
+   "gapP95": 133,
+   "gapsOver100": 33,
+   "b": null
+  }
+ },
+ "rock": {
+  "steady": {
+   "calls": 256,
+   "tris": 300224,
+   "cpuAvg": 24.37,
+   "cpuP95": 41,
+   "cpuMax": 202.4,
+   "gapMax": 200,
+   "gapP95": 167,
+   "gapsOver100": 17,
+   "b": null
+  },
+  "transitionOut": {
+   "calls": 314,
+   "tris": 376885,
+   "cpuAvg": 21,
+   "cpuP95": 38.1,
+   "cpuMax": 305.3,
+   "gapMax": 317,
+   "gapP95": 217,
+   "gapsOver100": 36,
+   "b": null
+  }
+ },
+ "river": {
+  "steady": {
+   "calls": 282,
+   "tris": 345253,
+   "cpuAvg": 23.87,
+   "cpuP95": 23.4,
+   "cpuMax": 348.6,
+   "gapMax": 267,
+   "gapP95": 167,
+   "gapsOver100": 19,
+   "b": null
+  },
+  "transitionOut": {
+   "calls": 262,
+   "tris": 205957,
+   "cpuAvg": 7.35,
+   "cpuP95": 15.7,
+   "cpuMax": 18,
+   "gapMax": 217,
+   "gapP95": 167,
+   "gapsOver100": 23,
+   "b": null
+  }
+ },
+ "viaduct": {
+  "steady": {
+   "calls": 231,
+   "tris": 189961,
+   "cpuAvg": 5.29,
+   "cpuP95": 12.5,
+   "cpuMax": 15.1,
+   "gapMax": 250,
+   "gapP95": 167,
+   "gapsOver100": 10,
+   "b": null
+  },
+  "transitionOut": {
+   "calls": 238,
+   "tris": 142233,
+   "cpuAvg": 10.22,
+   "cpuP95": 8.8,
+   "cpuMax": 268.6,
+   "gapMax": 250,
+   "gapP95": 150,
+   "gapsOver100": 18,
+   "b": null
+  }
+ },
+ "mine-ext": {
+  "steady": {
+   "calls": 167,
+   "tris": 58624,
+   "cpuAvg": 2.7,
+   "cpuP95": 5.9,
+   "cpuMax": 7,
+   "gapMax": 183,
+   "gapP95": 133,
+   "gapsOver100": 7,
+   "b": null
+  },
+  "transitionOut": {
+   "calls": 205,
+   "tris": 76891,
+   "cpuAvg": 7.85,
+   "cpuP95": 8.5,
+   "cpuMax": 214.6,
+   "gapMax": 217,
+   "gapP95": 150,
+   "gapsOver100": 15,
+   "b": null
+  }
+ },
+ "mine-int": {
+  "steady": {
+   "calls": 198,
+   "tris": 66824,
+   "cpuAvg": 2.99,
+   "cpuP95": 6.6,
+   "cpuMax": 10.4,
+   "gapMax": 167,
+   "gapP95": 133,
+   "gapsOver100": 8,
+   "b": null
+  },
+  "transitionOut": {
+   "calls": 228,
+   "tris": 113993,
+   "cpuAvg": 5.67,
+   "cpuP95": 9.1,
+   "cpuMax": 182,
+   "gapMax": 200,
+   "gapP95": 183,
+   "gapsOver100": 27,
+   "b": null
+  }
+ },
+ "mine-blue": {
+  "steady": {
+   "calls": 283,
+   "tris": 204107,
+   "cpuAvg": 6.41,
+   "cpuP95": 20.9,
+   "cpuMax": 33.5,
+   "gapMax": 217,
+   "gapP95": 217,
+   "gapsOver100": 18,
+   "b": null
+  },
+  "transitionOut": {
+   "calls": 298,
+   "tris": 243438,
+   "cpuAvg": 6.72,
+   "cpuP95": 15.8,
+   "cpuMax": 18.4,
+   "gapMax": 250,
+   "gapP95": 233,
+   "gapsOver100": 35,
+   "b": null
+  }
+ }
+}

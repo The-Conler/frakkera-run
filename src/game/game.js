@@ -209,7 +209,10 @@ export class Game {
       ad.t += dtReal; ad.n++; ad.gap += dtReal;
       if (ad.t > 2) {
         const avg = ad.gap / ad.n, pr = this.world.renderer.getPixelRatio();
-        if (avg > 0.024 && pr > 1.01) this.world.setPixelRatio(Math.max(1, pr - 0.25));
+        const cap = this.world.maxPR || 1.75, now = performance.now();
+        if (avg > 0.024 && pr > 1.01) { this.world.setPixelRatio(Math.max(1, pr - 0.25)); ad.down = now; }
+        // v5s14: se poi il gioco torna fluido (es. dopo un ambiente pesante) la risoluzione risale, con calma
+        else if (avg < 0.0135 && pr < cap - 0.01 && now - (ad.down || -1e9) > 20000) this.world.setPixelRatio(Math.min(cap, pr + 0.25));
         ad.t = 0; ad.n = 0; ad.gap = 0;
       }
     }

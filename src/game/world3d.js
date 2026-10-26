@@ -65,7 +65,7 @@ export class World {
     this.container = container;
     const dpr = Math.min(window.devicePixelRatio || 1, 1.75);
     this.renderer = new THREE.WebGLRenderer({ antialias: dpr < 1.5, powerPreference: 'high-performance', alpha: false, stencil: false });
-    this.renderer.setPixelRatio(dpr);
+    this.renderer.setPixelRatio(dpr); this.maxPR = dpr;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.05;
     container.appendChild(this.renderer.domElement);
@@ -142,7 +142,25 @@ export class World {
     this.geo.puddleRim = new THREE.CircleGeometry(1.25, 20).rotateX(-Math.PI / 2);
     this.narrowCache = new Map();
   }
-  blob(w, d) { const m = new THREE.Mesh(this.geo.blob, this.mat.blob); m.scale.set(w, 1, d); m.position.y = 0.025; m.renderOrder = 1; return m; }
+  // v5s14: le ombre "a macchia" di ostacoli e raccoglibili sono segnaposto (Object3D, nessun draw call): a ogni frame
+  // le loro matrici finiscono in UNA InstancedMesh (prima: una mesh e un draw call per ciascuna, ~60 nel paese)
+  blob(w, d) {
+    const m = new THREE.Object3D(); m.scale.set(w, 1, d); m.position.y = 0.025; m.userData.blob = true;
+    (this.blobs || (this.blobs = new Set())).add(m); return m;
+  }
+  flushBlobs() {
+    if (!this.blobs) return;
+    let im = this.blobMesh;
+    if (!im) { im = this.blobMesh = new THREE.InstancedMesh(this.geo.blob, this.mat.blob, 384); im.frustumCulled = false; im.renderOrder = 1; im.count = 0; this.scene.add(im); }
+    let n = 0; const max = im.instanceMatrix.count;
+    for (const b of this.blobs) {
+      let q = b, ok = true; while (q) { if (!q.visible) { ok = false; break; } if (q === this.scene) break; q = q.parent; }
+      if (!ok || q !== this.scene) continue;
+      if (n >= max) break;
+      b.updateWorldMatrix(true, false); im.setMatrixAt(n++, b.matrixWorld);
+    }
+    im.count = n; im.instanceMatrix.needsUpdate = true;
+  }
   glowSprite(color, size, opacity = 0.8) {
     const m = new THREE.SpriteMaterial({ map: this.tex.glow, color, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
     const s = new THREE.Sprite(m); s.scale.set(size, size, 1); s.renderOrder = 15; return s;
@@ -791,6 +809,7 @@ export class World {
       if (sh.render) sh.render(this.renderer, sz); else this.renderer.render(sh.scene, sh.camera);
       return;
     }
+    this.flushBlobs();
     this.renderer.render(this.scene, this.camera);
   }
 
