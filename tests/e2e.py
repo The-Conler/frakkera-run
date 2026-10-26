@@ -18,6 +18,9 @@ SHOTS = os.path.join(ROOT, 'screenshots')
 os.makedirs(SHOTS, exist_ok=True)
 CHROME = os.environ.get('CHROME_PATH', '/usr/bin/google-chrome')
 
+# v5s18b: decorazioni a bordo strada / scena (falo', minatori, lampade, carrelli fermi, segnali
+# degli scambi) non sono ostacoli: i bot le ignorano (prima le contavano come corsie occupate)
+# (elenco ripetuto dentro BOT_JS, NEAR_JS e AIM_JS)
 results = []
 PERF = {}
 def check(name, cond, info=''):
@@ -26,7 +29,7 @@ def check(name, cond, info=''):
 
 # Bot: sceglie la corsia evitando ostacoli e cercando materiali
 BOT_JS = """(mode) => {
-  const s = window.__frk.state();
+  const s = window.__frk.state(); s.entities = s.entities.filter(e => !({ falo: 1, minatore: 1, lampada: 1, carrello: 1, scambio: 1 })[e.kind]);
   if (s.mode !== 'run') return {dir: 0, s};
   const danger = [0,0,0], want = [0,0,0];
   for (const e of s.entities) {
@@ -50,7 +53,7 @@ BOT_JS = """(mode) => {
 }"""
 
 NEAR_JS = """() => {
-  const s = window.__frk.state();
+  const s = window.__frk.state(); s.entities = s.entities.filter(e => !({ falo: 1, minatore: 1, lampada: 1, carrello: 1, scambio: 1 })[e.kind]);
   const out = {dir: 0, mode: s.mode, nm: s.stats.nearMiss};
   if (s.mode !== 'run') return out;
   const solid = s.entities.filter(e => e.solid && e.kind !== 'goat' && e.kind !== 'rollbarrel');
@@ -207,7 +210,7 @@ async def run_profile(p, name, mobile):
     if not mobile:
         # schivate "all'ultimo istante": resta in corsia finche' l'ostacolo e' vicinissimo
         nm0 = 0
-        t_nm = time.time() + 14
+        t_nm = time.time() + 30   # v5s18b: finestra reale 0,28 s, sotto carico CPU servono piu tentativi
         while time.time() < t_nm:
             r = await page.evaluate(NEAR_JS)
             if r['mode'] != 'run' or r['nm'] > nm0: break
@@ -331,7 +334,7 @@ async def run_profile(p, name, mobile):
     await browser.close()
 
 AIM_JS = """() => {
-  const s = window.__frk.state();
+  const s = window.__frk.state(); s.entities = s.entities.filter(e => !({ falo: 1, minatore: 1, lampada: 1, carrello: 1, scambio: 1 })[e.kind]);
   const out = {dir: 0, fire: false, mode: s.mode, s};
   if (s.mode !== 'run') return out;
   const blocking = (l, a0, a1) => s.entities.some(e => !e.pickup && (e.lane === l || e.kind === 'goat' || e.kind === 'rollbarrel') && e.ahead + e.len > a0 && e.ahead < a1);
@@ -385,7 +388,9 @@ async def v2_section(page, name, mobile, cdp, check, shot, state, visible):
         if s['ammo'] > 0 and not got_pistol:
             got_pistol = True
             check('v2 pistola raccolta: 3 colpi', s['ammo'] == 3, str(s['ammo']))
-            await page.wait_for_timeout(120)
+            # HUD aggiornata via bus 'hud' al frame successivo: sotto carico puo' tardare oltre 120 ms
+            try: await page.wait_for_function("document.querySelectorAll('#hud-ammo .pips i.on').length === 3 && !document.querySelector('#hud-ammo').classList.contains('hidden')", timeout=2000)
+            except Exception: pass
             check('v2 HUD colpi visibile', await visible('#hud-ammo'))
             if mobile: check('v2 pulsante SPARA visibile (mobile)', await visible('#fire-btn'))
             pips = await page.evaluate("document.querySelectorAll('#hud-ammo .pips i.on').length")
@@ -429,6 +434,14 @@ async def v2_section(page, name, mobile, cdp, check, shot, state, visible):
     check('v2 pistola raccolta (debug=pistol)', got_pistol)
     check('v2 colpi sparati', s['stats']['shots'] > 0, str(s['stats']['shots']))
     check('v2 botte distrutta', s['stats']['barrels'] > 0, str(s['stats']['barrels']))
+    # v5s18b: se il bot raccoglie una seconda pistola (ricarica) i colpi non arrivano a zero entro 40 s:
+    # spara i colpi rimasti per verificare comunque lo zero e lo stato HUD
+    for _ in range(12):
+        if zero_checked or s['mode'] != 'run' or s['ammo'] == 0: break
+        if s.get('shotsInFlight', 0) == 0: await fire()
+        await page.wait_for_timeout(250)
+        s = await state()
+    if not zero_checked and s['mode'] == 'run' and s['ammo'] == 0: await page.wait_for_timeout(120)
     if not zero_checked and s['ammo'] == 0 and s['stats']['shots'] > 0:   # v5s9: lo zero puo' arrivare fuori dal ramo di sparo
         zero_checked = True
         check('v2 colpi a zero: HUD colpi nascosto', not await visible('#hud-ammo'))
