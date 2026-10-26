@@ -36,7 +36,7 @@ BOT_JS = """(mode) => {
     let lanes = [e.lane];
     if (e.kind === 'goat' || e.kind === 'rollbarrel') lanes = [0,1,2];
     for (const l of lanes) {
-      if (e.pickup) { if (e.ahead > -4 && e.ahead < 150) want[l] += (e.kind === 'pistola' ? 6 : 1) / (1 + Math.max(0, e.ahead) / 60); }
+      if (e.pickup) { if (e.ahead > -4 && e.ahead < 150) want[l] += (e.kind === 'pistola' ? 6 : (e.kind === 'asfodelo' || e.kind === 'ferula') ? 2.5 : 1) / (1 + Math.max(0, e.ahead) / 60); }
       else if (e.ahead + e.len > -8 && e.ahead < 60 + s.speed * 0.35) danger[l] += 10 / (1 + Math.max(0, e.ahead) / 40);
     }
   }

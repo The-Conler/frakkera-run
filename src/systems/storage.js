@@ -10,6 +10,9 @@ const K = {
   board: 'frakkera.demoBoard.v1',
   carpets: 'frakkera.carpets.v1',
   music: 'frakkera.music.v1',
+  coll: 'frakkera.collect.v1',
+  skins: 'frakkera.skins.v1',
+  skin: 'frakkera.skin.v1',
 };
 
 const mem = {}; // fallback se localStorage non e' disponibile (es. privacy mode)
@@ -98,3 +101,23 @@ export function addToBoard(entry) {
 }
 
 export function resetBoard() { set(K.board, JSON.stringify(SAMPLE)); }
+
+// v5s19: collezionabili (campanacci 'bell', facciole 'sweet') e costumi sbloccati
+export function getCollection() {
+  let o = null; try { o = JSON.parse(get(K.coll) || 'null'); } catch { o = null; }
+  const n = (v) => (Number.isFinite(v) && v > 0 ? Math.floor(v) : 0);
+  return { bell: n(o && o.bell), sweet: n(o && o.sweet) };
+}
+export function addCollectible(kind, n = 1) {
+  const c = getCollection(); if (kind !== 'bell' && kind !== 'sweet') return c;
+  c[kind] += Math.max(0, Math.floor(n)); set(K.coll, JSON.stringify(c)); return c;
+}
+export function getUnlocked() {
+  let a = null; try { a = JSON.parse(get(K.skins) || 'null'); } catch { a = null; }
+  const l = Array.isArray(a) ? a.filter((x) => typeof x === 'string') : [];
+  if (!l.includes('base')) l.unshift('base');
+  return l;
+}
+export function unlockSkin(id) { const l = getUnlocked(); if (!l.includes(id)) { l.push(id); set(K.skins, JSON.stringify(l)); } return l; }
+export const getSkin = () => { const s = get(K.skin) || 'base'; return getUnlocked().includes(s) ? s : 'base'; };
+export const setSkin = (id) => set(K.skin, id);

@@ -5,7 +5,7 @@
 // tramite `fx(tipo, dati)`. Unita': px del mondo 2D (10 px = 1 m), corsie
 // centrate su x = 0.
 // =====================================================================
-import { SCORE, FUEL, WORLD, PX_PER_METER, PISTOL, SPEED_STEPS, BIOME_OBST, DUCK, SHOP, MASKS, DANCE, FIRE, MINE, CART } from '../config.js';
+import { SCORE, FUEL, WORLD, PX_PER_METER, PISTOL, SPEED_STEPS, BIOME_OBST, DUCK, SHOP, MASKS, DANCE, FIRE, MINE, CART, COLLECT, SKINS } from '../config.js';
 import { biomeAt } from './biomes/config.js';
 import { cartAt } from '../systems/generator.js';
 import { Generator, SOLID, DESTRUCTIBLE, PICKUP_KINDS, BIOME_KINDS, MASK_KINDS, difficultyAt, speedAt, speedStepsAt, lerp } from '../systems/generator.js';
@@ -33,6 +33,8 @@ export class Sim {
     this.addCarpets = opts.addCarpets || (() => 0);
     this.spendCarpets = opts.spendCarpets || ((n) => (this.carpetTotal >= n ? this.carpetTotal - n : -1));
     this.carpetTotal = opts.carpetTotal || 0;
+    this.addCollectible = opts.addCollectible || (() => 0);   // v5s19: conteggi salvati in locale
+    this.skin = 'base';
     this.mode = 'attract';
     this.T = 0; this.genOffset = 0; this.clock = 0;
     this.entities = []; this.shots = []; this.parades = {};
@@ -44,7 +46,7 @@ export class Sim {
 
   resetRunState() {
     this.score = 0; this.metersCredited = 0; this.fuel = FUEL.START; this.chain = 0;
-    this.stats = { pickups: 0, nearMiss: 0, chains: 0, milestones: 0, hits: 0, bonus: 0, carpets: 0, barrels: 0, goats: 0, shopVisits: 0, shopBuys: 0, shopSpent: 0, shields: 0, obst: 0, ducks: 0, beams: 0, slips: 0, speedSteps: 0, shots: 0, pistols: 0, masks: 0, parades: 0, ropes: 0, spindles: 0, dances: 0, danceSkips: 0, dancePerfect: 0, danceGood: 0, danceMiss: 0, danceBest: 0, survival: 0, capped: 0, fires: 0, fireFuel: 0, lamps: 0, miners: 0, carts: 0, junctions: 0, deadends: 0 };
+    this.stats = { pickups: 0, nearMiss: 0, chains: 0, milestones: 0, hits: 0, bonus: 0, carpets: 0, barrels: 0, goats: 0, shopVisits: 0, shopBuys: 0, shopSpent: 0, shields: 0, obst: 0, ducks: 0, beams: 0, slips: 0, speedSteps: 0, shots: 0, pistols: 0, masks: 0, parades: 0, ropes: 0, spindles: 0, dances: 0, danceSkips: 0, dancePerfect: 0, danceGood: 0, danceMiss: 0, danceBest: 0, survival: 0, capped: 0, fires: 0, fireFuel: 0, lamps: 0, miners: 0, carts: 0, junctions: 0, deadends: 0, bells: 0, sweets: 0 };
     this.shopLap = 0; this.shopOffer = 0; this.shop = null; this.shield = 0;
     this.danceLap = -1; this.danceCue = null; this.dance = null;
     this.cart = null; this.cartLap = -1;
@@ -71,6 +73,9 @@ export class Sim {
     this.genOffset = this.T;
     this.mode = 'run';
     this.lane = 1; this.targetLane = 1;
+    // v5s19: costume scelto (registrato nel log: cambia la velocita')
+    const sk = SKINS.find((x) => x.id === this.skin) || SKINS[0];
+    this.skin = sk.id; this.skinK = sk.speedK; this.log('S', SKINS.indexOf(sk));
     this.fx('start');
   }
 
@@ -362,7 +367,7 @@ export class Sim {
         this.log('r', k.ok); this.fx('cartExit', { ok: k.ok, j: k.j }); this.fx('popup', { text: `SCAMBI ${k.ok}/${k.j}`, style: k.ok === k.j ? 'gold' : 'white' }); this.fx('sound', 'cartExit');
       }
       if (this.cart) this.cart.t += dt; }
-    let speed = speedAt(rd, this.mapOffsetM) * slow * (this.cart ? CART.SPEED_K : 1);
+    let speed = speedAt(rd, this.mapOffsetM) * slow * (this.cart ? CART.SPEED_K : 1) * (this.mode === 'run' ? (this.skinK || 1) : 1);
     if (this.danceCue) speed *= lerp(DANCE.CUE_SLOW, 1, Math.max(0, Math.min(1, ((DANCE.AT_M - biomeAt(rd / PX_PER_METER + this.mapOffsetM).local) * PX_PER_METER) / this.danceCue.d0)));
     this.currentSpeed = speed;
     this.T += speed * dt;
@@ -616,6 +621,17 @@ export class Sim {
   collect(e) {
     e.done = true;
     const type = PICKUP_KINDS[e.kind];
+    if (type === 'collect') {          // v5s19: campanaccio o facciola, salvati subito
+      const c = COLLECT.KINDS[e.kind];
+      if (c === 'bell') this.stats.bells++; else this.stats.sweets++;
+      const total = this.addCollectible(c, 1);
+      const pts = this.addBonus(COLLECT.PTS);
+      this.log('k', c === 'bell' ? 1 : 2);
+      this.fx('collectible', { e, kind: c, total, pts });
+      this.fx('popup', { text: c === 'bell' ? 'CAMPANACCIO!' : 'FACCIOLA!', style: 'gold' });
+      this.fx('sound', c === 'bell' ? 'collectBell' : 'collectSweet');
+      return;
+    }
     if (type === 'carpet') {
       this.stats.carpets++;
       this.carpetTotal = this.addCarpets(1); // salvato subito: non si perde
@@ -726,7 +742,7 @@ export class Sim {
     return {
       mode: this.mode, score: this.score, fuel: this.fuel, meters: Math.floor(this.runD / PX_PER_METER),
       lane: this.targetLane, px: this.px, dance: this.dance && { lap: this.dance.lap, t: this.dance.t, bpm: this.dance.bpm, combo: this.dance.combo, perf: this.dance.perf, good: this.dance.good, miss: this.dance.miss, pts: this.dance.pts, notes: this.dance.notes.length, round: this.dance.round, end: this.dance.end }, danceCue: !!this.danceCue, T: this.T, stats: { ...this.stats }, speed: this.currentSpeed, baseSpeed: speedAt(Math.max(0, this.runD), this.mapOffsetM), speedStep: this.speedStep, shopOffer: this.shopOffer, shopLap: this.shopLap, shield: this.shield, shop: this.shop && { ...this.shop, buys: { ...this.shop.buys } }, duckT: this.duckT, slipT: this.slipT,
-      ammo: this.ammo, shotsInFlight: this.shots.length, carpetTotal: this.carpetTotal, events: this.events.length, inputs: this.inputs.length,
+      skin: this.skin, ammo: this.ammo, shotsInFlight: this.shots.length, carpetTotal: this.carpetTotal, events: this.events.length, inputs: this.inputs.length,
       entities: this.entities.filter((e) => !e.done).map((e) => ({ kind: e.kind, lane: e.lane, x: e.x, ahead: e.d - this.T, len: e.len, pickup: !!e.pickup, solid: e.solid, group: e.group || 0, side: e.side, idle: !!e.idle, destructible: !!DESTRUCTIBLE[e.kind] })),
     };
   }

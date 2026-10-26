@@ -435,6 +435,8 @@ class AudioSys {
       this._burst({ t, dur: 0.04, type: 'bandpass', f: 3400, q: 2.5, vol: vol * 0.5, dest });
     }
   }
+  collectBell() { this.bellClank(0, 0.6, 4, 7); this.milestone?.(); }   // v5s19
+  collectSweet() { this.pickup?.('ferula'); this.milestone?.(); }
   bellRing(pan = 0) {   // urto con una maschera: campanacci che risuonano forte
     if (!this.ok) return;
     this.bellClank(pan, 0.55, 6, 3);

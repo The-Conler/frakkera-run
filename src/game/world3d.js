@@ -18,6 +18,7 @@ import { Flame3D, sharedFlameMats } from './flame3d.js';
 import { fireGeoms, FLAME_AT } from './fires3d.js';
 import { minerGeoms, HEADLAMP, LAMP_BULB } from './miners3d.js';
 import { cartGeoms } from './cart3d.js';
+import { bellGeom, sweetGeom } from './collect3d.js';
 import { rng } from './kit.js';
 import { Env } from './biomes/env.js';
 import { buildShopRoom } from './shop3d.js';
@@ -387,6 +388,14 @@ export class World {
       v.body.add(v.flame);
       v.glow = this.glowSprite('#ffae4a', 4.2, 0.5); v.body.add(v.glow);
       v.shadow = this.blob(2.0, 1.6);
+    } else if (kind === 'campanaccio' || kind === 'facciola') {   // v5s19: collezionabili rari
+      v.body = new THREE.Group();
+      const m = new THREE.Mesh(kind === 'campanaccio' ? bellGeom() : sweetGeom(), this.mats2);
+      m.scale.setScalar(kind === 'campanaccio' ? 1.15 : 1.35); if (kind === 'facciola') m.rotation.x = 1.1;
+      v.spin = m; v.body.add(m);
+      const ring = new THREE.Mesh(this.geo.ring, this.mat.ring); ring.rotation.x = Math.PI / 2; ring.position.y = -0.75; v.body.add(ring);
+      v.glow = this.glowSprite(kind === 'campanaccio' ? '#ffd27a' : '#ffe9b0', 4.2, 0.8);
+      v.shadow = this.blob(1.8, 1.8);
     } else if (kind === 'tappeto') {
       v.body = new THREE.Mesh(this.geo.carpet, this.mat.carpet[(e.variant || 0) % 4]);
       v.glow = this.glowSprite('#ff7a5a', 2.6, 0.32);
@@ -484,7 +493,10 @@ export class World {
       if (e.done && !v.dead && (e.pickup || e.destroyed)) { v.dead = true; v.body.visible = false; if (v.glow) v.glow.visible = false; if (v.warn) v.warn.visible = false; if (v.shadow) v.shadow.visible = !e.pickup && !e.destroyed; }
       if (v.dead) continue;
       v.t += dt;
-      if (e.kind === 'tappeto') {
+      if (e.kind === 'campanaccio' || e.kind === 'facciola') {
+        v.body.position.y = 1.5 + Math.sin(t * 3 + e.d * 0.05) * 0.15; v.spin.rotation.y = t * 2.2;
+        v.glow.position.y = 1.5;
+      } else if (e.kind === 'tappeto') {
         v.body.position.y = 0.38 + Math.sin(t * 3.2 + e.d * 0.05) * 0.1;
         v.body.rotation.set(-Math.PI / 2 + 0.22 + Math.sin(t * 2.3 + e.d) * 0.05, 0, Math.sin(t * 1.7 + e.d) * 0.12);
         v.glow.position.y = 0.4; v.glow.material.opacity = 0.32 * (1 + this.light.tunnel * 1.3);
@@ -742,6 +754,7 @@ export class World {
 
   // ------------------------------------------------------------ frame
   setMood(name) { this.moodName = name; }
+  setSkin(id) { this.skinId = id; this.char3d?.setSkin?.(id); }
   // bersaglio: ambiente nel punto del giocatore (+ menu al crepuscolo nel paese, + tinta del game over)
   updateMood(dt, fuelF = 1) {
     const env = this.env, tgt = this.tgt;

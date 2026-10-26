@@ -255,3 +255,16 @@ export const SHOP = {
     { id: 'scudo', name: 'Scudo di sughero', desc: 'Para il prossimo urto', price: 35, max: 1 },
   ],
 };
+
+// v5s19: oggetti rari da collezione (campanacci e facciole) e costumi sbloccabili
+export const COLLECT = {
+  FROM_M: 60,               // niente collezionabili nei primi metri
+  GAP_ROWS: [38, 70],       // file tra un collezionabile e l'altro (flusso RNG separato)
+  P_FACCIOLA: 0.5,          // quota di facciole (il resto campanacci)
+  PTS: 40,
+  KINDS: { campanaccio: 'bell', facciola: 'sweet' },
+};
+export const SKINS = [
+  { id: 'base', name: 'IL PORTATORE', desc: 'Il portatore della frakkera, vestito della festa.', cost: { bell: 0, sweet: 0 }, speedK: 1 },
+  { id: 'stramaioni', name: 'SU STRAMAIONI', desc: 'Viso nero di fuliggine e mantello scuro di orbace. Corre piu veloce (+8%).', cost: { bell: 5, sweet: 5 }, speedK: 1.08 },
+];

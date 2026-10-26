@@ -2,7 +2,7 @@
 // Interfaccia HTML/CSS sopra il canvas 3D: menu, HUD, pannelli, game over.
 // Tutti i pulsanti sono elementi reali; le icone sono SVG inline.
 // =====================================================================
-import { SCORE, FUEL, DEMO_BOARD, PISTOL, SHOP, DANCE } from './config.js';
+import { SCORE, FUEL, DEMO_BOARD, PISTOL, SHOP, DANCE, SKINS } from './config.js';
 import { bus } from './bus.js';
 import { audio } from './systems/audio.js';
 import * as store from './systems/storage.js';
@@ -16,7 +16,7 @@ const fmt = (n) => String(Math.floor(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 const use = (id) => `<svg><use href="#${id}"/></svg>`;
 
 export function initUI(game) {
-  const screens = ['menu', 'settings', 'howto', 'info', 'board', 'pause', 'over', 'shop'];
+  const screens = ['menu', 'skins', 'settings', 'howto', 'info', 'board', 'pause', 'over', 'shop'];
   let state = 'menu';
   let backTo = 'menu';
   let lastRun = null;
@@ -212,6 +212,7 @@ export function initUI(game) {
   function open(name) {
     backTo = state === 'over' ? 'over' : 'menu';
     if (name === 'board') renderBoard();
+    if (name === 'skins') renderSkins();
     state = name;
     show(name);
   }
@@ -461,10 +462,36 @@ export function initUI(game) {
   }
   const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+  // --------------------------------------------------------- v5s19: costumi
+  function renderSkins() {
+    const c = store.getCollection(), un = store.getUnlocked(), cur = store.getSkin();
+    $('#coll-bell').textContent = c.bell; $('#coll-sweet').textContent = c.sweet;
+    $('#skin-list').innerHTML = SKINS.map((k) => {
+      const owned = un.includes(k.id), can = c.bell >= k.cost.bell && c.sweet >= k.cost.sweet;
+      let btn;
+      if (cur === k.id) btn = '<span class="skin-tag on">IN USO</span>';
+      else if (owned) btn = `<button class="btn btn-primary small" data-skin="${k.id}" data-op="use">SCEGLI</button>`;
+      else if (can) btn = `<button class="btn btn-primary small" data-skin="${k.id}" data-op="buy">SBLOCCA</button>`;
+      else btn = `<span class="skin-tag">MANCANO ${Math.max(0, k.cost.bell - c.bell)}${use('i-bell')} ${Math.max(0, k.cost.sweet - c.sweet)}${use('i-sweet')}</span>`;
+      const cost = owned ? '' : `<div class="skin-cost">${k.cost.bell}${use('i-bell')} ${k.cost.sweet}${use('i-sweet')}</div>`;
+      return `<div class="skin-card ${cur === k.id ? 'sel' : ''} ${owned ? '' : 'locked'}" data-id="${k.id}"><div class="skin-ico skin-${k.id}">${use(k.id === 'base' ? 'i-flame' : 'i-mask')}</div><div class="skin-txt"><b>${k.name}</b><p>${k.desc}</p>${cost}</div><div class="skin-act">${btn}</div></div>`;
+    }).join('');
+  }
+  $('#skin-list').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-skin]'); if (!b) return;
+    const k = SKINS.find((x) => x.id === b.dataset.skin); if (!k) return;
+    if (b.dataset.op === 'buy') {
+      const c = store.getCollection(); if (c.bell < k.cost.bell || c.sweet < k.cost.sweet) return;
+      store.unlockSkin(k.id); audio.pistolPickup?.();
+    } else audio.click();
+    store.setSkin(k.id); game.setSkin(k.id); renderSkins();
+  });
+  bus.on('collect', () => { if (state === 'skins') renderSkins(); });
+
   // --------------------------------------------------------- pulsanti
   const actions = {
     play, retry: play, resume, quit, back,
-    board: () => open('board'), howto: () => open('howto'), info: () => open('info'), settings: () => open('settings'),
+    board: () => open('board'), howto: () => open('howto'), info: () => open('info'), settings: () => open('settings'), skins: () => open('skins'),
     audio: toggleAudio, music: toggleMusic,
     'reset-board': () => {
       if (confirm('Azzerare la classifica demo su questo dispositivo?')) { store.resetBoard(); highlightId = null; renderBoard(); }
@@ -501,7 +528,7 @@ export function initUI(game) {
       else if (state === 'pause') { e.preventDefault(); resume(); }
     } else if (e.code === 'Escape' || e.code === 'KeyP') {
       if (state === 'pause') resume();
-      else if (['howto', 'info', 'board', 'settings'].includes(state)) back();
+      else if (['howto', 'info', 'board', 'settings', 'skins'].includes(state)) back();
     } else if (e.code === 'KeyR' && state === 'over') {
       if (performance.now() - overShownAt > 350) play();
     } else if (e.code === 'KeyM') toggleAudio();

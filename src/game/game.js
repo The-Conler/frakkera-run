@@ -7,7 +7,7 @@ import { difficultyAt } from '../systems/generator.js';
 import { Sim } from './sim.js';
 import { World } from './world3d.js';
 import { audio } from '../systems/audio.js';
-import { getBest, addCarpets, getCarpetTotal, spendCarpets } from '../systems/storage.js';
+import { getBest, addCarpets, getCarpetTotal, spendCarpets, addCollectible, getSkin } from '../systems/storage.js';
 import { bus } from '../bus.js';
 
 export class Game {
@@ -15,7 +15,7 @@ export class Game {
     this.container = container;
     this.debug = new URLSearchParams(location.search).get('debug') || '';
     this.world = new World(container);
-    this.sim = new Sim((t, d) => this.onFx(t, d), { debug: this.debug, getBest, addCarpets, spendCarpets, carpetTotal: getCarpetTotal(), mapOffsetM: (this.world.env && this.world.env.offset) || 0 });
+    this.sim = new Sim((t, d) => this.onFx(t, d), { debug: this.debug, getBest, addCarpets, spendCarpets, addCollectible, carpetTotal: getCarpetTotal(), mapOffsetM: (this.world.env && this.world.env.offset) || 0 });
     this.paused = false;
     this.accum = 0;
     this.last = 0;
@@ -28,13 +28,15 @@ export class Game {
   }
 
   get mode() { return this.sim.mode; }
-  start() { this.world.setMood('menu'); requestAnimationFrame(this.loop); }
+  start() { this.world.setSkin?.(getSkin()); this.world.setMood('menu'); requestAnimationFrame(this.loop); }
   resize(w, h) { this.world.resize(w, h); }
 
   // ---------------------------------------------------- API per ui.js
   startRun() {
     this.paused = false;
     this.downT = 0;
+    this.sim.skin = getSkin();
+    this.world.setSkin?.(this.sim.skin);
     this.sim.startRun();
     this.world.setMood('run');
     audio.setIntensity(1, 0);
@@ -57,6 +59,7 @@ export class Game {
   danceInput(dir) { return this.sim.danceInput(dir); }
   bellPan(e) { return Math.max(-1, Math.min(1, (this.sim.entX(e) - this.sim.px) / 45)); }
   fire() { const ok = this.sim.fire(); if (ok) audio.shoot(); return ok; }
+  setSkin(id) { this.world.setSkin?.(id); }
   pause() { this.paused = true; }
   resume() { this.paused = false; this.accum = 0; }
   isPaused() { return this.paused; }
@@ -74,6 +77,7 @@ export class Game {
       case 'carpet': audio.carpet(d.streak); bus.emit('carpet', { run: d.run, total: d.total }); break;
       case 'fuel': audio.pickup(d.e.kind); break;
       case 'pistol': audio.pistolPickup(); break;
+      case 'collectible': bus.emit('collect', d); break;
       case 'puddle': audio.puddle(); break;
       case 'hit': audio.hit(); if (d.e && (d.e.kind === 'maimoni' || d.e.kind === 'fune')) audio.bellRing(this.bellPan(d.e)); break;
       case 'slip': audio.puddle(); break;

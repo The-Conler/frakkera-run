@@ -1,0 +1,37 @@
+# v5s19: screenshot di collezionabili, menu costumi e su Stramaioni in corsa
+import asyncio, os
+from playwright.async_api import async_playwright
+URL = 'http://127.0.0.1:4792/'
+SH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'screenshots')
+async def main():
+    async with async_playwright() as p:
+        b = await p.chromium.launch(executable_path='/usr/bin/google-chrome', args=['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'])
+        ctx = await b.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=2, is_mobile=True, has_touch=True)
+        await ctx.add_init_script("setInterval(() => { const g = window.__frk && window.__frk.game; if (g && (g.sim.danceCue || g.sim.mode === 'dance')) g.skipDance(); }, 40)")
+        pg = await ctx.new_page()
+        errs = []; pg.on('pageerror', lambda e: errs.append(str(e)))
+        await pg.goto(URL + '?test=1')
+        await pg.evaluate("localStorage.clear(); localStorage.setItem('frakkera.collect.v1', JSON.stringify({bell: 3, sweet: 6}))")
+        await pg.reload()
+        await pg.wait_for_function('window.__frk && document.querySelector("#loading").classList.contains("hidden")', timeout=30000)
+        await pg.wait_for_timeout(1500)
+        await pg.screenshot(path=f'{SH}/v5s19-1-menu.png')
+        await pg.click('[data-act=skins]'); await pg.wait_for_timeout(500)
+        await pg.screenshot(path=f'{SH}/v5s19-2-costumi-bloccato.png')
+        await pg.evaluate("localStorage.setItem('frakkera.collect.v1', JSON.stringify({bell: 5, sweet: 6}))")
+        await pg.click('#scr-skins [data-act=back]'); await pg.click('[data-act=skins]'); await pg.wait_for_timeout(300)
+        await pg.click('[data-skin=stramaioni]'); await pg.wait_for_timeout(600)
+        await pg.screenshot(path=f'{SH}/v5s19-3-costumi-stramaioni.png')
+        await pg.click('#scr-skins [data-act=back]'); await pg.wait_for_timeout(1200)
+        await pg.screenshot(path=f'{SH}/v5s19-4-menu-stramaioni.png')
+        await pg.click('[data-act=play]'); await pg.wait_for_timeout(4500)
+        await pg.evaluate("(() => { const s = window.__frk.game.sim; s.fuel = 100; s.spawn({ kind: 'campanaccio', lane: s.targetLane, d: s.T - s.genOffset + 150, len: 12, pickup: true }); s.spawn({ kind: 'facciola', lane: (s.targetLane + 1) % 3, d: s.T - s.genOffset + 120, len: 12, pickup: true }); })()")
+        await pg.wait_for_timeout(350)
+        await pg.screenshot(path=f'{SH}/v5s19-5-collezionabili.png')
+        await pg.wait_for_timeout(1300)
+        await pg.evaluate("window.__frk.game.sim.fuel = 100")
+        await pg.screenshot(path=f'{SH}/v5s19-6-stramaioni-corsa.png')
+        st = await pg.evaluate("(() => { const s = window.__frk.game.sim; return { skin: s.skin, bells: s.stats.bells, sweets: s.stats.sweets, saved: localStorage.getItem('frakkera.collect.v1') }; })()")
+        print(st, errs)
+        await b.close()
+asyncio.run(main())

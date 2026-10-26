@@ -7,7 +7,7 @@
 // mobili compaiono solo in "finestre calme" senza altri ostacoli.
 // Tappeti, combustibile e pistola si piazzano solo in celle libere.
 // =====================================================================
-import { DIFFICULTY as DF, WORLD, PX_PER_METER, CARPETS as CP, PISTOL, SPEED_STEPS as SS, BIOME_OBST as BO, DUCK, MASKS as MK, FIRE, MINE, CART } from '../config.js';
+import { DIFFICULTY as DF, WORLD, PX_PER_METER, CARPETS as CP, PISTOL, SPEED_STEPS as SS, BIOME_OBST as BO, DUCK, MASKS as MK, FIRE, MINE, CART, COLLECT } from '../config.js';
 import { biomeAt, BIOMES } from '../game/biomes/config.js';
 import { makeRng } from './rng.js';
 
@@ -65,7 +65,7 @@ export const BIOME_OBST_KIND = { village: 'rollin', rock: 'sasso', river: 'bagna
 export const MASK_KINDS = { maimoni: true, fune: true, fuso: true };
 // v5s16: frakkere accese a bordo strada (non occupano corsie)
 export const SIDE_KINDS = { falo: true, minatore: true, lampada: true, carrello: true, scambio: true };
-export const PICKUP_KINDS = { asfodelo: 'fuel', ferula: 'fuel', tappeto: 'carpet', pistola: 'pistol' };
+export const PICKUP_KINDS = { asfodelo: 'fuel', ferula: 'fuel', tappeto: 'carpet', pistola: 'pistol', campanaccio: 'collect', facciola: 'collect' };
 
 const SHORT_LEN = { muretto: 14, botte: 18, bottecoricata: 14, pozza: 13 };
 
@@ -104,6 +104,9 @@ export class Generator {
     this.nextFireRow = 0; this.fireSide = this.frng() < 0.5 ? -1 : 1; this.fires = 0;
     // v5s17: flusso separato anche per minatori e lampade della miniera
     this.mrng = makeRng(((seed >>> 0) ^ 0x3a17e5) >>> 0);
+    // v5s19: flusso separato per i collezionabili rari
+    this.crng = makeRng(((seed >>> 0) ^ 0x19c011) >>> 0);
+    this.nextCollectRow = Math.ceil((COLLECT.FROM_M * PX_PER_METER - WORLD.LEAD_IN) / WORLD.ROW) + this.crng.int(0, 20); this.collects = 0;
     this.nextMinerRow = 0; this.nextLampRow = 0; this.minerSide = 1; this.lampSide = -1; this.miners = 0; this.lamps = 0;
   }
 
@@ -184,11 +187,28 @@ export class Generator {
     emit({ kind: 'falo', lane: edge, side, d: D + 8, len: 16, variant: fr() < FIRE.VILLAGER_SHARE ? 1 : 0, fire: this.fires });
   }
 
+  // v5s19: campanaccio o facciola in una cella libera (dopo il resto della fila: il percorso non cambia)
+  maybeCollect(r, emit) {
+    const used = this._used;
+    if (!used || r < this.nextCollectRow) return;
+    if (r <= this.calmUntil + 1) { this.nextCollectRow = r + 1; return; }   // niente collezionabili sulla traiettoria di capre, botti e maschere
+    const D = this.rowDist(r);
+    if (cartAt(D / PX_PER_METER + this.offM, 2, 2)) return;
+    const cr = this.crng, free = [];
+    for (let l = 0; l < WORLD.LANES; l++) if (!used[l] && this.blockedUntil[l] < r) free.push(l);
+    if (!free.length) { this.nextCollectRow = r + 1; return; }
+    this.nextCollectRow = r + cr.int(COLLECT.GAP_ROWS[0], COLLECT.GAP_ROWS[1]);
+    const lane = free[cr.int(0, free.length - 1)]; used[lane] = true; this.collects++;
+    emit({ kind: cr() < COLLECT.P_FACCIOLA ? 'facciola' : 'campanaccio', lane, d: D + 9, len: 12, pickup: true, collect: this.collects });
+  }
+
   rowDist(r) { return WORLD.LEAD_IN + r * WORLD.ROW; }
 
   fillUntil(maxDist, emit) {
     while (this.rowDist(this.row) < maxDist) {
+      this._used = null;
       this.genRow(this.row, emit);
+      this.maybeCollect(this.row, emit);
       this.row++;
     }
   }
@@ -199,7 +219,7 @@ export class Generator {
     const ROW = WORLD.ROW;
     const D = this.rowDist(r);
     const diff = difficultyAt(D);
-    const used = new Array(L).fill(false);
+    const used = new Array(L).fill(false); this._used = used;
     for (let l = 0; l < L; l++) if (this.blockedUntil[l] >= r) used[l] = true;
     this.maybeFire(r, D, emit);
     this.maybeMine(r, D, emit);

@@ -12,6 +12,7 @@
 // =====================================================================
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { stramaHoodGeom, stramaCloakGeom } from './collect3d.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 
 export const MODEL_URL = `${import.meta.env.BASE_URL}models/frakkera-man.glb`;
@@ -91,9 +92,44 @@ export class Character3D {
     let bones = 0; m.traverse((o) => { if (o.isBone) bones++; });
     this.stats = { triangles: tris, meshes, bones, clips: gltf.animations.map((c) => c.name) };
     this.ready = !!(this.actions.idle && this.actions.run && this.bones.tip);
+    if (this.ready) this.buildSkins();
+    this.ready = !!(this.actions.idle && this.actions.run && this.bones.tip);
     if (this.ready) this.setupBurn();
     if (!this.ready) { this.failed = true; this.error = 'GLB senza clip/nodi richiesti'; }
     this.root.visible = this.ready;
+  }
+
+  // v5s19: costumi. 'stramaioni': viso nero di fuliggine, stracci scuri, cappuccio e mantello di orbace
+  buildSkins() {
+    const m = this.model; this.skinParts = [];
+    const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0, flatShading: true });
+    mat.emissive.setRGB(0.025, 0.022, 0.02); mat.color.setRGB(0.75, 0.75, 0.75);
+    const attach = (boneName, geo, pos, sc) => {
+      const b = m.getObjectByName(boneName); if (!b) return;
+      m.updateMatrixWorld(true);
+      const ws = new THREE.Vector3(); b.getWorldScale(ws);
+      const o = new THREE.Mesh(geo, mat); o.frustumCulled = false;
+      o.scale.setScalar(sc / ws.x); o.position.copy(pos).divideScalar(ws.x);
+      o.visible = false; b.add(o); this.skinParts.push(o);
+    };
+    attach('head', stramaHoodGeom(), new THREE.Vector3(0, 0.06, -0.01), 1.6);
+    attach('spine_03', stramaCloakGeom(), new THREE.Vector3(0, 0.25, 0), 1.6);
+    if (this.skinId) this.setSkin(this.skinId);
+  }
+  setSkin(id) {
+    this.skinId = id;
+    if (!this.model || !this.bodyMats) return;
+    const st = id === 'stramaioni';
+    const DARK = { skin: '#1c1a18', shirt_trousers: '#2c2824', waistcoat: '#1f1c19', cap: '#1d1a17', shoes: '#151210', hair: '#151312', eyebrows: '#151312' };
+    for (const b of this.bodyMats) {
+      if (!b.col0) { b.col0 = b.col.clone(); b.em0 = b.em.clone(); }
+      const c = st && DARK[b.mt.name];
+      if (c) { b.col.set(c); if (b.mt.name === 'skin') b.em.setRGB(0.03, 0.028, 0.026); else b.em.setRGB(0.06, 0.055, 0.05); }
+      else { b.col.copy(b.col0); b.em.copy(b.em0); }
+      b.mt.color.copy(b.col); b.mt.emissive.copy(b.em);
+    }
+    for (const o of this.skinParts || []) o.visible = st;
+    this.model.traverse((o) => { if (o.isMesh && o.material && o.material.name === 'cap') o.visible = !st; });
   }
 
   stumble() {
