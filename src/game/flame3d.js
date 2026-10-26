@@ -77,3 +77,12 @@ export class Flame3D {
     }
   }
 }
+
+// v5s16: materiali condivisi per le fiamme delle frakkere a bordo strada (stesso shader della fiamma del giocatore)
+export function sharedFlameMats() {
+  return LAYERS.slice(0, 3).map((L, k) => new THREE.ShaderMaterial({
+    vertexShader: VS, fragmentShader: FS, transparent: true, depthWrite: false, blending: L.normal ? THREE.NormalBlending : THREE.AdditiveBlending, fog: false, toneMapped: false,
+    uniforms: { uNormal: { value: L.normal ? 1 : 0 }, uTime: { value: 0 }, uSeed: { value: k * 5.1 + 7.7 }, uI: { value: L.i }, uLean: { value: 0 }, uA: { value: new THREE.Color(L.a) }, uB: { value: new THREE.Color(L.b) }, uC: { value: new THREE.Color(L.c) } },
+    userData: { L },
+  }));
+}

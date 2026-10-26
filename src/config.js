@@ -65,6 +65,21 @@ export const PISTOL = {
 
 export const PX_PER_METER = 10;
 
+// ---- v5s16: frakkeras accese lungo il percorso (falo' e paesani con la frakkera) -------
+// Stanno sul marciapiede, fuori dalle corsie: passandoci accanto nella corsia laterale
+// (sfiorandole) la fiamma riprende fuoco. Generate da un flusso RNG separato (deterministico,
+// non sposta ostacoli e materiali), registrate nel log ('F').
+export const FIRE = {
+  BONUS: 12,               // fuoco aggiunto (stesso ordine dell'asfodelo: 16)
+  PTS: 30,                 // punti
+  X: 62,                   // distanza dal centro strada (px): bordo del marciapiede
+  BRUSH_PX: 14,            // il giocatore deve stare entro questa distanza dal centro della corsia laterale
+  FROM_M: 20,              // non prima di questi metri
+  // ambiente -> lati ammessi e passo (file) tra una frakkera e l'altra
+  BIOMES: { village: { sides: [-1, 1], gap: [12, 20] }, rock: { sides: [-1, 1], gap: [22, 34] }, river: { sides: [-1], gap: [24, 36] } },
+  VILLAGER_SHARE: 0.5,     // quota di paesani con la frakkera in braccio (il resto: falo' a terra)
+};
+
 // ---- Fiamma (combustibile 0..100) ------------------------------------
 export const FUEL = {
   MAX: 100,

@@ -5,7 +5,7 @@
 // =====================================================================
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { WORLD, BIOME_OBST } from '../config.js';
+import { WORLD, BIOME_OBST, FIRE } from '../config.js';
 import { laneX, isMoving, ROAD_HALF } from './sim.js';
 import { DanceRing } from './dance/dance3d.js';
 import { buildMaimoni, buildStramaione, buildGrastula, animateFigure, spindleGeom } from './masks/figures.js';
@@ -14,7 +14,8 @@ import * as M from './models.js';
 import { PointPool, Shards } from './particles.js';
 import { Character } from './character.js';
 import { Character3D } from './character3d.js';
-import { Flame3D } from './flame3d.js';
+import { Flame3D, sharedFlameMats } from './flame3d.js';
+import { fireGeoms, FLAME_AT } from './fires3d.js';
 import { rng } from './kit.js';
 import { Env } from './biomes/env.js';
 import { buildShopRoom } from './shop3d.js';
@@ -48,7 +49,7 @@ void main(){
 }`;
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _v3 = new THREE.Vector3();
-const _right = new THREE.Vector3(), _up = new THREE.Vector3();
+const _right = new THREE.Vector3(), _up = new THREE.Vector3(); const _q1 = new THREE.Quaternion();
 const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c3 = new THREE.Vector3();
 const _c = new THREE.Color(), _c2 = new THREE.Color();
 const COL = {
@@ -338,6 +339,17 @@ export class World {
       v.body.add(m);
       v.glow = this.glowSprite(kind === 'ferula' ? '#f2ff9a' : '#fff1cf', 3.0, 0.55);
       v.shadow = this.blob(1.6, 1.0);
+    } else if (kind === 'falo') {               // v5s16: falo' o paesano con la frakkera accesa
+      const fg = fireGeoms();
+      if (!this.fireMats) { this.fireMats = sharedFlameMats(); this.fireGeo = new THREE.PlaneGeometry(1, 1).translate(0, 0.5, 0); }
+      v.body = new THREE.Group();
+      v.bon = new THREE.Mesh(fg.bonfire, this.mats2); v.vil = new THREE.Mesh(fg.villager, this.mats2); v.vil.scale.setScalar(1.2);
+      v.body.add(v.bon, v.vil);
+      v.flame = new THREE.Group(); v.flame.renderOrder = 16;
+      this.fireMats.forEach((m, k) => { const f = new THREE.Mesh(this.fireGeo, m); const L = m.userData.L; f.scale.set(L.w, L.h, 1); f.position.y = L.y; f.renderOrder = 16 + k; v.flame.add(f); });
+      v.body.add(v.flame);
+      v.glow = this.glowSprite('#ffae4a', 4.2, 0.5); v.body.add(v.glow);
+      v.shadow = this.blob(2.0, 1.6);
     } else if (kind === 'tappeto') {
       v.body = new THREE.Mesh(this.geo.carpet, this.mat.carpet[(e.variant || 0) % 4]);
       v.glow = this.glowSprite('#ff7a5a', 2.6, 0.32);
@@ -386,6 +398,12 @@ export class World {
     if (v.glow) v.glow.visible = true;
     v.t = Math.random() * 6;
     v.dead = false; v.hitT = 0; v.fallT = 0; v.landFx = false; v.flyT = 0;
+    if (e.kind === 'falo') {
+      const vil = e.variant === 1; v.bon.visible = !vil; v.vil.visible = vil;
+      v.fa = FLAME_AT[vil ? 1 : 0]; v.litT = -1;
+      v.body.rotation.y = vil ? (e.side < 0 ? 0.5 : -0.5) : e.id * 0.7;
+      v.flame.position.set(0, 0, 0); v.glow.position.set(0, 0, 0);
+    }
     if (e.kind === 'botte' || e.kind === 'muretto') v.body.rotation.y = (e.id * 1.37) % 6.28 * (e.kind === 'botte' ? 1 : 0.06);
     this.views.set(e.id, v);
     this.placeView(e, v);
@@ -403,11 +421,12 @@ export class World {
   placeView(e, v) {
     const zc = -(e.d + e.len / 2) * U;
     if (v.kind === 'narrow') { v.root.position.set(v.root.userData.x, 0, -e.d * U); return; }
-    const x = (isMoving(e.kind) ? e.x : laneX(e.lane)) * U;
+    const x = (e.kind === 'falo' ? e.side * FIRE.X : isMoving(e.kind) ? e.x : laneX(e.lane)) * U;
     v.root.position.set(x, 0, zc);
   }
   animateViews(sim, dt) {
     const t = this.clock;
+    if (this.fireMats) for (const m of this.fireMats) m.uniforms.uTime.value = t;
     for (const e of sim.entities) {
       const v = this.views.get(e.id);
       if (!v) continue;
@@ -422,6 +441,19 @@ export class World {
         v.body.position.y = 0.38 + Math.sin(t * 3.2 + e.d * 0.05) * 0.1;
         v.body.rotation.set(-Math.PI / 2 + 0.22 + Math.sin(t * 2.3 + e.d) * 0.05, 0, Math.sin(t * 1.7 + e.d) * 0.12);
         v.glow.position.y = 0.4; v.glow.material.opacity = 0.32 * (1 + this.light.tunnel * 1.3);
+        if (v.shadow) v.shadow.visible = true;
+      } else if (e.kind === 'falo') {
+        // fiamma rivolta alla camera (il corpo ruota: si compensa in coordinate locali)
+        const fa = v.fa; _up.set(0, 1, 0);
+        v.flame.position.set(fa.x, fa.y, fa.z);
+        v.flame.quaternion.copy(this.camera.quaternion); v.flame.quaternion.premultiply(_q1.setFromAxisAngle(_up, -v.body.rotation.y));
+        if (e.lit && v.litT < 0) v.litT = 0;
+        let k = 1;
+        if (v.litT >= 0) { v.litT += dt; const a = Math.min(1, v.litT / 0.18); k = 1 + 0.75 * a * Math.exp(-Math.max(0, v.litT - 0.18) * 2.2) + 0.15; }
+        const wob = 1 + Math.sin(t * 11 + e.id) * 0.06 + Math.sin(t * 19.3 + e.id * 2) * 0.04;
+        v.flame.scale.set(fa.s * k * (2 - wob), fa.s * k * wob, fa.s * k);
+        v.glow.position.set(fa.x, fa.y + 0.9 * fa.s, fa.z); const gs = 4.2 * fa.s * k * (0.95 + 0.05 * wob); v.glow.scale.set(gs, gs, 1);
+        v.glow.material.opacity = 0.42 * (1 + this.light.tunnel);
         if (v.shadow) v.shadow.visible = true;
       } else if (e.kind === 'asfodelo' || e.kind === 'ferula') {
         v.body.position.y = 0.9 + Math.sin(t * 3 + e.d) * 0.15;
@@ -530,6 +562,19 @@ export class World {
         this.burst(p.x, 1.0, p.z, d.e.kind === 'ferula' ? COL.green : COL.white, 24, 5);
         this.burst(p.x, 1.0, p.z, COL.spark, 14, 3);
         this.popWorld(`+${d.pts}`, p.x, 2.2, p.z, 'fuel');
+        break;
+      }
+      case 'fireBonus': {         // v5s16: scintille dalla frakkera accesa alla tua, la fiamma cresce
+        const v = this.views.get(d.e.id), t = this.tipW;
+        if (v) {
+          const fa = v.fa || FLAME_AT[0], p = v.root.position, fy = fa.y + 0.8;
+          for (let i = 0; i < 34; i++) {
+            const k = 0.55 + Math.random() * 0.5;
+            this.add.emit(p.x + (Math.random() - 0.5) * 0.6, fy + Math.random() * 0.6, p.z, (t.x - p.x) * k * 2.2 + (Math.random() - 0.5) * 1.5, (t.y - fy) * k * 2.2 + 2 + Math.random() * 2, (Math.random() - 0.5) * 1.2 - 2, 0.5, 0.22, 0.04, i % 3 ? COL.spark : COL.ember, 1, 2.5, 0.9);
+          }
+        }
+        this.burst(t.x, t.y + 0.6, t.z, COL.spark, 30, 4.5); this.burst(t.x, t.y + 0.4, t.z, COL.ember, 16, 3);
+        this.fireKick = 1;
         break;
       }
       case 'pistol': {
@@ -762,11 +807,12 @@ export class World {
     const fuelF = this.burnT >= 0 && burnLit ? Math.max(0.35, 1 - this.burnT) : view.fuelF;
     const lit = view.char.flameOn || burnLit;
     const flick = Math.sin(this.clock * 17) * 0.06 + Math.sin(this.clock * 29) * 0.05;
-    this.flame3d.update(dt, this.camera, this.tipW, fuelF, use3d && lit, view.char.fuelLow, -(view.char.vx || 0) * 0.5);
+    this.fireKick = Math.max(0, (this.fireKick || 0) - dt * 1.6);
+    this.flame3d.update(dt, this.camera, this.tipW, Math.min(1.6, fuelF + this.fireKick * 0.6), use3d && lit, view.char.fuelLow, -(view.char.vx || 0) * 0.5);
     this.flameLight.position.copy(this.tipW); if (use3d) this.flameLight.position.y += 0.9;
     const L = this.light, dark = L.darkByFuel * (1 - fuelF);
     this.flameLight.distance = L.flameDist * (1 - dark * 0.45);
-    this.flameLight.intensity = lit ? (10 + 18 * fuelF) * L.flameK * (1 + flick) + (this.flashBoost || 0) * 40 : 0;
+    this.flameLight.intensity = lit ? (10 + 18 * fuelF) * L.flameK * (1 + flick) + (this.flashBoost || 0) * 40 + this.fireKick * 14 : 0;
     for (const k in this.env.tunnelMat) { const u = this.env.tunnelMat[k].userData.u; u.uLamp.value = L.lamp; u.uMineral.value = L.mineral * (0.92 + Math.sin(this.clock * 1.3) * 0.08); }
     this.renderer.toneMappingExposure = L.exposure * (0.15 + 0.85 * this.env.fade);
     this.flashBoost = Math.max(0, (this.flashBoost || 0) - dt * 10);

@@ -5,7 +5,7 @@
 // tramite `fx(tipo, dati)`. Unita': px del mondo 2D (10 px = 1 m), corsie
 // centrate su x = 0.
 // =====================================================================
-import { SCORE, FUEL, WORLD, PX_PER_METER, PISTOL, SPEED_STEPS, BIOME_OBST, DUCK, SHOP, MASKS, DANCE } from '../config.js';
+import { SCORE, FUEL, WORLD, PX_PER_METER, PISTOL, SPEED_STEPS, BIOME_OBST, DUCK, SHOP, MASKS, DANCE, FIRE } from '../config.js';
 import { biomeAt } from './biomes/config.js';
 import { Generator, SOLID, DESTRUCTIBLE, PICKUP_KINDS, BIOME_KINDS, MASK_KINDS, difficultyAt, speedAt, speedStepsAt, lerp } from '../systems/generator.js';
 import { randomSeed, makeRng } from '../systems/rng.js';
@@ -43,7 +43,7 @@ export class Sim {
 
   resetRunState() {
     this.score = 0; this.metersCredited = 0; this.fuel = FUEL.START; this.chain = 0;
-    this.stats = { pickups: 0, nearMiss: 0, chains: 0, milestones: 0, hits: 0, bonus: 0, carpets: 0, barrels: 0, goats: 0, shopVisits: 0, shopBuys: 0, shopSpent: 0, shields: 0, obst: 0, ducks: 0, beams: 0, slips: 0, speedSteps: 0, shots: 0, pistols: 0, masks: 0, parades: 0, ropes: 0, spindles: 0, dances: 0, danceSkips: 0, dancePerfect: 0, danceGood: 0, danceMiss: 0, danceBest: 0, survival: 0, capped: 0 };
+    this.stats = { pickups: 0, nearMiss: 0, chains: 0, milestones: 0, hits: 0, bonus: 0, carpets: 0, barrels: 0, goats: 0, shopVisits: 0, shopBuys: 0, shopSpent: 0, shields: 0, obst: 0, ducks: 0, beams: 0, slips: 0, speedSteps: 0, shots: 0, pistols: 0, masks: 0, parades: 0, ropes: 0, spindles: 0, dances: 0, danceSkips: 0, dancePerfect: 0, danceGood: 0, danceMiss: 0, danceBest: 0, survival: 0, capped: 0, fires: 0, fireFuel: 0 };
     this.shopLap = 0; this.shopOffer = 0; this.shop = null; this.shield = 0;
     this.danceLap = -1; this.danceCue = null; this.dance = null;
     this.duckT = 0; this.duckCd = 0; this.slipT = 0; this.speedStep = 0; this.beamHint = false;
@@ -432,7 +432,7 @@ export class Sim {
     return pts;
   }
 
-  entX(e) { return isMoving(e.kind) ? e.x : e.kind === 'fune' ? laneX(e.lane) + WORLD.LANE_W / 2 : laneX(e.lane); }
+  entX(e) { if (e.kind === 'falo') return e.side * FIRE.X; return isMoving(e.kind) ? e.x : e.kind === 'fune' ? laneX(e.lane) + WORLD.LANE_W / 2 : laneX(e.lane); }
 
   updateEntities(dt) {
     const T = this.T;
@@ -472,6 +472,11 @@ export class Sim {
       const ex = this.entX(e);
       const hw = HALF_W[e.kind] || 10;
       const overlapD = e.d <= pFront && e.d + e.len >= pBack;
+      if (e.kind === 'falo') {        // v5s16: frakkera accesa a bordo strada, si prende sfiorandola
+        if (overlapD && Math.abs(px - laneX(e.lane)) <= FIRE.BRUSH_PX) { this.fireBonus(e); continue; }
+        if (e.d + e.len < pBack) e.done = true;
+        continue;
+      }
       if (e.pickup) {
         if (overlapD && Math.abs(ex - px) <= hw + PLAYER_HALF) { this.collect(e); continue; }
         if (e.d + e.len < pBack) {
@@ -615,6 +620,19 @@ export class Sim {
       this.fx('popup', { text: `CATENA x${SCORE.CHAIN_SIZE}  +${cb}`, style: 'gold' });
       this.fx('sound', 'chain');
     }
+  }
+
+  // v5s16: ci si accende alla frakkera di un paesano o a un falo'
+  fireBonus(e) {
+    e.done = true; e.lit = true;
+    const before = this.fuel;
+    this.fuel = Math.min(FUEL.MAX, this.fuel + FIRE.BONUS);
+    const pts = this.addBonus(FIRE.PTS);
+    this.stats.fires++; this.stats.fireFuel += this.fuel - before;
+    this.log('F', pts);
+    this.fx('fireBonus', { e, pts, gain: this.fuel - before });
+    this.fx('popup', { text: '+FUOCO', style: 'fire' });
+    this.fx('sound', 'fireBonus');
   }
 
   hitPuddle(e) {

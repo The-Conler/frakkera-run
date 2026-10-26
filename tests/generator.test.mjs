@@ -22,11 +22,23 @@ const DUCKABLE = new Set(['trave', 'fune']);   // v5s10: la fune degli Stramaion
 import { biomeAt } from '../src/game/biomes/config.js';
 let parades = 0; const paradeLaps = {};
 
+import { FIRE } from '../src/config.js';
+let totalFires = 0, ok0 = true; const fireBiomes = {};
 let failures = 0, totalObs = 0, totalPick = 0, kinds = {}, carpetsReach = 0, carpetsTot = 0, pistols = 0;
 for (let s = 1; s <= SEEDS; s++) {
   const g = new Generator(s * 7919);
   const ents = [], beams = [];
-  g.fillUntil(LENGTH, (e) => ents.push(e));
+  const fires = [];
+  g.fillUntil(LENGTH, (e) => (e.kind === 'falo' ? fires : ents).push(e));
+  // v5s16: frakkere a bordo strada: solo negli ambienti previsti, sul lato giusto, mai dentro una casa che sporge
+  for (const f of fires) {
+    totalFires++;
+    const bid = biomeAt(f.d / 10).b.id, cfg = FIRE.BIOMES[bid];
+    if (!cfg || !cfg.sides.includes(f.side)) { ok0 = false; console.log(`seed ${s}: falo' fuori posto @${f.d} (${bid} lato ${f.side})`); }
+    if (f.lane !== (f.side < 0 ? 0 : L - 1)) { ok0 = false; console.log(`seed ${s}: falo' con corsia sbagliata @${f.d}`); }
+    if (ents.some((o) => o.kind === 'narrow' && o.lane === f.lane && o.d < f.d + f.len && o.d + o.len > f.d)) { ok0 = false; console.log(`seed ${s}: falo' dentro una casa @${f.d}`); }
+  }
+  fireBiomes[fires.length ? 'con' : 'senza'] = (fireBiomes[fires.length ? 'con' : 'senza'] || 0) + 1;
   const n = Math.ceil(LENGTH / CELL) + 10;
   const blocked = Array.from({ length: L }, () => new Uint8Array(n));
   for (const e of ents) {
@@ -98,8 +110,10 @@ for (let s = 1; s <= SEEDS; s++) {
     parades++; const lap = biomeAt(m[0].d / 10).lap; paradeLaps[lap] = (paradeLaps[lap] || 0) + 1;
   }
   for (const e of ents) if (e.kind === 'fuso' && !e.idle && ents.some((o) => o !== e && !o.pickup && o.lane === e.lane && !MOVING.has(o.kind) && o.d < e.d + e.len + 2 && o.d + o.len > e.d - 2)) { ok = false; console.log(`seed ${s}: fuso sovrapposto @${e.d}`); }
-  if (!ok) failures++;
+  if (!ok || !ok0) failures++; ok0 = true;
 }
+console.log(`frakkere a bordo strada: ${totalFires} (${(totalFires / SEEDS).toFixed(1)} per seed su ${LENGTH / 10} m)`);
+if (!totalFires) { console.log('FALLITO: nessuna frakkera'); failures++; }
 console.log(`cortei di Gadoni: ${parades}  per giro: ${JSON.stringify(paradeLaps)}`);
 if (!parades) { console.log('FALLITO: nessun corteo'); failures++; }
 console.log(`seed testati: ${SEEDS}, metri per seed: ${LENGTH / 10}, ostacoli: ${totalObs}, pickup: ${totalPick}`);

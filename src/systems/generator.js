@@ -7,7 +7,7 @@
 // mobili compaiono solo in "finestre calme" senza altri ostacoli.
 // Tappeti, combustibile e pistola si piazzano solo in celle libere.
 // =====================================================================
-import { DIFFICULTY as DF, WORLD, PX_PER_METER, CARPETS as CP, PISTOL, SPEED_STEPS as SS, BIOME_OBST as BO, DUCK, MASKS as MK } from '../config.js';
+import { DIFFICULTY as DF, WORLD, PX_PER_METER, CARPETS as CP, PISTOL, SPEED_STEPS as SS, BIOME_OBST as BO, DUCK, MASKS as MK, FIRE } from '../config.js';
 import { biomeAt, BIOMES } from '../game/biomes/config.js';
 import { makeRng } from './rng.js';
 
@@ -54,6 +54,8 @@ export const BIOME_KINDS = { rollin: true, sasso: true, bagnato: true };
 export const BIOME_OBST_KIND = { village: 'rollin', rock: 'sasso', river: 'bagnato', 'mine-ext': 'rollin', 'mine-int': 'rollin', 'mine-blue': 'rollin' };
 // v5s10: maschere del carnevale di Gadoni: la pistola le attraversa senza effetto
 export const MASK_KINDS = { maimoni: true, fune: true, fuso: true };
+// v5s16: frakkere accese a bordo strada (non occupano corsie)
+export const SIDE_KINDS = { falo: true };
 export const PICKUP_KINDS = { asfodelo: 'fuel', ferula: 'fuel', tappeto: 'carpet', pistola: 'pistol' };
 
 const SHORT_LEN = { muretto: 14, botte: 18, bottecoricata: 14, pozza: 13 };
@@ -87,6 +89,25 @@ export class Generator {
     this.barrelBoostUntil = -1;
     // v5s10: corteo delle maschere di Gadoni
     this.parade = null; this.paradeG = 0; this.nextParadeAt = 0;
+    // v5s16: flusso RNG separato per le frakkere a bordo strada (non cambia il resto del percorso)
+    this.frng = makeRng(((seed >>> 0) ^ 0x5f17e3) >>> 0);
+    this.nextFireRow = 0; this.fireSide = this.frng() < 0.5 ? -1 : 1; this.fires = 0;
+  }
+
+  // v5s16: falo' o paesano con la frakkera sul marciapiede, lato -1 (sinistra) / +1 (destra)
+  maybeFire(r, D, emit) {
+    if (r < this.nextFireRow || D / PX_PER_METER < FIRE.FROM_M) return;
+    const cfg = FIRE.BIOMES[biomeIdAt(D, this.offM)];
+    if (!cfg) { this.nextFireRow = r + 4; return; }
+    const fr = this.frng;
+    let side = cfg.sides.length > 1 ? (fr() < 0.7 ? -this.fireSide : this.fireSide) : cfg.sides[0];
+    const edge = side < 0 ? 0 : WORLD.LANES - 1;
+    if (this.blockedUntil[edge] >= r - 1) { this.nextFireRow = r + 2; return; } // casa che sporge da quel lato
+    this.fireSide = side;
+    this.nextFireRow = r + fr.int(cfg.gap[0], cfg.gap[1]);
+    this.fireBlock = { edge, until: r + 3 };
+    this.fires++;
+    emit({ kind: 'falo', lane: edge, side, d: D + 8, len: 16, variant: fr() < FIRE.VILLAGER_SHARE ? 1 : 0, fire: this.fires });
   }
 
   rowDist(r) { return WORLD.LEAD_IN + r * WORLD.ROW; }
@@ -106,6 +127,7 @@ export class Generator {
     const diff = difficultyAt(D);
     const used = new Array(L).fill(false);
     for (let l = 0; l < L; l++) if (this.blockedUntil[l] >= r) used[l] = true;
+    this.maybeFire(r, D, emit);
 
     // ---- finestra calma con ostacolo mobile -------------------------
     if (r <= this.calmUntil) {
@@ -220,7 +242,7 @@ export class Generator {
     if (diff >= DF.NARROW_FROM && rng() < 0.035 + 0.05 * diff) {
       const l = rng() < 0.5 ? 0 : L - 1;
       const rows = 3 + rng.int(0, Math.round(1 + 2 * diff));
-      if (canLong(l)) {
+      if (canLong(l) && !(this.fireBlock && this.fireBlock.edge === l && this.fireBlock.until >= r)) {
         this.blockedUntil[l] = r + rows - 1;
         this.laneCool[l] = r + rows;
         used[l] = true;

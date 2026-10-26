@@ -487,6 +487,14 @@ class AudioSys {
     [0, 4, 7, 12, 7, 12].forEach((s, i) => this._tone({ t: i * 0.08, f: 392 * Math.pow(2, s / 12), dur: 0.16, type: 'triangle', vol: 0.12 }));
     for (let i = 0; i < 4; i++) this._tone({ t: 0.5 + i * 0.1, f: 560 + i * 40, dur: 0.2, type: 'square', vol: 0.03 });
   }
+  // v5s16: la fiamma prende da un'altra frakkera: soffio (whoosh) + crepitio + nota calda
+  fireBonus() {
+    if (!this.ok) return;
+    this._burst({ dur: 0.45, type: 'bandpass', f: 300, fEnd: 1800, q: 0.6, vol: 0.32 });
+    this._burst({ t: 0.05, dur: 0.5, type: 'lowpass', f: 600, vol: 0.22 });
+    for (let i = 0; i < 6; i++) this._burst({ t: 0.08 + i * 0.055 + (i % 2) * 0.02, dur: 0.025, type: 'highpass', f: 2600 + i * 300, vol: 0.12 });
+    this._tone({ t: 0.04, f: 392, fEnd: 587, dur: 0.22, type: 'triangle', vol: 0.12 });
+  }
   rockFall() {
     if (!this.ok) return;
     this._burst({ dur: 0.3, type: 'bandpass', f: 2400, fEnd: 600, q: 1, vol: 0.12 });
