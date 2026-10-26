@@ -8,7 +8,7 @@ import { audio } from './systems/audio.js';
 import * as store from './systems/storage.js';
 import { validateNick, cleanNick } from './systems/nickname.js';
 import { carpetDataURL, carpetURL, carpetsReady } from './game/tex3d.js';
-import { BIOMES } from './game/biomes/config.js';
+import { BIOMES, biomeAt } from './game/biomes/config.js';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => Array.from(document.querySelectorAll(s));
@@ -279,28 +279,56 @@ export function initUI(game) {
   });
   bus.on('shopOfferEnd', hideOffer);
   const SAY = { tappeti: 'Mi mancano un po\' di tappeti, eh!', tetto: 'Basta cos\u00ec per oggi, torna al prossimo giro!', esaurito: 'Quello l\'ho finito.', pieno: 'Ce l\'hai gi\u00e0, non ti serve!', ok: ['Ottima scelta!', 'Tieni, e occhio alle travi!', 'Fai buona strada!'] };
-  const icon = (id) => id === 'scudo' ? '<svg viewBox="0 0 24 24"><path d="M12 2l8 3v6c0 5-3.5 9-8 11-4.5-2-8-6-8-11V5z" fill="#c89a5a" stroke="#ffe7b0" stroke-width="1.5"/><path d="M12 6v12M7 10h10" stroke="#6b3a1a" stroke-width="1.6"/></svg>' : `<img src="${carpetDataURL(0)}" data-icon="${id}" alt="" />`;
+  // v5s15: icone 3D nitide (render una volta), descrizioni chiare e stati posseduto / limite
+  let shopIcons = null;
+  const icon = (id) => {
+    if (!shopIcons) { try { shopIcons = game.world.renderShopIcons(192); } catch (err) { shopIcons = {}; console.warn('icone negozio', err); } }
+    return shopIcons[id] ? `<img src="${shopIcons[id]}" alt="" />` : use(id === 'pistola' ? 'i-pistol' : id === 'scudo' ? 'i-crown' : 'i-flame');
+  };
+  const DESC = {
+    pistola: () => `<b>+3 colpi</b> per far saltare le botti (max ${SHOP.AMMO_CAP})`,
+    asfodelo: () => '<b>Fiamma piena</b> subito',
+    scudo: () => '<b>Para 1 urto</b> contro botti e travi',
+  };
+  let lastBuy = null;
   function renderShop() {
     const st = game.debugState(), sh = st.shop || { buys: {}, count: 0 };
     $('#shop-total').textContent = fmt(st.carpetTotal);
     $('#shop-count').textContent = sh.count; $('#shop-max').textContent = SHOP.MAX_PER_VISIT;
+    $$('#shop-pips i').forEach((p, i) => p.classList.toggle('on', i < sh.count));
+    const limit = sh.count >= SHOP.MAX_PER_VISIT;
     const box = $('#shop-items'); box.replaceChildren();
     for (const it of SHOP.ITEMS) {
       const b = document.createElement('button'); b.className = 'shop-item'; b.dataset.item = it.id;
-      const left = it.max - (sh.buys[it.id] || 0);
-      b.innerHTML = `<span class="si-ico">${icon(it.id)}</span><span><span class="si-name">${it.name}</span><span class="si-desc">${it.desc}${left <= 0 ? ' &middot; preso' : ''}</span></span><span class="si-price">${it.price}<svg><use href="#i-carpet"/></svg></span>`;
-      if (left <= 0 || sh.count >= SHOP.MAX_PER_VISIT || st.carpetTotal < it.price) b.disabled = true;
+      const got = sh.buys[it.id] || 0, left = it.max - got;
+      const full = (it.id === 'pistola' && st.ammo >= SHOP.AMMO_CAP) || (it.id === 'asfodelo' && st.fuel >= FUEL.MAX - 0.5) || (it.id === 'scudo' && st.shield > 0);
+      const poor = st.carpetTotal < it.price;
+      let tag = '', cls = '';
+      if (left <= 0) { tag = 'PRESO'; cls = 'owned'; }
+      else if (limit) { tag = 'LIMITE'; cls = 'limit'; }
+      else if (full) { tag = it.id === 'scudo' ? 'ATTIVO' : 'PIENO'; cls = 'full'; }
+      else if (poor) { tag = `MANCANO ${it.price - st.carpetTotal}`; cls = 'poor'; }
+      if (cls) b.classList.add(cls);
+      b.innerHTML = `<span class="si-ico">${icon(it.id)}${got ? `<i class="si-own">${got}/${it.max}</i>` : ''}</span>`
+        + `<span class="si-text"><span class="si-name">${it.name}</span><span class="si-desc">${DESC[it.id] ? DESC[it.id]() : it.desc}</span></span>`
+        + (tag ? `<span class="si-tag">${tag}</span>` : `<span class="si-price">${it.price}<svg><use href="#i-carpet"/></svg></span>`);
+      if (left <= 0 || limit || poor) b.disabled = true;
       b.addEventListener('click', (e) => {
         e.preventDefault(); e.stopPropagation();
         const r = game.buyItem(it.id);
-        $('#shop-say').textContent = r.ok ? SAY.ok[(game.debugState().shop?.count || 1) - 1] || SAY.ok[0] : SAY[r.why] || 'Non si pu\u00f2.';
+        const say = $('#shop-say');
+        say.textContent = r.ok ? SAY.ok[(game.debugState().shop?.count || 1) - 1] || SAY.ok[0] : SAY[r.why] || 'Non si pu\u00f2.';
+        say.classList.remove('say-pop'); void say.offsetWidth; say.classList.add('say-pop');
         renderShop();
-        if (r.ok) { const nb = $(`.shop-item[data-item="${it.id}"]`); nb && nb.classList.add('bought'); }
+        const nb = $(`.shop-item[data-item="${it.id}"]`);
+        if (r.ok) {
+          nb && nb.classList.add('bought');
+          if (nb) { const f = document.createElement('span'); f.className = 'si-fly'; f.textContent = `-${it.price}`; nb.appendChild(f); }
+          const w = $('.shop-wallet'); w.classList.remove('bump'); void w.offsetWidth; w.classList.add('bump');
+        } else if (nb) { nb.classList.remove('nope'); void nb.offsetWidth; nb.classList.add('nope'); }
       });
       box.appendChild(b);
     }
-    // icone ufficiali gia' usate altrove (asfodelo, pistola)
-    $$('#shop-items img[data-icon]').forEach((im) => { const src = document.querySelector(`.items img[data-icon="${im.dataset.icon}"]`)?.src; if (src) im.src = src; });
   }
   offerBtn.addEventListener('pointerdown', (e) => {
     e.preventDefault(); e.stopPropagation();
@@ -350,6 +378,17 @@ export function initUI(game) {
     countRaf = requestAnimationFrame(step);
   }
 
+  const ZONE = { village: 'Gadoni', rock: 'La roccia', river: 'Il fiume', viaduct: 'Il viadotto', 'mine-ext': 'Miniera', 'mine-int': 'Galleria', 'mine-blue': 'Galleria blu' };
+  function confetti(on) {
+    const box = $('#go-confetti'); box.replaceChildren();
+    if (!on) return;
+    const cols = ['#ffd24a', '#c0283c', '#f3e8cc', '#2f8f6a', '#ff8a3a'];
+    for (let i = 0; i < 26; i++) {
+      const c = document.createElement('i');
+      c.style.cssText = `left:${50 + (i % 2 ? 1 : -1) * (4 + (i * 37) % 44)}%;background:${cols[i % cols.length]};--dx:${((i * 53) % 120) - 60}px;--dy:${-60 - (i * 29) % 90}px;--r:${(i * 71) % 360}deg;animation-delay:${0.9 + (i % 6) * 0.04}s`;
+      box.appendChild(c);
+    }
+  }
   bus.on('gameover', (r) => {
     lastRun = { ...r, id: `${Date.now()}-${r.seed}` };
     const prevBest = store.getBest();
@@ -362,9 +401,13 @@ export function initUI(game) {
     $('#go-best').textContent = fmt(store.getBest());
     $('#go-carpets').textContent = fmt(r.carpets);
     $('#go-barrels').textContent = fmt(r.barrels);
+    { const bi = biomeAt((r.meters || 0) + (r.log?.mapOffsetM || 0)); $('#go-biome').textContent = (ZONE[bi.b.id] || bi.b.name) + (bi.lap ? ` · giro ${bi.lap + 1}` : ''); }
     $('#go-total').textContent = fmt(store.getCarpetTotal());
     overShownAt = performance.now();
-    $('#go-newrec').classList.toggle('hidden', !(isNew && r.score > 0));
+    const rec = isNew && r.score > 0;
+    $('#go-newrec').classList.toggle('hidden', !rec);
+    $('#scr-over').classList.toggle('is-rec', rec);
+    confetti(rec);
     const rank = r.score > 0 && !dbg ? store.rankFor(r.score) : null;
     $('#go-rank').textContent = dbg ? 'Partita di prova (debug): fuori classifica'
       : rank ? `Posizione #${rank} in classifica demo` : `Fuori dalla top ${DEMO_BOARD.SIZE} demo`;

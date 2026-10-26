@@ -918,4 +918,51 @@ export class World {
     this.renderer.setSize(prevSize.x, prevSize.y, false);
     return out;
   }
+
+  // v5s15: icone 3D nitide per il Garag di Pinu (pistola, fascio di asfodelo, scudo di sughero)
+  renderShopIcons(size = 192) {
+    const out = {};
+    const sc = new THREE.Scene();
+    sc.add(new THREE.HemisphereLight('#fff4e0', '#4a3a4a', 1.5));
+    const key = new THREE.DirectionalLight('#fff0d0', 2.6); key.position.set(3, 4, 5); sc.add(key);
+    const rim = new THREE.DirectionalLight('#ffc070', 1.4); rim.position.set(-4, 2, -3); sc.add(rim);
+    const cam = new THREE.PerspectiveCamera(28, 1, 0.1, 50);
+    const kitMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0.15 });
+    const items = {};
+    { const g = new THREE.Group(); const m = new THREE.Mesh(this.geo.pistol, kitMat); m.rotation.set(0.15, -0.5, 0.25); g.add(m); items.pistola = g; }
+    { const g = new THREE.Group(); const m = new THREE.Mesh(this.geo.asfodelo, kitMat); m.rotation.set(0.1, 0.3, -0.55); g.add(m); items.asfodelo = g; }
+    {
+      // scudo tondo di sughero: cupola, bordo in ottone, umbone e borchie
+      const cv = document.createElement('canvas'); cv.width = cv.height = 128; const cx = cv.getContext('2d');
+      cx.fillStyle = '#b5814a'; cx.fillRect(0, 0, 128, 128);
+      let sd = 7; const rnd = () => ((sd = (sd * 16807) % 2147483647) / 2147483647);
+      for (let i = 0; i < 900; i++) { cx.fillStyle = rnd() < 0.5 ? 'rgba(90,50,22,0.55)' : 'rgba(225,180,120,0.5)'; const r = 0.6 + rnd() * 1.8; cx.beginPath(); cx.arc(rnd() * 128, rnd() * 128, r, 0, 7); cx.fill(); }
+      const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+      const cork = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95 });
+      const brass = new THREE.MeshStandardMaterial({ color: '#e7b443', roughness: 0.3, metalness: 0.8 });
+      const red = new THREE.MeshStandardMaterial({ color: '#b8263a', roughness: 0.6 });
+      const pts = []; for (let i = 0; i <= 12; i++) { const t = i / 12; pts.push(new THREE.Vector2(t * 1, 0.28 * Math.cos(t * Math.PI / 2))); }
+      const g = new THREE.Group();
+      const dome = new THREE.Mesh(new THREE.LatheGeometry(pts, 40), cork); g.add(dome);
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(1, 0.07, 10, 48), brass); ring.rotation.x = Math.PI / 2; g.add(ring);
+      const band = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.035, 8, 40), red); band.rotation.x = Math.PI / 2; band.position.y = 0.17; g.add(band);
+      const boss = new THREE.Mesh(new THREE.SphereGeometry(0.2, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2), brass); boss.position.y = 0.26; g.add(boss);
+      for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; const b = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 6), brass); b.position.set(Math.cos(a) * 0.85, 0.09, Math.sin(a) * 0.85); g.add(b); }
+      g.rotation.set(1.15, 0, 0.25); items.scudo = g;
+    }
+    const prevSize = new THREE.Vector2(); this.renderer.getSize(prevSize);
+    const prevPR = this.renderer.getPixelRatio();
+    this.renderer.setPixelRatio(1); this.renderer.setSize(size, size, false); this.renderer.setClearColor(0x000000, 0);
+    for (const k in items) {
+      const o = items[k]; sc.add(o);
+      const box = new THREE.Box3().setFromObject(o); const c = box.getCenter(new THREE.Vector3()); const r = box.getSize(new THREE.Vector3()).length() / 2;
+      const d = r / Math.sin((cam.fov * Math.PI / 180) / 2) * 0.68;
+      cam.position.set(c.x, c.y + d * 0.12, c.z + d); cam.lookAt(c);
+      this.renderer.render(sc, cam);
+      out[k] = this.renderer.domElement.toDataURL('image/png');
+      sc.remove(o);
+    }
+    this.renderer.setClearColor(0x000000, 1); this.renderer.setPixelRatio(prevPR); this.renderer.setSize(prevSize.x, prevSize.y, false);
+    return out;
+  }
 }
