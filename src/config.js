@@ -65,6 +65,23 @@ export const PISTOL = {
 
 export const PX_PER_METER = 10;
 
+// ---- v5s18: giro in carrello nella galleria di Funtana Raminosa -------------------------------
+// Ogni giro, nella galleria (mine-int) da FROM_M a FROM_M + LEN_M (metri locali): si sale su uno dei
+// carrelli fermi (uno per binario), si corre sui binari piu' veloci; agli scambi uno o due binari
+// sono interrotti (respingente / binario crollato): cambia binario con uno swipe. Poi si scende.
+export const CART = {
+  BIOME: 'mine-int',
+  FROM_M: 30,
+  LEN_M: 130,
+  LEAD_M: 15,               // tratto libero prima della salita
+  SPEED_K: 1.22,            // il carrello corre piu' veloce della corsa a piedi
+  JUNCTION_ROWS: 7,         // file tra uno scambio e l'altro (~21 m)
+  FIRST_M: 12,              // primo scambio dopo la salita
+  END_FREE_M: 12,           // ultimo tratto libero prima della discesa
+  P_TWO_BLOCKED: 0.6,       // probabilita' che due binari su tre siano interrotti
+  PTS_JUNCTION: 60,
+};
+
 // ---- v5s17: minatori di Funtana Raminosa e lampade a muro nella miniera (solo scena, non bloccano) ----
 // Generati da un flusso RNG separato (deterministici); le lampade si accendono quando il giocatore
 // arriva a LAMP_ON_PX di distanza (registrato nelle statistiche, la sim resta deterministica).

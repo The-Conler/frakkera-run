@@ -369,6 +369,23 @@ class AudioSys {
     if (!this.ok) return;
     this._burst({ dur: 0.18, type: 'bandpass', f: 1400, fEnd: 500, q: 1, vol: 0.14 });
   }
+  // v5s18: carrello della miniera
+  cartBoard() {
+    if (!this.ok) return;
+    this._burst({ dur: 0.08, type: 'bandpass', f: 1800, q: 2, vol: 0.3 });
+    this._tone({ f: 180, fEnd: 90, dur: 0.18, type: 'square', vol: 0.12 });
+    this._burst({ t: 0.1, dur: 1.4, type: 'lowpass', f: 260, fEnd: 160, vol: 0.32 });
+  }
+  cartSwitch() {
+    if (!this.ok) return;
+    for (const t of [0, 0.09]) { this._burst({ t, dur: 0.04, type: 'bandpass', f: 2400, q: 3, vol: 0.3 }); this._tone({ t, f: 320, fEnd: 200, dur: 0.06, type: 'square', vol: 0.08 }); }
+    this._tone({ t: 0.12, f: 784, dur: 0.12, type: 'triangle', vol: 0.1 });
+  }
+  cartExit() {
+    if (!this.ok) return;
+    this._burst({ dur: 0.5, type: 'highpass', f: 3200, fEnd: 1800, vol: 0.14 });   // freno
+    this._tone({ t: 0.35, f: 140, fEnd: 60, dur: 0.2, type: 'sine', vol: 0.35 });
+  }
   rumble() {
     if (!this.ok) return;
     this._burst({ dur: 0.9, type: 'lowpass', f: 220, fEnd: 120, vol: 0.3 });

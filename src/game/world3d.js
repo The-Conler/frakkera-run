@@ -17,6 +17,7 @@ import { Character3D } from './character3d.js';
 import { Flame3D, sharedFlameMats } from './flame3d.js';
 import { fireGeoms, FLAME_AT } from './fires3d.js';
 import { minerGeoms, HEADLAMP, LAMP_BULB } from './miners3d.js';
+import { cartGeoms } from './cart3d.js';
 import { rng } from './kit.js';
 import { Env } from './biomes/env.js';
 import { buildShopRoom } from './shop3d.js';
@@ -340,6 +341,18 @@ export class World {
       v.body.add(m);
       v.glow = this.glowSprite(kind === 'ferula' ? '#f2ff9a' : '#fff1cf', 3.0, 0.55);
       v.shadow = this.blob(1.6, 1.0);
+    } else if (kind === 'deadend') {            // v5s18: binario interrotto allo scambio
+      const cg = cartGeoms();
+      v.body = new THREE.Group();
+      v.deadM = cg.dead.map((g) => { const m = new THREE.Mesh(g, this.mats2); v.body.add(m); return m; });
+      v.glow = this.glowSprite('#ff3a2a', 1.6, 0.9); v.glow.position.set(0, 2.9, 0.2); v.body.add(v.glow);
+      v.shadow = this.blob(2.8, 2.4);
+    } else if (kind === 'carrello') {           // v5s18: carrello fermo, ci si sale
+      v.body = new THREE.Mesh(cartGeoms().cart, this.mats2);
+      v.shadow = this.blob(2.6, 3.0);
+    } else if (kind === 'scambio') {            // v5s18: segnali verdi sopra i binari aperti
+      v.body = new THREE.Group();
+      v.sig = [0, 1, 2].map(() => { const g = this.glowSprite('#4aff7a', 1.5, 0.95); v.body.add(g); return g; });
     } else if (kind === 'minatore') {           // v5s17: minatore di Funtana Raminosa
       const mg = minerGeoms();
       if (!this.minerMats) {
@@ -422,6 +435,8 @@ export class World {
     if (v.glow) v.glow.visible = true;
     v.t = Math.random() * 6;
     v.dead = false; v.hitT = 0; v.fallT = 0; v.landFx = false; v.flyT = 0;
+    if (e.kind === 'deadend') v.deadM.forEach((m, i) => { m.visible = i === (e.variant || 0); });
+    if (e.kind === 'scambio') v.sig.forEach((g, l) => { g.visible = (e.open || []).includes(l); g.position.set(laneX(l) * U, 3.4, 0); });
     if (e.kind === 'minatore') {
       v.poses.forEach((m, i) => { m.visible = i === (e.variant || 0); }); v.arm.visible = e.variant === 3;
       v.body.rotation.y = e.side < 0 ? 0.95 : -0.95; v.waveT = 0; v.body.scale.setScalar(1.5);
@@ -453,7 +468,7 @@ export class World {
   placeView(e, v) {
     const zc = -(e.d + e.len / 2) * U;
     if (v.kind === 'narrow') { v.root.position.set(v.root.userData.x, 0, -e.d * U); return; }
-    const x = (e.kind === 'falo' ? e.side * FIRE.X : e.kind === 'minatore' ? e.side * MINE.MINER_X : e.kind === 'lampada' ? e.side * MINE.LAMP_X : isMoving(e.kind) ? e.x : laneX(e.lane)) * U;
+    const x = (e.kind === 'scambio' ? 0 : e.kind === 'falo' ? e.side * FIRE.X : e.kind === 'minatore' ? e.side * MINE.MINER_X : e.kind === 'lampada' ? e.side * MINE.LAMP_X : isMoving(e.kind) ? e.x : laneX(e.lane)) * U;
     v.root.position.set(x, 0, zc);
   }
   animateViews(sim, dt) {
@@ -474,6 +489,14 @@ export class World {
         v.body.rotation.set(-Math.PI / 2 + 0.22 + Math.sin(t * 2.3 + e.d) * 0.05, 0, Math.sin(t * 1.7 + e.d) * 0.12);
         v.glow.position.y = 0.4; v.glow.material.opacity = 0.32 * (1 + this.light.tunnel * 1.3);
         if (v.shadow) v.shadow.visible = true;
+      } else if (e.kind === 'carrello') {
+        // il carrello del binario del giocatore sparisce quando ci sale (lo prende il carrello in corsa)
+        v.body.visible = !(sim.cart && e.lane === sim.targetLane && e.d - sim.T < 40) && !(sim.cart && e.d - sim.T < 0 && e.lane === this.rideLane);
+        if (v.shadow) v.shadow.visible = v.body.visible;
+      } else if (e.kind === 'scambio') {
+        for (const g of v.sig) g.material.opacity = 0.8 + Math.sin(t * 6) * 0.15;
+      } else if (e.kind === 'deadend') {
+        v.glow.material.opacity = Math.sin(t * 7 + e.id) > 0 ? 0.95 : 0.25;
       } else if (e.kind === 'minatore') {
         v.body.scale.y = 1.5 * (1 + Math.sin(t * 2.1 + e.id) * 0.012);
         v.glow.material.opacity = 0.6 + Math.sin(t * 13 + e.id) * 0.08;
@@ -622,6 +645,9 @@ export class World {
         this.fireKick = 1;
         break;
       }
+      case 'cartBoard': { this.dustPuff(sim.px * U, pz, 14); this.addShake(0.2, 0.2); break; }
+      case 'cartExit': { this.dustPuff(sim.px * U, pz, 12); this.burst(sim.px * U, 0.4, pz - 1.5, COL.spark2, 24, 4); break; }
+      case 'cartCrash': { const p = this.views.get(d.e.id)?.root.position; if (p) { this.dustPuff(p.x, p.z, 26); this.burst(p.x, 1.0, p.z, COL.spark2, 30, 6); } this.addShake(0.45, 0.3); break; }
       case 'pistol': {
         const p = this.views.get(d.e.id)?.root.position || _v.set(sim.px * U, 0, pz);
         this.burst(p.x, 1.3, p.z, COL.gold, 40, 6);
@@ -834,7 +860,9 @@ export class World {
     } else if (use3d && c3.setFuel) c3.setFuel(view.cam === 'menu' ? 1 : fuelF0, dt);
     if (use3d) {
       if (dpos) { view.char.danceRy = dpos.ry; view.char.danceHop = dpos.hop; } else view.char.danceRy = null;
+      view.char.cart = sim.cart ? 1 : 0;
       c3.update(dt, view.char, dpos ? dpos.x : px, dpos ? dpos.z : pz);
+      this.updateRideCart(sim, dt, px, pz, view);
       c3.tipWorld(this.tipW);
       if (view.char.armed) c3.muzzleWorld(this.muzzleW);
       else this.muzzleW.set(px - 0.5, 2.0, pz - 0.8);
@@ -1008,6 +1036,31 @@ export class World {
     this.renderer.setPixelRatio(prevPR);
     this.renderer.setSize(prevSize.x, prevSize.y, false);
     return out;
+  }
+
+  // v5s18: carrello in corsa sotto il giocatore; alla discesa resta sul binario e si ferma
+  updateRideCart(sim, dt, px, pz, view) {
+    if (!this.ride) {
+      this.ride = new THREE.Mesh(cartGeoms().cart, this.mats2); this.ride.visible = false; this.scene.add(this.ride);
+      this.rideShadow = this.blob(2.6, 3.0); this.rideShadow.visible = false; this.rideK = 0; this.rideLeft = null;
+    }
+    const r = this.ride, on = !!sim.cart && sim.mode !== 'attract';
+    if (on) {
+      if (!this.rideOn) { this.rideOn = true; this.rideLane = sim.targetLane; this.rideK = 0; this.rideLeft = null; }
+      this.rideK = Math.min(1, this.rideK + dt * 6);
+      const rattle = Math.sin(this.clock * 31) * 0.025 + Math.sin(this.clock * 17.7) * 0.02;
+      r.position.set(px, rattle * (sim.currentSpeed > 0 ? 1 : 0), pz - 0.1);
+      r.rotation.set(rattle * 0.3, 0, -(view.char.vx || 0) * 0.12);
+      r.scale.setScalar(0.85 + 0.15 * this.rideK); r.visible = true;
+    } else if (this.rideOn) {
+      this.rideOn = false; this.rideLeft = { v: (sim.currentSpeed || 0) * 0.1, t: 0 };
+    }
+    if (!on && this.rideLeft) {           // il carrello vuoto prosegue un po' e frena
+      const L = this.rideLeft; L.t += dt; L.v = Math.max(0, L.v - dt * 9);
+      r.position.z -= L.v * dt; r.rotation.set(0, 0, 0);
+      if (L.t > 5) { this.rideLeft = null; r.visible = false; }
+    } else if (!on) r.visible = false;
+    this.rideShadow.visible = r.visible; if (r.visible) this.rideShadow.position.set(r.position.x, 0.03, r.position.z);
   }
 
   // v5s15: icone 3D nitide per il Garag di Pinu (pistola, fascio di asfodelo, scudo di sughero)

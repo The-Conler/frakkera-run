@@ -179,7 +179,7 @@ export class Game {
     this.world.render(sim, dt, view);
     // passi
     const fr = this.world.stepFrame();
-    if (fr !== this.lastFrame && (fr === 1 || fr === 3) && mode === 'run' && !this.paused) audio.step(fr === 3);
+    if (fr !== this.lastFrame && (fr === 1 || fr === 3) && mode === 'run' && !this.paused && !sim.cart) audio.step(fr === 3);
     this.lastFrame = fr;
     if (!this.paused) {
       audio.fire(fuelF, dtReal, mode === 'run' || mode === 'attract');

@@ -7,7 +7,7 @@
 // mobili compaiono solo in "finestre calme" senza altri ostacoli.
 // Tappeti, combustibile e pistola si piazzano solo in celle libere.
 // =====================================================================
-import { DIFFICULTY as DF, WORLD, PX_PER_METER, CARPETS as CP, PISTOL, SPEED_STEPS as SS, BIOME_OBST as BO, DUCK, MASKS as MK, FIRE, MINE } from '../config.js';
+import { DIFFICULTY as DF, WORLD, PX_PER_METER, CARPETS as CP, PISTOL, SPEED_STEPS as SS, BIOME_OBST as BO, DUCK, MASKS as MK, FIRE, MINE, CART } from '../config.js';
 import { biomeAt, BIOMES } from '../game/biomes/config.js';
 import { makeRng } from './rng.js';
 
@@ -39,12 +39,21 @@ export function baseSpeedAt(px) {
 }
 
 // ostacoli che fermano il giocatore (la pozzanghera no: toglie solo fuoco)
+// v5s18: tratto del carrello alla distanza m (metri assoluti, compreso il salto di mappa): null o { lap, local }
+export function cartAt(m, lead = 0, tail = 0) {
+  const bi = biomeAt(Math.max(0, m));
+  if (bi.b.id !== CART.BIOME) return null;
+  if (bi.local < CART.FROM_M - lead || bi.local >= CART.FROM_M + CART.LEN_M + tail) return null;
+  return { lap: bi.lap, local: bi.local - CART.FROM_M };
+}
 export const SOLID = {
   muretto: true, botte: true, bottecoricata: true, botti: true, narrow: true, goat: true, rollbarrel: true, pozza: false,
   // v5s6: ostacoli d'ambiente (la pietra bagnata non ferma: fa scivolare) e trave bassa (si passa abbassandosi)
   rollin: true, sasso: true, bagnato: false, trave: false,
   // v5s10: maschere di Gadoni (la fune si passa abbassandosi, come la trave)
   maimoni: true, fune: false, fuso: true,
+  // v5s18: binario interrotto (respingente o crollo) durante il giro in carrello
+  deadend: true,
 };
 // distruttibili con la pistola: tutte e sole le botti
 export const DESTRUCTIBLE = { botte: true, bottecoricata: true, botti: true, rollbarrel: true, rollin: true, sasso: true, bagnato: true };
@@ -55,7 +64,7 @@ export const BIOME_OBST_KIND = { village: 'rollin', rock: 'sasso', river: 'bagna
 // v5s10: maschere del carnevale di Gadoni: la pistola le attraversa senza effetto
 export const MASK_KINDS = { maimoni: true, fune: true, fuso: true };
 // v5s16: frakkere accese a bordo strada (non occupano corsie)
-export const SIDE_KINDS = { falo: true, minatore: true, lampada: true };
+export const SIDE_KINDS = { falo: true, minatore: true, lampada: true, carrello: true, scambio: true };
 export const PICKUP_KINDS = { asfodelo: 'fuel', ferula: 'fuel', tappeto: 'carpet', pistola: 'pistol' };
 
 const SHORT_LEN = { muretto: 14, botte: 18, bottecoricata: 14, pozza: 13 };
@@ -96,6 +105,45 @@ export class Generator {
     // v5s17: flusso separato anche per minatori e lampade della miniera
     this.mrng = makeRng(((seed >>> 0) ^ 0x3a17e5) >>> 0);
     this.nextMinerRow = 0; this.nextLampRow = 0; this.minerSide = 1; this.lampSide = -1; this.miners = 0; this.lamps = 0;
+  }
+
+  // v5s18: file del giro in carrello: niente ostacoli normali, scambi con binari interrotti
+  cartRow(r, D, diff, used, emit) {
+    const m = D / PX_PER_METER + this.offM;
+    const c = cartAt(m, CART.LEAD_M, 4);
+    if (!c) { this.cartLap = this.cartLap ?? -1; return false; }
+    const rng = this.rng, L = WORLD.LANES, ROW = WORLD.ROW;
+    for (let l = 0; l < L; l++) if (this.blockedUntil[l] >= r) used[l] = true;
+    if (this.cartLap !== c.lap && (c.local >= 0 || c.local > -ROW / PX_PER_METER * 2.2)) {
+      this.cartLap = c.lap; this.cartJ = 0;
+      this.nextJunction = r + (c.local < 0 ? Math.ceil(CART.FIRST_M * PX_PER_METER / ROW) + 1 : 3);
+      if (c.local < 0) for (let l = 0; l < L; l++) emit({ kind: 'carrello', lane: l, d: D + 6, len: 14, lap: c.lap });   // carrelli fermi, uno per binario
+    }
+    if (c.local < 0) { this.carpetRow(r, D, diff, used, emit); return true; }   // tratto libero prima della salita
+    if (r >= this.nextJunction && c.local < CART.LEN_M - CART.END_FREE_M) {
+      this.nextJunction = r + CART.JUNCTION_ROWS;
+      let dir = rng() < 0.5 ? -1 : 1;
+      if (this.path + dir < 0 || this.path + dir >= L) dir = -dir;
+      let next = rng() < 0.75 ? this.path + dir : this.path;
+      if (used[next]) next = this.path;
+      if (used[next]) { this.nextJunction = r + 1; this.carpetRow(r, D, diff, used, emit); return true; }
+      const two = rng() < CART.P_TWO_BLOCKED;
+      // binari aperti: sempre quello del sentiero; con un solo binario interrotto se ne apre un secondo
+      const open = new Set([next]);
+      if (!two) { const others = [0, 1, 2].filter((l) => l !== next); open.add(others.includes(this.path) && this.path !== next ? this.path : rng.pick(others)); }
+      const j = ++this.cartJ;
+      for (let l = 0; l < L; l++) if (this.freeUntil[l] >= r) open.add(l);   // corsie che devono restare libere (dopo un tappeto)
+      this.path = next; this.hold = CART.JUNCTION_ROWS;
+      for (let l = 0; l < L; l++) {
+        if (open.has(l) || used[l]) continue;
+        used[l] = true; this.laneCool[l] = r + 1;
+        emit({ kind: 'deadend', lane: l, d: D + 10, len: 14, junction: j, variant: rng.int(0, 2) });
+      }
+      emit({ kind: 'scambio', lane: next, d: D + 10, len: 14, junction: j, open: [...open].sort() });
+    }
+    // niente tappeti nella fila prima di uno scambio (la corsia dopo un tappeto deve restare libera)
+    if (r + 1 !== this.nextJunction) this.carpetRow(r, D, diff, used, emit);
+    return true;
   }
 
   // v5s17: minatori lungo le pareti e lampade a muro (lato -1/+1, fuori dalle corsie)
@@ -156,6 +204,7 @@ export class Generator {
     this.maybeFire(r, D, emit);
     this.maybeMine(r, D, emit);
     if (this.sideBlocks.length > 4) this.sideBlocks = this.sideBlocks.filter((b) => b.until >= r);
+    if (this.cartRow(r, D, diff, used, emit)) return;
 
     // ---- finestra calma con ostacolo mobile -------------------------
     if (r <= this.calmUntil) {

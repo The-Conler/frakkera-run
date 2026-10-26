@@ -5,8 +5,9 @@
 // tramite `fx(tipo, dati)`. Unita': px del mondo 2D (10 px = 1 m), corsie
 // centrate su x = 0.
 // =====================================================================
-import { SCORE, FUEL, WORLD, PX_PER_METER, PISTOL, SPEED_STEPS, BIOME_OBST, DUCK, SHOP, MASKS, DANCE, FIRE, MINE } from '../config.js';
+import { SCORE, FUEL, WORLD, PX_PER_METER, PISTOL, SPEED_STEPS, BIOME_OBST, DUCK, SHOP, MASKS, DANCE, FIRE, MINE, CART } from '../config.js';
 import { biomeAt } from './biomes/config.js';
+import { cartAt } from '../systems/generator.js';
 import { Generator, SOLID, DESTRUCTIBLE, PICKUP_KINDS, BIOME_KINDS, MASK_KINDS, difficultyAt, speedAt, speedStepsAt, lerp } from '../systems/generator.js';
 import { randomSeed, makeRng } from '../systems/rng.js';
 export const DANCE_DIRS = ['left', 'down', 'up', 'right'];
@@ -43,9 +44,10 @@ export class Sim {
 
   resetRunState() {
     this.score = 0; this.metersCredited = 0; this.fuel = FUEL.START; this.chain = 0;
-    this.stats = { pickups: 0, nearMiss: 0, chains: 0, milestones: 0, hits: 0, bonus: 0, carpets: 0, barrels: 0, goats: 0, shopVisits: 0, shopBuys: 0, shopSpent: 0, shields: 0, obst: 0, ducks: 0, beams: 0, slips: 0, speedSteps: 0, shots: 0, pistols: 0, masks: 0, parades: 0, ropes: 0, spindles: 0, dances: 0, danceSkips: 0, dancePerfect: 0, danceGood: 0, danceMiss: 0, danceBest: 0, survival: 0, capped: 0, fires: 0, fireFuel: 0, lamps: 0, miners: 0 };
+    this.stats = { pickups: 0, nearMiss: 0, chains: 0, milestones: 0, hits: 0, bonus: 0, carpets: 0, barrels: 0, goats: 0, shopVisits: 0, shopBuys: 0, shopSpent: 0, shields: 0, obst: 0, ducks: 0, beams: 0, slips: 0, speedSteps: 0, shots: 0, pistols: 0, masks: 0, parades: 0, ropes: 0, spindles: 0, dances: 0, danceSkips: 0, dancePerfect: 0, danceGood: 0, danceMiss: 0, danceBest: 0, survival: 0, capped: 0, fires: 0, fireFuel: 0, lamps: 0, miners: 0, carts: 0, junctions: 0, deadends: 0 };
     this.shopLap = 0; this.shopOffer = 0; this.shop = null; this.shield = 0;
     this.danceLap = -1; this.danceCue = null; this.dance = null;
+    this.cart = null; this.cartLap = -1;
     this.duckT = 0; this.duckCd = 0; this.slipT = 0; this.speedStep = 0; this.beamHint = false;
     this.carpetStreak = 0; this.ammo = 0; this.fireCd = 0; this.recoilT = 0;
     this.shots = [];
@@ -117,7 +119,7 @@ export class Sim {
 
   // v5s6: abbassarsi (swipe giu', freccia giu', S) per passare sotto le travi basse
   duck() {
-    if (this.mode !== 'run' || this.duckCd > 0 || this.duckT > 0) return false;
+    if (this.mode !== 'run' || this.duckCd > 0 || this.duckT > 0 || this.cart) return false;
     this.duckT = DUCK.TIME_S;
     this.inputs.push([this.step, 'D']);
     this.fx('duck');
@@ -350,7 +352,17 @@ export class Sim {
     if (this.duckT > 0) { this.duckT = Math.max(0, this.duckT - dt); if (this.duckT === 0) this.duckCd = DUCK.COOLDOWN_S; }
     else this.duckCd = Math.max(0, this.duckCd - dt);
     this.slipT = Math.max(0, this.slipT - dt);
-    let speed = speedAt(rd, this.mapOffsetM) * slow;
+    // v5s18: giro in carrello (salita / discesa decise dalla distanza: deterministico)
+    { const c = cartAt(rd / PX_PER_METER + this.mapOffsetM);
+      if (c && !this.cart && c.lap !== this.cartLap) {
+        this.cart = { lap: c.lap, ok: 0, j: 0, t: 0 }; this.cartLap = c.lap; this.stats.carts++; this.duckT = 0;
+        this.log('R', c.lap); this.fx('cartBoard', { lane: this.targetLane }); this.fx('popup', { text: 'IN CARRELLO!', style: 'gold' }); this.fx('sound', 'cartBoard');
+      } else if (!c && this.cart) {
+        const k = this.cart; this.cart = null;
+        this.log('r', k.ok); this.fx('cartExit', { ok: k.ok, j: k.j }); this.fx('popup', { text: `SCAMBI ${k.ok}/${k.j}`, style: k.ok === k.j ? 'gold' : 'white' }); this.fx('sound', 'cartExit');
+      }
+      if (this.cart) this.cart.t += dt; }
+    let speed = speedAt(rd, this.mapOffsetM) * slow * (this.cart ? CART.SPEED_K : 1);
     if (this.danceCue) speed *= lerp(DANCE.CUE_SLOW, 1, Math.max(0, Math.min(1, ((DANCE.AT_M - biomeAt(rd / PX_PER_METER + this.mapOffsetM).local) * PX_PER_METER) / this.danceCue.d0)));
     this.currentSpeed = speed;
     this.T += speed * dt;
@@ -472,6 +484,17 @@ export class Sim {
       const ex = this.entX(e);
       const hw = HALF_W[e.kind] || 10;
       const overlapD = e.d <= pFront && e.d + e.len >= pBack;
+      if (e.kind === 'carrello') { if (e.d + e.len < pBack) e.done = true; continue; }
+      if (e.kind === 'scambio') {      // v5s18: scambio superato: ok se non hai preso il binario interrotto
+        if (e.h0 === undefined) e.h0 = this.stats.hits;
+        if (e.d + e.len < pBack) {
+          e.done = true; const good = this.stats.hits === e.h0;
+          if (this.cart) { this.cart.j++; if (good) this.cart.ok++; }
+          if (good) { this.stats.junctions++; const pts = this.addBonus(CART.PTS_JUNCTION); this.log('T', pts); this.fx('popup', { text: `SCAMBIO! +${pts}`, style: 'small' }); this.fx('sound', 'cartSwitch'); }
+          else this.log('T', 0);
+        }
+        continue;
+      }
       if (e.kind === 'minatore' || e.kind === 'lampada') {   // v5s17: scena della miniera, non si tocca
         if (e.kind === 'lampada' && !e.lit && e.d - T < MINE.LAMP_ON_PX) { e.lit = true; e.litAt = this.step; this.stats.lamps++; }
         if (e.kind === 'minatore' && !e.seen && e.d - T < MINE.LAMP_ON_PX) { e.seen = true; this.stats.miners++; this.fx('minerHello', { e }); }
@@ -665,6 +688,7 @@ export class Sim {
 
   hitSolid(e) {
     e.hit = true; e.done = true;
+    if (e.kind === 'deadend') { this.stats.deadends++; this.fx('cartCrash', { e }); this.fx('popup', { text: 'BINARIO INTERROTTO!', style: 'white' }); }
     if (e.group && this.parades[e.group]) this.parades[e.group].fail = true;
     if (MASK_KINDS[e.kind]) this.stats.masks++;
     if (this.shield > 0) {             // v5s7: lo scudo di sughero para un urto (log 'Z')
