@@ -5,14 +5,14 @@
 // tramite `fx(tipo, dati)`. Unita': px del mondo 2D (10 px = 1 m), corsie
 // centrate su x = 0.
 // =====================================================================
-import { SCORE, FUEL, WORLD, PX_PER_METER, PISTOL, SPEED_STEPS, BIOME_OBST, DUCK, SHOP, MASKS, DANCE, FIRE, MINE, CART, COLLECT, SKINS, FESTA } from '../config.js';
+import { SCORE, FUEL, WORLD, PX_PER_METER, PISTOL, SPEED_STEPS, BIOME_OBST, DUCK, SHOP, MASKS, DANCE, FIRE, MINE, CART, COLLECT, SKINS, FESTA, ANIMALS } from '../config.js';
 import { biomeAt } from './biomes/config.js';
 import { cartAt, festaAt } from '../systems/generator.js';
 import { Generator, SOLID, DESTRUCTIBLE, PICKUP_KINDS, BIOME_KINDS, MASK_KINDS, difficultyAt, speedAt, speedStepsAt, lerp } from '../systems/generator.js';
 import { randomSeed, makeRng } from '../systems/rng.js';
 export const DANCE_DIRS = ['left', 'down', 'up', 'right'];
 
-export const HALF_W = { muretto: 12, botte: 7, bottecoricata: 11, botti: 12, pozza: 9, narrow: 17, goat: 7, rollbarrel: 7, rollin: 7, sasso: 8, bagnato: 9, trave: 60, maimoni: 8, fune: 26, fuso: 7, asfodelo: 10, ferula: 10, tappeto: 11, pistola: 11 };
+export const HALF_W = { muretto: 12, botte: 7, bottecoricata: 11, botti: 12, pozza: 9, narrow: 17, goat: 7, rollbarrel: 7, rollin: 7, sasso: 8, bagnato: 9, trave: 60, maimoni: 8, fune: 26, fuso: 7, asfodelo: 10, ferula: 10, tappeto: 11, pistola: 11, pecora: 7, maialetto: 5, caprarupe: 8 };
 export const ATTRACT_SPEED = 34;
 const PLAYER_BACK = 3, PLAYER_FRONT = 5, PLAYER_HALF = 3;
 export const GUTTER = 4;
@@ -21,7 +21,7 @@ export const VIEW_AHEAD = 1150;   // px generati davanti (orizzonte 3D)
 const MOVE_AHEAD = 336;           // gli ostacoli mobili si muovono solo da qui (come la v2)
 const SHOT_RANGE = 360;           // gittata del colpo (come la v2)
 const BEHIND = 140;               // px dietro il giocatore prima di riciclare
-export const isMoving = (k) => k === 'goat' || k === 'rollbarrel' || k === 'maimoni';
+export const isMoving = (k) => k === 'goat' || k === 'rollbarrel' || k === 'maimoni' || k === 'pecora' || k === 'maialetto';
 export const laneX = (i) => (i - (WORLD.LANES - 1) / 2) * WORLD.LANE_W;
 
 export class Sim {
@@ -46,7 +46,8 @@ export class Sim {
 
   resetRunState() {
     this.score = 0; this.metersCredited = 0; this.fuel = FUEL.START; this.chain = 0;
-    this.stats = { pickups: 0, nearMiss: 0, chains: 0, milestones: 0, hits: 0, bonus: 0, carpets: 0, barrels: 0, goats: 0, shopVisits: 0, shopBuys: 0, shopSpent: 0, shields: 0, obst: 0, ducks: 0, beams: 0, slips: 0, speedSteps: 0, shots: 0, pistols: 0, masks: 0, parades: 0, ropes: 0, spindles: 0, dances: 0, danceSkips: 0, dancePerfect: 0, danceGood: 0, danceMiss: 0, danceBest: 0, survival: 0, capped: 0, fires: 0, fireFuel: 0, lamps: 0, miners: 0, carts: 0, junctions: 0, deadends: 0, bells: 0, sweets: 0, cheers: 0, roars: 0 };
+    this.stats = { pickups: 0, nearMiss: 0, chains: 0, milestones: 0, hits: 0, bonus: 0, carpets: 0, barrels: 0, goats: 0, shopVisits: 0, shopBuys: 0, shopSpent: 0, shields: 0, obst: 0, ducks: 0, beams: 0, slips: 0, speedSteps: 0, shots: 0, pistols: 0, masks: 0, parades: 0, ropes: 0, spindles: 0, dances: 0, danceSkips: 0, dancePerfect: 0, danceGood: 0, danceMiss: 0, danceBest: 0, survival: 0, capped: 0, fires: 0, fireFuel: 0, lamps: 0, miners: 0, carts: 0, junctions: 0, deadends: 0, bells: 0, sweets: 0, cheers: 0, roars: 0, flocks: 0, sheep: 0, piglets: 0, dogs: 0, barks: 0, chases: 0, nips: 0, escapes: 0, rockGoats: 0 };
+    this.dogT = 0; this.chase = null;
     this.shopLap = 0; this.shopOffer = 0; this.shop = null; this.shield = 0;
     this.danceLap = -1; this.danceCue = null; this.dance = null;
     this.cart = null; this.cartLap = -1; this.cartSpK = 1;
@@ -102,6 +103,7 @@ export class Sim {
       if (e.kind === 'maimoni') this.log('q', e.group);   // nuovo corteo nel registro
     }
     if (isMoving(e.kind)) e.x = e.dir > 0 ? -ROAD_HALF - 6 : ROAD_HALF + 6;
+    if (e.xoff) e.x -= e.dir * e.xoff;   // v5s24: pecore del gregge in fila
     this.entities.push(e);
     this.fx('spawn', e);
   }
@@ -393,6 +395,7 @@ export class Sim {
     this.approachLane(dt);
     this.gen.fillUntil(this.runD + VIEW_AHEAD, (e) => this.spawn(e));
     this.updateEntities(dt);
+    this.updateAnimals(dt);
     this.fireCd = Math.max(0, this.fireCd - dt);
     this.recoilT = Math.max(0, this.recoilT - dt);
     this.updateShots(dt);
@@ -459,7 +462,7 @@ export class Sim {
     return pts;
   }
 
-  entX(e) { if (e.kind === 'falo') return e.side * FIRE.X; if (e.kind === 'folla' || e.kind === 'bancarella') return e.side * FESTA.X; if (e.kind === 'minatore') return e.side * MINE.MINER_X; if (e.kind === 'lampada') return e.side * MINE.LAMP_X; return isMoving(e.kind) ? e.x : e.kind === 'fune' ? laneX(e.lane) + WORLD.LANE_W / 2 : laneX(e.lane); }
+  entX(e) { if (e.kind === 'falo') return e.side * FIRE.X; if (e.kind === 'folla' || e.kind === 'bancarella') return e.side * FESTA.X; if (e.kind === 'minatore') return e.side * MINE.MINER_X; if (e.kind === 'lampada') return e.side * MINE.LAMP_X; if (e.kind === 'pastore') return e.side * ANIMALS.SHEPHERD_X; if (e.kind === 'cane' || e.kind === 'canepastore') return laneX(e.lane); return isMoving(e.kind) ? e.x : e.kind === 'fune' ? laneX(e.lane) + WORLD.LANE_W / 2 : laneX(e.lane); }
 
   updateEntities(dt) {
     const T = this.T;
@@ -477,6 +480,8 @@ export class Sim {
           }
         }
         if (e.kind === 'goat' && !e.bleat && e.d - T < MOVE_AHEAD - 10) { e.bleat = true; this.fx('sound', 'goat'); }
+        if (e.kind === 'pecora' && !e.bleat && e.d - T < MOVE_AHEAD - 10) { e.bleat = true; this.stats.sheep++; if (!e.xoff) this.fx('sound', 'sheep'); }
+        if (e.kind === 'maialetto' && !e.bleat && e.d - T < MOVE_AHEAD - 10) { e.bleat = true; this.stats.piglets++; this.log('I', e.dir); this.fx('sound', 'piglet'); this.fx('popup', { text: 'SU PORCHEDDU!', style: 'small' }); }
       }
       if (e.kind === 'rollin' && !e.done && e.d - T < MOVE_AHEAD) {
         // botte / carrello che rotola verso il giocatore lungo la corsia (velocita' proporzionale alla corsa)
@@ -519,6 +524,25 @@ export class Sim {
         if (e.kind === 'minatore' && !e.seen && e.d - T < MINE.LAMP_ON_PX) { e.seen = true; this.stats.miners++; this.fx('minerHello', { e }); }
         if (e.d + e.len < pBack) e.done = true;
         continue;
+      }
+      // v5s24: animali sulla strada
+      if (e.kind === 'pastore') {
+        if (!e.seen && e.d - T < MOVE_AHEAD + 40) { e.seen = true; this.stats.flocks++; this.log('U', e.n); this.fx('shepherd', { e }); this.fx('sound', 'flockBells'); }
+        if (e.d + e.len < pBack) e.done = true;
+        continue;
+      }
+      if (e.kind === 'cane') {
+        if (overlapD) { e.done = true; this.stats.dogs++; this.dogT = ANIMALS.DOG_S; this.dogSide = e.side; this.log('D', e.side); this.fx('dogJoin', { e, side: e.side }); this.fx('sound', 'bark'); this.fx('popup', { text: 'UN AMICO!', style: 'small' }); }
+        else if (e.d + e.len < pBack) e.done = true;
+        continue;
+      }
+      if (e.kind === 'canepastore') {
+        if (overlapD) { e.done = true; this.stats.chases++; this.chase = { t: ANIMALS.CHASE_S, hit0: this.stats.hits }; this.log('C', 0); this.fx('chaseStart', { e }); this.fx('sound', 'bark'); this.fx('popup', { text: 'IL CANE TI INSEGUE!', style: 'white' }); }
+        else if (e.d + e.len < pBack) e.done = true;
+        continue;
+      }
+      if (e.kind === 'caprarupe' && !e.landed && e.d - T < (this.currentSpeed || 0) * ANIMALS.ROCKGOAT_LEAD_S + 40) {
+        e.landed = true; this.stats.rockGoats++; this.log('G', e.lane); this.fx('rockGoatJump', { e }); this.fx('sound', 'goat');
       }
       if (e.kind === 'bancarella' || e.kind === 'festone') { if (e.d + e.len < pBack) e.done = true; continue; }   // v5s21: scena della festa
       if (e.kind === 'folla') {       // v5s21: passando vicino alla folla (corsia laterale) si sente l'applauso
@@ -727,6 +751,31 @@ export class Sim {
     }
   }
 
+  // v5s24: cane randagio (abbaia prima degli ostacoli nella tua corsia) e cane pastore (morde se rallenti o urti)
+  updateAnimals(dt) {
+    if (this.dogT > 0) {
+      this.dogT = Math.max(0, this.dogT - dt);
+      const ahead = (this.currentSpeed || 0) * ANIMALS.DOG_BARK_S + 20, T = this.T;
+      for (const e of this.entities) {
+        if (e.barked || e.done || !SOLID[e.kind] || e.d - T > ahead || e.d < T) continue;
+        const x = this.entX(e); if (Math.abs(x - laneX(this.targetLane)) > WORLD.LANE_W / 2 + (HALF_W[e.kind] || 10)) continue;
+        e.barked = true; this.stats.barks++; this.log('L', e.lane); this.fx('dogBark', { e }); this.fx('sound', 'bark'); break;
+      }
+      if (this.dogT === 0) this.fx('dogLeave', {});
+    }
+    const c = this.chase;
+    if (c) {
+      c.t -= dt;
+      const slow = (this.currentSpeed || 0) < speedAt(Math.max(0, this.runD), this.mapOffsetM) * ANIMALS.CHASE_SLOW_K;
+      if (this.stats.hits > c.hit0 || (slow && c.t < ANIMALS.CHASE_S - 0.5)) {
+        this.chase = null; this.stats.nips++; this.fuel -= ANIMALS.NIP_FUEL; this.log('V', ANIMALS.NIP_FUEL);
+        this.fx('dogNip', {}); this.fx('sound', 'bark'); this.fx('popup', { text: 'MORSO! -FUOCO', style: 'white' });
+      } else if (c.t <= 0) {
+        this.chase = null; this.stats.escapes++; this.log('W', 0); this.fx('chaseEnd', {}); this.fx('popup', { text: 'SEMINATO!', style: 'small' });
+      }
+    }
+  }
+
   hitSolid(e) {
     e.hit = true; e.done = true;
     if (e.kind === 'deadend') { (this.cartBadJ || (this.cartBadJ = {}))[e.junction] = 1; this.stats.deadends++; this.fx('cartCrash', { e }); this.fx('popup', { text: 'BINARIO INTERROTTO!', style: 'white' }); }
@@ -766,7 +815,7 @@ export class Sim {
   debugState() {
     return {
       mode: this.mode, score: this.score, fuel: this.fuel, meters: Math.floor(this.runD / PX_PER_METER),
-      lane: this.targetLane, px: this.px, dance: this.dance && { lap: this.dance.lap, t: this.dance.t, bpm: this.dance.bpm, combo: this.dance.combo, perf: this.dance.perf, good: this.dance.good, miss: this.dance.miss, pts: this.dance.pts, notes: this.dance.notes.length, round: this.dance.round, end: this.dance.end }, danceCue: !!this.danceCue, T: this.T, stats: { ...this.stats }, speed: this.currentSpeed, baseSpeed: speedAt(Math.max(0, this.runD), this.mapOffsetM), speedStep: this.speedStep, shopOffer: this.shopOffer, shopLap: this.shopLap, shield: this.shield, shop: this.shop && { ...this.shop, buys: { ...this.shop.buys } }, duckT: this.duckT, slipT: this.slipT,
+      lane: this.targetLane, px: this.px, dance: this.dance && { lap: this.dance.lap, t: this.dance.t, bpm: this.dance.bpm, combo: this.dance.combo, perf: this.dance.perf, good: this.dance.good, miss: this.dance.miss, pts: this.dance.pts, notes: this.dance.notes.length, round: this.dance.round, end: this.dance.end }, danceCue: !!this.danceCue, T: this.T, stats: { ...this.stats }, speed: this.currentSpeed, baseSpeed: speedAt(Math.max(0, this.runD), this.mapOffsetM), speedStep: this.speedStep, shopOffer: this.shopOffer, shopLap: this.shopLap, shield: this.shield, shop: this.shop && { ...this.shop, buys: { ...this.shop.buys } }, duckT: this.duckT, slipT: this.slipT, dogT: this.dogT, chase: this.chase && this.chase.t,
       skin: this.skin, festa: !!festaAt(this.runD / PX_PER_METER + this.mapOffsetM) && this.mode !== 'attract', ammo: this.ammo, shotsInFlight: this.shots.length, carpetTotal: this.carpetTotal, events: this.events.length, inputs: this.inputs.length,
       entities: this.entities.filter((e) => !e.done).map((e) => ({ kind: e.kind, lane: e.lane, x: e.x, ahead: e.d - this.T, len: e.len, pickup: !!e.pickup, solid: e.solid, group: e.group || 0, side: e.side, idle: !!e.idle, destructible: !!DESTRUCTIBLE[e.kind] })),
     };

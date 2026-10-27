@@ -5,7 +5,7 @@
 // =====================================================================
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { WORLD, BIOME_OBST, FIRE, MINE, FESTA } from '../config.js';
+import { WORLD, BIOME_OBST, FIRE, MINE, FESTA, ANIMALS } from '../config.js';
 import { laneX, isMoving, ROAD_HALF } from './sim.js';
 import { DanceRing } from './dance/dance3d.js';
 import { buildMaimoni, buildStramaione, buildGrastula, animateFigure, spindleGeom } from './masks/figures.js';
@@ -22,6 +22,7 @@ import { cartGeoms } from './cart3d.js';
 import { bellGeom, sweetGeom } from './collect3d.js';
 import { stallGeom, festoonGeom, buildCrowd, animateCrowd } from './festa3d.js';
 import { rng } from './kit.js';
+import { sheepGeom, pigGeom, dogGeom, shepherdGeom } from './animals3d.js';
 import { Env } from './biomes/env.js';
 import { buildShopRoom } from './shop3d.js';
 import { loadPinuGeometry } from './shop/pinu.js';
@@ -324,8 +325,17 @@ export class World {
       const w = new THREE.Mesh(this.geo.puddle, pm); w.position.y = 0.045;
       rim.renderOrder = 2; w.renderOrder = 3;
       v.body.add(rim, w);
-    } else if (kind === 'goat') {
+    } else if (kind === 'goat' || kind === 'caprarupe') {
       v.body = new THREE.Mesh(this.geo.goat, this.mats2); v.shadow = this.blob(2.0, 1.1);
+      if (kind === 'caprarupe') { v.body.scale.setScalar(1.25); const wm = this.mat.warn || (this.mat.warn = new THREE.MeshBasicMaterial({ color: '#ff5a2a', transparent: true, opacity: 0.85, depthWrite: false, fog: false })); const ring = new THREE.Mesh(this.geo.ring, wm); ring.rotation.x = Math.PI / 2; ring.position.y = 0.06; ring.scale.setScalar(1.5); ring.renderOrder = 4; v.warn = ring; root.add(ring); }
+    } else if (kind === 'pecora') {             // v5s24: animali
+      v.body = new THREE.Mesh(sheepGeom(e.variant || 0), this.mats2); v.body.scale.setScalar(1.3); v.shadow = this.blob(2.2, 1.4);
+    } else if (kind === 'maialetto') {
+      v.body = new THREE.Mesh(pigGeom(), this.mats2); v.body.scale.setScalar(1.5); v.shadow = this.blob(1.6, 1.0);
+    } else if (kind === 'pastore') {
+      v.body = new THREE.Mesh(shepherdGeom(), this.mats2); v.body.scale.setScalar(1.45); v.shadow = this.blob(1.4, 1.4);
+    } else if (kind === 'cane' || kind === 'canepastore') {
+      v.body = new THREE.Mesh(dogGeom(kind === 'cane' ? 0 : 1), this.mats2); v.body.scale.setScalar(1.3); v.shadow = this.blob(1.5, 0.9);
     } else if (kind === 'maimoni') {               // v5s10: maschere di Gadoni
       v.fig = buildMaimoni(this.mats2); v.body = v.fig.root; v.fig.root.scale.setScalar(1.12); v.shadow = this.blob(1.6, 1.3);
     } else if (kind === 'fune') {
@@ -497,8 +507,26 @@ export class World {
   placeView(e, v) {
     const zc = -(e.d + e.len / 2) * U;
     if (v.kind === 'narrow') { v.root.position.set(v.root.userData.x, 0, -e.d * U); return; }
-    const x = (e.kind === 'scambio' || e.kind === 'festone' ? 0 : e.kind === 'bancarella' || e.kind === 'folla' ? e.side * FESTA.X : e.kind === 'falo' ? e.side * FIRE.X : e.kind === 'minatore' ? e.side * MINE.MINER_X : e.kind === 'lampada' ? e.side * MINE.LAMP_X : isMoving(e.kind) ? e.x : laneX(e.lane)) * U;
+    const x = (e.kind === 'scambio' || e.kind === 'festone' ? 0 : e.kind === 'bancarella' || e.kind === 'folla' ? e.side * FESTA.X : e.kind === 'falo' ? e.side * FIRE.X : e.kind === 'minatore' ? e.side * MINE.MINER_X : e.kind === 'lampada' ? e.side * MINE.LAMP_X : e.kind === 'pastore' ? e.side * ANIMALS.SHEPHERD_X : isMoving(e.kind) ? e.x : laneX(e.lane)) * U;
     v.root.position.set(x, 0, zc);
+  }
+  // v5s24: cane randagio che corre al tuo fianco e cane pastore che ti insegue
+  animateCompanions(sim, dt) {
+    if (!this.comp) {
+      this.comp = [0, 1].map((v) => { const m = new THREE.Mesh(dogGeom(v), this.mats2); m.scale.setScalar(1.3); m.visible = false; this.scene.add(m); return { m, k: 0, barkT: 0 }; });
+    }
+    const t = this.clock, pz = -sim.T * U, px = sim.px * U;
+    const on = [sim.mode === 'run' && sim.dogT > 0, sim.mode === 'run' && !!sim.chase];
+    this.comp.forEach((c, i) => {
+      c.k = Math.max(0, Math.min(1, c.k + (on[i] ? dt * 2 : -dt * 2)));
+      c.m.visible = c.k > 0.01;
+      if (!c.m.visible) return;
+      c.barkT = Math.max(0, c.barkT - dt);
+      const bob = Math.abs(Math.sin(t * 16 + i)) * 0.25;
+      if (i === 0) { const side = sim.dogSide || -1; c.m.position.set(px + side * ANIMALS.DOG_X * U * c.k + side * (1 - c.k) * 6, bob + (c.barkT > 0 ? 0.3 : 0), pz + 1.0 - (1 - c.k) * 4); }
+      else c.m.position.set(px + Math.sin(t * 3) * 0.6, bob, pz + 3.2 - Math.sin(t * 5) * 0.5 + (1 - c.k) * 5);
+      c.m.rotation.y = Math.PI / 2; c.m.rotation.z = Math.sin(t * 16 + i) * 0.08;
+    });
   }
   animateViews(sim, dt) {
     const t = this.clock;
@@ -591,6 +619,28 @@ export class World {
           if (Math.random() < dt * 20) this.norm.emit(v.root.position.x, 0.3, v.root.position.z, (Math.random() - 0.5) * 2, 0.6 + Math.random(), (Math.random() - 0.5) * 1.5, 1.0, 0.8, 2.2, COL.dust, 0.5, 0, 1);
           if (q > 1.4 && !v.dead) { v.dead = true; v.body.visible = false; if (v.shadow) v.shadow.visible = false; this.dustPuff(v.root.position.x, v.root.position.z, 14); }
         } else if (e.moving) { v.body.position.y = Math.abs(Math.sin(t * 12)) * 0.12; v.body.rotation.z = Math.sin(t * 12) * 0.05; }
+      } else if (e.kind === 'pecora' || e.kind === 'maialetto') {   // v5s24
+        v.body.rotation.y = e.dir > 0 ? 0 : Math.PI;
+        const f = e.kind === 'maialetto' ? 22 : 9;
+        if (e.moving) { v.body.position.y = Math.abs(Math.sin(t * f + e.id)) * (e.kind === 'maialetto' ? 0.18 : 0.1); v.body.rotation.z = Math.sin(t * f + e.id) * 0.05; }
+        if (e.kind === 'maialetto' && e.moving && Math.random() < dt * 12) this.norm.emit(v.root.position.x, 0.2, v.root.position.z, (Math.random() - 0.5), 0.4, 0, 0.8, 0.5, 1.4, COL.dust, 0.4, 0, 1);
+      } else if (e.kind === 'pastore') {
+        v.body.rotation.y = e.side < 0 ? -0.3 : Math.PI + 0.3;
+        v.body.position.y = Math.abs(Math.sin(t * 3 + e.id)) * 0.05;
+      } else if (e.kind === 'cane' || e.kind === 'canepastore') {
+        v.body.rotation.y = -Math.PI / 2; v.body.position.y = Math.abs(Math.sin(t * 5)) * 0.08;
+      } else if (e.kind === 'caprarupe') {
+        // v5s24: la capra aspetta sulla roccia a lato, poi salta giu' sulla corsia (ombra di avviso)
+        const sx = (e.side || 1) * 9;
+        if (!e.landed) {
+          v.body.position.set(sx, 4.5, 0); v.body.rotation.y = e.side > 0 ? Math.PI : 0;
+          if (v.warn) { v.warn.visible = true; v.warn.scale.setScalar(1.3 + Math.sin(t * 10) * 0.2); }
+        } else {
+          v.fallT += dt; const q = Math.min(1, v.fallT / 0.55);
+          v.body.position.set(sx * (1 - q), 4.5 * (1 - q) + Math.sin(q * Math.PI) * 3, 0);
+          if (v.warn) v.warn.visible = q < 1;
+          if (q >= 1) { v.body.position.y = Math.abs(Math.sin(t * 3)) * 0.05; if (!v.landFx) { v.landFx = true; const p = v.root.position; this.dustPuff(p.x, p.z, 16); } }
+        }
       } else if (e.kind === 'rollin') {
         // v5s6: rotola verso di te (polvere e rombo come avviso)
         if (e.moving) {
@@ -723,6 +773,8 @@ export class World {
       case 'die': this.smokeAtTip(30); this.burnT = 0; this.burnKeep = this.char3d.keep ?? 1; break;
       case 'cheer': { const p = this.views.get(d.e.id)?.root.position; if (p) this.burst(p.x, 3.2, p.z, COL.spark2, 14, 3); break; }
       case 'crowdRoar': this.roarT = 0.5; break;
+      case 'dogBark': if (this.comp) this.comp[0].barkT = 0.35; break;
+      case 'dogNip': this.addShake(0.2, 0.15); if (this.comp) this.comp[1].barkT = 0.35; break;
       case 'start': case 'attract':
         this.rideOn = false; this.rideLeft = null; if (this.ride) { this.ride.visible = false; this.rideShadow.visible = false; }   // v5s20: niente carrello della corsa prima
         this.add.clear(); this.norm.clear(); this.shards.clear();
@@ -918,6 +970,7 @@ export class World {
     // v5: ambienti a tratti (terreno, lati, galleria, monumenti)
     this.env.update(-camZ, sim.T * U, dt, this.clock);
     this.animateViews(sim, dt);
+    this.animateCompanions(sim, dt);
     this.dir.position.set(px - 30, 40, pz - 25); this.dir.target.position.set(px, 0, pz);
 
     // personaggio: modello 3D (v4) oppure sprite di riserva (v3) se il GLB non e' (ancora) disponibile

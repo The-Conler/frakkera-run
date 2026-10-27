@@ -286,3 +286,18 @@ export const FESTA = {
   PTS: 20,
   STREAK: 6,                // ogni X tappeti di fila nella festa: la folla esulta
 };
+
+// v5s24: animali sulla strada (su pastore col gregge, maialetto, cane randagio, cane pastore, capre dalla roccia).
+// Flusso RNG separato nel generatore; tutto nel registro della corsa.
+export const ANIMALS = {
+  FROM_M: 60,                     // non nei primi metri
+  P_ROW: 0.035,                   // probabilita' per fila (flusso separato) di un evento animale
+  GAP_ROWS: [22, 34],             // file minime tra due eventi
+  FLOCK_BIOMES: ['rock', 'river'],
+  FLOCK_N: [4, 6], FLOCK_STEP: 15, FLOCK_GAP: 52, FLOCK_VX: [24, 32],
+  PIG_BIOMES: ['rock', 'river'], PIG_VX: [70, 92],
+  DOG_BIOMES: ['village', 'rock', 'river'], DOG_S: 9, DOG_BARK_S: 1.0, DOG_X: 22,
+  CHASE_S: 6, CHASE_SLOW_K: 0.8, NIP_FUEL: 6, CHASE_ROWS: 7,
+  ROCKGOAT_BIOMES: ['rock'], ROCKGOAT_LEAD_S: 1.1, ROCKGOAT_N: [1, 2],
+  SHEPHERD_X: 62,
+};

@@ -7,7 +7,7 @@
 // mobili compaiono solo in "finestre calme" senza altri ostacoli.
 // Tappeti, combustibile e pistola si piazzano solo in celle libere.
 // =====================================================================
-import { DIFFICULTY as DF, WORLD, PX_PER_METER, CARPETS as CP, PISTOL, SPEED_STEPS as SS, BIOME_OBST as BO, DUCK, MASKS as MK, FIRE, MINE, CART, COLLECT, DANCE, FESTA } from '../config.js';
+import { DIFFICULTY as DF, WORLD, PX_PER_METER, CARPETS as CP, PISTOL, SPEED_STEPS as SS, BIOME_OBST as BO, DUCK, MASKS as MK, FIRE, MINE, CART, COLLECT, DANCE, FESTA, ANIMALS } from '../config.js';
 import { biomeAt, BIOMES } from '../game/biomes/config.js';
 import { makeRng } from './rng.js';
 
@@ -54,6 +54,8 @@ export const SOLID = {
   maimoni: true, fune: false, fuso: true,
   // v5s18: binario interrotto (respingente o crollo) durante il giro in carrello
   deadend: true,
+  // v5s24: animali (pecore e maialetto attraversano, capre saltano giu' dalla roccia)
+  pecora: true, maialetto: true, caprarupe: true,
 };
 // distruttibili con la pistola: tutte e sole le botti
 export const DESTRUCTIBLE = { botte: true, bottecoricata: true, botti: true, rollbarrel: true, rollin: true, sasso: true, bagnato: true };
@@ -64,7 +66,7 @@ export const BIOME_OBST_KIND = { village: 'rollin', rock: 'sasso', river: 'bagna
 // v5s10: maschere del carnevale di Gadoni: la pistola le attraversa senza effetto
 export const MASK_KINDS = { maimoni: true, fune: true, fuso: true };
 // v5s16: frakkere accese a bordo strada (non occupano corsie)
-export const SIDE_KINDS = { falo: true, minatore: true, lampada: true, carrello: true, scambio: true, bancarella: true, folla: true, festone: true };
+export const SIDE_KINDS = { falo: true, minatore: true, lampada: true, carrello: true, scambio: true, bancarella: true, folla: true, festone: true, pastore: true, cane: true, canepastore: true };
 // v5s21: tratto in festa del paese alla distanza m (metri assoluti): null o { lap, local }
 export function festaAt(m) {
   const bi = biomeAt(Math.max(0, m));
@@ -116,6 +118,8 @@ export class Generator {
     // v5s21: flusso separato per la festa (bancarelle, folla, festoni)
     this.prng = makeRng(((seed >>> 0) ^ 0x21fe57) >>> 0);
     this.stallNext = { '-1': 0, '1': 0 }; this.crowdNext = 0; this.festoonNext = 0; this.crowds = 0;
+    // v5s24: flusso separato per gli animali
+    this.arng = makeRng(((seed >>> 0) ^ 0x6a1e05) >>> 0); this.nextAnimalRow = 0; this.animals = 0;
     this.nextMinerRow = 0; this.nextLampRow = 0; this.minerSide = 1; this.lampSide = -1; this.miners = 0; this.lamps = 0;
   }
 
@@ -242,6 +246,47 @@ export class Generator {
     return bi.local > DANCE.AT_M - before && bi.local < DANCE.AT_M + after;
   }
 
+  // v5s24: eventi animali (flusso arng): gregge con su pastore (+ cane pastore dopo), maialetto, cane randagio, capre dalla roccia
+  maybeAnimals(r, D, diff, emit) {
+    const ar = this.arng, A = ANIMALS, L = WORLD.LANES, ROW = WORLD.ROW;
+    if (r < this.nextAnimalRow || D / PX_PER_METER < A.FROM_M) return false;
+    const roll = ar(), pick = ar();
+    if (roll >= A.P_ROW) return false;
+    const bid = biomeIdAt(D, this.offM), opts = [];
+    if (A.FLOCK_BIOMES.includes(bid)) opts.push('flock');
+    if (A.PIG_BIOMES.includes(bid)) opts.push('pig');
+    if (A.DOG_BIOMES.includes(bid)) opts.push('dog');
+    if (A.ROCKGOAT_BIOMES.includes(bid)) opts.push('rockgoat');
+    if (!opts.length) return false;
+    const ev = opts[Math.floor(pick * opts.length)], id = ++this.animals, dir = ar() < 0.5 ? 1 : -1;
+    this.nextAnimalRow = r + ar.int(A.GAP_ROWS[0], A.GAP_ROWS[1]);
+    if (ev === 'dog') {               // aiutante: non occupa le corsie, il generatore prosegue normalmente
+      emit({ kind: 'cane', lane: dir > 0 ? 0 : L - 1, side: -dir, d: D + 6, len: 10, animal: id });
+      return false;
+    }
+    this.calmUntil = r + 6; this.nextMovingAt = Math.max(this.nextMovingAt, r + 14);
+    if (ev === 'flock') {
+      const n = ar.int(A.FLOCK_N[0], A.FLOCK_N[1]), gapAt = ar.int(1, n - 1), vx = lerp(A.FLOCK_VX[0], A.FLOCK_VX[1], diff);
+      const d0 = D + 3 * ROW + 4; let off = 0;
+      emit({ kind: 'pastore', lane: dir > 0 ? 0 : L - 1, side: -dir, d: d0 + 10, len: 12, animal: id, n });
+      for (let i = 0; i < n; i++) {
+        if (i === gapAt) off += A.FLOCK_GAP;
+        emit({ kind: 'pecora', lane: dir > 0 ? 0 : L - 1, d: d0 + ar.int(-3, 3), len: 12, dir, vx, xoff: off, flock: id, variant: ar.int(0, 2) });
+        off += A.FLOCK_STEP;
+      }
+      emit({ kind: 'canepastore', lane: 1, d: d0 + A.CHASE_ROWS * ROW, len: 8, animal: id });
+      return true;
+    }
+    if (ev === 'pig') {
+      emit({ kind: 'maialetto', lane: dir > 0 ? 0 : L - 1, d: D + 3 * ROW + 4, len: 10, dir, vx: lerp(A.PIG_VX[0], A.PIG_VX[1], diff), animal: id });
+      return true;
+    }
+    // capre dalla roccia: 1-2 capre, mai tutte le corsie
+    const k = ar.int(A.ROCKGOAT_N[0], A.ROCKGOAT_N[1]), lanes = [0, 1, 2]; for (let i = 2; i > 0; i--) { const j = ar.int(0, i); [lanes[i], lanes[j]] = [lanes[j], lanes[i]]; } lanes.length = k;
+    lanes.forEach((l, i) => emit({ kind: 'caprarupe', lane: l, side: l === 0 ? -1 : l === 2 ? 1 : (dir), d: D + 4 * ROW + i * ROW * 2, len: 12, animal: id }));
+    return true;
+  }
+
   rowDist(r) { return WORLD.LEAD_IN + r * WORLD.ROW; }
 
   fillUntil(maxDist, emit) {
@@ -292,6 +337,7 @@ export class Generator {
         return;
       }
     }
+    if (!longActive && this.maybeAnimals(r, D, diff, emit)) return;
     if (diff >= DF.MOVING_FROM && r >= this.nextMovingAt && !longActive &&
         rng() < 0.07 + 0.12 * diff) {
       this.calmUntil = r + 6;
