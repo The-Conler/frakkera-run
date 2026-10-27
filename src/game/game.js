@@ -77,6 +77,7 @@ export class Game {
       case 'carpet': audio.carpet(d.streak); bus.emit('carpet', { run: d.run, total: d.total }); break;
       case 'fuel': audio.pickup(d.e.kind); break;
       case 'pistol': audio.pistolPickup(); break;
+      case 'powerEnd': audio.powerEnd?.(); break;
       case 'collectible': bus.emit('collect', d); break;
       case 'junctionCue': try { navigator.vibrate?.(d.safe ? 20 : [60, 40, 60]); } catch { /* non supportato */ } break;   // v5s22: vibrazione
       case 'puddle': audio.puddle(); break;
@@ -236,6 +237,7 @@ export class Game {
       fuel: Math.max(0, sim.fuel) / FUEL.MAX, chain: sim.chain,
       carpets: sim.mode === 'attract' ? 0 : sim.stats.carpets, carpetTotal: sim.carpetTotal,
       ammo: sim.mode === 'run' ? sim.ammo : 0,
+      magnetT: sim.mode === 'run' ? sim.magnetT : 0, fennelT: sim.mode === 'run' ? sim.fennelT : 0, bootsT: sim.mode === 'run' ? sim.bootsT : 0,
     });
   }
 

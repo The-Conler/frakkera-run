@@ -20,6 +20,7 @@ import { fireGeoms, FLAME_AT } from './fires3d.js';
 import { minerGeoms, HEADLAMP, LAMP_BULB } from './miners3d.js';
 import { cartGeoms } from './cart3d.js';
 import { bellGeom, sweetGeom } from './collect3d.js';
+import { magnetGeom, fennelGeom, bootsGeom, branchGeom } from './power3d.js';
 import { stallGeom, festoonGeom, buildCrowd, animateCrowd } from './festa3d.js';
 import { rng } from './kit.js';
 import { Env } from './biomes/env.js';
@@ -416,6 +417,16 @@ export class World {
       const ring = new THREE.Mesh(this.geo.ring, this.mat.ring); ring.rotation.x = Math.PI / 2; ring.position.y = -0.75; v.body.add(ring);
       v.glow = this.glowSprite(kind === 'campanaccio' ? '#ffd27a' : '#ffe9b0', 4.2, 0.8);
       v.shadow = this.blob(1.8, 1.8);
+    } else if (kind === 'calamita' || kind === 'finocchio' || kind === 'scarponi') {   // v5s24: potenziamenti
+      v.body = new THREE.Group();
+      const geo = this.geo[kind] || (this.geo[kind] = kind === 'calamita' ? magnetGeom() : kind === 'finocchio' ? fennelGeom() : bootsGeom());
+      const m = new THREE.Mesh(geo, this.mats2); m.scale.setScalar(1.35); v.spin = m; v.body.add(m);
+      const ring = new THREE.Mesh(this.geo.ring, this.mat.ring); ring.rotation.x = Math.PI / 2; ring.position.y = -0.85; v.ring = ring; v.body.add(ring);
+      v.glow = this.glowSprite(kind === 'calamita' ? '#ff6a5a' : kind === 'finocchio' ? '#c8ff7a' : '#ffc070', 4.4, 0.8);
+      v.shadow = this.blob(1.8, 1.8);
+    } else if (kind === 'ramo') {      // v5s24: ramo caduto (ci si abbassa)
+      const key = 'ramo' + ((e.variant || 0) % 2);
+      v.body = new THREE.Mesh(this.geo[key] || (this.geo[key] = branchGeom((e.variant || 0) % 2)), this.mats2); v.shadow = this.blob(12.8, 1.3);
     } else if (kind === 'tappeto') {
       v.body = new THREE.Mesh(this.geo.carpet, this.mat.carpet[(e.variant || 0) % 4]);
       v.glow = this.glowSprite('#ff7a5a', 2.6, 0.32);
@@ -497,7 +508,7 @@ export class World {
   placeView(e, v) {
     const zc = -(e.d + e.len / 2) * U;
     if (v.kind === 'narrow') { v.root.position.set(v.root.userData.x, 0, -e.d * U); return; }
-    const x = (e.kind === 'scambio' || e.kind === 'festone' ? 0 : e.kind === 'bancarella' || e.kind === 'folla' ? e.side * FESTA.X : e.kind === 'falo' ? e.side * FIRE.X : e.kind === 'minatore' ? e.side * MINE.MINER_X : e.kind === 'lampada' ? e.side * MINE.LAMP_X : isMoving(e.kind) ? e.x : laneX(e.lane)) * U;
+    const x = (e.kind === 'scambio' || e.kind === 'festone' ? 0 : e.kind === 'bancarella' || e.kind === 'folla' ? e.side * FESTA.X : e.kind === 'falo' ? e.side * FIRE.X : e.kind === 'minatore' ? e.side * MINE.MINER_X : e.kind === 'lampada' ? e.side * MINE.LAMP_X : isMoving(e.kind) ? e.x : e.kind === 'ramo' ? 0 : e.kind === 'tappeto' && e.mx !== undefined ? e.mx : laneX(e.lane)) * U;
     v.root.position.set(x, 0, zc);
   }
   animateViews(sim, dt) {
@@ -526,6 +537,10 @@ export class World {
       if (e.kind === 'campanaccio' || e.kind === 'facciola') {
         v.body.position.y = 1.5 + Math.sin(t * 3 + e.d * 0.05) * 0.15; v.spin.rotation.y = t * 2.2;
         v.glow.position.y = 1.5;
+      } else if (e.kind === 'calamita' || e.kind === 'finocchio' || e.kind === 'scarponi') {
+        v.body.position.y = 1.35 + Math.sin(t * 3.5) * 0.16; v.spin.rotation.y = t * 2.4;
+        v.ring.scale.setScalar(1 + Math.sin(t * 6) * 0.08);
+        v.glow.position.y = 1.35; v.glow.material.opacity = 0.65 + Math.sin(t * 7) * 0.2;
       } else if (e.kind === 'tappeto') {
         v.body.position.y = 0.38 + Math.sin(t * 3.2 + e.d * 0.05) * 0.1;
         v.body.rotation.set(-Math.PI / 2 + 0.22 + Math.sin(t * 2.3 + e.d) * 0.05, 0, Math.sin(t * 1.7 + e.d) * 0.12);
@@ -694,6 +709,11 @@ export class World {
       case 'cartBoard': { this.dustPuff(sim.px * U, pz, 14); this.addShake(0.2, 0.2); break; }
       case 'cartExit': { this.dustPuff(sim.px * U, pz, 12); this.burst(sim.px * U, 0.4, pz - 1.5, COL.spark2, 24, 4); break; }
       case 'cartCrash': { const p = this.views.get(d.e.id)?.root.position; if (p) { this.dustPuff(p.x, p.z, 26); this.burst(p.x, 1.0, p.z, COL.spark2, 30, 6); } this.addShake(0.45, 0.3); break; }
+      case 'power': {                  // v5s24
+        const p = this.views.get(d.e.id)?.root.position || _v.set(sim.px * U, 0, pz);
+        this.burst(p.x, 1.3, p.z, d.kind === 'calamita' ? COL.ember : COL.gold, 40, 6);
+        break;
+      }
       case 'pistol': {
         const p = this.views.get(d.e.id)?.root.position || _v.set(sim.px * U, 0, pz);
         this.burst(p.x, 1.3, p.z, COL.gold, 40, 6);

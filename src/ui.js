@@ -122,6 +122,13 @@ export function initUI(game) {
       setPips(hud.ammo, h.ammo); setPips(hud.fire, h.ammo);
       last.ammo = h.ammo;
     }
+    // v5s24: potenziamenti attivi con il tempo che resta
+    for (const [id, key, max] of [['#hud-magnet', 'magnetT', 10], ['#hud-fennel', 'fennelT', 5], ['#hud-boots', 'bootsT', 4]]) {
+      const v = h[key] || 0, el = $(id); if (!el) continue;
+      const sec = Math.ceil(v);
+      if (sec !== last[key]) { el.classList.toggle('hidden', v <= 0); el.querySelector('.ptime').textContent = sec; last[key] = sec; }
+      if (v > 0) el.querySelector('.pbar i').style.width = `${Math.round((v / max) * 100)}%`;
+    }
     const pct = Math.round(h.fuel * 1000) / 10;
     if (pct !== last.pct) {
       hud.fill.style.width = `calc(${pct}% - 6px)`;
