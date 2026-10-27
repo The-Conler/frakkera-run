@@ -156,7 +156,9 @@ export class Env {
     this.dev = dev;
     // salto di mappa (solo grafica): ?map=<id> e, opzionale, &at=<metri dentro l'ambiente>
     const at = typeof location !== 'undefined' ? Math.max(0, +new URLSearchParams(location.search).get('at') || 0) : 0;
-    this.offset = dev ? Math.min(dev.to - 5, dev.from + at) : 0;
+    // v5s23: &lap=N (solo test/sviluppo) parte dal giro N+1 dello stesso punto
+    const lapQ = typeof location !== 'undefined' ? Math.max(0, Math.floor(+new URLSearchParams(location.search).get('lap') || 0)) : 0;
+    this.offset = (dev ? Math.min(dev.to - 5, dev.from + at) : 0) + lapQ * CYCLE;
     this.menuB = dev ? this.offset + 4 : 20;
     this.mode = 'attract'; this.anchor = 0;
     this.fade = 1;

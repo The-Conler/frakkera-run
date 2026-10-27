@@ -10,6 +10,7 @@ import { laneX, isMoving, ROAD_HALF } from './sim.js';
 import { DanceRing } from './dance/dance3d.js';
 import { buildMaimoni, buildStramaione, buildGrastula, animateFigure, spindleGeom } from './masks/figures.js';
 import * as T3 from './tex3d.js';
+import { addSnow, buildFlakes, snowAt, SNOW_U, SNOW_CFG } from './snow.js';
 import * as M from './models.js';
 import { PointPool, Shards } from './particles.js';
 import { Character } from './character.js';
@@ -58,7 +59,7 @@ const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c3 = new THREE.Vector
 const _c = new THREE.Color(), _c2 = new THREE.Color();
 const COL = {
   spark: new THREE.Color('#ffb347'), spark2: new THREE.Color('#ffe08a'), ember: new THREE.Color('#ff7a2a'),
-  smoke: new THREE.Color('#8f8a90'), smokeD: new THREE.Color('#55505a'), dust: new THREE.Color('#d8c8b0'),
+  smoke: new THREE.Color('#8f8a90'), smokeD: new THREE.Color('#55505a'), dust: new THREE.Color('#d8c8b0'), breath: new THREE.Color('#f2f6ff'),
   wine: new THREE.Color('#6e1428'), wood: [new THREE.Color('#a8672f'), new THREE.Color('#8f5426'), new THREE.Color('#b5733a'), new THREE.Color('#6b3c1b')],
   iron: new THREE.Color('#33302e'), gold: new THREE.Color('#ffd25a'), water: new THREE.Color('#bfe2ff'),
   carpet: [new THREE.Color('#c0283c'), new THREE.Color('#e0a93a'), new THREE.Color('#f3e8cc'), new THREE.Color('#8e1f33'), new THREE.Color('#f6cf5e')],
@@ -89,6 +90,13 @@ export class World {
     this.buildLights();
     this.bannerMat = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
     this.env = new Env(this);           // v5: ambienti di Gadoni a tratti (terreno, lati, galleria, monumenti)
+    // v5s23: neve sui materiali (tetti, strada, alberi, rocce) e fiocchi
+    for (const m of [this.mat.lit, this.mat.stave, this.mat.lid, this.mat.chock, this.bannerMat, this.env.lit]) addSnow(m);
+    for (const k in this.env.roadMat) addSnow(this.env.roadMat[k], { road: true, cap: 0.85 });
+    for (const k in this.env.shoulderMat) addSnow(this.env.shoulderMat[k]);
+    { const mob = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
+      this.flakes = buildFlakes(mob ? SNOW_CFG.FLAKES_MOBILE : SNOW_CFG.FLAKES_DESKTOP, this.tex.glow); this.scene.add(this.flakes); }
+    this.snow = { ground: 0, fall: 0, lap: 0 }; this.breathT = 0;
     this.light = { flameDist: 11, flameK: 1, mineral: 0, lamp: 0, darkByFuel: 0, tunnel: 0, exposure: 1.05 };
     this.amb = {}; this.farVis = 1; this.tgt = {}; this.burnT = -1;
     this.buildFx();
@@ -725,6 +733,8 @@ export class World {
     }
   }
   shopNod() { if (this.shopRoom) this.shopRoom.nod(); }
+  breath(sim) { const x = sim.px * U, z = -sim.T * U - 0.5, y = (sim.cart ? 1.5 : 1.75) + (sim.jumpH || 0) * U;
+    for (let i = 0; i < 4; i++) this.norm.emit(x + (Math.random() - 0.5) * 0.15, y + Math.random() * 0.1, z, (Math.random() - 0.5) * 0.4, 0.25, -0.6 - Math.random() * 0.5, 0.7, 0.35, 1.1, COL.breath, 0.45, 0, 1); }
   dustPuff(x, z, n) { for (let i = 0; i < n; i++) this.norm.emit(x + (Math.random() - 0.5) * 1.6, 0.3 + Math.random() * 0.8, z + (Math.random() - 0.5) * 1.2, (Math.random() - 0.5) * 3, 0.8 + Math.random() * 1.6, (Math.random() - 0.5) * 2.4, 1.1, 1.0, 3.0, COL.dust, 0.55, 0, 1); }
   burst(x, y, z, color, n, sp) {
     for (let i = 0; i < n; i++) {
@@ -794,6 +804,11 @@ export class World {
       const ok = OVER_TINT.k * (1 - tgt.light.tunnel);
       for (const k in OVER_TINT.mood) { const v = OVER_TINT.mood[k]; if (typeof v === 'string') tgt[k].lerp(_c.set(v), ok); else tgt[k] += (v - tgt[k]) * ok; }
     }
+    // v5s23: luce fredda con la neve (stessa luminosita', tinta azzurrina: la sera dei giri resta)
+    { const sn = snowAt(env.cur.bDist); this.snowTgt = sn;
+      const ck = sn.ground * SNOW_CFG.COLD * (1 - (tgt.light?.tunnel || 0));
+      if (ck > 0.001) for (const key of ['top', 'mid', 'hor', 'fog', 'hemiS', 'hemiG', 'dirC', 'far']) { const c = tgt[key]; if (!c || !c.isColor) continue;
+        const l = c.r * 0.3 + c.g * 0.55 + c.b * 0.15; c.lerp(_c.setRGB(l * 0.9, l * 0.97, l * 1.12), ck); } }
     const k = 1 - Math.exp(-dt * 1.8);
     for (const key in tgt) {
       const v = tgt[key];
@@ -885,6 +900,15 @@ export class World {
     const cb = this.env.cur;
     const vz0 = cb.b.id === 'village' ? -sim.T * U - (VISTA.AT_M - cb.local) : -Infinity;
     this.vista.position.set(VISTA.X, -60 * (1 - this.farVis) ** 0.7, Math.min(vz0, this.camPos.z - VISTA.D) - 40 * (1 - this.farVis));
+    // v5s23: neve al suolo (niente nella galleria) e nevicata
+    { const st = this.snowTgt || this.snow, kk = Math.min(1, dt * 1.5), out = 1 - this.light.tunnel;
+      this.snow.ground += (st.ground - this.snow.ground) * kk; this.snow.fall += (st.fall - this.snow.fall) * kk;
+      SNOW_U.uSnow.value = this.snow.ground * out;
+      const fa = this.snow.fall * out * 0.85, f = this.flakes;
+      f.visible = fa > 0.02;
+      if (f.visible) { const u = f.material.uniforms; u.uT.value = this.clock; u.uCam.value.copy(this.camera.position); u.uA.value = fa; u.uPR.value = this.renderer.getPixelRatio(); }
+      // fiato condensato davanti al viso quando fa freddo
+      if (this.snow.ground > 0.45 && out > 0.5 && sim.mode === 'run') { this.breathT -= dt; if (this.breathT <= 0) { this.breathT = 1.3; this.breath?.(sim); } } }
     this.moon.position.set(this.camera.position.x - 70, 150, camZ - 300);
     this.sunGlow.position.set(this.camera.position.x + 60, 16, camZ - 360);
     for (const c of this.clouds) c.position.set(c.userData.x + this.camera.position.x * 0.0 + Math.sin(this.clock * 0.02 + c.userData.y) * 10, c.userData.y, camZ - 320 + c.userData.z);
