@@ -623,7 +623,7 @@ export class Env {
       const W = this.dW, i = this.info(W + 0.01), r = this.dR;
       const step = r.range(18, 30);
       const inSquare = this.mode !== 'attract' && i.b.id === 'village' && i.local > 128 && i.local < 200;
-      if (i.b.decor.banners && !inSquare && i.local < 225) {
+      if (i.b.decor.banners && !inSquare && i.local < 186) {   // v5s23c: niente festoni sopra vicolo e cappella
         const bulbs = i.b.decor.bulbs && r.chance(0.55);
         const pf = bulbs ? this.prefab('bulbs', r.int(4), () => ({ geom: buildBulbString(r.lastInt + 1), w: 0, lamps: [] })) : this.prefab('banner', r.int(4), () => ({ geom: M.buildBanner(r.lastInt + 1, FACADE), w: 0, lamps: [] }));
         const pool = this.pools.get(pf.key) || []; let m = pool.pop();
