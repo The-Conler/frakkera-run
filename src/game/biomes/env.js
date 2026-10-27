@@ -14,6 +14,7 @@ import * as BT from './textures.js';
 import * as N from './builders/nature.js';
 import * as S from './builders/structures.js';
 import { buildChurchSquare } from './builders/church.js';
+import { buildVicolo, buildCappella, buildCappellaLeft } from './builders/gadoni5.js';
 import { buildBanner } from '../masks/figures.js';
 import { Kit, G, rng, ROCK, LEAF } from './builders/common.js';
 
@@ -135,6 +136,8 @@ const valleyRock = (Bm) => N.valleyTerrain(Bm - 30, 430, { side: -1, x0: 14.5, t
 // at: punto di riferimento (distanza locale nel bioma); exist: [da, a] relativo ad at in cui esiste
 const LANDMARKS = {
   church: { at: 140, exist: [-200, 70] },
+  vicolo: { at: 188, exist: [-200, 40] },      // v5s23c: vicolo delle porte (target5-vicolo-porte)
+  cappella: { at: 222, exist: [-200, 40] },    // v5s23c: cappella tonda (target5-cappella-tonda)
   pinnacle: { at: 230, exist: [-290, 120] },
   valley: { at: 0, exist: [-30, 390] },
   pool: { at: 0, exist: [-40, 280] },
@@ -620,7 +623,7 @@ export class Env {
       const W = this.dW, i = this.info(W + 0.01), r = this.dR;
       const step = r.range(18, 30);
       const inSquare = this.mode !== 'attract' && i.b.id === 'village' && i.local > 128 && i.local < 200;
-      if (i.b.decor.banners && !inSquare && i.local < 225) {
+      if (i.b.decor.banners && !inSquare && i.local < 176) {   // v5s23c: niente festoni sopra vicolo e cappella
         const bulbs = i.b.decor.bulbs && r.chance(0.55);
         const pf = bulbs ? this.prefab('bulbs', r.int(4), () => ({ geom: buildBulbString(r.lastInt + 1), w: 0, lamps: [] })) : this.prefab('banner', r.int(4), () => ({ geom: M.buildBanner(r.lastInt + 1, FACADE), w: 0, lamps: [] }));
         const pool = this.pools.get(pf.key) || []; let m = pool.pop();
@@ -704,6 +707,14 @@ export class Env {
         if (h.ry > 0) m.position.set(h.x, 0, h.z);          // facciata verso -z (dentro la piazza), corpo verso +z
         else m.position.set(h.x - pf.w, 0, h.z);            // facciata verso +z
       }
+    } else if (id === 'vicolo') {
+      cached('vicolo', () => buildVicolo(32));
+    } else if (id === 'cappella') {
+      // specchiata: la cappella a SINISTRA della via (a destra la coprirebbe la fiamma), case bianche a destra
+      root.scale.x = -1;
+      cached('cappella', () => buildCappella());
+      cached('cappellaL', () => buildCappellaLeft());
+      for (const z of [-1.6, -16.5]) lamps.push(this.lamp(-6.6, 4.5, z - W, '#ffd890', 2.4, 0.7));
     } else if (id === 'pinnacle') {
       const m = cached('pinnacle', () => N.buildPinnacle(3)); m.position.set(-30, 0, 0); m.rotation.y = 0.4;    // nella valle a SINISTRA del sentiero: a destra c'e' la fiamma che la coprirebbe
     } else if (id === 'valley') {
