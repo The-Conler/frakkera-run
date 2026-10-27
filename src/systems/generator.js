@@ -7,7 +7,7 @@
 // mobili compaiono solo in "finestre calme" senza altri ostacoli.
 // Tappeti, combustibile e pistola si piazzano solo in celle libere.
 // =====================================================================
-import { DIFFICULTY as DF, WORLD, PX_PER_METER, CARPETS as CP, PISTOL, SPEED_STEPS as SS, BIOME_OBST as BO, DUCK, MASKS as MK, FIRE, MINE, CART, COLLECT, DANCE } from '../config.js';
+import { DIFFICULTY as DF, WORLD, PX_PER_METER, CARPETS as CP, PISTOL, SPEED_STEPS as SS, BIOME_OBST as BO, DUCK, MASKS as MK, FIRE, MINE, CART, COLLECT, DANCE, FESTA } from '../config.js';
 import { biomeAt, BIOMES } from '../game/biomes/config.js';
 import { makeRng } from './rng.js';
 
@@ -64,7 +64,13 @@ export const BIOME_OBST_KIND = { village: 'rollin', rock: 'sasso', river: 'bagna
 // v5s10: maschere del carnevale di Gadoni: la pistola le attraversa senza effetto
 export const MASK_KINDS = { maimoni: true, fune: true, fuso: true };
 // v5s16: frakkere accese a bordo strada (non occupano corsie)
-export const SIDE_KINDS = { falo: true, minatore: true, lampada: true, carrello: true, scambio: true };
+export const SIDE_KINDS = { falo: true, minatore: true, lampada: true, carrello: true, scambio: true, bancarella: true, folla: true, festone: true };
+// v5s21: tratto in festa del paese alla distanza m (metri assoluti): null o { lap, local }
+export function festaAt(m) {
+  const bi = biomeAt(Math.max(0, m));
+  if (bi.b.id !== FESTA.BIOME || bi.local < FESTA.FROM_M || bi.local >= FESTA.TO_M) return null;
+  return { lap: bi.lap, local: bi.local - FESTA.FROM_M };
+}
 export const PICKUP_KINDS = { asfodelo: 'fuel', ferula: 'fuel', tappeto: 'carpet', pistola: 'pistol', campanaccio: 'collect', facciola: 'collect' };
 
 const SHORT_LEN = { muretto: 14, botte: 18, bottecoricata: 14, pozza: 13 };
@@ -107,6 +113,9 @@ export class Generator {
     // v5s19: flusso separato per i collezionabili rari
     this.crng = makeRng(((seed >>> 0) ^ 0x19c011) >>> 0);
     this.nextCollectRow = Math.ceil((COLLECT.FROM_M * PX_PER_METER - WORLD.LEAD_IN) / WORLD.ROW) + this.crng.int(0, 20); this.collects = 0;
+    // v5s21: flusso separato per la festa (bancarelle, folla, festoni)
+    this.prng = makeRng(((seed >>> 0) ^ 0x21fe57) >>> 0);
+    this.stallNext = { '-1': 0, '1': 0 }; this.crowdNext = 0; this.festoonNext = 0; this.crowds = 0;
     this.nextMinerRow = 0; this.nextLampRow = 0; this.minerSide = 1; this.lampSide = -1; this.miners = 0; this.lamps = 0;
   }
 
@@ -171,6 +180,30 @@ export class Generator {
     }
   }
 
+  // v5s21: festa: bancarelle e folla sui marciapiedi (fuori dalle corsie), festoni con le luci in alto
+  maybeFesta(r, D, emit) {
+    if (!festaAt(D / PX_PER_METER + this.offM)) return;
+    const pr = this.prng, L = WORLD.LANES;
+    const busy = (side) => { const edge = side < 0 ? 0 : L - 1; return this.blockedUntil[edge] >= r - 1 || this.sideBlocks.some((b) => b.edge === edge && b.until >= r); };
+    if (r >= this.festoonNext) { this.festoonNext = r + FESTA.FESTOON_ROWS; emit({ kind: 'festone', lane: 1, d: D + 2, len: 4, variant: pr.int(0, 2) }); }
+    for (const side of [-1, 1]) {
+      if (r < this.stallNext[side] || busy(side)) continue;
+      this.stallNext[side] = r + pr.int(FESTA.STALL_GAP[0], FESTA.STALL_GAP[1]);
+      const edge = side < 0 ? 0 : L - 1;
+      this.sideBlocks.push({ edge, until: r + 2 });
+      emit({ kind: 'bancarella', lane: edge, side, d: D + 6, len: 24, variant: pr.int(0, 3) });
+    }
+    if (r >= this.crowdNext) {
+      const side = pr() < 0.5 ? -1 : 1;
+      this.crowdNext = r + pr.int(FESTA.CROWD_GAP[0], FESTA.CROWD_GAP[1]);
+      if (!busy(side)) {
+        const edge = side < 0 ? 0 : L - 1; this.crowds++;
+        this.sideBlocks.push({ edge, until: r + 1 });
+        emit({ kind: 'folla', lane: edge, side, d: D + 10, len: 14, n: pr.int(3, 5), variant: pr.int(0, 5), crowd: this.crowds });
+      }
+    }
+  }
+
   // v5s16: falo' o paesano con la frakkera sul marciapiede, lato -1 (sinistra) / +1 (destra)
   maybeFire(r, D, emit) {
     if (r < this.nextFireRow || D / PX_PER_METER < FIRE.FROM_M) return;
@@ -230,6 +263,7 @@ export class Generator {
     for (let l = 0; l < L; l++) if (this.blockedUntil[l] >= r) used[l] = true;
     this.maybeFire(r, D, emit);
     this.maybeMine(r, D, emit);
+    this.maybeFesta(r, D, emit);
     if (this.sideBlocks.length > 4) this.sideBlocks = this.sideBlocks.filter((b) => b.until >= r);
     if (this.cartRow(r, D, diff, used, emit)) return;
 

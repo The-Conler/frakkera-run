@@ -187,7 +187,7 @@ export class Game {
     this.lastFrame = fr;
     if (!this.paused) {
       audio.fire(fuelF, dtReal, mode === 'run' || mode === 'attract');
-      if ((this._ambT = (this._ambT || 0) + dtReal) > 0.25) { this._ambT = 0; audio.ambience(this.world.amb); }
+      if ((this._ambT = (this._ambT || 0) + dtReal) > 0.25) { this._ambT = 0; audio.ambience(this.world.amb); audio.festa?.(this.sim.mode === 'run' && this.sim.debugFesta()); }
       if (mode === 'run') audio.setIntensity(1, difficultyAt(sim.runD));
       // v5s10: campanacci di su Maimoni e degli Stramaionis (volume per distanza, pan per corsia)
       if (mode === 'run' && !this.paused) {

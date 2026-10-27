@@ -268,3 +268,16 @@ export const SKINS = [
   { id: 'base', name: 'IL PORTATORE', desc: 'Il portatore della frakkera, vestito della festa.', cost: { bell: 0, sweet: 0 }, speedK: 1 },
   { id: 'stramaioni', name: 'SU STRAMAIONI', desc: 'Viso nero di fuliggine e mantello scuro di orbace. Corre piu veloce (+8%).', cost: { bell: 5, sweet: 5 }, speedK: 1.08 },
 ];
+
+// v5s21: festa a Gadoni: tratto del paese in festa (bancarelle, festoni e luci, launeddas, folla che applaude)
+export const FESTA = {
+  BIOME: 'village',
+  FROM_M: 30, TO_M: 128,    // metri dentro il paese (dopo l'offerta del Garag, prima del ballu tundu)
+  X: 66,                    // bancarelle e folla sul marciapiede (px dal centro strada)
+  STALL_GAP: [4, 6],        // file tra due bancarelle sullo stesso lato
+  CROWD_GAP: [3, 5],        // file tra due gruppi di folla
+  FESTOON_ROWS: 4,          // un festone con le luci ogni X file
+  BRUSH_PX: 14,             // passando nella corsia laterale vicino alla folla: applauso
+  PTS: 20,
+  STREAK: 6,                // ogni X tappeti di fila nella festa: la folla esulta
+};

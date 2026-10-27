@@ -5,7 +5,7 @@
 // =====================================================================
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { WORLD, BIOME_OBST, FIRE, MINE } from '../config.js';
+import { WORLD, BIOME_OBST, FIRE, MINE, FESTA } from '../config.js';
 import { laneX, isMoving, ROAD_HALF } from './sim.js';
 import { DanceRing } from './dance/dance3d.js';
 import { buildMaimoni, buildStramaione, buildGrastula, animateFigure, spindleGeom } from './masks/figures.js';
@@ -19,6 +19,7 @@ import { fireGeoms, FLAME_AT } from './fires3d.js';
 import { minerGeoms, HEADLAMP, LAMP_BULB } from './miners3d.js';
 import { cartGeoms } from './cart3d.js';
 import { bellGeom, sweetGeom } from './collect3d.js';
+import { stallGeom, festoonGeom, buildCrowd, animateCrowd } from './festa3d.js';
 import { rng } from './kit.js';
 import { Env } from './biomes/env.js';
 import { buildShopRoom } from './shop3d.js';
@@ -388,6 +389,16 @@ export class World {
       v.body.add(v.flame);
       v.glow = this.glowSprite('#ffae4a', 4.2, 0.5); v.body.add(v.glow);
       v.shadow = this.blob(2.0, 1.6);
+    } else if (kind === 'bancarella') {          // v5s21: festa a Gadoni
+      v.body = new THREE.Mesh(stallGeom(e.variant || 0), this.mats2);
+      v.body.scale.set(e.side < 0 ? -1.3 : 1.3, 1.3, 1.3);
+      v.shadow = this.blob(3.0, 3.8);
+    } else if (kind === 'festone') {
+      v.body = new THREE.Mesh(festoonGeom(e.variant || 0, (ROAD_W + WALK_W * 2) + 0.4), this.mats2);
+    } else if (kind === 'folla') {
+      v.crowd = buildCrowd(this.mats2, e.n || 4, e.variant || 0);
+      v.body = v.crowd.root; v.body.rotation.y = e.side < 0 ? Math.PI / 2 : -Math.PI / 2;
+      v.cheerT = -1; v.shadow = this.blob(1.8, 3.0);
     } else if (kind === 'campanaccio' || kind === 'facciola') {   // v5s19: collezionabili rari
       v.body = new THREE.Group();
       const m = new THREE.Mesh(kind === 'campanaccio' ? bellGeom() : sweetGeom(), this.mats2);
@@ -477,11 +488,12 @@ export class World {
   placeView(e, v) {
     const zc = -(e.d + e.len / 2) * U;
     if (v.kind === 'narrow') { v.root.position.set(v.root.userData.x, 0, -e.d * U); return; }
-    const x = (e.kind === 'scambio' ? 0 : e.kind === 'falo' ? e.side * FIRE.X : e.kind === 'minatore' ? e.side * MINE.MINER_X : e.kind === 'lampada' ? e.side * MINE.LAMP_X : isMoving(e.kind) ? e.x : laneX(e.lane)) * U;
+    const x = (e.kind === 'scambio' || e.kind === 'festone' ? 0 : e.kind === 'bancarella' || e.kind === 'folla' ? e.side * FESTA.X : e.kind === 'falo' ? e.side * FIRE.X : e.kind === 'minatore' ? e.side * MINE.MINER_X : e.kind === 'lampada' ? e.side * MINE.LAMP_X : isMoving(e.kind) ? e.x : laneX(e.lane)) * U;
     v.root.position.set(x, 0, zc);
   }
   animateViews(sim, dt) {
     const t = this.clock;
+    if (this.roarT > 0) this.roarT -= dt;
     if (this.fireMats) for (const m of this.fireMats) m.uniforms.uTime.value = t;
     for (const e of sim.entities) {
       const v = this.views.get(e.id);
@@ -493,6 +505,15 @@ export class World {
       if (e.done && !v.dead && (e.pickup || e.destroyed)) { v.dead = true; v.body.visible = false; if (v.glow) v.glow.visible = false; if (v.warn) v.warn.visible = false; if (v.shadow) v.shadow.visible = !e.pickup && !e.destroyed; }
       if (v.dead) continue;
       v.t += dt;
+      if (e.kind === 'folla') {
+        if (e.cheered && v.cheerT < 0) v.cheerT = 0;
+        if (this.roarT > 0 && v.cheerT < 0 && Math.abs(e.d - sim.T) < 400) v.cheerT = 0.6;   // esulta per la scia di tappeti
+        let k = 0; if (v.cheerT >= 0) { v.cheerT += dt; k = v.cheerT < 2.2 ? Math.min(1, v.cheerT * 6) : Math.max(0, 1 - (v.cheerT - 2.2) * 2); if (v.cheerT > 2.8) v.cheerT = e.cheered ? 99 : -1; }
+        animateCrowd(v.crowd, t, k);
+        if (v.shadow) v.shadow.visible = true;
+        continue;
+      }
+      if (e.kind === 'bancarella' || e.kind === 'festone') { if (v.shadow) v.shadow.visible = true; continue; }
       if (e.kind === 'campanaccio' || e.kind === 'facciola') {
         v.body.position.y = 1.5 + Math.sin(t * 3 + e.d * 0.05) * 0.15; v.spin.rotation.y = t * 2.2;
         v.glow.position.y = 1.5;
@@ -687,6 +708,8 @@ export class World {
       }
       case 'duck': { const x = sim.px * U; this.dustPuff(x, pz + 0.4, 6); break; }
       case 'die': this.smokeAtTip(30); this.burnT = 0; this.burnKeep = this.char3d.keep ?? 1; break;
+      case 'cheer': { const p = this.views.get(d.e.id)?.root.position; if (p) this.burst(p.x, 3.2, p.z, COL.spark2, 14, 3); break; }
+      case 'crowdRoar': this.roarT = 0.5; break;
       case 'start': case 'attract':
         this.rideOn = false; this.rideLeft = null; if (this.ride) { this.ride.visible = false; this.rideShadow.visible = false; }   // v5s20: niente carrello della corsa prima
         this.add.clear(); this.norm.clear(); this.shards.clear();

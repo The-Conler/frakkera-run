@@ -172,6 +172,7 @@ class AudioSys {
     if (!this.ctx || this.ctx.state !== 'running') return;
     const now = this.ctx.currentTime;
     if (!this.muted) this._ambTick(now);
+    this._launTick(now);
     // note sparse e lente: suonano anche nel menu
     if (now >= this._nextNote) {
       const n = SCALE[Math.floor(Math.random() * SCALE.length)];
@@ -435,6 +436,37 @@ class AudioSys {
       this._burst({ t, dur: 0.04, type: 'bandpass', f: 3400, q: 2.5, vol: vol * 0.5, dest });
     }
   }
+  // v5s21: festa a Gadoni. Launeddas: bordone (tumbu) e melodia in mixolidio con timbro di ancia
+  festa(on) {
+    on = !!on; if (!this.ready || on === this.festaOn) return; this.festaOn = on;
+    const c = this.ctx, t = c.currentTime;
+    if (on && !this.launGain) {
+      this.launGain = c.createGain(); this.launGain.gain.value = 0;
+      const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1100;
+      for (const [f, ty] of [[NOTE(45), 'sawtooth'], [NOTE(45) * 1.003, 'sawtooth'], [NOTE(52), 'square']]) { const o = c.createOscillator(); o.type = ty; o.frequency.value = f; o.connect(lp); o.start(); }
+      lp.connect(this.launGain); this.launGain.connect(this.music); this.launGain.connect(this.reverb);
+      this._launIdx = 0; this._nextLaun = t + 0.1;
+    }
+    if (this.launGain) this.launGain.gain.setTargetAtTime(on ? 0.035 : 0, t, on ? 0.6 : 0.35);
+  }
+  _launTick(now) {
+    if (!this.festaOn || !this.launGain) return;
+    const PAT = [12, 14, 16, 14, 12, 9, 7, 9, 12, 16, 19, 16, 14, 12, 14, 9, 7, 9, 12, 12, 14, 16, 17, 16];
+    while (this._nextLaun < now + 0.25) {
+      const when = Math.max(this._nextLaun, now), m = 57 + PAT[this._launIdx++ % PAT.length], c = this.ctx;
+      const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = NOTE(m) * 3; bp.Q.value = 1.6;
+      const g = c.createGain(); g.gain.setValueAtTime(0.0001, when); g.gain.exponentialRampToValueAtTime(0.05, when + 0.012); g.gain.setValueAtTime(0.05, when + 0.13); g.gain.exponentialRampToValueAtTime(0.0001, when + 0.19);
+      for (const k of [1, 1.004]) { const o = c.createOscillator(); o.type = 'square'; o.frequency.value = NOTE(m) * k; o.connect(bp); o.start(when); o.stop(when + 0.22); }
+      bp.connect(g); g.connect(this.music); g.connect(this.reverb);
+      this._nextLaun += 0.18;
+    }
+  }
+  cheer() {          // applauso e grida della folla
+    if (!this.ready || this.muted) return;
+    this._burst({ dur: 0.9, type: 'bandpass', f: 1100, fEnd: 700, q: 0.7, vol: 0.12 });
+    for (let i = 0; i < 9; i++) this._burst({ t: 0.05 + i * 0.07 + Math.random() * 0.04, dur: 0.03, type: 'highpass', f: 1800, q: 0.5, vol: 0.14 });
+  }
+  crowdRoar() { if (!this.ready || this.muted) return; this.cheer(); this._burst({ t: 0.1, dur: 1.4, type: 'bandpass', f: 900, fEnd: 500, q: 0.6, vol: 0.14 }); }
   collectBell() { this.bellClank(0, 0.6, 4, 7); this.milestone?.(); }   // v5s19
   collectSweet() { this.pickup?.('ferula'); this.milestone?.(); }
   bellRing(pan = 0) {   // urto con una maschera: campanacci che risuonano forte

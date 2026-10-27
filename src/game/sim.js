@@ -5,9 +5,9 @@
 // tramite `fx(tipo, dati)`. Unita': px del mondo 2D (10 px = 1 m), corsie
 // centrate su x = 0.
 // =====================================================================
-import { SCORE, FUEL, WORLD, PX_PER_METER, PISTOL, SPEED_STEPS, BIOME_OBST, DUCK, SHOP, MASKS, DANCE, FIRE, MINE, CART, COLLECT, SKINS } from '../config.js';
+import { SCORE, FUEL, WORLD, PX_PER_METER, PISTOL, SPEED_STEPS, BIOME_OBST, DUCK, SHOP, MASKS, DANCE, FIRE, MINE, CART, COLLECT, SKINS, FESTA } from '../config.js';
 import { biomeAt } from './biomes/config.js';
-import { cartAt } from '../systems/generator.js';
+import { cartAt, festaAt } from '../systems/generator.js';
 import { Generator, SOLID, DESTRUCTIBLE, PICKUP_KINDS, BIOME_KINDS, MASK_KINDS, difficultyAt, speedAt, speedStepsAt, lerp } from '../systems/generator.js';
 import { randomSeed, makeRng } from '../systems/rng.js';
 export const DANCE_DIRS = ['left', 'down', 'up', 'right'];
@@ -46,7 +46,7 @@ export class Sim {
 
   resetRunState() {
     this.score = 0; this.metersCredited = 0; this.fuel = FUEL.START; this.chain = 0;
-    this.stats = { pickups: 0, nearMiss: 0, chains: 0, milestones: 0, hits: 0, bonus: 0, carpets: 0, barrels: 0, goats: 0, shopVisits: 0, shopBuys: 0, shopSpent: 0, shields: 0, obst: 0, ducks: 0, beams: 0, slips: 0, speedSteps: 0, shots: 0, pistols: 0, masks: 0, parades: 0, ropes: 0, spindles: 0, dances: 0, danceSkips: 0, dancePerfect: 0, danceGood: 0, danceMiss: 0, danceBest: 0, survival: 0, capped: 0, fires: 0, fireFuel: 0, lamps: 0, miners: 0, carts: 0, junctions: 0, deadends: 0, bells: 0, sweets: 0 };
+    this.stats = { pickups: 0, nearMiss: 0, chains: 0, milestones: 0, hits: 0, bonus: 0, carpets: 0, barrels: 0, goats: 0, shopVisits: 0, shopBuys: 0, shopSpent: 0, shields: 0, obst: 0, ducks: 0, beams: 0, slips: 0, speedSteps: 0, shots: 0, pistols: 0, masks: 0, parades: 0, ropes: 0, spindles: 0, dances: 0, danceSkips: 0, dancePerfect: 0, danceGood: 0, danceMiss: 0, danceBest: 0, survival: 0, capped: 0, fires: 0, fireFuel: 0, lamps: 0, miners: 0, carts: 0, junctions: 0, deadends: 0, bells: 0, sweets: 0, cheers: 0, roars: 0 };
     this.shopLap = 0; this.shopOffer = 0; this.shop = null; this.shield = 0;
     this.danceLap = -1; this.danceCue = null; this.dance = null;
     this.cart = null; this.cartLap = -1; this.cartSpK = 1;
@@ -60,6 +60,7 @@ export class Sim {
     this.step = 0; this.best = this.getBest(); this.bestAnnounced = this.best <= 0; this.runTime = 0;
   }
 
+  debugFesta() { return !!festaAt(this.runD / PX_PER_METER + this.mapOffsetM); }   // v5s21: per l'audio della festa
   get runD() { return this.T - this.genOffset; }
   log(code, v = 0) { this.events.push([this.step, code, v]); }
 
@@ -451,7 +452,7 @@ export class Sim {
     return pts;
   }
 
-  entX(e) { if (e.kind === 'falo') return e.side * FIRE.X; if (e.kind === 'minatore') return e.side * MINE.MINER_X; if (e.kind === 'lampada') return e.side * MINE.LAMP_X; return isMoving(e.kind) ? e.x : e.kind === 'fune' ? laneX(e.lane) + WORLD.LANE_W / 2 : laneX(e.lane); }
+  entX(e) { if (e.kind === 'falo') return e.side * FIRE.X; if (e.kind === 'folla' || e.kind === 'bancarella') return e.side * FESTA.X; if (e.kind === 'minatore') return e.side * MINE.MINER_X; if (e.kind === 'lampada') return e.side * MINE.LAMP_X; return isMoving(e.kind) ? e.x : e.kind === 'fune' ? laneX(e.lane) + WORLD.LANE_W / 2 : laneX(e.lane); }
 
   updateEntities(dt) {
     const T = this.T;
@@ -505,6 +506,15 @@ export class Sim {
       if (e.kind === 'minatore' || e.kind === 'lampada') {   // v5s17: scena della miniera, non si tocca
         if (e.kind === 'lampada' && !e.lit && e.d - T < MINE.LAMP_ON_PX) { e.lit = true; e.litAt = this.step; this.stats.lamps++; }
         if (e.kind === 'minatore' && !e.seen && e.d - T < MINE.LAMP_ON_PX) { e.seen = true; this.stats.miners++; this.fx('minerHello', { e }); }
+        if (e.d + e.len < pBack) e.done = true;
+        continue;
+      }
+      if (e.kind === 'bancarella' || e.kind === 'festone') { if (e.d + e.len < pBack) e.done = true; continue; }   // v5s21: scena della festa
+      if (e.kind === 'folla') {       // v5s21: passando vicino alla folla (corsia laterale) si sente l'applauso
+        if (!e.cheered && overlapD && Math.abs(px - laneX(e.lane)) <= FESTA.BRUSH_PX) {
+          e.cheered = true; this.stats.cheers++; const pts = this.addBonus(FESTA.PTS); this.log('H', pts);
+          this.fx('cheer', { e }); this.fx('popup', { text: 'EVVIVA!', style: 'small' }); this.fx('sound', 'cheer');
+        }
         if (e.d + e.len < pBack) e.done = true;
         continue;
       }
@@ -640,6 +650,8 @@ export class Sim {
       const pts = this.addBonus(SCORE.CARPET);
       this.log('c', pts);
       this.fx('carpet', { e, pts, streak: this.carpetStreak++, run: this.stats.carpets, total: this.carpetTotal });
+      // v5s21: nella festa la folla esulta per le scie di tappeti (solo effetto, nel log)
+      if (this.carpetStreak % FESTA.STREAK === 0 && festaAt(this.runD / PX_PER_METER + this.mapOffsetM)) { this.stats.roars++; this.log('Y', this.carpetStreak); this.fx('crowdRoar', { streak: this.carpetStreak }); this.fx('sound', 'crowdRoar'); }
       return;
     }
     if (type === 'pistol') {
@@ -744,7 +756,7 @@ export class Sim {
     return {
       mode: this.mode, score: this.score, fuel: this.fuel, meters: Math.floor(this.runD / PX_PER_METER),
       lane: this.targetLane, px: this.px, dance: this.dance && { lap: this.dance.lap, t: this.dance.t, bpm: this.dance.bpm, combo: this.dance.combo, perf: this.dance.perf, good: this.dance.good, miss: this.dance.miss, pts: this.dance.pts, notes: this.dance.notes.length, round: this.dance.round, end: this.dance.end }, danceCue: !!this.danceCue, T: this.T, stats: { ...this.stats }, speed: this.currentSpeed, baseSpeed: speedAt(Math.max(0, this.runD), this.mapOffsetM), speedStep: this.speedStep, shopOffer: this.shopOffer, shopLap: this.shopLap, shield: this.shield, shop: this.shop && { ...this.shop, buys: { ...this.shop.buys } }, duckT: this.duckT, slipT: this.slipT,
-      skin: this.skin, ammo: this.ammo, shotsInFlight: this.shots.length, carpetTotal: this.carpetTotal, events: this.events.length, inputs: this.inputs.length,
+      skin: this.skin, festa: !!festaAt(this.runD / PX_PER_METER + this.mapOffsetM) && this.mode !== 'attract', ammo: this.ammo, shotsInFlight: this.shots.length, carpetTotal: this.carpetTotal, events: this.events.length, inputs: this.inputs.length,
       entities: this.entities.filter((e) => !e.done).map((e) => ({ kind: e.kind, lane: e.lane, x: e.x, ahead: e.d - this.T, len: e.len, pickup: !!e.pickup, solid: e.solid, group: e.group || 0, side: e.side, idle: !!e.idle, destructible: !!DESTRUCTIBLE[e.kind] })),
     };
   }

@@ -29,7 +29,7 @@ def check(name, cond, info=''):
 
 # Bot: sceglie la corsia evitando ostacoli e cercando materiali
 BOT_JS = """(mode) => {
-  const s = window.__frk.state(); s.entities = s.entities.filter(e => !({ falo: 1, minatore: 1, lampada: 1, carrello: 1, scambio: 1 })[e.kind]);
+  const s = window.__frk.state(); s.entities = s.entities.filter(e => !({ falo: 1, minatore: 1, lampada: 1, carrello: 1, scambio: 1, bancarella: 1, folla: 1, festone: 1 })[e.kind]);
   if (s.mode !== 'run') return {dir: 0, s};
   const danger = [0,0,0], want = [0,0,0];
   for (const e of s.entities) {
@@ -53,7 +53,7 @@ BOT_JS = """(mode) => {
 }"""
 
 NEAR_JS = """() => {
-  const s = window.__frk.state(); s.entities = s.entities.filter(e => !({ falo: 1, minatore: 1, lampada: 1, carrello: 1, scambio: 1 })[e.kind]);
+  const s = window.__frk.state(); s.entities = s.entities.filter(e => !({ falo: 1, minatore: 1, lampada: 1, carrello: 1, scambio: 1, bancarella: 1, folla: 1, festone: 1 })[e.kind]);
   const out = {dir: 0, mode: s.mode, nm: s.stats.nearMiss};
   if (s.mode !== 'run') return out;
   const solid = s.entities.filter(e => e.solid && e.kind !== 'goat' && e.kind !== 'rollbarrel');
@@ -334,7 +334,7 @@ async def run_profile(p, name, mobile):
     await browser.close()
 
 AIM_JS = """() => {
-  const s = window.__frk.state(); s.entities = s.entities.filter(e => !({ falo: 1, minatore: 1, lampada: 1, carrello: 1, scambio: 1 })[e.kind]);
+  const s = window.__frk.state(); s.entities = s.entities.filter(e => !({ falo: 1, minatore: 1, lampada: 1, carrello: 1, scambio: 1, bancarella: 1, folla: 1, festone: 1 })[e.kind]);
   const out = {dir: 0, fire: false, mode: s.mode, s};
   if (s.mode !== 'run') return out;
   const blocking = (l, a0, a1) => s.entities.some(e => !e.pickup && (e.lane === l || e.kind === 'goat' || e.kind === 'rollbarrel') && e.ahead + e.len > a0 && e.ahead < a1);
