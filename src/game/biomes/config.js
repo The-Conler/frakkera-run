@@ -14,8 +14,8 @@ export const BIOMES = [
     id: 'village', name: 'Gadoni - paese e piazza della chiesa', from: 0, to: 250,
     ground: { road: 'cobble', shoulder: 'walk', curb: true, terrain: '#7d8a4e', terrainY: -0.06 },
     sides: 'houses',            // architettura ai lati (env.js -> sidePiece, case da models.js)
-    gaps: { right: [[140, 192]], left: [[150, 176]] },  // piazza della chiesa a destra, piazzetta del campanile a sinistra (builders/church.js)
-    landmarks: ['church', 'farVillage'],
+    gaps: { right: [[140, 192], [193, 252]], left: [[150, 176], [193, 252]] },   // v5s23c: vicolo e cappella tonda in fondo al paese  // piazza della chiesa a destra, piazzetta del campanile a sinistra (builders/church.js)
+    landmarks: ['church', 'vicolo', 'cappella', 'farVillage'],
     skins: { botte: 'barrel', botti: 'barrels', bottecoricata: 'barrelLying', rollbarrel: 'barrel', muretto: 'wall', goat: 'goat', pozza: 'puddle', narrow: 'house', rollin: 'rollBarrel', trave: 'beamVillage' },
     decor: { banners: true, bulbs: true, lanterns: true },
     // tramonto dorato-rosa (target2-villaggio); nebbia piu' lontana perche' il campanile si veda dal fondo della via
