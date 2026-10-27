@@ -7,7 +7,7 @@
 // mobili compaiono solo in "finestre calme" senza altri ostacoli.
 // Tappeti, combustibile e pistola si piazzano solo in celle libere.
 // =====================================================================
-import { DIFFICULTY as DF, WORLD, PX_PER_METER, CARPETS as CP, PISTOL, SPEED_STEPS as SS, BIOME_OBST as BO, DUCK, MASKS as MK, FIRE, MINE, CART, COLLECT, DANCE, FESTA } from '../config.js';
+import { DIFFICULTY as DF, WORLD, PX_PER_METER, CARPETS as CP, PISTOL, SPEED_STEPS as SS, BIOME_OBST as BO, DUCK, MASKS as MK, FIRE, MINE, CART, COLLECT, DANCE, FESTA, POWER } from '../config.js';
 import { biomeAt, BIOMES } from '../game/biomes/config.js';
 import { makeRng } from './rng.js';
 
@@ -49,7 +49,7 @@ export function cartAt(m, lead = 0, tail = 0) {
 export const SOLID = {
   muretto: true, botte: true, bottecoricata: true, botti: true, narrow: true, goat: true, rollbarrel: true, pozza: false,
   // v5s6: ostacoli d'ambiente (la pietra bagnata non ferma: fa scivolare) e trave bassa (si passa abbassandosi)
-  rollin: true, sasso: true, bagnato: false, trave: false,
+  rollin: true, sasso: true, bagnato: false, trave: false, ramo: false,
   // v5s10: maschere di Gadoni (la fune si passa abbassandosi, come la trave)
   maimoni: true, fune: false, fuso: true,
   // v5s18: binario interrotto (respingente o crollo) durante il giro in carrello
@@ -71,7 +71,7 @@ export function festaAt(m) {
   if (bi.b.id !== FESTA.BIOME || bi.local < FESTA.FROM_M || bi.local >= FESTA.TO_M) return null;
   return { lap: bi.lap, local: bi.local - FESTA.FROM_M };
 }
-export const PICKUP_KINDS = { asfodelo: 'fuel', ferula: 'fuel', tappeto: 'carpet', pistola: 'pistol', campanaccio: 'collect', facciola: 'collect' };
+export const PICKUP_KINDS = { asfodelo: 'fuel', ferula: 'fuel', tappeto: 'carpet', pistola: 'pistol', calamita: 'power', finocchio: 'power', scarponi: 'power', campanaccio: 'collect', facciola: 'collect' };
 
 const SHORT_LEN = { muretto: 14, botte: 18, bottecoricata: 14, pozza: 13 };
 
@@ -116,6 +116,10 @@ export class Generator {
     // v5s21: flusso separato per la festa (bancarelle, folla, festoni)
     this.prng = makeRng(((seed >>> 0) ^ 0x21fe57) >>> 0);
     this.stallNext = { '-1': 0, '1': 0 }; this.crowdNext = 0; this.festoonNext = 0; this.crowds = 0;
+    // v5s24: flusso separato per potenziamenti e rami caduti
+    this.wrng = makeRng(((seed >>> 0) ^ 0x7e0b11) >>> 0);
+    this.nextPowerRow = Math.ceil((POWER.FROM_M * PX_PER_METER - WORLD.LEAD_IN) / WORLD.ROW) + this.wrng.int(0, 30); this.powers = 0;
+    this.nextBranchRow = 0; this.branches = 0;
     this.nextMinerRow = 0; this.nextLampRow = 0; this.minerSide = 1; this.lampSide = -1; this.miners = 0; this.lamps = 0;
   }
 
@@ -235,6 +239,33 @@ export class Generator {
     emit({ kind: cr() < COLLECT.P_FACCIOLA ? 'facciola' : 'campanaccio', lane, d: D + 9, len: 12, pickup: true, collect: this.collects });
   }
 
+  // v5s24: potenziamenti rari in una corsia libera; ramo caduto (tutte le corsie, ci si abbassa) solo su file vuote
+  maybePower(r, emit) {
+    const used = this._used;
+    if (!used || r <= this.calmUntil + 1) return;
+    const D = this.rowDist(r), m = D / PX_PER_METER + this.offM;
+    if (cartAt(m, 2, 2) || this.nearDance(D, 60, 30)) return;
+    const wr = this.wrng, L = WORLD.LANES;
+    const free = [];
+    for (let l = 0; l < L; l++) if (!used[l] && this.blockedUntil[l] < r) free.push(l);
+    if (r >= this.nextPowerRow && free.length) {
+      this.nextPowerRow = r + wr.int(POWER.GAP_ROWS[0], POWER.GAP_ROWS[1]);
+      let x = wr(), kind = POWER.KINDS[0][0];
+      for (const [k, p] of POWER.KINDS) { if (x < p) { kind = k; break; } x -= p; }
+      const lane = free[wr.int(0, free.length - 1)]; used[lane] = true; this.powers++;
+      emit({ kind, lane, d: D + 9, len: 12, pickup: true });
+      return;
+    }
+    if (free.length === L && r >= this.nextBranchRow && m >= POWER.BRANCH_FROM_M) {
+      const bi = biomeAt(m);
+      if (POWER.BRANCH_BIOMES.includes(bi.b.id) && wr() < POWER.BRANCH_P) {
+        this.nextBranchRow = r + wr.int(POWER.BRANCH_GAP_ROWS[0], POWER.BRANCH_GAP_ROWS[1]); this.branches++;
+        for (let l = 0; l < L; l++) used[l] = true;
+        emit({ kind: 'ramo', lane: 1, d: D + 10, len: POWER.BRANCH_LEN, variant: wr.int(0, 2) });
+      }
+    }
+  }
+
   // v5s20: la fila D e' vicina al punto del ballu tundu (metri prima / dopo)?
   nearDance(D, before, after) {
     const bi = biomeAt(D / PX_PER_METER + this.offM);
@@ -249,6 +280,7 @@ export class Generator {
       this._used = null;
       this.genRow(this.row, emit);
       this.maybeCollect(this.row, emit);
+      this.maybePower(this.row, emit);
       this.row++;
     }
   }

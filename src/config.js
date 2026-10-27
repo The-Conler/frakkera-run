@@ -286,3 +286,14 @@ export const FESTA = {
   PTS: 20,
   STREAK: 6,                // ogni X tappeti di fila nella festa: la folla esulta
 };
+
+// ---- v5s24: potenziamenti rari (flusso RNG proprio) e ramo caduto nei boschi / sulla roccia ----
+export const POWER = {
+  FROM_M: 140,             // non prima di X metri
+  GAP_ROWS: [110, 190],    // file tra un potenziamento e l'altro (~330-570 m)
+  KINDS: [['calamita', 0.38], ['finocchio', 0.34], ['scarponi', 0.28]],
+  MAGNET_S: 10, MAGNET_PX: 320, MAGNET_PULL: 9,     // calamita: tira i tappeti da tutte le corsie
+  FENNEL_S: 5,             // scudo di finocchio intrecciato: para UN urto entro 5 s
+  BOOTS_S: 4, BOOTS_K: 1.28, BOOTS_PTS: 8, BOOTS_TICK_S: 0.5,   // scarponi del calzolaio
+  BRANCH_BIOMES: ['rock', 'river'], BRANCH_FROM_M: 60, BRANCH_GAP_ROWS: [26, 60], BRANCH_P: 0.09, BRANCH_LEN: 10,
+};
