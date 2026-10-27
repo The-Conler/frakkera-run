@@ -344,7 +344,8 @@ export function buildChurchSquare(seed = 1) {
 // v5 stage 12 (target4-confronto-villaggio): "fondale" del paese - campanile grande e chiesa rosa centrati
 // in fondo alla via. Coordinate: campanile centrato in x=0, faccia con orologio verso +z (chi arriva),
 // chiesa con la facciata a capanna verso +z, a SINISTRA (a destra la coprirebbe la fiamma). world3d lo tiene davanti alla camera.
-export const VISTA = { S: 1.25, D: 70, X: 1.2, AT_M: 215 };
+// v5s23b: oggetto FISSO nel mondo, a sinistra della strada, facciate rivolte verso la via (non la attraversa): campanile a sinistra, chiesa a destra
+export const VISTA = { S: 1.25, AT_M: 258, EDGE: -8.2, RY: 0.55, CS: 0.62, X: 0 };
 export function buildVista(seed = 1) {
   const r = rng(seed * 131 + 7);
   const kt = new Kit(seed + 501);
@@ -361,11 +362,15 @@ export function buildVista(seed = 1) {
   for (const g of gs) { g.applyMatrix4(rot); g.computeBoundingBox(); bb.union(g.boundingBox); }
   // facciata (max z) poco dietro la faccia del campanile, lato sinistro attaccato al campanile
   const tw = TOWER.W * VISTA.S / 2;
-  const mv = new THREE.Matrix4().makeTranslation(-(tw - 0.3) / 0.85 - bb.max.x, 0, 1.5 - bb.max.z);
-  const sc = new THREE.Matrix4().makeScale(0.85, 0.85, 0.85);
+  const mv = new THREE.Matrix4().makeTranslation((tw - 0.3) / VISTA.CS - bb.min.x, 0, 1.5 - bb.max.z);
+  const sc = new THREE.Matrix4().makeScale(VISTA.CS, VISTA.CS, VISTA.CS);
   for (const g of gs) { g.applyMatrix4(mv); g.applyMatrix4(sc); k.lit.push(g); }
   for (const g of kc.unlit || []) { g.applyMatrix4(rot); g.applyMatrix4(mv); g.applyMatrix4(sc); k.unlit.push(g); }
   // basamento e case basse ai piedi (chiude il fondo della via)
-  k.add(G.box(34, 0.4, 14), '#9a8e80', { x: 2, y: 0.2, z: -4 });
-  return k.build({ ao: 0.2 });
+  k.add(G.box(12, 0.4, 12), '#9a8e80', { x: 3, y: 0.2, z: -4 });
+  const out = k.build({ ao: 0.2 });
+  // ruotato di sbieco (facciate verso chi arriva e verso la via): campanile a sinistra, chiesa a destra, a lato della strada
+  out.rotateY(VISTA.RY); out.computeBoundingBox(); out.computeBoundingSphere();
+  VISTA.X = VISTA.EDGE - out.boundingBox.max.x;
+  return out;
 }

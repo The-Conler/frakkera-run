@@ -301,13 +301,7 @@ export function buildFar() {
     k.add(G.box(w, hh, w * 0.8), r.pick(['#e8c9a2', '#e2b28a', '#f0d8b8', '#d9b89a', '#cfa889']), { x, y: y + hh / 2, z });
     k.add(G.cone(w * 0.78, 1.2, 4), r.pick(['#b95a3c', '#c76b45', '#a9503a']), { x, y: y + hh + 0.6, z, ry: Math.PI / 4, sz: 0.8 });
   }
-  // campanile e chiesa
-  k.add(G.box(9, 6, 7), '#e6cba6', { x: -3, y: 9, z: 18 });
-  k.add(G.cone(6.6, 3, 4), '#b5583a', { x: -3, y: 13.5, z: 18, ry: Math.PI / 4, sz: 0.8 });
-  k.add(G.box(3.2, 16, 3.2), '#dcc09c', { x: 3.5, y: 12, z: 18 });
-  k.add(G.box(3.6, 0.5, 3.6), '#c9ab86', { x: 3.5, y: 15, z: 18 });
-  k.add(G.box(1.2, 2, 0.4), '#5a4030', { x: 3.5, y: 17.4, z: 19.5 });
-  k.add(G.cone(2.4, 4, 4), '#b5583a', { x: 3.5, y: 22, z: 18, ry: Math.PI / 4 });
+  // v5s23b: niente campanile nel fondale lontano (segue la camera: sembrava muoversi col giocatore)
   // cipressi e alberi
   for (let i = 0; i < 16; i++) k.add(G.cone(1.1, r.range(5, 8), 6), r.pick(['#3f6b45', '#4d7a4a', '#365e40']), { x: r.range(-60, 60), y: r.range(2, 8), z: r.range(-6, 20), flat: true });
   return k.build();

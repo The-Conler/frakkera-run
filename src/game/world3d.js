@@ -25,7 +25,7 @@ import { rng } from './kit.js';
 import { Env } from './biomes/env.js';
 import { buildShopRoom } from './shop3d.js';
 import { loadPinuGeometry } from './shop/pinu.js';
-import { MENU_MOOD, OVER_TINT } from './biomes/config.js';
+import { MENU_MOOD, OVER_TINT, CYCLE } from './biomes/config.js';
 import { buildVista, VISTA } from './biomes/builders/church.js';
 import { SKINS, SHARDS, outcropGeometry } from './biomes/builders/skins.js';
 
@@ -894,12 +894,15 @@ export class World {
     this.stars.position.copy(this.camera.position);
     this.far.visible = this.farVis > 0.01;
     this.far.position.set(0, -70 * (1 - this.farVis), camZ - FAR_Z);
-    this.vista.visible = this.farVis > 0.02;
-    // v5s22: il fondale chiesa+campanile e' fisso nel mondo (in fondo alla via, VISTA.AT_M nel paese): ci si avvicina
-    // passando la festa; solo a meno di VISTA.D resta a distanza costante (non lo si attraversa mai)
-    const cb = this.env.cur;
-    const vz0 = cb.b.id === 'village' ? -sim.T * U - (VISTA.AT_M - cb.local) : -Infinity;
-    this.vista.position.set(VISTA.X, -60 * (1 - this.farVis) ** 0.7, Math.min(vz0, this.camPos.z - VISTA.D) - 40 * (1 - this.farVis));
+        // v5s23b: chiesa+campanile FISSI nel mondo (fine del paese, a sinistra della strada): non si muovono mai,
+    // ci si passa accanto e restano indietro. Si mostra quello del giro corrente o del successivo.
+    { const bD = this.env.cur.bDist, C = CYCLE;
+      let at = Math.floor(bD / C) * C + VISTA.AT_M; if (bD - at > 120) at += C;
+      const ahead = at - bD;
+      this.vista.visible = ahead < 520 && ahead > -120 && this.light.tunnel < 0.5;
+      const key = sim.mode === 'run' ? at + '|' + sim.genOffset : null;   // in corsa: fissato una volta per giro e mai piu' spostato
+      if (!key || this.vistaAt !== key) { this.vistaAt = key; this.vistaZ = -sim.T * U - ahead; }   // fissato una volta: poi mai piu' spostato
+      this.vista.position.set(VISTA.X, 0, this.vistaZ); }
     // v5s23: neve al suolo (niente nella galleria) e nevicata
     { const st = this.snowTgt || this.snow, kk = Math.min(1, dt * 1.5), out = 1 - this.light.tunnel;
       this.snow.ground += (st.ground - this.snow.ground) * kk; this.snow.fall += (st.fall - this.snow.fall) * kk;
