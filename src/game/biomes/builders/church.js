@@ -345,7 +345,7 @@ export function buildChurchSquare(seed = 1) {
 // in fondo alla via. Coordinate: campanile centrato in x=0, faccia con orologio verso +z (chi arriva),
 // chiesa con la facciata a capanna verso +z, a SINISTRA (a destra la coprirebbe la fiamma). world3d lo tiene davanti alla camera.
 // v5s23b: oggetto FISSO nel mondo, a sinistra della strada, facciate rivolte verso la via (non la attraversa): campanile a sinistra, chiesa a destra
-export const VISTA = { S: 1.25, AT_M: 258, EDGE: -8.2, RY: 0.55, CS: 0.62, X: 0 };
+export const VISTA = { S: 1.25, AT_M: 335, EDGE: -8.2, RY: 0.55, CS: 0.62, X: 0 };
 export function buildVista(seed = 1) {
   const r = rng(seed * 131 + 7);
   const kt = new Kit(seed + 501);
