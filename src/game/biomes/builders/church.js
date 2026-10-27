@@ -344,7 +344,7 @@ export function buildChurchSquare(seed = 1) {
 // v5 stage 12 (target4-confronto-villaggio): "fondale" del paese - campanile grande e chiesa rosa centrati
 // in fondo alla via. Coordinate: campanile centrato in x=0, faccia con orologio verso +z (chi arriva),
 // chiesa con la facciata a capanna verso +z, a SINISTRA (a destra la coprirebbe la fiamma). world3d lo tiene davanti alla camera.
-export const VISTA = { S: 1.25, D: 70, X: 1.2 };
+export const VISTA = { S: 1.25, D: 70, X: 1.2, AT_M: 215 };
 export function buildVista(seed = 1) {
   const r = rng(seed * 131 + 7);
   const kt = new Kit(seed + 501);

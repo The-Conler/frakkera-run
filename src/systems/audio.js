@@ -377,6 +377,33 @@ class AudioSys {
     this._tone({ f: 180, fEnd: 90, dur: 0.18, type: 'square', vol: 0.12 });
     this._burst({ t: 0.1, dur: 1.4, type: 'lowpass', f: 260, fEnd: 160, vol: 0.32 });
   }
+  // v5s22: carrello in corsa: sferragliare continuo (con la velocita') e colpi ai giunti delle rotaie
+  cartTick(on, speed, dt) {
+    if (!this.ready || !this.ctx || this.ctx.state !== 'running') return;
+    const c = this.ctx, t = c.currentTime;
+    if (on && !this.cartGain) {
+      const n = this._noiseSrc(true); this.cartF = c.createBiquadFilter(); this.cartF.type = 'bandpass'; this.cartF.frequency.value = 420; this.cartF.Q.value = 0.9;
+      this.cartGain = c.createGain(); this.cartGain.gain.value = 0; n.connect(this.cartF); this.cartF.connect(this.cartGain); this.cartGain.connect(this.sfx); n.start();
+      this._railD = 0;
+    }
+    if (!this.cartGain) return;
+    const k = Math.min(1, speed / 110);
+    this.cartGain.gain.setTargetAtTime(on && !this.muted ? 0.05 + 0.09 * k : 0, t, on ? 0.15 : 0.3);
+    this.cartF.frequency.setTargetAtTime(300 + 260 * k, t, 0.2);
+    if (!on) { this._railD = 0; return; }
+    this._railD += speed * dt;
+    if (this._railD >= 64 && !this.muted) {           // giunto della rotaia ogni ~6 m: due colpi (ruote davanti e dietro)
+      this._railD -= 64;
+      for (const dt2 of [0, 0.075]) { this._burst({ t: dt2, dur: 0.035, type: 'bandpass', f: 2100, q: 2.5, vol: 0.16 }); this._tone({ t: dt2, f: 140, fEnd: 90, dur: 0.05, type: 'square', vol: 0.05 }); }
+    }
+  }
+  cartClunk() {      // scambio azionato
+    if (!this.ok) return;
+    this._burst({ dur: 0.07, type: 'lowpass', f: 700, vol: 0.35 }); this._tone({ f: 95, fEnd: 60, dur: 0.12, type: 'square', vol: 0.12 });
+    this._burst({ t: 0.06, dur: 0.04, type: 'bandpass', f: 2600, q: 3, vol: 0.18 });
+  }
+  junctionCue() { if (!this.ok) return; this._tone({ f: 988, dur: 0.07, type: 'triangle', vol: 0.12 }); this._tone({ t: 0.09, f: 1319, dur: 0.09, type: 'triangle', vol: 0.12 }); }
+  junctionWarn() { if (!this.ok) return; for (const t of [0, 0.16]) this._tone({ t, f: 660, fEnd: 520, dur: 0.12, type: 'square', vol: 0.11 }); }
   cartSwitch() {
     if (!this.ok) return;
     for (const t of [0, 0.09]) { this._burst({ t, dur: 0.04, type: 'bandpass', f: 2400, q: 3, vol: 0.3 }); this._tone({ t, f: 320, fEnd: 200, dur: 0.06, type: 'square', vol: 0.08 }); }
@@ -385,6 +412,7 @@ class AudioSys {
   cartExit() {
     if (!this.ok) return;
     this._burst({ dur: 0.5, type: 'highpass', f: 3200, fEnd: 1800, vol: 0.14 });   // freno
+    this._tone({ f: 2350, fEnd: 1900, dur: 0.7, type: 'sawtooth', vol: 0.03 });        // v5s22: stridio dei freni
     this._tone({ t: 0.35, f: 140, fEnd: 60, dur: 0.2, type: 'sine', vol: 0.35 });
   }
   rumble() {

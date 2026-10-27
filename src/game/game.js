@@ -78,6 +78,7 @@ export class Game {
       case 'fuel': audio.pickup(d.e.kind); break;
       case 'pistol': audio.pistolPickup(); break;
       case 'collectible': bus.emit('collect', d); break;
+      case 'junctionCue': try { navigator.vibrate?.(d.safe ? 20 : [60, 40, 60]); } catch { /* non supportato */ } break;   // v5s22: vibrazione
       case 'puddle': audio.puddle(); break;
       case 'hit': audio.hit(); if (d.e && (d.e.kind === 'maimoni' || d.e.kind === 'fune')) audio.bellRing(this.bellPan(d.e)); break;
       case 'slip': audio.puddle(); break;
@@ -188,6 +189,7 @@ export class Game {
     if (!this.paused) {
       audio.fire(fuelF, dtReal, mode === 'run' || mode === 'attract');
       if ((this._ambT = (this._ambT || 0) + dtReal) > 0.25) { this._ambT = 0; audio.ambience(this.world.amb); audio.festa?.(this.sim.mode === 'run' && this.sim.debugFesta()); }
+      audio.cartTick?.(!!this.sim.cart && this.sim.mode === 'run' && !this.paused, this.sim.currentSpeed || 0, dtReal);   // v5s22: rumore del carrello
       if (mode === 'run') audio.setIntensity(1, difficultyAt(sim.runD));
       // v5s10: campanacci di su Maimoni e degli Stramaionis (volume per distanza, pan per corsia)
       if (mode === 'run' && !this.paused) {

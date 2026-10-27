@@ -80,6 +80,8 @@ export const CART = {
   END_FREE_M: 12,           // ultimo tratto libero prima della discesa
   P_TWO_BLOCKED: 0.6,       // probabilita' che due binari su tre siano interrotti
   PTS_JUNCTION: 60,
+  HIT_SLOW: 0.78,           // v5s22: nel carrello l'urto frena meno (a piedi WORLD.HIT_SLOW)
+  CUE_S: 2.6,               // v5s22: avviso (suono, vibrazione, segnali piu' grandi) X s prima dello scambio
 };
 
 // ---- v5s17: minatori di Funtana Raminosa e lampade a muro nella miniera (solo scena, non bloccano) ----
@@ -159,6 +161,9 @@ export const WORLD = {
   DYING_S: 0.9,            // animazione di spegnimento prima del game over
   HIT_SLOW: 0.55,          // moltiplicatore velocita subito dopo un urto
   HIT_RECOVER_S: 1.4,
+  HIT_EASE_S: 0.22,        // v5s22: la frenata dopo un urto entra in X s (prima era istantanea)
+  START_RAMP_S: 1.6,       // v5s22: partenza dolce: da START_K a piena velocita' in X s
+  START_K: 0.5,
 };
 
 // ---- Classifica demo (locale) -----------------------------------------

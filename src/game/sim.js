@@ -119,6 +119,7 @@ export class Sim {
       if (gap >= 0 && gap <= win) e.near = true;
     }
     this.targetLane = next;
+    if (this.cart) this.fx('sound', 'cartClunk');   // v5s22: cambio binario nel carrello
     this.inputs.push([this.step, dir]);
     return true;
   }
@@ -329,7 +330,13 @@ export class Sim {
     this.runTime += dt;
     const rd = this.runD;
     if (this.slowT < WORLD.HIT_RECOVER_S) this.slowT += dt;
-    const slow = lerp(WORLD.HIT_SLOW, 1, Math.min(1, this.slowT / WORLD.HIT_RECOVER_S));
+    // v5s22: frenata morbida dopo un urto (entra in HIT_EASE_S, poi recupera); nel carrello frena meno;
+    // partenza dolce nei primi START_RAMP_S secondi
+    const sm = (x) => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
+    const depth = 1 - (this.cart ? CART.HIT_SLOW : WORLD.HIT_SLOW), st = this.slowT, E = WORLD.HIT_EASE_S;
+    const slow = st >= WORLD.HIT_RECOVER_S ? 1 : 1 - depth * sm(st / E) * (1 - sm((st - E) / (WORLD.HIT_RECOVER_S - E)))
+;
+    const startK = this.mode === 'run' ? lerp(WORLD.START_K, 1, sm(this.runTime / WORLD.START_RAMP_S)) : 1;
     const steps = speedStepsAt(rd, this.mapOffsetM);
     if (steps > this.speedStep) {
       this.speedStep = steps; this.stats.speedSteps = steps;
@@ -370,7 +377,7 @@ export class Sim {
       if (this.cart) this.cart.t += dt; }
     // v5s20: il carrello accelera e frena dolcemente (prima la velocita' saltava di colpo a salita e discesa)
     this.cartSpK = (this.cartSpK || 1) + ((this.cart ? CART.SPEED_K : 1) - (this.cartSpK || 1)) * Math.min(1, dt * 1.6);
-    let speed = speedAt(rd, this.mapOffsetM) * slow * this.cartSpK * (this.mode === 'run' ? (this.skinK || 1) : 1);
+    let speed = speedAt(rd, this.mapOffsetM) * slow * startK * this.cartSpK * (this.mode === 'run' ? (this.skinK || 1) : 1);
     if (this.danceCue) speed *= lerp(DANCE.CUE_SLOW, 1, Math.max(0, Math.min(1, ((DANCE.AT_M - biomeAt(rd / PX_PER_METER + this.mapOffsetM).local) * PX_PER_METER) / this.danceCue.d0)));
     this.currentSpeed = speed;
     this.T += speed * dt;
@@ -494,6 +501,10 @@ export class Sim {
       const overlapD = e.d <= pFront && e.d + e.len >= pBack;
       if (e.kind === 'carrello') { if (e.d + e.len < pBack) e.done = true; continue; }
       if (e.kind === 'scambio') {      // v5s18: scambio superato: ok se non hai preso il binario interrotto
+        if (!e.cued && e.d - T < Math.max(120, this.currentSpeed * CART.CUE_S)) {   // v5s22: avviso dello scambio
+          e.cued = true; const safe = (e.open || []).includes(this.targetLane);
+          this.fx('junctionCue', { e, safe }); this.fx('sound', safe ? 'junctionCue' : 'junctionWarn');
+        }
         if (e.d + e.len < pBack) {
           // v5s20: conta solo l'urto con un binario interrotto di QUESTO scambio (prima qualsiasi urto precedente lo annullava)
           e.done = true; const good = !(this.cartBadJ && this.cartBadJ[e.junction]);

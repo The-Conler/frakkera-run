@@ -355,6 +355,7 @@ export class World {
     } else if (kind === 'scambio') {            // v5s18: segnali verdi sopra i binari aperti
       v.body = new THREE.Group();
       v.sig = [0, 1, 2].map(() => { const g = this.glowSprite('#4aff7a', 1.5, 0.95); v.body.add(g); return g; });
+      v.stop = [0, 1, 2].map(() => { const g = this.glowSprite('#ff3a2a', 1.3, 0.9); v.body.add(g); return g; });   // v5s22: rosso sui binari interrotti
     } else if (kind === 'minatore') {           // v5s17: minatore di Funtana Raminosa
       const mg = minerGeoms();
       if (!this.minerMats) {
@@ -456,7 +457,7 @@ export class World {
     v.t = Math.random() * 6;
     v.dead = false; v.hitT = 0; v.fallT = 0; v.landFx = false; v.flyT = 0;
     if (e.kind === 'deadend') v.deadM.forEach((m, i) => { m.visible = i === (e.variant || 0); });
-    if (e.kind === 'scambio') v.sig.forEach((g, l) => { g.visible = (e.open || []).includes(l); g.position.set(laneX(l) * U, 3.4, 0); });
+    if (e.kind === 'scambio') { v.sig.forEach((g, l) => { g.visible = (e.open || []).includes(l); g.position.set(laneX(l) * U, 3.4, 0); }); v.stop.forEach((g, l) => { g.visible = !(e.open || []).includes(l); g.position.set(laneX(l) * U, 3.4, 0); }); }
     if (e.kind === 'minatore') {
       v.poses.forEach((m, i) => { m.visible = i === (e.variant || 0); }); v.arm.visible = e.variant === 3;
       v.body.rotation.y = e.side < 0 ? 0.95 : -0.95; v.waveT = 0; v.body.scale.setScalar(1.5);
@@ -527,7 +528,11 @@ export class World {
         v.body.visible = !(sim.cart && e.lap === sim.cart.lap && e.lane === this.rideLane);   // v5s20: sparisce solo quello su cui si e' saliti
         if (v.shadow) v.shadow.visible = v.body.visible;
       } else if (e.kind === 'scambio') {
-        for (const g of v.sig) g.material.opacity = 0.8 + Math.sin(t * 6) * 0.15;
+        // v5s22: dall'avviso i segnali diventano grandi e pulsano (si leggono prima, anche su schermi piccoli)
+        v.cueK = Math.min(1, (v.cueK || 0) + (e.cued ? dt * 4 : 0));
+        const sz = 1 + v.cueK * (0.9 + Math.sin(t * 9) * 0.12);
+        for (const g of v.sig) { g.material.opacity = 0.8 + Math.sin(t * 6) * 0.15; g.scale.setScalar(1.5 * sz); }
+        for (const g of v.stop) { g.material.opacity = Math.sin(t * 8) > 0 ? 0.95 : 0.35; g.scale.setScalar(1.3 * sz); }
       } else if (e.kind === 'deadend') {
         v.glow.material.opacity = Math.sin(t * 7 + e.id) > 0 ? 0.95 : 0.25;
       } else if (e.kind === 'minatore') {
@@ -845,7 +850,10 @@ export class World {
       // per ambiente (config.light.camLook/camFov): un po' piu' larga e meno inclinata dove i monumenti devono entrare in verticale
       const L = this.light || {}, por = 1 - wide;
       cp = _v.set(px * 0.82 - 0.6, 6.4 - wide, pz + 9.4 - wide * 1.5); cl = _v2.set(px * 0.55 - 0.1, 1.8 + (L.camLook || 0) * por, pz - 15); fov = 64 - wide * 6 + (L.camFov || 0) * por;
-      if (L.camYaw) { cl.x += L.camYaw * por; cp.x -= L.camYaw * 0.3 * por; }   // v5s6: solo la piscina guarda un po' verso l'acqua a destra
+      if (L.camYaw) { cl.x += L.camYaw * por; cp.x -= L.camYaw * 0.3 * por; }
+      // v5s22: nel carrello camera piu' alta e piu' indietro: si vedono due scambi
+      this.cartCamK = (this.cartCamK || 0) + ((sim.cart ? 1 : 0) - (this.cartCamK || 0)) * Math.min(1, dt * 1.8);
+      const ck = this.cartCamK; if (ck > 1e-3) { cp.y += 1.5 * ck; cp.z += 1.8 * ck; cl.z -= 8 * ck; cl.y += 0.3 * ck; }   // v5s6: solo la piscina guarda un po' verso l'acqua a destra
     }
     const k = 1 - Math.exp(-dt * (view.cam === 'run' ? 7 : 2.6));
     this.camPos.lerp(cp, k);
@@ -872,7 +880,11 @@ export class World {
     this.far.visible = this.farVis > 0.01;
     this.far.position.set(0, -70 * (1 - this.farVis), camZ - FAR_Z);
     this.vista.visible = this.farVis > 0.02;
-    this.vista.position.set(VISTA.X, -60 * (1 - this.farVis) ** 0.7, this.camPos.z - VISTA.D - 40 * (1 - this.farVis));
+    // v5s22: il fondale chiesa+campanile e' fisso nel mondo (in fondo alla via, VISTA.AT_M nel paese): ci si avvicina
+    // passando la festa; solo a meno di VISTA.D resta a distanza costante (non lo si attraversa mai)
+    const cb = this.env.cur;
+    const vz0 = cb.b.id === 'village' ? -sim.T * U - (VISTA.AT_M - cb.local) : -Infinity;
+    this.vista.position.set(VISTA.X, -60 * (1 - this.farVis) ** 0.7, Math.min(vz0, this.camPos.z - VISTA.D) - 40 * (1 - this.farVis));
     this.moon.position.set(this.camera.position.x - 70, 150, camZ - 300);
     this.sunGlow.position.set(this.camera.position.x + 60, 16, camZ - 360);
     for (const c of this.clouds) c.position.set(c.userData.x + this.camera.position.x * 0.0 + Math.sin(this.clock * 0.02 + c.userData.y) * 10, c.userData.y, camZ - 320 + c.userData.z);

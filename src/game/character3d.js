@@ -22,6 +22,8 @@ export const CLIP_NAMES = ['idle', 'run', 'left', 'right', 'stumble', 'gameover'
 const FADE = { idle: 0.35, run: 0.25, left: 0.09, right: 0.09, stumble: 0.08, gameover: 0.3 };
 
 const _v = new THREE.Vector3(), _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion();
+const SEAT_Y = 0.05;
+const SEAT = { thigh: -1.35, calf: 1.45, spine: 0 };   // v5s22: posa seduta nel carrello (radianti, asse laterale)
 const DUCK_LEAN = 0.32, DUCK_TILT = -0.85;   // v5s6: piega del corpo e inclinazione della frakkera nell'abbassata
 const AX_FWD = new THREE.Vector3(0, 0, 1), AX_SIDE = new THREE.Vector3(1, 0, 0);
 const PISTOL_Q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2); // canna +x -> avanti (-z)
@@ -205,7 +207,7 @@ export class Character3D {
     this.root.position.set(px, 0, pz);
     this.root.rotation.y = this.facing + (this.state === 'run' ? (st.vx || 0) * 0.22 : 0);
     this.cartK = (this.cartK || 0) + ((st.cart ? 1 : 0) - (this.cartK || 0)) * Math.min(1, dt * 8);
-    if (this.cartK > 1e-3) this.root.position.y = 0.22 * this.cartK;   // v5s20: dentro il carrello (le gambe restano nascoste dalle sponde)
+    if (this.cartK > 1e-3) this.root.position.y = SEAT_Y * this.cartK;   // v5s20: dentro il carrello (le gambe restano nascoste dalle sponde)
     if (st.danceRy != null) { this.root.rotation.y = st.danceRy; this.root.position.y = st.danceHop || 0; }   // v5s11: nel cerchio del ballo
     // lampeggio durante l'invulnerabilita'
     this.model.visible = !(st.invuln > 0 && Math.floor(st.invuln * 14) % 2);
@@ -232,6 +234,13 @@ export class Character3D {
       _q.setFromAxisAngle(_v, sg.a); c.quaternion.premultiply(_q);
       _v.copy(AX_SIDE).applyQuaternion(this.root.quaternion).applyQuaternion(_q2);
       _q.setFromAxisAngle(_v, sg.p + DUCK_TILT * k + RAISE_TILT * this.raiseK); c.quaternion.premultiply(_q);   // v5s11: frakkera alzata nel ballo
+    }
+    // v5s22: seduto nel carrello: cosce in avanti, ginocchia piegate, busto un po' indietro
+    if (this.cartK > 1e-3) {
+      const ck = this.cartK;
+      const bend = (name, ang) => { const b = this.model.getObjectByName(name); if (!b) return; b.parent.updateWorldMatrix(true, false); b.parent.getWorldQuaternion(_q2).invert(); _v.copy(AX_SIDE).applyQuaternion(this.root.quaternion).applyQuaternion(_q2); _q.setFromAxisAngle(_v, ang * ck); b.quaternion.premultiply(_q); };
+      this.seatBones = this.seatBones || true;
+      bend('thigh_l', SEAT.thigh); bend('thigh_r', SEAT.thigh); bend('calf_l', SEAT.calf); bend('calf_r', SEAT.calf); bend('spine_01', SEAT.spine);
     }
     this.root.updateMatrixWorld(true);
     this.bones.tip.getWorldPosition(this.tipW);
