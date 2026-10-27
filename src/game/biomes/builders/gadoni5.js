@@ -52,11 +52,11 @@ export function buildVicolo(len = 26) {
   const L = -1;
   for (let z0 = 0; z0 > -len; z0 -= 3.25) {
     const c = r.pick(['#b9a183', '#c4ab88', '#ad9677', '#c9b394']);
-    const zc = z0 - 1.6, rec = zc > -20.5 && zc < 4 ? 4 : 0;          // slargo davanti al portone verde
+    const zc = z0 - 1.6, rec = zc > -26 && zc < -3 ? 4 : 0;          // slargo davanti al portone verde
     k.add(G.box(6, 9.5 + r.range(-0.4, 0.4), 3.3), c, { x: L * (E + 3 + rec), y: 4.75, z: zc, vary: 0.12 });
   }
-  for (const [za, zb] of [[-22, -len]]) { k.add(G.box(0.25, 0.7, za - zb), '#6d655a', { x: L * (E + 0.05), y: 0.35, z: (za + zb) / 2, vary: 0.2 }); k.add(G.box(0.35, 0.25, za - zb), '#8a7e6c', { x: L * (E + 0.05), y: 9.4, z: (za + zb) / 2 }); }
-  for (let i = 0; i < 6; i++) k.add(G.box(0.06, r.range(0.6, 1.6), r.range(0.8, 2.2)), r.pick(['#9c8467', '#a88f72', '#d0bea0']), { x: L * (E - 0.01), y: r.range(1.5, 7.5), z: -r.range(22.5, len - 0.5) });   // macchie d'umido
+  for (const [za, zb] of [[-26, -len]]) { k.add(G.box(0.25, 0.7, za - zb), '#6d655a', { x: L * (E + 0.05), y: 0.35, z: (za + zb) / 2, vary: 0.2 }); k.add(G.box(0.35, 0.25, za - zb), '#8a7e6c', { x: L * (E + 0.05), y: 9.4, z: (za + zb) / 2 }); }
+  for (let i = 0; i < 6; i++) k.add(G.box(0.06, r.range(0.6, 1.6), r.range(0.8, 2.2)), r.pick(['#9c8467', '#a88f72', '#d0bea0']), { x: L * (E - 0.01), y: r.range(1.5, 7.5), z: -r.range(26.5, len - 0.5) });   // macchie d'umido
   // portone verde a due ante sotto l'arco di pietra, su un risvolto di muro di sbieco verso chi arriva
   const dz = -8, dw = 3.4, dh = 4.6;
   { const F = slanted(k, -8.6, dz, -1);
@@ -64,8 +64,8 @@ export function buildVicolo(len = 26) {
     F(0.02, 0, (dh + 0.3) / 2, G.box(0.1, dh + 0.3, dw + 0.4), '#3a2e24');          // vano
     for (const sd of [-1, 1]) F(0.12, sd * (dw / 2 + 0.3), (dh + 0.4) / 2, G.box(0.3, dh + 0.4, 0.4), '#c2b6a2');   // stipiti di pietra
     for (const sd of [-1, 1]) {
-      F(0.1, sd * dw / 4, dh / 2, G.box(0.1, dh, dw / 2 - 0.05), '#2aa58e', { vary: 0.05 });
-      for (const [py, ph] of [[0.8, 1.1], [2.5, 1.5]]) F(0.17, sd * dw / 4, py, G.box(0.05, ph, dw / 2 - 0.4), '#33a892');
+      F(0.1, sd * dw / 4, dh / 2, G.box(0.1, dh, dw / 2 - 0.05), '#1d8a76', { unlit: true });
+      for (const [py, ph] of [[0.8, 1.1], [2.5, 1.5]]) F(0.17, sd * dw / 4, py, G.box(0.05, ph, dw / 2 - 0.4), '#27a088', { unlit: true });
     }
     F(0.2, 0.2, 1.6, G.box(0.06, 0.06, 0.3), '#c8b070');                              // maniglia
     F(0.12, 0, dh + 0.08, G.box(0.2, 0.18, dw + 0.4), '#4a3a2c');                    // traversa
@@ -73,8 +73,8 @@ export function buildVicolo(len = 26) {
     for (let i = 1; i < 8; i++) for (const rr of [0.35, 0.65, 0.95]) { const a = (i / 8) * Math.PI; F(0.18, Math.cos(a) * rr * dw / 2, dh + 0.17 + Math.sin(a) * rr * dw / 2, G.box(0.05, 0.12, 0.12), '#9a7a50'); }
     F(0.15, 0, dh + 0.17, arcGeo(dw / 2 + 0.3, 0.3, Math.PI), '#c2b6a2', { ry: (-Math.PI / 4) + Math.PI / 2 });
     F(0.1, -dw / 2 - 0.9, 2.5, G.box(0.06, 0.3, 0.3), '#2a5a50'); }
-  windowFace(k, L * E, 6.3, -24, -L, '#6b5a44'); windowFace(k, L * (E + 4), 6.3, -3, -L, '#6b5a44', true);
-  k.add(G.box(0.1, 1.5, 0.6), '#8a3a2a', { x: L * E, y: 0.75, z: -24, vary: 0.2 });                            // mattoni a vista
+  windowFace(k, L * E, 6.3, -29.5, -L, '#6b5a44'); windowFace(k, L * (E + 4), 6.3, -3, -L, '#6b5a44', true);
+  k.add(G.box(0.1, 1.5, 0.6), '#8a3a2a', { x: L * E, y: 0.75, z: -29, vary: 0.2 });                            // mattoni a vista
   // --- muro destro: casa rosata scrostata con porta azzurra e balcone di ferro azzurro
   const R = 1;
   for (let z0 = 0; z0 > -len; z0 -= 3.25) {
@@ -88,14 +88,14 @@ export function buildVicolo(len = 26) {
   { const F = slanted(k, -9.0, bz, -1);   // a SINISTRA: a destra la coprirebbe la fiamma
     F(-0.5, 0, 5, G.box(1.0, 10, 6.0), '#d4b49c', { vary: 0.08 });
     F(0.03, 0, 1.6, G.box(0.1, 3.2, 2.5), '#e2ddd2');                                  // cornice chiara
-    for (const sd of [-1, 1]) { F(0.1, sd * 0.55, 1.45, G.box(0.1, 2.85, 1.05), '#2f8cf0', { vary: 0.04 });
-      for (let j = 0; j < 4; j++) F(0.16, sd * 0.55, 0.5 + j * 0.65, G.box(0.04, 0.05, 0.9), '#2370c8'); }
+    for (const sd of [-1, 1]) { F(0.1, sd * 0.55, 1.45, G.box(0.1, 2.85, 1.05), '#2a7ad8', { unlit: true });
+      for (let j = 0; j < 4; j++) F(0.16, sd * 0.55, 0.5 + j * 0.65, G.box(0.04, 0.05, 0.9), '#1d60b0', { unlit: true }); }
     F(0.03, 0, 3.75, G.box(0.1, 0.9, 1.6), '#3a3634');                               // sopraluce
     F(0.5, 0, 4.6, G.box(1.0, 0.14, 3.0), '#9a948a');                                // soletta del balcone
-    F(1.0, 0, 5.55, G.box(0.06, 0.07, 3.0), '#2a7ff0');
-    for (let i = 0; i <= 16; i++) F(1.0, -1.5 + i * 0.1875, 5.1, G.box(0.04, 0.9, 0.04), '#2a7ff0');
-    for (const sd of [-1, 1]) F(0.5, sd * 1.5, 5.55, G.box(1.0, 0.06, 0.06), '#2a7ff0');
-    for (const sd of [-1, 1]) F(0.12, sd * 0.42, 5.7, G.box(0.1, 2.1, 0.8), '#2f8cf0');   // porta-finestra azzurra
+    F(1.0, 0, 5.55, G.box(0.06, 0.07, 3.0), '#2468d0', { unlit: true });
+    for (let i = 0; i <= 16; i++) F(1.0, -1.5 + i * 0.1875, 5.1, G.box(0.04, 0.9, 0.04), '#2468d0', { unlit: true });
+    for (const sd of [-1, 1]) F(0.5, sd * 1.5, 5.55, G.box(1.0, 0.06, 0.06), '#2468d0', { unlit: true });
+    for (const sd of [-1, 1]) F(0.12, sd * 0.42, 5.7, G.box(0.1, 2.1, 0.8), '#2a7ad8', { unlit: true });   // porta-finestra azzurra
     F(0.05, 2.6, 4.75, G.cyl(0.05, 0.05, 9.5, 5), '#c97a6a'); }
   windowFace(k, R * E, 6.4, -6, -R, '#2f8cf0', true); windowFace(k, R * E, 3.6, -3, -R, '#6b5a44');
   // lampada a braccio sul muro destro

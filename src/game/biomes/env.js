@@ -136,7 +136,7 @@ const valleyRock = (Bm) => N.valleyTerrain(Bm - 30, 430, { side: -1, x0: 14.5, t
 // at: punto di riferimento (distanza locale nel bioma); exist: [da, a] relativo ad at in cui esiste
 const LANDMARKS = {
   church: { at: 140, exist: [-200, 70] },
-  vicolo: { at: 194, exist: [-200, 40] },      // v5s23c: vicolo delle porte (target5-vicolo-porte)
+  vicolo: { at: 188, exist: [-200, 40] },      // v5s23c: vicolo delle porte (target5-vicolo-porte)
   cappella: { at: 222, exist: [-200, 40] },    // v5s23c: cappella tonda (target5-cappella-tonda)
   pinnacle: { at: 230, exist: [-290, 120] },
   valley: { at: 0, exist: [-30, 390] },
@@ -623,7 +623,7 @@ export class Env {
       const W = this.dW, i = this.info(W + 0.01), r = this.dR;
       const step = r.range(18, 30);
       const inSquare = this.mode !== 'attract' && i.b.id === 'village' && i.local > 128 && i.local < 200;
-      if (i.b.decor.banners && !inSquare && i.local < 186) {   // v5s23c: niente festoni sopra vicolo e cappella
+      if (i.b.decor.banners && !inSquare && i.local < 176) {   // v5s23c: niente festoni sopra vicolo e cappella
         const bulbs = i.b.decor.bulbs && r.chance(0.55);
         const pf = bulbs ? this.prefab('bulbs', r.int(4), () => ({ geom: buildBulbString(r.lastInt + 1), w: 0, lamps: [] })) : this.prefab('banner', r.int(4), () => ({ geom: M.buildBanner(r.lastInt + 1, FACADE), w: 0, lamps: [] }));
         const pool = this.pools.get(pf.key) || []; let m = pool.pop();
@@ -708,7 +708,7 @@ export class Env {
         else m.position.set(h.x - pf.w, 0, h.z);            // facciata verso +z
       }
     } else if (id === 'vicolo') {
-      cached('vicolo', () => buildVicolo(26));
+      cached('vicolo', () => buildVicolo(32));
     } else if (id === 'cappella') {
       // specchiata: la cappella a SINISTRA della via (a destra la coprirebbe la fiamma), case bianche a destra
       root.scale.x = -1;
