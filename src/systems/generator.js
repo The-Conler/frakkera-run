@@ -7,7 +7,7 @@
 // mobili compaiono solo in "finestre calme" senza altri ostacoli.
 // Tappeti, combustibile e pistola si piazzano solo in celle libere.
 // =====================================================================
-import { DIFFICULTY as DF, WORLD, PX_PER_METER, CARPETS as CP, PISTOL, SPEED_STEPS as SS, BIOME_OBST as BO, DUCK, MASKS as MK, FIRE, MINE, CART, COLLECT } from '../config.js';
+import { DIFFICULTY as DF, WORLD, PX_PER_METER, CARPETS as CP, PISTOL, SPEED_STEPS as SS, BIOME_OBST as BO, DUCK, MASKS as MK, FIRE, MINE, CART, COLLECT, DANCE } from '../config.js';
 import { biomeAt, BIOMES } from '../game/biomes/config.js';
 import { makeRng } from './rng.js';
 
@@ -120,7 +120,7 @@ export class Generator {
     if (this.cartLap !== c.lap && (c.local >= 0 || c.local > -ROW / PX_PER_METER * 2.2)) {
       this.cartLap = c.lap; this.cartJ = 0;
       this.nextJunction = r + (c.local < 0 ? Math.ceil(CART.FIRST_M * PX_PER_METER / ROW) + 1 : 3);
-      if (c.local < 0) for (let l = 0; l < L; l++) emit({ kind: 'carrello', lane: l, d: D + 6, len: 14, lap: c.lap });   // carrelli fermi, uno per binario
+      if (c.local < 0) { const dB = Math.round(D - c.local * PX_PER_METER) - 10; for (let l = 0; l < L; l++) emit({ kind: 'carrello', lane: l, d: dB, len: 14, lap: c.lap }); }   // v5s20: carrelli fermi proprio dove si sale   // carrelli fermi, uno per binario
     }
     if (c.local < 0) { this.carpetRow(r, D, diff, used, emit); return true; }   // tratto libero prima della salita
     if (r >= this.nextJunction && c.local < CART.LEN_M - CART.END_FREE_M) {
@@ -202,6 +202,13 @@ export class Generator {
     emit({ kind: cr() < COLLECT.P_FACCIOLA ? 'facciola' : 'campanaccio', lane, d: D + 9, len: 12, pickup: true, collect: this.collects });
   }
 
+  // v5s20: la fila D e' vicina al punto del ballu tundu (metri prima / dopo)?
+  nearDance(D, before, after) {
+    const bi = biomeAt(D / PX_PER_METER + this.offM);
+    if (bi.b.id !== 'village') return false;
+    return bi.local > DANCE.AT_M - before && bi.local < DANCE.AT_M + after;
+  }
+
   rowDist(r) { return WORLD.LEAD_IN + r * WORLD.ROW; }
 
   fillUntil(maxDist, emit) {
@@ -238,7 +245,8 @@ export class Generator {
     if (!this.parade && !longActive && r >= this.nextParadeAt && D / PX_PER_METER >= MK.FROM_M &&
         biomeIdAt(D, this.offM) === 'village') {
       const bi = biomeAt(D / PX_PER_METER + this.offM), lap = bi.lap;
-      if (bi.local < bi.b.to - bi.b.from - 90 && rng() < MK.P_LAP[Math.min(lap, MK.P_LAP.length - 1)]) {
+      // v5s20: il corteo non entra mai nel cerchio del ballu tundu (piazza della chiesa)
+      if (bi.local < bi.b.to - bi.b.from - 90 && !this.nearDance(D, 90, 30) && rng() < MK.P_LAP[Math.min(lap, MK.P_LAP.length - 1)]) {
         const g = ++this.paradeG;
         this.calmUntil = r + 6;
         this.nextMovingAt = Math.max(this.nextMovingAt, r + 14);
@@ -283,6 +291,7 @@ export class Generator {
 
     // ---- v5s10: i due Stramaionis con la fune tesa su 2 corsie (ci si abbassa), poi sa Grastula ----
     const pa = this.parade;
+    if (pa && r >= pa.next && this.nearDance(D, 55, 30)) pa.next = r + 1;   // v5s20: niente fune/fuso nel cerchio del ballo
     if (pa && r >= pa.next && !longActive) {
       if (pa.stage === 1) {
         const left = this.path === 0 ? 1 : this.path === L - 1 ? 0 : (rng() < 0.5 ? 0 : 1);  // il sentiero resta libero se si puo'

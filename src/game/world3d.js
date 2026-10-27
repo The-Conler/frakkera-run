@@ -503,7 +503,7 @@ export class World {
         if (v.shadow) v.shadow.visible = true;
       } else if (e.kind === 'carrello') {
         // il carrello del binario del giocatore sparisce quando ci sale (lo prende il carrello in corsa)
-        v.body.visible = !(sim.cart && e.lane === sim.targetLane && e.d - sim.T < 40) && !(sim.cart && e.d - sim.T < 0 && e.lane === this.rideLane);
+        v.body.visible = !(sim.cart && e.lap === sim.cart.lap && e.lane === this.rideLane);   // v5s20: sparisce solo quello su cui si e' saliti
         if (v.shadow) v.shadow.visible = v.body.visible;
       } else if (e.kind === 'scambio') {
         for (const g of v.sig) g.material.opacity = 0.8 + Math.sin(t * 6) * 0.15;
@@ -688,6 +688,7 @@ export class World {
       case 'duck': { const x = sim.px * U; this.dustPuff(x, pz + 0.4, 6); break; }
       case 'die': this.smokeAtTip(30); this.burnT = 0; this.burnKeep = this.char3d.keep ?? 1; break;
       case 'start': case 'attract':
+        this.rideOn = false; this.rideLeft = null; if (this.ride) { this.ride.visible = false; this.rideShadow.visible = false; }   // v5s20: niente carrello della corsa prima
         this.add.clear(); this.norm.clear(); this.shards.clear();
         if (type === 'start') this.env.startRun(sim.T * U); else this.env.toAttract(sim.T * U);
         this.burnT = -1; this.char3d.setBurn?.(null, 0);
@@ -754,7 +755,7 @@ export class World {
 
   // ------------------------------------------------------------ frame
   setMood(name) { this.moodName = name; }
-  setSkin(id) { this.skinId = id; this.char3d?.setSkin?.(id); }
+  setSkin(id) { this.skinId = id; this.skinShown = null; }
   // bersaglio: ambiente nel punto del giocatore (+ menu al crepuscolo nel paese, + tinta del game over)
   updateMood(dt, fuelF = 1) {
     const env = this.env, tgt = this.tgt;
@@ -787,7 +788,11 @@ export class World {
     for (const c of this.clouds) { c.material.color.copy(m.hor).lerp(_c2.set('#ffffff'), 0.35); c.visible = L.tunnel < 0.98; }
   }
 
-  setPixelRatio(pr) {
+  // v5s20: il cambio di risoluzione si applica subito prima del render dello stesso frame
+  // (prima svuotava la tela a fine frame: un fotogramma blu vuoto lampeggiava sui telefoni lenti)
+  setPixelRatio(pr) { this.pendingPR = pr; }
+  applyPixelRatio() {
+    const pr = this.pendingPR; this.pendingPR = null;
     this.renderer.setPixelRatio(pr);
     if (this.w) this.resize(this.w, this.h);
   }
@@ -874,6 +879,9 @@ export class World {
     if (use3d) {
       if (dpos) { view.char.danceRy = dpos.ry; view.char.danceHop = dpos.hop; } else view.char.danceRy = null;
       view.char.cart = sim.cart ? 1 : 0;
+      // v5s20: nel cerchio del ballu tundu si balla col vestito della festa (niente maschera di su Stramaioni tra i ballerini)
+      { const want = (sim.mode === 'dance' || this.dance.state === 'dance') ? 'base' : (this.skinId || 'base');
+        if (want !== this.skinShown) { if (this.skinShown && this.skinId !== 'base') this.dustPuff(px, pz, 16); this.skinShown = want; c3.setSkin?.(want); } }
       c3.update(dt, view.char, dpos ? dpos.x : px, dpos ? dpos.z : pz);
       this.updateRideCart(sim, dt, px, pz, view);
       c3.tipWorld(this.tipW);
@@ -933,6 +941,7 @@ export class World {
     }
     if (this.flashT > 0) { this.flashT -= dt; this.flash.position.copy(this.muzzleW); this.flash.scale.setScalar(1.4 + (0.09 - this.flashT) * 8); if (this.flashT <= 0) this.flash.visible = false; }
     this.add.update(dt); this.norm.update(dt); this.shards.update(dt);
+    if (this.pendingPR) this.applyPixelRatio();
     if (this.shopView) {   // v5s7: dentro il Garag di Pinu (scena a parte)
       if (!this.renderer.shadowMap.enabled) { this.renderer.shadowMap.enabled = true; this.renderer.shadowMap.type = THREE.PCFSoftShadowMap; }   // v5s7b: ombre solo nel negozio (la strada non ha luci con ombre)
       const sh = this.shopRoom || (this.shopRoom = buildShopRoom());

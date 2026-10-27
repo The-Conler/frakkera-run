@@ -336,7 +336,7 @@ svg { display: block; }
 
 /* ---- v5s11: ballu tundu ---- */
 #dance-ui { position: absolute; inset: 0; pointer-events: none; z-index: 6; }
-#dance-ui .dn-head { position: absolute; top: calc(env(safe-area-inset-top) + 70px); left: 0; right: 0; text-align: center; color: #fff4d8; text-shadow: 0 2px 6px #000a, 0 0 18px #ff9a3a88; }
+#dance-ui .dn-head { position: absolute; top: calc(env(safe-area-inset-top) + 186px); /* v5s20: sotto HUD e SALTA */ left: 0; right: 0; text-align: center; color: #fff4d8; text-shadow: 0 2px 6px #000a, 0 0 18px #ff9a3a88; }
 #dance-ui .dn-head b { display: block; font: 900 26px/1 var(--font-title, system-ui); letter-spacing: 2px; }
 #dance-ui .dn-head span { font: 800 13px/1.6 system-ui; letter-spacing: 1.5px; opacity: .9; }
 #dn-canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
@@ -430,7 +430,8 @@ svg { display: block; }
 /* v5s19: costumi */
 #scr-menu .menu-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
 #scr-menu .tile { min-width: 0; }
-#scr-menu .tile span { font-size: calc(var(--u) * 8); max-width: 100%; overflow-wrap: anywhere; }
+#scr-menu .tile span { font-size: calc(var(--u) * 9.5); max-width: 100%; hyphens: manual; overflow-wrap: normal; word-break: normal; line-height: 1.02; }
+@media (max-width: 374px) { #scr-menu .tile span { font-size: calc(var(--u) * 9.8); } #scr-menu .tile { aspect-ratio: 1 / 1.3; } #scr-menu .tile svg { height: 38%; } }
 .coll-bar { display: flex; gap: 10px; justify-content: center; margin: 4px 0 12px; }
 .coll-cell { display: flex; align-items: center; gap: 8px; background: rgba(20,18,40,0.55); border-radius: 12px; padding: 6px 14px; color: #fff; }
 .coll-cell svg { width: 30px; height: 30px; }
@@ -452,3 +453,6 @@ svg { display: block; }
 .skin-tag { background: rgba(0,0,0,0.3); border-radius: 10px; padding: 5px 8px; font-size: 12px; }
 .skin-tag.on { background: #f6c341; color: #2a1a05; font-family: var(--f-disp); font-size: 14px; }
 .skin-act .btn.small { padding: 8px 12px; min-height: 0; font-size: 15px; }
+
+/* v5s20: card dei costumi a 360 px: il pulsante va sotto il testo */
+@media (max-width: 400px) { .skin-card { flex-wrap: wrap; } .skin-txt { flex-basis: calc(100% - 70px); } .skin-act { flex-basis: 100%; display: flex; justify-content: flex-end; } }

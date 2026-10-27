@@ -173,7 +173,7 @@ export class Character3D {
       T.stumble = s;
       const r = 1 - s;
       T.left = Math.max(0, l) * r; T.right = Math.max(0, -l) * r; T.run = (1 - Math.abs(l)) * r;
-      if (st.cart) { T.idle = T.run; T.run = 0; T.left *= 0.5; T.right *= 0.5; T.idle += (T.left + T.right); }   // v5s18: in piedi nel carrello
+      if (st.cart) { T.idle = T.run + T.left + T.right + T.stumble; T.run = 0; T.left = 0; T.right = 0; T.stumble = 0; }   // v5s20: seduto nel carrello anche cambiando binario o urtando   // v5s18: in piedi nel carrello
     }
     let sum = 0;
     for (const k of CLIP_NAMES) {
@@ -205,7 +205,7 @@ export class Character3D {
     this.root.position.set(px, 0, pz);
     this.root.rotation.y = this.facing + (this.state === 'run' ? (st.vx || 0) * 0.22 : 0);
     this.cartK = (this.cartK || 0) + ((st.cart ? 1 : 0) - (this.cartK || 0)) * Math.min(1, dt * 8);
-    if (this.cartK > 1e-3) this.root.position.y = 0.55 * this.cartK;
+    if (this.cartK > 1e-3) this.root.position.y = 0.22 * this.cartK;   // v5s20: dentro il carrello (le gambe restano nascoste dalle sponde)
     if (st.danceRy != null) { this.root.rotation.y = st.danceRy; this.root.position.y = st.danceHop || 0; }   // v5s11: nel cerchio del ballo
     // lampeggio durante l'invulnerabilita'
     this.model.visible = !(st.invuln > 0 && Math.floor(st.invuln * 14) % 2);

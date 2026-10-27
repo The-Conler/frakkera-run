@@ -472,7 +472,7 @@ export function initUI(game) {
       if (cur === k.id) btn = '<span class="skin-tag on">IN USO</span>';
       else if (owned) btn = `<button class="btn btn-primary small" data-skin="${k.id}" data-op="use">SCEGLI</button>`;
       else if (can) btn = `<button class="btn btn-primary small" data-skin="${k.id}" data-op="buy">SBLOCCA</button>`;
-      else btn = `<span class="skin-tag">MANCANO ${Math.max(0, k.cost.bell - c.bell)}${use('i-bell')} ${Math.max(0, k.cost.sweet - c.sweet)}${use('i-sweet')}</span>`;
+      else { const mb = Math.max(0, k.cost.bell - c.bell), ms = Math.max(0, k.cost.sweet - c.sweet); btn = `<span class="skin-tag">MANCANO ${mb ? `${mb}${use('i-bell')}` : ''} ${ms ? `${ms}${use('i-sweet')}` : ''}</span>`; }   // v5s20: solo quello che manca
       const cost = owned ? '' : `<div class="skin-cost">${k.cost.bell}${use('i-bell')} ${k.cost.sweet}${use('i-sweet')}</div>`;
       return `<div class="skin-card ${cur === k.id ? 'sel' : ''} ${owned ? '' : 'locked'}" data-id="${k.id}"><div class="skin-ico skin-${k.id}">${use(k.id === 'base' ? 'i-flame' : 'i-mask')}</div><div class="skin-txt"><b>${k.name}</b><p>${k.desc}</p>${cost}</div><div class="skin-act">${btn}</div></div>`;
     }).join('');
