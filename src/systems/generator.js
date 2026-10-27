@@ -7,8 +7,8 @@
 // mobili compaiono solo in "finestre calme" senza altri ostacoli.
 // Tappeti, combustibile e pistola si piazzano solo in celle libere.
 // =====================================================================
-import { DIFFICULTY as DF, WORLD, PX_PER_METER, CARPETS as CP, PISTOL, SPEED_STEPS as SS, BIOME_OBST as BO, DUCK, MASKS as MK, FIRE, MINE, CART, COLLECT, DANCE, FESTA } from '../config.js';
-import { biomeAt, BIOMES } from '../game/biomes/config.js';
+import { DIFFICULTY as DF, WORLD, PX_PER_METER, CARPETS as CP, PISTOL, SPEED_STEPS as SS, BIOME_OBST as BO, DUCK, MASKS as MK, FIRE, MINE, CART, COLLECT, DANCE, FESTA, SANTAMARTA } from '../config.js';
+import { biomeAt, BIOMES, CYCLE } from '../game/biomes/config.js';
 import { makeRng } from './rng.js';
 
 export const lerp = (a, b, t) => a + (b - a) * t;
@@ -65,6 +65,13 @@ export const BIOME_OBST_KIND = { village: 'rollin', rock: 'sasso', river: 'bagna
 export const MASK_KINDS = { maimoni: true, fune: true, fuso: true };
 // v5s16: frakkere accese a bordo strada (non occupano corsie)
 export const SIDE_KINDS = { falo: true, minatore: true, lampada: true, carrello: true, scambio: true, bancarella: true, folla: true, festone: true };
+// v5 stage 24: navata di Santa Marta alla distanza m (metri assoluti): null o { lap, local }
+export function santaMartaAt(m, lead = 0, tail = 0) {
+  // misurata dall'inizio del paese nel giro (la navata sconfina nei primi metri della roccia)
+  const v = BIOMES.find((b) => b.id === SANTAMARTA.BIOME), mm = Math.max(0, m), lap = Math.floor(mm / CYCLE), local = mm - lap * CYCLE - v.from;
+  if (local < SANTAMARTA.FROM_M - lead || local >= SANTAMARTA.FROM_M + SANTAMARTA.LEN_M + tail) return null;
+  return { lap, local: local - SANTAMARTA.FROM_M };
+}
 // v5s21: tratto in festa del paese alla distanza m (metri assoluti): null o { lap, local }
 export function festaAt(m) {
   const bi = biomeAt(Math.max(0, m));
@@ -245,6 +252,8 @@ export class Generator {
   rowDist(r) { return WORLD.LEAD_IN + r * WORLD.ROW; }
 
   fillUntil(maxDist, emit) {
+    // v5 stage 24: nessun ostacolo (anche mobile, nato nelle file prima) dentro la navata di Santa Marta
+    const em = emit; emit = (e) => { if (!MASK_KINDS[e.kind] && (SOLID[e.kind] || e.kind === 'pozza' || e.kind === 'trave') && (santaMartaAt((e.d) / PX_PER_METER + this.offM, SANTAMARTA.LEAD_M, 2) || santaMartaAt((e.d + (e.len || 0)) / PX_PER_METER + this.offM, SANTAMARTA.LEAD_M, 2))) return; em(e); };
     while (this.rowDist(this.row) < maxDist) {
       this._used = null;
       this.genRow(this.row, emit);
@@ -261,6 +270,8 @@ export class Generator {
     const diff = difficultyAt(D);
     const used = new Array(L).fill(false); this._used = used;
     for (let l = 0; l < L; l++) if (this.blockedUntil[l] >= r) used[l] = true;
+    // v5 stage 24: dentro Santa Marta niente ostacoli ne' falo' (si corre sulla passatoia): solo tappeti
+    if (santaMartaAt(D / PX_PER_METER + this.offM, SANTAMARTA.LEAD_M, 2)) { this.carpetRow(r, D, diff, used, emit); return; }
     this.maybeFire(r, D, emit);
     this.maybeMine(r, D, emit);
     this.maybeFesta(r, D, emit);

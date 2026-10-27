@@ -286,3 +286,10 @@ export const FESTA = {
   PTS: 20,
   STREAK: 6,                // ogni X tappeti di fila nella festa: la folla esulta
 };
+
+// v5 stage 24: chiesa di Santa Marta attraversata di corsa (fine del paese): navata libera, solo tappeti sulla passatoia
+export const SANTAMARTA = {
+  BIOME: 'village',
+  FROM_M: 240, LEN_M: 30,   // facciata a fine paese (dopo vicolo e cappella), la navata sconfina nei primi metri della roccia
+  LEAD_M: 8,                // niente ostacoli anche sui gradini davanti al portone
+};
