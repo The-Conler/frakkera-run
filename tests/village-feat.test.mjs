@@ -35,7 +35,7 @@ const run = (sim, n, f) => { for (let i = 0; i < n; i++) { if (f) f(i); sim.tick
 { // panni: abbassandosi si passa
   const { sim } = base(); const p = put(sim, { kind: 'panni', lane: 1, len: 10 }, 60);
   run(sim, 200, () => { if (p.d - sim.T < 30 && sim.duckT <= 0 && !p.hit) sim.duck?.(); sim.fuel = 100; });
-  ok('panni: abbassandosi (log L)', p.ducked && sim.stats.laundry === 1 && sim.events.some((e) => e[1] === 'L') && sim.stats.hits === 0);
+  ok('panni: abbassandosi (log vL)', p.ducked && sim.stats.laundry === 1 && sim.events.some((e) => e[1] === 'vL') && sim.stats.hits === 0);
 }
 { // panni: senza abbassarsi si prende in pieno
   const { sim } = base(); put(sim, { kind: 'panni', lane: 1, len: 10 }, 60); const f0 = sim.fuel;
@@ -46,7 +46,7 @@ const run = (sim, n, f) => { for (let i = 0; i < n; i++) { if (f) f(i); sim.tick
   const { sim, fx } = base(); sim.targetLane = 0; sim.lane = 0; sim.px = -WORLD.LANE_W;
   const w = put(sim, { kind: 'tessitrice', lane: 0, side: -1, len: 16 }, 80); const c0 = sim.carpetTotal, s0 = sim.score;
   run(sim, 200);
-  ok('tessitrice: tappeto bonus (log W)', w.thrown && sim.stats.weaverCarpets === 1 && sim.stats.carpets === 1 && sim.events.some((e) => e[1] === 'W') && sim.score - s0 >= VILLAGE.WEAVER_PTS);
+  ok('tessitrice: tappeto bonus (log vW)', w.thrown && sim.stats.weaverCarpets === 1 && sim.stats.carpets === 1 && sim.events.some((e) => e[1] === 'vW') && sim.score - s0 >= VILLAGE.WEAVER_PTS);
   ok('tessitrice: effetto e nessun urto', fx.some((x) => x[0] === 'weaverThrow') && sim.stats.hits === 0);
 }
 { const { sim } = base(); const w = put(sim, { kind: 'tessitrice', lane: 2, side: 1, len: 16 }, 80); run(sim, 200);
@@ -54,17 +54,17 @@ const run = (sim, n, f) => { for (let i = 0; i < n; i++) { if (f) f(i); sim.tick
 { // processione: urto = fuoco, non morte, niente frenata
   const { sim } = base(); const p = put(sim, { kind: 'processione', lane: 1, len: VILLAGE.PROC_LEN }, 60);
   let minF = 99; run(sim, 220, () => { if (!p.hit) sim.fuel = 5; else minF = Math.min(minF, sim.fuel + 0.5); if (p.hit && minF < 99) sim.fuel = Math.max(sim.fuel, 0.95); });
-  ok('processione: urto (log I), fuoco mai sotto 1', p.hit && sim.stats.procHits === 1 && sim.events.some((e) => e[1] === 'I' && e[2] <= 4) && minF >= 0.9 && sim.mode === 'run', `fuoco min ${minF.toFixed(2)}`);
+  ok('processione: urto (log vI), fuoco mai sotto 1', p.hit && sim.stats.procHits === 1 && sim.events.some((e) => e[1] === 'vI' && e[2] <= 4) && minF >= 0.9 && sim.mode === 'run', `fuoco min ${minF.toFixed(2)}`);
   ok('processione: non conta come urto solido', sim.stats.hits === 0);
 }
 { const { sim } = base(); sim.targetLane = 0; sim.lane = 0; sim.px = -WORLD.LANE_W; const p = put(sim, { kind: 'processione', lane: 1, len: VILLAGE.PROC_LEN }, 60);
   run(sim, 260, () => { sim.fuel = 100; });
-  ok('processione schivata: VIVA SANTA MARTA (log i)', p.done && !p.hit && sim.stats.procClean === 1 && sim.events.some((e) => e[1] === 'i')); }
+  ok('processione schivata: VIVA SANTA MARTA (log vi)', p.done && !p.hit && sim.stats.procClean === 1 && sim.events.some((e) => e[1] === 'vi')); }
 { // finestre: scia di tappeti nel paese fuori dalla festa
   const { sim, fx } = base(180);
   for (let i = 0; i < VILLAGE.CHEER_STREAK; i++) put(sim, { kind: 'tappeto', lane: 1, len: 8, pickup: true }, 40 + i * 14);
   run(sim, 240, () => { sim.fuel = 100; });
-  ok('scia nel paese: esultano dalle finestre (log V)', sim.stats.windowCheers === 1 && sim.events.some((e) => e[1] === 'V') && fx.some((x) => x[0] === 'windowCheer'), `${sim.stats.carpets} tappeti`);
+  ok('scia nel paese: esultano dalle finestre (log vV)', sim.stats.windowCheers === 1 && sim.events.some((e) => e[1] === 'vV') && fx.some((x) => x[0] === 'windowCheer'), `${sim.stats.carpets} tappeti`);
 }
 console.log(fail ? `\n${fail} FALLITI` : '\nTUTTI OK');
 process.exit(fail ? 1 : 0);

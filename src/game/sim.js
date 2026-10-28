@@ -595,7 +595,7 @@ export class Sim {
       if (e.kind === 'tessitrice') {  // feat-village: passando nella sua corsia laterale ti lancia un tappeto
         if (!e.thrown && overlapD && Math.abs(px - laneX(e.lane)) <= VILLAGE.WEAVER_BRUSH_PX) {
           e.thrown = true; this.stats.weaverCarpets++; this.stats.carpets++; this.carpetTotal = this.addCarpets(1);
-          const pts = this.addBonus(VILLAGE.WEAVER_PTS); this.log('W', pts);
+          const pts = this.addBonus(VILLAGE.WEAVER_PTS); this.log('vW', pts);
           this.fx('weaverThrow', { e, pts, total: this.carpetTotal }); this.fx('popup', { text: `TAPPETO! +${pts}`, style: 'gold' }); this.fx('sound', 'cheer');
         }
         if (e.d + e.len < pBack) e.done = true;
@@ -605,7 +605,7 @@ export class Sim {
         if (!e.hit && overlapD && Math.abs(ex - px) <= hw + PLAYER_HALF && this.invuln <= 0) { this.hitProcession(e); continue; }
         if (e.d + e.len < pBack) {
           e.done = true;
-          if (!e.hit) { this.stats.procClean++; const pts = this.addBonus(VILLAGE.PROC_PTS); this.log('i', pts); this.fx('popup', { text: `VIVA SANTA MARTA! +${pts}`, style: 'gold' }); this.fx('sound', 'cheer'); }
+          if (!e.hit) { this.stats.procClean++; const pts = this.addBonus(VILLAGE.PROC_PTS); this.log('vi', pts); this.fx('popup', { text: `VIVA SANTA MARTA! +${pts}`, style: 'gold' }); this.fx('sound', 'cheer'); }
         }
         continue;
       }
@@ -639,7 +639,7 @@ export class Sim {
           if (this.invuln <= 0) { this.hitSolid(e); continue; }
         }
         if (e.kind === 'panni') {       // feat-village: i panni della nonna: ci si abbassa
-          if (this.duckT > 0) { e.hit = true; e.ducked = true; this.stats.laundry++; this.log('L', 0); this.fx('ducked', { e }); continue; }
+          if (this.duckT > 0) { e.hit = true; e.ducked = true; this.stats.laundry++; this.log('vL', 0); this.fx('ducked', { e }); continue; }
           if (this.invuln <= 0) { this.hitSolid(e); continue; }
         }
         if (e.kind === 'trave') {
@@ -756,7 +756,7 @@ export class Sim {
       // v5s21: nella festa la folla esulta per le scie di tappeti (solo effetto, nel log)
       const vm = this.runD / PX_PER_METER + this.mapOffsetM;
       // feat-village: nel paese (fuori dalla festa) i paesani esultano dalle finestre per le scie
-      if (this.carpetStreak % VILLAGE.CHEER_STREAK === 0 && this.mode !== 'attract' && biomeAt(vm).b.id === VILLAGE.BIOME && !festaAt(vm)) { this.stats.windowCheers++; const wp = this.addBonus(VILLAGE.CHEER_PTS); this.log('V', wp); this.fx('windowCheer', { streak: this.carpetStreak }); this.fx('sound', 'crowdRoar'); }
+      if (this.carpetStreak % VILLAGE.CHEER_STREAK === 0 && this.mode !== 'attract' && biomeAt(vm).b.id === VILLAGE.BIOME && !festaAt(vm)) { this.stats.windowCheers++; const wp = this.addBonus(VILLAGE.CHEER_PTS); this.log('vV', wp); this.fx('windowCheer', { streak: this.carpetStreak }); this.fx('sound', 'crowdRoar'); }
       if (this.carpetStreak % FESTA.STREAK === 0 && festaAt(vm)) { this.stats.roars++; this.log('Y', this.carpetStreak); this.fx('crowdRoar', { streak: this.carpetStreak }); this.fx('sound', 'crowdRoar'); }
       return;
     }
@@ -835,7 +835,7 @@ export class Sim {
     e.hit = true; this.stats.procHits++;
     const loss = Math.min(VILLAGE.PROC_FUEL, Math.max(0, this.fuel - 1));
     this.fuel -= loss; this.carpetStreak = 0; this.invuln = WORLD.HIT_INVULN_S;
-    this.log('I', Math.round(loss));
+    this.log('vI', Math.round(loss));
     this.fx('procBump', { e }); this.fx('popup', { text: 'ATTENTO ALLA SANTA!', style: 'white' }); this.fx('sound', 'nearMiss');
   }
   hitPuddle(e) {
