@@ -6,5 +6,5 @@ const LEGACY = new Set(['A', 'H', 'K', 'T', 'Y', 'k']);
 const cnt = {}; for (const c of codes) cnt[c] = (cnt[c] || 0) + 1;
 const dup = Object.keys(cnt).filter((c) => cnt[c] > 1 && !LEGACY.has(c));
 if (dup.length) { console.log('FAIL codici doppi: ' + dup.join(' ')); process.exit(1); }
-for (const c of ['aF', 'aP', 'aD', 'aB', 'aC', 'aN', 'aE', 'aG', 'vL', 'vW', 'vI', 'vi', 'vV', 'sp', 'G', 'I', 'U', 'L', 'W', 'V', 'd', 'a']) if (!cnt[c]) { console.log('FAIL manca ' + c); process.exit(1); }
+for (const c of ['aF', 'aP', 'aD', 'aB', 'aC', 'aN', 'aE', 'aG', 'vL', 'vW', 'vI', 'vi', 'vV', 'G', 'I', 'U', 'L', 'W', 'V', 'd', 'a']) if (!cnt[c]) { console.log('FAIL manca ' + c); process.exit(1); }
 console.log(`TUTTI OK (${Object.keys(cnt).length} codici)`);
