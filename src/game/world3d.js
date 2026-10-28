@@ -458,8 +458,6 @@ export class World {
       v.body = new THREE.Mesh(this.geo.carpet, this.mat.carpet[(e.variant || 0) % 4]);
       v.glow = this.glowSprite('#ff7a5a', 2.6, 0.32);
       v.shadow = this.blob(2.2, 1.4);
-    } else if (kind === 'split') {               // v5 split: il blocco si vede nel monumento del paese (env.js)
-      v.body = new THREE.Group();
     } else if (kind === 'pistola') {
       v.body = new THREE.Group();
       const m = new THREE.Mesh(this.geo.pistol, this.mats2); m.scale.setScalar(1.25); v.body.add(m);

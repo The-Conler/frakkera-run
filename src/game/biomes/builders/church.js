@@ -296,7 +296,7 @@ export function buildChurchSquare(seed = 1) {
   // tanti fili di luci a raggiera dalla cima del campanile: attraverso la via verso la chiesa, la capanna,
   // le case dei due lati prima e dopo la piazza
   // v5s12: fili di luci a zig-zag ATTRAVERSO la via (target4), da una facciata all'altra
-  for (let z = 30; z > -24; z -= 4.5) {   // v5 split: niente fili sopra il vicolo in mezzo alla via (da 168 m)
+  for (let z = 30; z > -70; z -= 4.5) {
     const y1 = 7.6 + r.range(-0.5, 0.5), y2 = 7.6 + r.range(-0.5, 0.5);
     catenary(k, new THREE.Vector3(7.0, y1, z), new THREE.Vector3(-7.0, y2, z - 2.2), r.range(1.2, 2.0), true, lamps, 0.9, 7);
   }
