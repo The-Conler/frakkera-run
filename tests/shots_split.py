@@ -2,8 +2,8 @@
 import asyncio, json, sys
 from playwright.async_api import async_playwright
 URL = 'http://127.0.0.1:4799/'
-SHOTS = {0: [(150, 'avvicinamento-vicolo'), (174, 'vicolo-sinistra'), (190, 'avvicinamento-cappella'), (209, 'cappella-sinistra')],
-         2: [(176, 'vicolo-destra'), (210, 'cappella-destra')]}
+SHOTS = {0: [(150, 'avvicinamento-vicolo'), (170, 'vicolo-sinistra'), (190, 'avvicinamento-cappella'), (207, 'cappella-sinistra')],
+         2: [(170, 'vicolo-destra'), (179, 'vicolo-destra-porta'), (207, 'cappella-destra')]}
 async def main():
     async with async_playwright() as p:
         b = await p.chromium.launch(executable_path='/usr/bin/google-chrome', args=['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'])

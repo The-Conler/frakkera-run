@@ -714,7 +714,7 @@ export class Env {
       root.scale.x = -1;
       cached('cappella', () => buildCappella());
       cached('cappellaL', () => buildCappellaLeft());
-      for (const x of [-2.5, 2.5]) lamps.push(this.lamp(x, 4.5, 0.6 - W, '#ffd890', 2.4, 0.7));
+      for (const x of [-0.2, 0.2]) lamps.push(this.lamp(x, 4.5, 0.6 - W, '#ffd890', 2.4, 0.7));
     } else if (id === 'pinnacle') {
       const m = cached('pinnacle', () => N.buildPinnacle(3)); m.position.set(-30, 0, 0); m.rotation.y = 0.4;    // nella valle a SINISTRA del sentiero: a destra c'e' la fiamma che la coprirebbe
     } else if (id === 'valley') {

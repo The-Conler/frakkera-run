@@ -72,8 +72,6 @@ export function buildVicolo(len = 26) {
   k.add(G.box(0.9, 0.06, 0.06), '#2a2d31', { x: R * (E - 0.45), y: 6.2, z: -23 });
   k.add(G.cyl(0.05, 0.32, 0.2, 8), '#c8ccd0', { x: R * (E - 0.95), y: 6.05, z: -23 });
   k.add(G.cyl(0.14, 0.14, 0.06, 8), '#fff0c8', { x: R * (E - 0.95), y: 5.94, z: -23, unlit: true });
-  // lastre di scisto sui marciapiedi (pavimento del vicolo ai lati)
-  for (let i = 0; i < 26; i++) { const s = r.chance(0.5) ? -1 : 1; k.add(G.box(r.range(0.6, 1.1), 0.05, r.range(0.6, 1.2)), r.pick(['#6f6a62', '#7d776d', '#625d56']), { x: s * r.range(5.8, 6.8), y: 0.16, z: -r.range(0.5, len - 0.5), ry: r.range(-0.4, 0.4) }); }
   centralBlock(k, r, BLOCK_LEN);
   return k.build({ ao: 0.25 });
 }
@@ -81,7 +79,7 @@ export function buildVicolo(len = 26) {
 // v5 split: blocco di case IN MEZZO alla via (da z = 0 a z = -len, |x| <= BW): la strada si divide in due
 // vicoli stretti. Lato sinistro: portone verde ad arco con lunetta a raggiera; lato destro: porta azzurra e
 // balcone di ferro azzurro; in testa (verso chi arriva) uno spigolo d'intonaco consumato con finestra e lampione.
-export const BLOCK_LEN = 20, BLOCK_W = 1.9;
+export const BLOCK_LEN = 20, BLOCK_W = 1.5;
 function centralBlock(k, r, len) {
   const BW = BLOCK_W, H = 9.5;
   for (let z0 = 0; z0 > -len; z0 -= 4) {
@@ -126,11 +124,9 @@ function centralBlock(k, r, len) {
   for (const sd of [-1, 1]) P(0.1, sd * 0.4, 5.7, G.box(0.1, 2.1, 0.75), '#2a7ad8', { unlit: true });
   P(0.05, 2.4, 4.75, G.cyl(0.05, 0.05, 9.5, 5), '#c97a6a');
   windowFace(k, xr, 6.4, -4, R, '#2f8cf0', true); windowFace(k, xr, 3.4, -4, R, '#6b5a44');
-  // lastricato di scisto dei due vicoli
-  for (let i = 0; i < 30; i++) { const s = r.chance(0.5) ? -1 : 1; k.add(G.box(r.range(0.6, 1.1), 0.05, r.range(0.6, 1.2)), r.pick(['#6f6a62', '#7d776d', '#625d56']), { x: s * r.range(2.3, 5.2), y: 0.14, z: -r.range(0.5, len - 0.5), ry: r.range(-0.4, 0.4) }); }
 }
 
-export const CAP_RAD = 1.9, CAP_LEN = 11;
+export const CAP_RAD = 1.6, CAP_LEN = 11;
 export function buildCappella() {
   const k = new Kit(5201), r = rng(5201);
   // v5 split: cappella tonda IN MEZZO alla via (pianta ovale, da z = 0 a z = -CAP_LEN): si gira a sinistra o a destra
@@ -158,7 +154,7 @@ export function buildCappella() {
   F(ct, 3.6, G.box(0.1, 1.3, 0.06), '#1e1b1a', { dz: 0.04 }); F(ct, 3.9, G.box(0.8, 0.1, 0.06), '#1e1b1a', { dz: 0.04 });
   F(-1.35, 3.1, G.box(0.32, 1.0, 0.08), '#ece6d8', { dz: 0.02 });
   // lampioni di ferro ai due lati dello sdoppiamento
-  streetLamp(k, -1.5, 0.6, 1); streetLamp(k, 1.5, 0.6, -1);
+  streetLamp(k, -1.2, 0.6, -1); streetLamp(k, 1.2, 0.6, 1);   // bracci verso il centro: niente sopra le corsie
   // case bianche con balconi dietro, e di la' dal ramo
   for (const [x, z, w, h, d] of [[21, -4, 7, 8.5, 7], [21, -13.5, 7, 9.5, 8], [16.5, -24, 9, 8, 6]]) {
     k.add(G.box(d, h, w), r.pick(['#eeeae2', '#e6e2d8', '#f2efe8']), { x, y: h / 2, z, vary: 0.05 });

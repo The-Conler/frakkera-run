@@ -296,5 +296,5 @@ export const SPLIT = {
   ],
   CLEAR_BEFORE_M: 42,                        // niente altri ostacoli da qui fino alla fine del blocco
   CLEAR_AFTER_M: 12,                         // dopo il blocco: tempo per tornare in mezzo
-  HALF_W: 19,                                // px: mezza larghezza del blocco (corsie laterali a 34 px restano libere)
+  HALF_W: 16,                                // px: mezza larghezza del blocco (corsie laterali a 34 px restano libere)
 };
