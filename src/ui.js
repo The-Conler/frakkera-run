@@ -2,7 +2,7 @@
 // Interfaccia HTML/CSS sopra il canvas 3D: menu, HUD, pannelli, game over.
 // Tutti i pulsanti sono elementi reali; le icone sono SVG inline.
 // =====================================================================
-import { SCORE, FUEL, DEMO_BOARD, PISTOL, SHOP, DANCE, SKINS } from './config.js';
+import { SCORE, FUEL, DEMO_BOARD, PISTOL, SHOP, DANCE, SKINS, UPGRADES, POWER } from './config.js';
 import { bus } from './bus.js';
 import { audio } from './systems/audio.js';
 import * as store from './systems/storage.js';
@@ -334,6 +334,29 @@ export function initUI(game) {
           if (nb) { const f = document.createElement('span'); f.className = 'si-fly'; f.textContent = `-${it.price}`; nb.appendChild(f); }
           const w = $('.shop-wallet'); w.classList.remove('bump'); void w.offsetWidth; w.classList.add('bump');
         } else if (nb) { nb.classList.remove('nope'); void nb.offsetWidth; nb.classList.add('nope'); }
+      });
+      box.appendChild(b);
+    }
+    // v5s25: migliorie permanenti (3 livelli, salvate in locale, fuori dal tetto per visita)
+    const h = document.createElement('div'); h.className = 'up-head'; h.textContent = 'MIGLIORIE PER SEMPRE'; box.appendChild(h);
+    const UPICO = { calamita: 'i-magnet', finocchio: 'i-fennel', scarponi: 'i-boots', fiamma: 'i-flame' };
+    const BASE = { calamita: POWER.MAGNET_S, finocchio: POWER.FENNEL_S, scarponi: POWER.BOOTS_S };
+    for (const u of UPGRADES) {
+      const lvl = (st.up && st.up[u.id]) || 0, max = lvl >= 3, price = u.prices[Math.min(2, lvl)];
+      const now = u.unit === '%' ? `-${Math.round(u.add * lvl * 100)}% consumo` : `${(BASE[u.id] + u.add * lvl).toFixed(1).replace('.0', '')} s`;
+      const b = document.createElement('button'); b.className = 'shop-item up-item'; b.dataset.up = u.id;
+      const poor = !max && st.carpetTotal < price;
+      if (max) b.classList.add('owned'); else if (poor) b.classList.add('poor');
+      b.innerHTML = `<span class="si-ico">${use(UPICO[u.id])}</span>`
+        + `<span class="si-text"><span class="si-name">${u.name}</span><span class="si-desc">${now} <span class="up-lv">${[0, 1, 2].map((i) => `<i class="${i < lvl ? 'on' : ''}"></i>`).join('')}</span></span></span>`
+        + (max ? '<span class="si-tag">MAX</span>' : poor ? `<span class="si-tag">MANCANO ${price - st.carpetTotal}</span>` : `<span class="si-price">${price}<svg><use href="#i-carpet"/></svg></span>`);
+      if (max || poor) b.disabled = true;
+      b.addEventListener('click', (e) => {
+        e.preventDefault(); e.stopPropagation();
+        const r = game.buyUpgrade(u.id); const say = $('#shop-say');
+        say.textContent = r.ok ? `Livello ${r.level}: lavoro fatto bene!` : SAY[r.why] || 'Non si pu\u00f2.';
+        renderShop();
+        if (r.ok) { const w = $('.shop-wallet'); w.classList.remove('bump'); void w.offsetWidth; w.classList.add('bump'); }
       });
       box.appendChild(b);
     }

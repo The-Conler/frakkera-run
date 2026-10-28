@@ -7,7 +7,7 @@ import { difficultyAt } from '../systems/generator.js';
 import { Sim } from './sim.js';
 import { World } from './world3d.js';
 import { audio } from '../systems/audio.js';
-import { getBest, addCarpets, getCarpetTotal, spendCarpets, addCollectible, getSkin } from '../systems/storage.js';
+import { getBest, addCarpets, getCarpetTotal, spendCarpets, addCollectible, getSkin, getUpgrades, setUpgrade } from '../systems/storage.js';
 import { bus } from '../bus.js';
 
 export class Game {
@@ -15,7 +15,7 @@ export class Game {
     this.container = container;
     this.debug = new URLSearchParams(location.search).get('debug') || '';
     this.world = new World(container);
-    this.sim = new Sim((t, d) => this.onFx(t, d), { debug: this.debug, getBest, addCarpets, spendCarpets, addCollectible, carpetTotal: getCarpetTotal(), mapOffsetM: (this.world.env && this.world.env.offset) || 0 });
+    this.sim = new Sim((t, d) => this.onFx(t, d), { debug: this.debug, getBest, addCarpets, spendCarpets, addCollectible, carpetTotal: getCarpetTotal(), getUpgrades, setUpgrade, mapOffsetM: (this.world.env && this.world.env.offset) || 0 });
     this.paused = false;
     this.accum = 0;
     this.last = 0;
@@ -50,8 +50,10 @@ export class Game {
     audio.setIntensity(0);
   }
   duck() { return this.sim.duck(); }
+  jump() { return this.sim.jump(); }
   // v5s7: Garag di Pinu (tutte le regole nella sim, qui solo vista e audio)
   enterShop() { const ok = this.sim.enterShop(); if (ok) { this.world.shopView = true; audio.click(); } return ok; }
+  buyUpgrade(id) { return this.sim.buyUpgrade(id); }
   buyItem(id) { const r = this.sim.buy(id); if (r.ok) { audio.pistolPickup(); this.world.shopNod(); } else audio.empty(); return r; }
   leaveShopView() { this.world.shopView = false; }
   exitShop() { this.world.shopView = false; this.accum = 0; return this.sim.exitShop(); }
@@ -85,6 +87,12 @@ export class Game {
       case 'slip': audio.puddle(); break;
       case 'rockFall': audio.rockFall?.(); break;
       case 'duck': audio.duck?.(); break;
+      case 'jumped': audio.nearMiss?.(); break;
+      case 'jumpHint': {
+        let seen = false; try { seen = localStorage.getItem('frakkera.jumphint.v1') === '1'; localStorage.setItem('frakkera.jumphint.v1', '1'); } catch { /* privato */ }
+        if (!seen || this.debug.includes('hint')) bus.emit('popup', { text: 'SCORRI SU PER SALTARE', style: 'hint' });
+        break;
+      }
       case 'speedUp': bus.emit('speedup', d); break;
       case 'shopOffer': bus.emit('shopOffer', d); audio.milestone(); break;
       case 'shopOfferEnd': bus.emit('shopOfferEnd'); break;
@@ -124,7 +132,7 @@ export class Game {
         this.sim.danceInput(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up')); q.swiped = true; return;
       }
       if (Math.abs(dx) >= 20 && Math.abs(dx) > Math.abs(dy) * 1.1) { this.sim.move(dx > 0 ? 1 : -1); q.swiped = true; }
-      else if (dy <= -26 && Math.abs(dy) > Math.abs(dx) * 1.3) { this.fire(); q.swiped = true; }
+      else if (dy <= -26 && Math.abs(dy) > Math.abs(dx) * 1.3) { this.jump(); q.swiped = true; }   // v5s25: swipe su = salto (si spara col pulsante)
       else if (dy >= 26 && Math.abs(dy) > Math.abs(dx) * 1.3) { this.duck(); q.swiped = true; }
     });
     const up = (p) => {
@@ -150,7 +158,8 @@ export class Game {
       }
       if (k === 'ArrowLeft' || k === 'KeyA') { if (!e.repeat) this.sim.move(-1); }
       else if (k === 'ArrowRight' || k === 'KeyD') { if (!e.repeat) this.sim.move(1); }
-      else if (k === 'Space' || k === 'KeyW' || k === 'ArrowUp') this.fire();
+      else if (k === 'Space') this.fire();
+      else if (k === 'KeyW' || k === 'ArrowUp') { if (!e.repeat) this.jump(); }
       else if (k === 'ArrowDown' || k === 'KeyS') { if (!e.repeat) this.duck(); }
       else if ((k === 'KeyP' || k === 'Escape') && this.sim.mode === 'run') bus.emit('request-pause');
     });
@@ -177,7 +186,7 @@ export class Game {
     const fuelF = Math.max(0, sim.fuel) / FUEL.MAX;
     const ch = this.character || (this.character = {});
     ch.mode = mode; ch.speed = sim.currentSpeed; ch.clock = sim.clock; ch.vx = sim.vx; ch.invuln = sim.invuln; ch.targetLane = sim.targetLane;
-    ch.duck = mode === 'run' ? sim.duckT : 0; ch.slip = sim.slipT; ch.fuelLow = sim.fuel < FUEL.LOW_WARNING; ch.armed = mode === 'run' && (sim.ammo > 0 || sim.recoilT > 0);
+    ch.duck = mode === 'run' ? sim.duckT : 0; ch.jumpH = mode === 'run' ? sim.jumpH : 0; ch.slip = sim.slipT; ch.fuelLow = sim.fuel < FUEL.LOW_WARNING; ch.armed = mode === 'run' && (sim.ammo > 0 || sim.recoilT > 0);
     ch.recoil = sim.recoilT; ch.flameOn = mode === 'run' || mode === 'attract' || mode === 'dance'; ch.raise = mode === 'dance' ? 1 : 0; ch.downT = this.downT;
     const view = this.view || (this.view = {});
     view.cam = mode === 'attract' ? 'menu' : mode === 'dance' ? 'dance' : (mode === 'run' || mode === 'shop') ? 'run' : 'over';   // v5s7b: in negozio/3-2-1 resta la camera di corsa

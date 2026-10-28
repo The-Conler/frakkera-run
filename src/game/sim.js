@@ -54,7 +54,7 @@ export class Sim {
     this.cart = null; this.cartLap = -1; this.cartSpK = 1;
     this.duckT = 0; this.duckCd = 0; this.slipT = 0; this.speedStep = 0; this.beamHint = false;
     this.magnetT = 0; this.fennelT = 0; this.bootsT = 0; this.bootsTick = 0;
-    this.jumpT = 0; this.jumpCd = 0; this.jumpH = 0; this.wetT = 0;
+    this.jumpHint = false; this.jumpT = 0; this.jumpCd = 0; this.jumpH = 0; this.wetT = 0;
     this.carpetStreak = 0; this.ammo = 0; this.fireCd = 0; this.recoilT = 0;
     this.shots = [];
     this.nextSurvival = SCORE.SURVIVAL_EVERY_S;
@@ -529,6 +529,7 @@ export class Sim {
         if (!e.warned && e.d - T < sp * MASKS.FUSO_WARN_S + 30) { e.warned = true; this.fx('spindleWarn', { e }); }
         if (!e.landed && e.d - T < sp * MASKS.FUSO_THROW_S + 30) { e.landed = true; this.stats.spindles++; this.log('J', e.lane); this.fx('spindleThrow', { e }); this.fx('sound', 'spindle'); }
       }
+      if (!this.jumpHint && JUMP.KINDS[e.kind] && e.kind !== 'pozza' && e.kind !== 'acqua' && e.kind !== 'bagnato' && this.runTime > 4 && e.lane === this.targetLane && e.d - T < (this.currentSpeed || 0) * 1.4 && e.d > T) { this.jumpHint = true; this.fx('jumpHint', { e }); }
       if (e.kind === 'ramo' && !e.hint && !this.beamHint && e.d - T < (this.currentSpeed || 0) * 1.7) { e.hint = true; this.beamHint = true; this.fx('beamHint', { e }); }
       if (e.kind === 'trave' && !e.hint && !this.beamHint && e.d - T < (this.currentSpeed || 0) * 1.7) {
         e.hint = true; this.beamHint = true; this.fx('beamHint', { e });

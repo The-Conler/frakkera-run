@@ -336,6 +336,7 @@ class AudioSys {
   magnetOn() { if (!this.ok) return; this._tone({ f: 220, fEnd: 880, dur: 0.35, type: 'sawtooth', vol: 0.05 }); this._tone({ t: 0.05, f: 440, fEnd: 1320, dur: 0.3, type: 'sine', vol: 0.07 }); }
   fennelOn() { if (!this.ok) return; this._burst({ dur: 0.18, type: 'bandpass', f: 2400, q: 1.5, vol: 0.18 }); [0, 4, 7, 12].forEach((s, i) => this._tone({ t: 0.05 + i * 0.06, f: 523 * Math.pow(2, s / 12), dur: 0.14, type: 'triangle', vol: 0.08 })); }
   bootsOn() { if (!this.ok) return; for (let i = 0; i < 4; i++) this._burst({ t: i * 0.07, dur: 0.03, type: 'bandpass', f: 900 + i * 200, q: 3, vol: 0.3 }); this._tone({ t: 0.1, f: 330, fEnd: 990, dur: 0.3, type: 'square', vol: 0.05 }); }
+  jump() { if (!this.ok) return; this._tone({ f: 260, fEnd: 620, dur: 0.16, type: 'triangle', vol: 0.09 }); this._burst({ dur: 0.05, type: 'lowpass', f: 600, vol: 0.2 }); }
   branchDuck() { if (!this.ok) return; this._burst({ dur: 0.25, type: 'bandpass', f: 1800, q: 0.8, vol: 0.2 }); }
   powerEnd() { if (!this.ok) return; this._tone({ f: 660, fEnd: 330, dur: 0.2, type: 'triangle', vol: 0.06 }); }
   shoot() {

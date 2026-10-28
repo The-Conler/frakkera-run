@@ -1,3 +1,4 @@
+import { rainLap } from '../systems/weather.js';
 // v5 stage 23: giornata di neve. Giro 1 normale; nel giro 2 comincia a nevicare e si imbiancano appena tetti e
 // bordi; dal giro 3 tutto bianco. Solo grafica (nessun effetto sulla simulazione, quindi resta deterministica):
 // il livello dipende solo dalla distanza percorsa. Nella galleria della miniera la neve non c'e'.
@@ -15,6 +16,8 @@ const sm = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
 export function snowAt(b) {
   const lap = Math.floor(Math.max(0, b) / CYCLE), f = (Math.max(0, b) - lap * CYCLE) / CYCLE;
   if (lap <= 0) return { ground: 0, fall: 0, lap };
+  if (rainLap(lap)) return { ground: 1 - sm(0, 0.12, f), fall: 0, lap };          // v5s25: la pioggia scioglie la neve
+  if (lap > 2 && rainLap(lap - 1)) return { ground: sm(0, SNOW_CFG.FULL_AT, f), fall: 1, lap };
   if (lap === 1) return { ground: SNOW_CFG.DUST * sm(0.02, 0.7, f), fall: sm(0.0, 0.08, f) * 0.75, lap };
   return { ground: lap === 2 ? SNOW_CFG.DUST + (1 - SNOW_CFG.DUST) * sm(0, SNOW_CFG.FULL_AT, f) : 1, fall: 1, lap };
 }
@@ -80,6 +83,35 @@ export function buildFlakes(n, tex) {
       }`,
     fragmentShader: `uniform sampler2D uMap; uniform float uA; varying float vA;
       void main() { float a = texture2D(uMap, gl_PointCoord).a * uA * vA; if (a < 0.02) discard; gl_FragColor = vec4(0.96, 0.98, 1.0, a); }`,
+    transparent: true, depthWrite: false, fog: false,
+  });
+  const pts = new THREE.Points(g, m); pts.frustumCulled = false; pts.renderOrder = 17; pts.visible = false;
+  return pts;
+}
+
+// v5s25: pioggia (gocce allungate che cadono veloci, stesso trucco dei fiocchi: tutto nello shader)
+export function buildRain(n) {
+  const g = new THREE.BufferGeometry();
+  const p = new Float32Array(n * 3), s = new Float32Array(n);
+  let x = 777;
+  const rnd = () => { x = (x * 16807) % 2147483647; return x / 2147483647; };
+  for (let i = 0; i < n; i++) { p[i * 3] = (rnd() - 0.5) * 40; p[i * 3 + 1] = rnd() * 20; p[i * 3 + 2] = -rnd() * 50; s[i] = rnd(); }
+  g.setAttribute('position', new THREE.BufferAttribute(p, 3)); g.setAttribute('seed', new THREE.BufferAttribute(s, 1));
+  const m = new THREE.ShaderMaterial({
+    uniforms: { uT: { value: 0 }, uCam: { value: new THREE.Vector3() }, uA: { value: 0 }, uPR: { value: 1 } },
+    vertexShader: `attribute float seed; uniform float uT, uPR; uniform vec3 uCam; varying float vA;
+      void main() {
+        vec3 q = position;
+        q.y = mod(q.y - uT * (16.0 + seed * 8.0), 20.0) - 4.0;
+        q.z = mod(q.z - uCam.z + 50.0, 50.0) - 50.0 + uCam.z;
+        q.x += uCam.x; q.y += uCam.y - 3.0;
+        vec4 mv = modelViewMatrix * vec4(q, 1.0);
+        gl_Position = projectionMatrix * mv;
+        gl_PointSize = clamp(160.0 * uPR / -mv.z, 2.0, 22.0 * uPR);
+        vA = smoothstep(-48.0, -30.0, q.z - uCam.z) * smoothstep(0.0, -2.5, q.z - uCam.z) * (0.5 + seed * 0.5);
+      }`,
+    fragmentShader: `uniform float uA; varying float vA;
+      void main() { vec2 c = gl_PointCoord - 0.5; float a = (1.0 - smoothstep(0.02, 0.07, abs(c.x + c.y * 0.12))) * (1.0 - smoothstep(0.3, 0.5, abs(c.y))) * uA * vA; if (a < 0.02) discard; gl_FragColor = vec4(0.75, 0.82, 0.95, a * 0.7); }`,
     transparent: true, depthWrite: false, fog: false,
   });
   const pts = new THREE.Points(g, m); pts.frustumCulled = false; pts.renderOrder = 17; pts.visible = false;

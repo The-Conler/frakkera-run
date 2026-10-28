@@ -463,3 +463,10 @@ svg { display: block; }
 .chip-power .ptime { min-width: 12px; font-weight: 800; }
 .chip-power .pbar { width: 26px; height: 5px; border-radius: 3px; background: rgba(255,255,255,0.18); overflow: hidden; }
 .chip-power .pbar i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, #b8f070, #f5d53a); }
+
+/* v5s25: migliorie permanenti nel Garag di Pinu */
+.up-head { grid-column: 1 / -1; font-weight: 800; font-size: 11px; letter-spacing: .08em; color: #ffe2a0; margin: 6px 2px 0; }
+.up-item .si-ico svg { width: 30px; height: 30px; }
+.up-lv { display: inline-flex; gap: 3px; vertical-align: middle; margin-left: 4px; }
+.up-lv i { width: 8px; height: 8px; border-radius: 2px; background: rgba(255,255,255,0.22); }
+.up-lv i.on { background: linear-gradient(#fff2a8, #f5a623); }
