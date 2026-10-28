@@ -470,3 +470,5 @@ svg { display: block; }
 .up-lv { display: inline-flex; gap: 3px; vertical-align: middle; margin-left: 4px; }
 .up-lv i { width: 8px; height: 8px; border-radius: 2px; background: rgba(255,255,255,0.22); }
 .up-lv i.on { background: linear-gradient(#fff2a8, #f5a623); }
+
+#scr-howto .items svg.ico { width: 34px; height: 34px; flex: none; }

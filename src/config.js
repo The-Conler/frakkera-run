@@ -315,5 +315,5 @@ export const UPGRADES = [
 export const WEATHER = {
   RAIN_FROM_LAP: 3,        // giro (da 0) della prima notte di pioggia; poi un giro si' e uno no
   PUDDLE_GAP_ROWS: [8, 18], PUDDLE_SLOW: 0.86, PUDDLE_SLOW_S: 0.55,
-  FOG_BIOMES: ['rock', 'river'], FOG_BLOCK_M: 130, FOG_P: 0.45, FOG_LEN_M: [35, 65], FOG_FAR: 0.2,
+  FOG_BIOMES: ['rock', 'river'], FOG_BLOCK_M: 130, FOG_P: 0.6, FOG_LEN_M: [35, 65], FOG_FAR: 0.14,
 };
