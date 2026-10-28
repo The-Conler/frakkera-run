@@ -9,8 +9,8 @@
   <meta name="description" content="FRAKKERA RUN - Quanto lontano riuscirai a portare il fuoco? Minigioco arcade ispirato a Is Frakkeras di Gadoni." />
   <title>FRAKKERA RUN</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-  <script type="module" crossorigin src="./assets/index-D5h9oKQI.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-B9oeYzTj.css">
+  <script type="module" crossorigin src="/frakkera-run/v5/assets/index-BeaHvANI.js"></script>
+  <link rel="stylesheet" crossorigin href="/frakkera-run/v5/assets/index-eRNC52yO.css">
 </head>
 <body>
   <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -38,6 +38,9 @@
     <symbol id="i-sound" viewBox="0 0 24 24"><path fill="currentColor" d="M3.5 9h4l5-4.5v15l-5-4.5h-4z"/><path d="M15.5 8.5c1.4 1.8 1.4 5.2 0 7M18.2 6c2.8 3.3 2.8 8.7 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
     <symbol id="i-mute" viewBox="0 0 24 24"><path fill="currentColor" d="M3.5 9h4l5-4.5v15l-5-4.5h-4z"/><path d="M15.5 9l5 6M20.5 9l-5 6" stroke="#ff7a5a" stroke-width="2.2" stroke-linecap="round"/></symbol>
     <symbol id="i-music" viewBox="0 0 24 24"><path fill="currentColor" d="M9 5.5l11-2.5v12.2a3 3 0 11-2-2.8V7.3l-7 1.6v8.3a3 3 0 11-2-2.8z"/></symbol>
+    <symbol id="i-magnet" viewBox="0 0 24 24"><path fill="#d8342c" stroke="#5a1410" stroke-width="1.1" stroke-linejoin="round" d="M4 4h5v8a3 3 0 006 0V4h5v8a8 8 0 01-16 0z"/><path fill="#dfe4ec" stroke="#5a1410" stroke-width="1" d="M4 4h5v3.2H4zM15 4h5v3.2h-5z"/></symbol>
+    <symbol id="i-fennel" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.5" fill="none" stroke="#3f6a1e" stroke-width="4"/><circle cx="12" cy="12" r="7.5" fill="none" stroke="#8fbf45" stroke-width="2.2" stroke-dasharray="4 2.2"/><circle cx="12" cy="4.6" r="1.6" fill="#f5d53a"/><circle cx="18.4" cy="15.7" r="1.6" fill="#f5d53a"/><circle cx="5.6" cy="15.7" r="1.6" fill="#f5d53a"/></symbol>
+    <symbol id="i-boots" viewBox="0 0 24 24"><path fill="#7a4a26" stroke="#3a2210" stroke-width="1.1" stroke-linejoin="round" d="M7 3h6v10l6 2.5c1.4.6 2 1.6 2 3V20H4.5V8z"/><path fill="#3a2210" d="M4.5 19h16.5v2H4.5z"/><path fill="#f3f0e6" stroke="#8a8272" stroke-width=".8" d="M7 6L1.5 4.5 3 8 1 9.5l5 .5z"/><path d="M9 7h3M9 10h3" stroke="#e2b346" stroke-width="1.2"/></symbol>
   </svg>
 
   <div id="frame">
@@ -77,6 +80,9 @@
           </div>
           <div class="chip" id="hud-carpets-cell"><svg class="ico"><use href="#i-carpet"/></svg><span id="hud-carpets">0</span></div>
           <div class="chip chip-ammo hidden" id="hud-ammo"><svg class="ico"><use href="#i-pistol"/></svg><span id="hud-ammo-n">0</span><span class="pips"><i></i><i></i><i></i></span></div>
+          <div class="chip chip-power hidden" id="hud-magnet"><svg class="ico"><use href="#i-magnet"/></svg><span class="ptime">10</span><span class="pbar"><i></i></span></div>
+          <div class="chip chip-power hidden" id="hud-fennel"><svg class="ico"><use href="#i-fennel"/></svg><span class="ptime">5</span><span class="pbar"><i></i></span></div>
+          <div class="chip chip-power hidden" id="hud-boots"><svg class="ico"><use href="#i-boots"/></svg><span class="ptime">4</span><span class="pbar"><i></i></span></div>
         </div>
       </div>
       <button id="fire-btn" class="hidden" aria-label="Spara">
@@ -149,9 +155,21 @@
               <div><span class="key">&larr;</span><span class="key">&rarr;</span> o <span class="key">A</span><span class="key">D</span><br/>cambia corsia</div>
               <div><span class="key wide">SCORRI</span> o <span class="key wide">TOCCA</span><br/>a sinistra / destra</div>
               <div><span class="key">&darr;</span> o <span class="key">S</span> o <span class="key wide">SCORRI GI&Ugrave;</span><br/>abbassati</div>
+              <div><span class="key">&uarr;</span> o <span class="key">W</span> o <span class="key wide">SCORRI SU</span><br/>salta</div>
             </div>
+            <h3>Il salto</h3>
+            <p><b>Scorri verso l'alto</b> (o premi <span class="key">&uarr;</span> / <span class="key">W</span>) per saltare sopra gli ostacoli bassi: botti, muretti, massi, pozzanghere. Travi, rami e funi invece si passano solo abbassandosi. C'&egrave; sempre una strada libera anche senza saltare.</p>
+            <h3>Potenziamenti</h3>
+            <ul class="items">
+              <li><svg class="ico"><use href="#i-magnet"/></svg> <span><b>Calamita</b>: per 10 s attira i tappeti da tutte le corsie.</span></li>
+              <li><svg class="ico"><use href="#i-fennel"/></svg> <span><b>Scudo di finocchio</b>: per 5 s para un urto.</span></li>
+              <li><svg class="ico"><use href="#i-boots"/></svg> <span><b>Scarponi del calzolaio</b>: corri pi&ugrave; veloce e fai punti extra.</span></li>
+              <li><span class="key wide">PINU</span><span>Nel Garag di Pinu puoi migliorarli per sempre con i tappeti (3 livelli).</span></li>
+            </ul>
+            <h3>Meteo</h3>
+            <p>Nelle <b>notti di pioggia</b> le pozzanghere ti rallentano un poco; nella valle, sulla roccia e al fiume, la <b>nebbia</b> nasconde la strada per un tratto.</p>
             <h3>Travi basse</h3>
-            <p>Travi della miniera, archi e balconi del paese, tronchi caduti sul sentiero: non si possono distruggere. <b>Scorri verso il basso</b> (o premi <span class="key">&darr;</span> / <span class="key">S</span>) un attimo prima per abbassarti e passarci sotto con la frakkera.</p>
+            <p>Travi della miniera, archi e balconi del paese, tronchi e rami caduti sul sentiero: non si possono distruggere. <b>Scorri verso il basso</b> (o premi <span class="key">&darr;</span> / <span class="key">S</span>) un attimo prima per abbassarti e passarci sotto con la frakkera.</p>
             <h3>Pi&ugrave; veloce!</h3>
             <p>Ogni volta che entri in un luogo nuovo la corsa accelera di un gradino: lo annuncia la scritta <b>PI&Ugrave; VELOCE!</b></p>
             <h3>La fiamma</h3>
@@ -169,7 +187,7 @@
               <li><img data-icon="botte" alt="" /> <span>Le <b>botti da vino</b> bloccano la corsia: un urto toglie <b data-cfg="HIT_SOLID"></b> di fiamma. C'è sempre una strada libera anche senza sparare.</span></li>
               <li><span class="key wide">LUOGHI</span><span>Ogni luogo ha il suo pericolo, tutti si possono far saltare con la pistola: in paese <b>botti che rotolano verso di te</b>, sulla roccia <b>massi che cadono</b> (guarda l'ombra sulla corsia), alla piscina <b>pietre bagnate</b> che ti fanno scivolare, in miniera <b>carrelli</b> lanciati sui binari.</span></li>
               <li><img data-icon="pistola" alt="" /> <span>Raccogli la rara <b>pistola Broccu</b>: hai <b data-pistol="AMMO"></b> colpi per far saltare le botti davanti a te e guadagnare punti.</span></li>
-              <li><span class="key wide">SPARA</span><span>Pulsante in basso, swipe verso l'alto, oppure <span class="key">SPAZIO</span> <span class="key">W</span> <span class="key">&uarr;</span></span></li>
+              <li><span class="key wide">SPARA</span><span>Pulsante in basso oppure <span class="key">SPAZIO</span></span></li>
             </ul>
             <h3>Altri ostacoli</h3>
             <ul class="items">
