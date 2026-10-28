@@ -21,6 +21,8 @@ import { minerGeoms, HEADLAMP, LAMP_BULB } from './miners3d.js';
 import { cartGeoms } from './cart3d.js';
 import { bellGeom, sweetGeom } from './collect3d.js';
 import { stallGeom, festoonGeom, buildCrowd, animateCrowd } from './festa3d.js';
+import { laundryGeom, buildWeaver, animateWeaver, buildProcession, animateProcession, buildWindowFan } from './village3d.js';
+import { VILLAGE } from '../config.js';
 import { rng } from './kit.js';
 import { Env } from './biomes/env.js';
 import { buildShopRoom } from './shop3d.js';
@@ -404,6 +406,13 @@ export class World {
       v.shadow = this.blob(3.0, 3.8);
     } else if (kind === 'festone') {
       v.body = new THREE.Mesh(festoonGeom(e.variant || 0, (ROAD_W + WALK_W * 2) + 0.4), this.mats2);
+    } else if (kind === 'panni') {               // feat-village: i panni stesi della nonna (ci si abbassa)
+      v.body = new THREE.Mesh(laundryGeom(e.variant || 0), this.mats2); v.shadow = this.blob(12.8, 1.0);
+    } else if (kind === 'tessitrice') {          // feat-village: tessitrice al telaio sulla soglia
+      v.weaver = buildWeaver(this.mats2, e.variant || 0); v.body = v.weaver.root; v.throwT = -1; v.shadow = this.blob(2.2, 2.6);
+    } else if (kind === 'processione') {         // feat-village: processione di Santa Marta
+      v.proc = buildProcession(this.mats2, e.variant || 0); v.body = v.proc.root; v.shadow = this.blob(2.6, 7.5);
+      v.glow = this.glowSprite('#ffd27a', 3.0, 0.35); v.glow.position.set(0, 4.6, 0); v.body.add(v.glow);
     } else if (kind === 'folla') {
       v.crowd = buildCrowd(this.mats2, e.n || 4, e.variant || 0);
       v.body = v.crowd.root; v.body.rotation.y = e.side < 0 ? Math.PI / 2 : -Math.PI / 2;
@@ -497,11 +506,12 @@ export class World {
   placeView(e, v) {
     const zc = -(e.d + e.len / 2) * U;
     if (v.kind === 'narrow') { v.root.position.set(v.root.userData.x, 0, -e.d * U); return; }
-    const x = (e.kind === 'scambio' || e.kind === 'festone' ? 0 : e.kind === 'bancarella' || e.kind === 'folla' ? e.side * FESTA.X : e.kind === 'falo' ? e.side * FIRE.X : e.kind === 'minatore' ? e.side * MINE.MINER_X : e.kind === 'lampada' ? e.side * MINE.LAMP_X : isMoving(e.kind) ? e.x : laneX(e.lane)) * U;
+    const x = (e.kind === 'scambio' || e.kind === 'festone' ? 0 : e.kind === 'bancarella' || e.kind === 'folla' ? e.side * FESTA.X : e.kind === 'tessitrice' ? e.side * VILLAGE.WEAVER_X : e.kind === 'falo' ? e.side * FIRE.X : e.kind === 'minatore' ? e.side * MINE.MINER_X : e.kind === 'lampada' ? e.side * MINE.LAMP_X : isMoving(e.kind) ? e.x : laneX(e.lane)) * U;
     v.root.position.set(x, 0, zc);
   }
   animateViews(sim, dt) {
     const t = this.clock;
+    this.animateFans(dt);
     if (this.roarT > 0) this.roarT -= dt;
     if (this.fireMats) for (const m of this.fireMats) m.uniforms.uTime.value = t;
     for (const e of sim.entities) {
@@ -523,6 +533,14 @@ export class World {
         continue;
       }
       if (e.kind === 'bancarella' || e.kind === 'festone') { if (v.shadow) v.shadow.visible = true; continue; }
+      if (e.kind === 'panni') { if (v.shadow) v.shadow.visible = true; v.body.rotation.x = Math.sin(t * 1.7 + e.d) * 0.025; continue; }
+      if (e.kind === 'tessitrice') {
+        v.body.scale.x = e.side < 0 ? -1 : 1; if (v.shadow) v.shadow.visible = true;
+        if (e.thrown && v.throwT < 0) v.throwT = 0;
+        let k = 0; if (v.throwT >= 0) { v.throwT += dt; k = v.throwT < 0.9 ? Math.min(1, v.throwT * 8) : Math.max(0, 1 - (v.throwT - 0.9) * 3); }
+        animateWeaver(v.weaver, t, k); continue;
+      }
+      if (e.kind === 'processione') { animateProcession(v.proc, t); if (v.shadow) v.shadow.visible = true; continue; }
       if (e.kind === 'campanaccio' || e.kind === 'facciola') {
         v.body.position.y = 1.5 + Math.sin(t * 3 + e.d * 0.05) * 0.15; v.spin.rotation.y = t * 2.2;
         v.glow.position.y = 1.5;
@@ -646,6 +664,26 @@ export class World {
   }
 
   // ------------------------------------------------------------ effetti di gioco
+  // feat-village: paesani affacciati a finestre e balconi che esultano (davanti al giocatore, ai due lati)
+  windowCheer(pz) {
+    if (!this.fans) { this.fans = []; for (let i = 0; i < 4; i++) { const f = buildWindowFan(this.mats2, i % 2 === 0, i % 3); f.root.visible = false; this.scene.add(f.root); this.fans.push(f); } }
+    this.fans.forEach((f, i) => {
+      const side = i % 2 ? 1 : -1;
+      f.root.position.set(side * 6.75, 3.9 + (i > 1 ? 0.0 : 0.3), pz - 14 - i * 5.5);
+      f.root.scale.x = side;          // davanzale verso la via
+      f.root.visible = true; f.t = 0; f.ph = i * 1.3;
+    });
+  }
+  animateFans(dt) {
+    if (!this.fans) return;
+    for (const f of this.fans) {
+      if (!f.root.visible) continue;
+      f.t += dt; const k = f.t < 2.4 ? Math.min(1, f.t * 5) : Math.max(0, 1 - (f.t - 2.4) * 2.5);
+      const s = Math.sin(this.clock * 13 + f.ph), up = k * (2.6 + s * 0.3);
+      f.d.arms[0].rotation.z = -0.15 - up * 0.95; f.d.arms[1].rotation.z = 0.15 + up * 0.95; f.d.fig.position.y = k * Math.max(0, s) * 0.12;
+      if (f.t > 4.5) f.root.visible = false;
+    }
+  }
   onFx(type, d, sim) {
     const pz = -sim.T * U;
     switch (type) {
@@ -723,6 +761,9 @@ export class World {
       case 'die': this.smokeAtTip(30); this.burnT = 0; this.burnKeep = this.char3d.keep ?? 1; break;
       case 'cheer': { const p = this.views.get(d.e.id)?.root.position; if (p) this.burst(p.x, 3.2, p.z, COL.spark2, 14, 3); break; }
       case 'crowdRoar': this.roarT = 0.5; break;
+      case 'weaverThrow': { const p = this.views.get(d.e.id)?.root.position; if (p) this.burst(p.x * 0.6, 2.2, p.z, COL.spark2, 16, 4); break; }
+      case 'procBump': { const p = this.views.get(d.e.id)?.root.position; if (p) this.burst(p.x, 2.0, p.z, COL.spark2, 10, 3); break; }
+      case 'windowCheer': this.windowCheer(pz); break;
       case 'start': case 'attract':
         this.rideOn = false; this.rideLeft = null; if (this.ride) { this.ride.visible = false; this.rideShadow.visible = false; }   // v5s20: niente carrello della corsa prima
         this.add.clear(); this.norm.clear(); this.shards.clear();

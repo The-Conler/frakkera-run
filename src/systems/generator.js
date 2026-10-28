@@ -278,6 +278,7 @@ export class Generator {
     const D = this.rowDist(r);
     const diff = difficultyAt(D);
     const used = new Array(L).fill(false); this._used = used;
+    this.prevPath = this.lastPath ?? this.path; this.lastPath = this.path;
     for (let l = 0; l < L; l++) if (this.blockedUntil[l] >= r) used[l] = true;
     this.maybeFire(r, D, emit);
     this.maybeMine(r, D, emit);
@@ -375,13 +376,15 @@ export class Generator {
       const vb = biomeAt(D / PX_PER_METER + this.offM), vr = this.vrng;
       if (vb.b.id === VL.BIOME) {
         const pRoll = vr(), lRoll = vr();
-        if (vb.lap !== this.procLap && vb.local >= VL.PROC_FROM_M && vb.local < VL.PROC_TO_M && !this.nearDance(D, 80, 40) && pRoll < VL.PROC_SHARE) {
+        // corsia della processione: mai sul sentiero (ne' quello di prima), mai su una scia di tappeti in corso
+        const pl = [0, 1, 2].filter((l) => l !== this.path && l !== this.prevPath && l !== this.lastPath && !(this.carpetRows > 0 && this.carpetLane === l) && this.blockedUntil[l] < r - 2);
+        if (pl.length && vb.lap !== this.procLap && vb.local >= VL.PROC_FROM_M && vb.local < VL.PROC_TO_M && !this.nearDance(D, 80, 40) && pRoll < VL.PROC_SHARE) {
           this.procLap = vb.lap; this.procs++;
-          const lane = this.path === 1 ? (vr() < 0.5 ? 0 : 2) : 1;     // mai sul sentiero sicuro
-          const rows = Math.ceil(VL.PROC_LEN / ROW) + 1;
+          const lane = pl[vr.int(0, pl.length - 1)];
+          const rows = Math.ceil((VL.PROC_LEN + 24) / ROW) + 1;
           this.blockedUntil[lane] = Math.max(this.blockedUntil[lane], r + rows); used[lane] = true;
           for (let l = 0; l < L; l++) this.laneCool[l] = Math.max(this.laneCool[l], r + 1);
-          emit({ kind: 'processione', lane, d: D + 10, len: VL.PROC_LEN, proc: this.procs, variant: vr.int(0, 2) });
+          emit({ kind: 'processione', lane, d: D + 24, len: VL.PROC_LEN, proc: this.procs, variant: vr.int(0, 2) });
           this.carpetRow(r, D, diff, used, emit);
           return;
         }

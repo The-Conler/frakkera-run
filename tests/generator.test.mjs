@@ -18,7 +18,7 @@ const switchPx = switchS * DIFFICULTY.SPEED_MAX;
 const K = Math.ceil(switchPx / CELL) + 1;
 const PAD = 1;
 const MOVING = new Set(['goat', 'rollbarrel', 'maimoni']);
-const DUCKABLE = new Set(['trave', 'fune']);   // v5s10: la fune degli Stramaionis si passa come la trave
+const DUCKABLE = new Set(['trave', 'fune', 'panni']);   // v5s10: la fune degli Stramaionis si passa come la trave
 import { biomeAt } from '../src/game/biomes/config.js';
 let parades = 0; const paradeLaps = {};
 
