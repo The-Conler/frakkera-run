@@ -339,3 +339,26 @@ export const SANTAMARTA = {
   FROM_M: 240, LEN_M: 30,   // facciata a fine paese (dopo vicolo e cappella), la navata sconfina nei primi metri della roccia
   LEAD_M: 8,                // niente ostacoli anche sui gradini davanti al portone
 };
+
+// ---- feat-village: vita del paese (flusso RNG separato, vedi generator.maybeVillage) ----
+// panni stesi (la nonna): sostituiscono una trave nel paese, ci si abbassa (log L / urto h)
+// tessitrice al telaio: sul marciapiede, passando nella corsia laterale ti lancia un tappeto (log W)
+// processione di Santa Marta: rara, occupa una corsia fuori dal sentiero; urto = fuoco, non morte (log I, passata pulita i)
+// paesani alle finestre: esultano per le scie di tappeti nel paese fuori dalla festa (log V)
+export const VILLAGE = {
+  BIOME: 'village',
+  LAUNDRY_SHARE: 0.6,       // quota di travi nel paese che diventano panni stesi
+  WEAVER_FROM_M: 140, WEAVER_TO_M: 245,   // metri locali nel paese (dopo la festa)
+  WEAVER_GAP: [14, 22],     // file tra due tessitrici
+  WEAVER_X: 66,             // px dal centro (marciapiede)
+  WEAVER_BRUSH_PX: 14,
+  WEAVER_PTS: 15,
+  PROC_SHARE: 0.25,         // quota di travi nel paese che diventano processione (se non gia' fatta in questo giro)
+  PROC_FROM_M: 8, PROC_TO_M: 236,
+  PROC_LEN: 52,             // px di profondita' del corteo (statua + portatori)
+  PROC_HALF: 13,
+  PROC_FUEL: 12,            // urto: costa fuoco (mai sotto 1)
+  PROC_PTS: 40,             // passata pulita
+  CHEER_STREAK: 4,          // ogni X tappeti di fila nel paese (fuori dalla festa): applausi dalle finestre
+  CHEER_PTS: 10,
+};

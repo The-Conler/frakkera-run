@@ -5,14 +5,14 @@
 // tramite `fx(tipo, dati)`. Unita': px del mondo 2D (10 px = 1 m), corsie
 // centrate su x = 0.
 // =====================================================================
-import { SCORE, FUEL, WORLD, PX_PER_METER, PISTOL, SPEED_STEPS, BIOME_OBST, DUCK, SHOP, MASKS, DANCE, FIRE, MINE, CART, COLLECT, SKINS, FESTA, POWER, JUMP, UPGRADES, WEATHER, ANIMALS } from '../config.js';
+import { SCORE, FUEL, WORLD, PX_PER_METER, PISTOL, SPEED_STEPS, BIOME_OBST, DUCK, SHOP, MASKS, DANCE, FIRE, MINE, CART, COLLECT, SKINS, FESTA, POWER, JUMP, UPGRADES, WEATHER, ANIMALS, VILLAGE } from '../config.js';
 import { biomeAt } from './biomes/config.js';
 import { cartAt, festaAt } from '../systems/generator.js';
 import { Generator, SOLID, DESTRUCTIBLE, PICKUP_KINDS, BIOME_KINDS, MASK_KINDS, difficultyAt, speedAt, speedStepsAt, lerp } from '../systems/generator.js';
 import { randomSeed, makeRng } from '../systems/rng.js';
 export const DANCE_DIRS = ['left', 'down', 'up', 'right'];
 
-export const HALF_W = { muretto: 12, botte: 7, bottecoricata: 11, botti: 12, pozza: 9, narrow: 17, goat: 7, rollbarrel: 7, rollin: 7, sasso: 8, bagnato: 9, trave: 60, ramo: 60, acqua: 10, calamita: 11, finocchio: 11, scarponi: 11, maimoni: 8, fune: 26, fuso: 7, asfodelo: 10, ferula: 10, tappeto: 11, pistola: 11, pecora: 7, maialetto: 5, caprarupe: 8 };
+export const HALF_W = { muretto: 12, botte: 7, bottecoricata: 11, botti: 12, pozza: 9, narrow: 17, goat: 7, rollbarrel: 7, rollin: 7, sasso: 8, bagnato: 9, trave: 60, panni: 60, processione: 13, ramo: 60, acqua: 10, calamita: 11, finocchio: 11, scarponi: 11, maimoni: 8, fune: 26, fuso: 7, asfodelo: 10, ferula: 10, tappeto: 11, pistola: 11, pecora: 7, maialetto: 5, caprarupe: 8 };
 export const ATTRACT_SPEED = 34;
 const PLAYER_BACK = 3, PLAYER_FRONT = 5, PLAYER_HALF = 3;
 export const GUTTER = 4;
@@ -48,7 +48,7 @@ export class Sim {
 
   resetRunState() {
     this.score = 0; this.metersCredited = 0; this.fuel = FUEL.START; this.chain = 0;
-    this.stats = { pickups: 0, nearMiss: 0, chains: 0, milestones: 0, hits: 0, bonus: 0, carpets: 0, barrels: 0, goats: 0, shopVisits: 0, shopBuys: 0, shopSpent: 0, shields: 0, obst: 0, ducks: 0, beams: 0, slips: 0, speedSteps: 0, shots: 0, pistols: 0, masks: 0, parades: 0, ropes: 0, spindles: 0, dances: 0, danceSkips: 0, dancePerfect: 0, danceGood: 0, danceMiss: 0, danceBest: 0, survival: 0, capped: 0, fires: 0, fireFuel: 0, lamps: 0, miners: 0, carts: 0, junctions: 0, deadends: 0, bells: 0, sweets: 0, cheers: 0, roars: 0, magnets: 0, fennels: 0, fennelBlocks: 0, boots: 0, bootsPts: 0, branches: 0, magnetPulls: 0, jumps: 0, jumped: 0, upBuys: 0, wetSlows: 0, flocks: 0, sheep: 0, piglets: 0, dogs: 0, barks: 0, chases: 0, nips: 0, escapes: 0, rockGoats: 0 };
+    this.stats = { pickups: 0, nearMiss: 0, chains: 0, milestones: 0, hits: 0, bonus: 0, carpets: 0, barrels: 0, goats: 0, shopVisits: 0, shopBuys: 0, shopSpent: 0, shields: 0, obst: 0, ducks: 0, beams: 0, slips: 0, speedSteps: 0, shots: 0, pistols: 0, masks: 0, parades: 0, ropes: 0, spindles: 0, dances: 0, danceSkips: 0, dancePerfect: 0, danceGood: 0, danceMiss: 0, danceBest: 0, survival: 0, capped: 0, fires: 0, fireFuel: 0, lamps: 0, miners: 0, carts: 0, junctions: 0, deadends: 0, bells: 0, sweets: 0, cheers: 0, roars: 0, magnets: 0, fennels: 0, fennelBlocks: 0, boots: 0, bootsPts: 0, branches: 0, magnetPulls: 0, jumps: 0, jumped: 0, upBuys: 0, wetSlows: 0, flocks: 0, sheep: 0, piglets: 0, dogs: 0, barks: 0, chases: 0, nips: 0, escapes: 0, rockGoats: 0, laundry: 0, weaverCarpets: 0, procHits: 0, procClean: 0, windowCheers: 0 };
     this.dogT = 0; this.chase = null;
     this.shopLap = 0; this.shopOffer = 0; this.shop = null; this.shield = 0;
     this.danceLap = -1; this.danceCue = null; this.dance = null;
@@ -499,7 +499,7 @@ export class Sim {
     return pts;
   }
 
-  entX(e) { if (e.kind === 'falo') return e.side * FIRE.X; if (e.kind === 'folla' || e.kind === 'bancarella') return e.side * FESTA.X; if (e.kind === 'minatore') return e.side * MINE.MINER_X; if (e.kind === 'lampada') return e.side * MINE.LAMP_X; if (e.kind === 'pastore') return e.side * ANIMALS.SHEPHERD_X; if (e.kind === 'cane' || e.kind === 'canepastore') return laneX(e.lane); if (e.kind === 'tappeto' && e.mx !== undefined) return e.mx; return isMoving(e.kind) ? e.x : e.kind === 'fune' ? laneX(e.lane) + WORLD.LANE_W / 2 : laneX(e.lane); }
+  entX(e) { if (e.kind === 'falo') return e.side * FIRE.X; if (e.kind === 'folla' || e.kind === 'bancarella') return e.side * FESTA.X; if (e.kind === 'tessitrice') return e.side * VILLAGE.WEAVER_X; if (e.kind === 'minatore') return e.side * MINE.MINER_X; if (e.kind === 'lampada') return e.side * MINE.LAMP_X; if (e.kind === 'pastore') return e.side * ANIMALS.SHEPHERD_X; if (e.kind === 'cane' || e.kind === 'canepastore') return laneX(e.lane); if (e.kind === 'tappeto' && e.mx !== undefined) return e.mx; return isMoving(e.kind) ? e.x : e.kind === 'fune' ? laneX(e.lane) + WORLD.LANE_W / 2 : laneX(e.lane); }
 
   updateEntities(dt) {
     const T = this.T;
@@ -592,6 +592,23 @@ export class Sim {
         if (e.d + e.len < pBack) e.done = true;
         continue;
       }
+      if (e.kind === 'tessitrice') {  // feat-village: passando nella sua corsia laterale ti lancia un tappeto
+        if (!e.thrown && overlapD && Math.abs(px - laneX(e.lane)) <= VILLAGE.WEAVER_BRUSH_PX) {
+          e.thrown = true; this.stats.weaverCarpets++; this.stats.carpets++; this.carpetTotal = this.addCarpets(1);
+          const pts = this.addBonus(VILLAGE.WEAVER_PTS); this.log('W', pts);
+          this.fx('weaverThrow', { e, pts, total: this.carpetTotal }); this.fx('popup', { text: `TAPPETO! +${pts}`, style: 'gold' }); this.fx('sound', 'cheer');
+        }
+        if (e.d + e.len < pBack) e.done = true;
+        continue;
+      }
+      if (e.kind === 'processione') { // feat-village: Santa Marta: si schiva; l'urto costa fuoco ma non ferma
+        if (!e.hit && overlapD && Math.abs(ex - px) <= hw + PLAYER_HALF && this.invuln <= 0) { this.hitProcession(e); continue; }
+        if (e.d + e.len < pBack) {
+          e.done = true;
+          if (!e.hit) { this.stats.procClean++; const pts = this.addBonus(VILLAGE.PROC_PTS); this.log('i', pts); this.fx('popup', { text: `VIVA SANTA MARTA! +${pts}`, style: 'gold' }); this.fx('sound', 'cheer'); }
+        }
+        continue;
+      }
       if (e.kind === 'falo') {        // v5s16: frakkera accesa a bordo strada, si prende sfiorandola
         if (overlapD && Math.abs(px - laneX(e.lane)) <= FIRE.BRUSH_PX) { this.fireBonus(e); continue; }
         if (e.d + e.len < pBack) e.done = true;
@@ -619,6 +636,10 @@ export class Sim {
         }
         if (e.kind === 'ramo') {        // v5s24: ramo caduto, ci si abbassa
           if (this.duckT > 0) { e.hit = true; e.ducked = true; this.stats.branches++; this.log('d', 0); this.fx('ducked', { e }); this.fx('sound', 'branchDuck'); continue; }
+          if (this.invuln <= 0) { this.hitSolid(e); continue; }
+        }
+        if (e.kind === 'panni') {       // feat-village: i panni della nonna: ci si abbassa
+          if (this.duckT > 0) { e.hit = true; e.ducked = true; this.stats.laundry++; this.log('L', 0); this.fx('ducked', { e }); continue; }
           if (this.invuln <= 0) { this.hitSolid(e); continue; }
         }
         if (e.kind === 'trave') {
@@ -733,7 +754,10 @@ export class Sim {
       this.log('c', pts);
       this.fx('carpet', { e, pts, streak: this.carpetStreak++, run: this.stats.carpets, total: this.carpetTotal });
       // v5s21: nella festa la folla esulta per le scie di tappeti (solo effetto, nel log)
-      if (this.carpetStreak % FESTA.STREAK === 0 && festaAt(this.runD / PX_PER_METER + this.mapOffsetM)) { this.stats.roars++; this.log('Y', this.carpetStreak); this.fx('crowdRoar', { streak: this.carpetStreak }); this.fx('sound', 'crowdRoar'); }
+      const vm = this.runD / PX_PER_METER + this.mapOffsetM;
+      // feat-village: nel paese (fuori dalla festa) i paesani esultano dalle finestre per le scie
+      if (this.carpetStreak % VILLAGE.CHEER_STREAK === 0 && this.mode !== 'attract' && biomeAt(vm).b.id === VILLAGE.BIOME && !festaAt(vm)) { this.stats.windowCheers++; const wp = this.addBonus(VILLAGE.CHEER_PTS); this.log('V', wp); this.fx('windowCheer', { streak: this.carpetStreak }); this.fx('sound', 'crowdRoar'); }
+      if (this.carpetStreak % FESTA.STREAK === 0 && festaAt(vm)) { this.stats.roars++; this.log('Y', this.carpetStreak); this.fx('crowdRoar', { streak: this.carpetStreak }); this.fx('sound', 'crowdRoar'); }
       return;
     }
     if (type === 'power') { this.powerUp(e.kind, e); return; }
@@ -806,6 +830,14 @@ export class Sim {
     this.fx('sound', 'fireBonus');
   }
 
+  // feat-village: urto con la processione: fuoco in meno (mai sotto 1), niente frenata
+  hitProcession(e) {
+    e.hit = true; this.stats.procHits++;
+    const loss = Math.min(VILLAGE.PROC_FUEL, Math.max(0, this.fuel - 1));
+    this.fuel -= loss; this.carpetStreak = 0; this.invuln = WORLD.HIT_INVULN_S;
+    this.log('I', Math.round(loss));
+    this.fx('procBump', { e }); this.fx('popup', { text: 'ATTENTO ALLA SANTA!', style: 'white' }); this.fx('sound', 'nearMiss');
+  }
   hitPuddle(e) {
     e.hit = true; e.done = true;
     this.log('w', FUEL.HIT_PUDDLE);
@@ -876,7 +908,7 @@ export class Sim {
       return;
     }
     this.lastHitStep = this.step;
-    const loss = e.kind === 'maimoni' ? MASKS.HIT_MAIMONI : e.kind === 'fune' ? MASKS.HIT_FUNE : e.kind === 'fuso' ? MASKS.HIT_FUSO : isMoving(e.kind) || e.kind === 'rollin' ? FUEL.HIT_GOAT : e.kind === 'trave' || e.kind === 'ramo' ? FUEL.HIT_BEAM : FUEL.HIT_SOLID;
+    const loss = e.kind === 'maimoni' ? MASKS.HIT_MAIMONI : e.kind === 'fune' ? MASKS.HIT_FUNE : e.kind === 'fuso' ? MASKS.HIT_FUSO : isMoving(e.kind) || e.kind === 'rollin' ? FUEL.HIT_GOAT : e.kind === 'trave' || e.kind === 'ramo' || e.kind === 'panni' ? FUEL.HIT_BEAM : FUEL.HIT_SOLID;
     this.log('h', loss);
     this.carpetStreak = 0;
     this.fuel -= loss;
