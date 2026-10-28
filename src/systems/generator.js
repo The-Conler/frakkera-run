@@ -7,7 +7,7 @@
 // mobili compaiono solo in "finestre calme" senza altri ostacoli.
 // Tappeti, combustibile e pistola si piazzano solo in celle libere.
 // =====================================================================
-import { DIFFICULTY as DF, WORLD, PX_PER_METER, CARPETS as CP, PISTOL, SPEED_STEPS as SS, BIOME_OBST as BO, DUCK, MASKS as MK, FIRE, MINE, CART, COLLECT, DANCE, FESTA } from '../config.js';
+import { DIFFICULTY as DF, WORLD, PX_PER_METER, CARPETS as CP, PISTOL, SPEED_STEPS as SS, BIOME_OBST as BO, DUCK, MASKS as MK, FIRE, MINE, CART, COLLECT, DANCE, FESTA, SPLIT } from '../config.js';
 import { biomeAt, BIOMES } from '../game/biomes/config.js';
 import { makeRng } from './rng.js';
 
@@ -47,6 +47,7 @@ export function cartAt(m, lead = 0, tail = 0) {
   return { lap: bi.lap, local: bi.local - CART.FROM_M };
 }
 export const SOLID = {
+  split: true,   // v5 split: blocco in mezzo alla via
   muretto: true, botte: true, bottecoricata: true, botti: true, narrow: true, goat: true, rollbarrel: true, pozza: false,
   // v5s6: ostacoli d'ambiente (la pietra bagnata non ferma: fa scivolare) e trave bassa (si passa abbassandosi)
   rollin: true, sasso: true, bagnato: false, trave: false,
@@ -72,6 +73,17 @@ export function festaAt(m) {
   return { lap: bi.lap, local: bi.local - FESTA.FROM_M };
 }
 export const PICKUP_KINDS = { asfodelo: 'fuel', ferula: 'fuel', tappeto: 'carpet', pistola: 'pistol', campanaccio: 'collect', facciola: 'collect' };
+
+// v5 split: la fila alla distanza m (metri assoluti) e' nel tratto di un blocco in mezzo alla via? null o { lap, local, spot, inside }
+export function splitAt(m) {
+  const bi = biomeAt(Math.max(0, m));
+  if (bi.b.id !== SPLIT.BIOME) return null;
+  for (const spot of SPLIT.SPOTS) {
+    if (bi.local >= spot.from - SPLIT.CLEAR_BEFORE_M && bi.local < spot.from + spot.len + SPLIT.CLEAR_AFTER_M)
+      return { lap: bi.lap, local: bi.local, spot, inside: bi.local >= spot.from - WORLD.ROW / PX_PER_METER && bi.local < spot.from + spot.len };
+  }
+  return null;
+}
 
 const SHORT_LEN = { muretto: 14, botte: 18, bottecoricata: 14, pozza: 13 };
 
@@ -242,6 +254,22 @@ export class Generator {
     return bi.local > DANCE.AT_M - before && bi.local < DANCE.AT_M + after;
   }
 
+  // v5 split: blocco deterministico in mezzo alla via (posizione fissa nel paese, nessun RNG):
+  // la corsia centrale e' chiusa per tutta la lunghezza, le laterali restano senza altri ostacoli
+  splitRow(r, D, used, emit) {
+    const s = splitAt(D / PX_PER_METER + this.offM);
+    if (!s) return false;
+    const key = `${s.lap}:${s.spot.id}`;
+    if (!this.splitDone) this.splitDone = {};
+    if (!this.splitDone[key] && s.local >= s.spot.from - WORLD.ROW / PX_PER_METER) {
+      this.splitDone[key] = true;
+      emit({ kind: 'split', lane: 1, d: Math.round(D + (s.spot.from - s.local) * PX_PER_METER), len: s.spot.len * PX_PER_METER, spot: s.spot.id, lap: s.lap });
+    }
+    if (s.inside) used[1] = true;
+    for (let l = 0; l < WORLD.LANES; l++) if (this.blockedUntil[l] >= r) used[l] = true;
+    return true;
+  }
+
   rowDist(r) { return WORLD.LEAD_IN + r * WORLD.ROW; }
 
   fillUntil(maxDist, emit) {
@@ -266,6 +294,7 @@ export class Generator {
     this.maybeFesta(r, D, emit);
     if (this.sideBlocks.length > 4) this.sideBlocks = this.sideBlocks.filter((b) => b.until >= r);
     if (this.cartRow(r, D, diff, used, emit)) return;
+    if (this.splitRow(r, D, used, emit)) return;
 
     // ---- finestra calma con ostacolo mobile -------------------------
     if (r <= this.calmUntil) {

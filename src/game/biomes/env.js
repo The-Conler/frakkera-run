@@ -136,8 +136,8 @@ const valleyRock = (Bm) => N.valleyTerrain(Bm - 30, 430, { side: -1, x0: 14.5, t
 // at: punto di riferimento (distanza locale nel bioma); exist: [da, a] relativo ad at in cui esiste
 const LANDMARKS = {
   church: { at: 140, exist: [-200, 70] },
-  vicolo: { at: 188, exist: [-200, 40] },      // v5s23c: vicolo delle porte (target5-vicolo-porte)
-  cappella: { at: 222, exist: [-200, 40] },    // v5s23c: cappella tonda (target5-cappella-tonda)
+  vicolo: { at: 168, exist: [-200, 32] },      // v5 split: blocco del vicolo in mezzo alla via (SPLIT in config.js)
+  cappella: { at: 206, exist: [-200, 26] },    // v5 split: cappella tonda in mezzo alla via (SPLIT in config.js)
   pinnacle: { at: 230, exist: [-290, 120] },
   valley: { at: 0, exist: [-30, 390] },
   pool: { at: 0, exist: [-40, 280] },
@@ -708,13 +708,13 @@ export class Env {
         else m.position.set(h.x - pf.w, 0, h.z);            // facciata verso +z
       }
     } else if (id === 'vicolo') {
-      cached('vicolo', () => buildVicolo(32));
+      cached('vicolo', () => buildVicolo(26));
     } else if (id === 'cappella') {
       // specchiata: la cappella a SINISTRA della via (a destra la coprirebbe la fiamma), case bianche a destra
       root.scale.x = -1;
       cached('cappella', () => buildCappella());
       cached('cappellaL', () => buildCappellaLeft());
-      for (const z of [-1.6, -16.5]) lamps.push(this.lamp(-6.6, 4.5, z - W, '#ffd890', 2.4, 0.7));
+      for (const x of [-2.5, 2.5]) lamps.push(this.lamp(x, 4.5, 0.6 - W, '#ffd890', 2.4, 0.7));
     } else if (id === 'pinnacle') {
       const m = cached('pinnacle', () => N.buildPinnacle(3)); m.position.set(-30, 0, 0); m.rotation.y = 0.4;    // nella valle a SINISTRA del sentiero: a destra c'e' la fiamma che la coprirebbe
     } else if (id === 'valley') {

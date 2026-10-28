@@ -286,3 +286,15 @@ export const FESTA = {
   PTS: 20,
   STREAK: 6,                // ogni X tappeti di fila nella festa: la folla esulta
 };
+
+// ---- v5 split: vicolo e cappella tonda IN MEZZO alla via: la corsia centrale e' chiusa, si sceglie sinistra o destra ----
+export const SPLIT = {
+  BIOME: 'village',
+  SPOTS: [                                   // metri locali nel paese: [from, from + len] corsia centrale chiusa
+    { id: 'vicolo', from: 168, len: 20 },    // blocco di case: portone verde a sinistra, porta azzurra e balcone a destra
+    { id: 'cappella', from: 206, len: 11 },  // cappella tonda ocra (pianta ovale)
+  ],
+  CLEAR_BEFORE_M: 42,                        // niente altri ostacoli da qui fino alla fine del blocco
+  CLEAR_AFTER_M: 3,
+  HALF_W: 19,                                // px: mezza larghezza del blocco (corsie laterali a 34 px restano libere)
+};

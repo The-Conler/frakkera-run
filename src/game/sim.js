@@ -12,7 +12,7 @@ import { Generator, SOLID, DESTRUCTIBLE, PICKUP_KINDS, BIOME_KINDS, MASK_KINDS, 
 import { randomSeed, makeRng } from '../systems/rng.js';
 export const DANCE_DIRS = ['left', 'down', 'up', 'right'];
 
-export const HALF_W = { muretto: 12, botte: 7, bottecoricata: 11, botti: 12, pozza: 9, narrow: 17, goat: 7, rollbarrel: 7, rollin: 7, sasso: 8, bagnato: 9, trave: 60, maimoni: 8, fune: 26, fuso: 7, asfodelo: 10, ferula: 10, tappeto: 11, pistola: 11 };
+export const HALF_W = { muretto: 12, botte: 7, bottecoricata: 11, botti: 12, pozza: 9, narrow: 17, goat: 7, rollbarrel: 7, rollin: 7, sasso: 8, bagnato: 9, trave: 60, maimoni: 8, fune: 26, fuso: 7, asfodelo: 10, ferula: 10, tappeto: 11, pistola: 11, split: 19 };
 export const ATTRACT_SPEED = 34;
 const PLAYER_BACK = 3, PLAYER_FRONT = 5, PLAYER_HALF = 3;
 export const GUTTER = 4;
@@ -46,7 +46,7 @@ export class Sim {
 
   resetRunState() {
     this.score = 0; this.metersCredited = 0; this.fuel = FUEL.START; this.chain = 0;
-    this.stats = { pickups: 0, nearMiss: 0, chains: 0, milestones: 0, hits: 0, bonus: 0, carpets: 0, barrels: 0, goats: 0, shopVisits: 0, shopBuys: 0, shopSpent: 0, shields: 0, obst: 0, ducks: 0, beams: 0, slips: 0, speedSteps: 0, shots: 0, pistols: 0, masks: 0, parades: 0, ropes: 0, spindles: 0, dances: 0, danceSkips: 0, dancePerfect: 0, danceGood: 0, danceMiss: 0, danceBest: 0, survival: 0, capped: 0, fires: 0, fireFuel: 0, lamps: 0, miners: 0, carts: 0, junctions: 0, deadends: 0, bells: 0, sweets: 0, cheers: 0, roars: 0 };
+    this.stats = { pickups: 0, nearMiss: 0, chains: 0, milestones: 0, hits: 0, bonus: 0, carpets: 0, barrels: 0, goats: 0, shopVisits: 0, shopBuys: 0, shopSpent: 0, shields: 0, obst: 0, ducks: 0, beams: 0, slips: 0, speedSteps: 0, shots: 0, pistols: 0, masks: 0, parades: 0, ropes: 0, spindles: 0, dances: 0, danceSkips: 0, dancePerfect: 0, danceGood: 0, danceMiss: 0, danceBest: 0, survival: 0, capped: 0, splits: 0, fires: 0, fireFuel: 0, lamps: 0, miners: 0, carts: 0, junctions: 0, deadends: 0, bells: 0, sweets: 0, cheers: 0, roars: 0 };
     this.shopLap = 0; this.shopOffer = 0; this.shop = null; this.shield = 0;
     this.danceLap = -1; this.danceCue = null; this.dance = null;
     this.cart = null; this.cartLap = -1; this.cartSpK = 1;
@@ -557,6 +557,7 @@ export class Sim {
         if (this.invuln <= 0) { this.hitSolid(e); continue; }
       }
       if (e.d + e.len < pBack) {
+        if (e.kind === 'split' && !e.hit) { this.stats.splits = (this.stats.splits || 0) + 1; this.log('a', px < 0 ? 0 : 2); }   // v5 split: girato attorno (0 = sinistra, 2 = destra)
         e.done = true;
         if (e.group && !e.hit) this.maskPass(e);
         if (e.near && !e.hit && this.clock - this.lastNearMiss >= SCORE.NEAR_MISS_COOLDOWN_S) {
