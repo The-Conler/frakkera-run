@@ -107,11 +107,11 @@ export function buildRain(n) {
         q.x += uCam.x; q.y += uCam.y - 3.0;
         vec4 mv = modelViewMatrix * vec4(q, 1.0);
         gl_Position = projectionMatrix * mv;
-        gl_PointSize = clamp(160.0 * uPR / -mv.z, 2.0, 22.0 * uPR);
+        gl_PointSize = clamp(260.0 * uPR / -mv.z, 3.0, 34.0 * uPR);
         vA = smoothstep(-48.0, -30.0, q.z - uCam.z) * smoothstep(0.0, -2.5, q.z - uCam.z) * (0.5 + seed * 0.5);
       }`,
     fragmentShader: `uniform float uA; varying float vA;
-      void main() { vec2 c = gl_PointCoord - 0.5; float a = (1.0 - smoothstep(0.02, 0.07, abs(c.x + c.y * 0.12))) * (1.0 - smoothstep(0.3, 0.5, abs(c.y))) * uA * vA; if (a < 0.02) discard; gl_FragColor = vec4(0.75, 0.82, 0.95, a * 0.7); }`,
+      void main() { vec2 c = gl_PointCoord - 0.5; float a = (1.0 - smoothstep(0.03, 0.1, abs(c.x + c.y * 0.12))) * (1.0 - smoothstep(0.3, 0.5, abs(c.y))) * uA * vA; if (a < 0.02) discard; gl_FragColor = vec4(0.88, 0.93, 1.0, min(1.0, a * 1.0)); }`,
     transparent: true, depthWrite: false, fog: false,
   });
   const pts = new THREE.Points(g, m); pts.frustumCulled = false; pts.renderOrder = 17; pts.visible = false;
