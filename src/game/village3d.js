@@ -18,14 +18,14 @@ export function laundryGeom(v = 0) {
       const t0 = i / N, t1 = (i + 1) / N, x0 = -HALF - 0.5 + (HALF * 2 + 1) * t0, x1 = -HALF - 0.5 + (HALF * 2 + 1) * t1, ya = yAt(t0), yb = yAt(t1);
       k.add(G.box(Math.hypot(x1 - x0, yb - ya), 0.04, 0.04), '#e8e2d4', { x: (x0 + x1) / 2, y: (ya + yb) / 2, rz: Math.atan2(yb - ya, x1 - x0) });
     }
-    const PAL = ['#f6f3ec', '#ffffff', '#e9eef6', '#f2d7d0', '#cfe0f0', '#f5e7b8'];
+    const PAL = ['#e6e0d4', '#ece8e0', '#d4dce8', '#e8c8c0', '#b8cce0', '#e8d8a8'];
     let x = -HALF + 0.3;
     while (x < HALF - 0.6) {
       const t = (x + HALF + 0.5) / (HALF * 2 + 1), y = yAt(t), kind = r.int(0, 3);
       if (kind <= 1) {             // lenzuolo / tovaglia: lungo fino quasi all'altezza della trave
         const w = r.range(1.1, 1.7), h = y - LINE_Y + 0.05, col = r.pick(PAL);
-        k.add(G.box(w, h, 0.05), col, { x: x + w / 2, y: y - h / 2, rz: r.range(-0.03, 0.03), vary: 0.04 });
-        if (kind === 1) for (let j = 0; j < 3; j++) k.add(G.box(w, 0.08, 0.06), '#c8283a', { x: x + w / 2, y: y - 0.25 - j * 0.3 });   // tovaglia a righe rosse
+        k.add(G.box(w, h, 0.05), col, { x: x + w / 2, y: y - h / 2, rz: r.range(-0.03, 0.03), unlit: true });
+        if (kind === 1) for (let j = 0; j < 3; j++) k.add(G.box(w, 0.08, 0.07), '#c8283a', { x: x + w / 2, y: y - 0.25 - j * 0.3, unlit: true });   // tovaglia a righe rosse
         k.add(G.box(0.05, 0.12, 0.08), '#8a6a3a', { x: x + 0.1, y: y + 0.02 }); k.add(G.box(0.05, 0.12, 0.08), '#8a6a3a', { x: x + w - 0.1, y: y + 0.02 });   // mollette
         x += w + 0.15;
       } else {                     // camicia o calze
@@ -35,8 +35,8 @@ export function laundryGeom(v = 0) {
       }
     }
     // la nonna al balcone sinistro: scialle nero, fazzoletto in testa, cesto
-    const nx = -HALF - 0.9;
-    k.add(G.box(1.3, 0.12, 1.3), '#9a948a', { x: nx, y: LINE_Y + 0.6 });
+    const nx = -HALF + 0.3;
+    k.add(G.box(1.6, 0.14, 1.4), '#9a948a', { x: nx - 0.2, y: LINE_Y + 0.6 }); for (let i = 0; i < 6; i++) k.add(G.box(0.04, 0.8, 0.04), '#2a2d31', { x: nx + 0.55, y: LINE_Y + 1.05, z: -0.6 + i * 0.24 }); k.add(G.box(0.05, 0.06, 1.4), '#2a2d31', { x: nx + 0.55, y: LINE_Y + 1.45 });
     k.add(G.cyl(0.32, 0.42, 1.0, 8), '#1e1c1e', { x: nx + 0.1, y: LINE_Y + 1.15 });
     k.add(G.sph(0.22, 8, 6), '#e0b48e', { x: nx + 0.12, y: LINE_Y + 1.85 });
     k.add(G.cone(0.3, 0.45, 8), '#2a2628', { x: nx + 0.1, y: LINE_Y + 2.05 });

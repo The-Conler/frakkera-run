@@ -669,8 +669,8 @@ export class World {
     if (!this.fans) { this.fans = []; for (let i = 0; i < 4; i++) { const f = buildWindowFan(this.mats2, i % 2 === 0, i % 3); f.root.visible = false; this.scene.add(f.root); this.fans.push(f); } }
     this.fans.forEach((f, i) => {
       const side = i % 2 ? 1 : -1;
-      f.root.position.set(side * 6.75, 3.9 + (i > 1 ? 0.0 : 0.3), pz - 14 - i * 5.5);
-      f.root.scale.x = side;          // davanzale verso la via
+      f.root.position.set(side * 6.1, 3.4 + (i > 1 ? 0.0 : 0.4), pz - 26 - i * 5); f.root.scale.setScalar(1.5);
+      f.root.scale.x = side * 1.5;    // davanzale verso la via
       f.root.visible = true; f.t = 0; f.ph = i * 1.3;
     });
   }
