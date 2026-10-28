@@ -11,29 +11,29 @@ import { Kit, G } from '../../kit.js';
 import { SANTAMARTA } from '../../../config.js';
 
 const C = { schist: '#7d7a72', schistL: '#9a978e', schistD: '#5f5d58', schistB: '#8f7a62', brick: '#985238', brickD: '#7a3f2c',
-  stone: '#827d72', stoneL: '#a09a8c', plaster: '#ece6da', floor: '#b5603f', floorL: '#c8724c', runner: '#e8b52c', runnerD: '#c28d18',
+  stone: '#5e5a52', stoneL: '#736c60', plaster: '#ece6da', floor: '#b5603f', floorL: '#c8724c', runner: '#e8b52c', runnerD: '#c28d18',
   pew: '#7a5434', pewD: '#5a3a22', door: '#3a2618', doorD: '#2a1a10', step: '#a8442e', stepT: '#bf5a3e', marble: '#f2eee6', gold: '#d8b050' };
 const tor = (r, t, rs, ts, arc = Math.PI * 2) => new THREE.TorusGeometry(r, t, rs, ts, arc);
 export const SM = { HW: 7.2, H: 11, RIDGE: 14.6, STEPS: 5, WALL: 0.8 };
 
 // pezzi di pietra irregolari su una parete piana (normale +z o -z) nel rettangolo [x0,x1]x[y0,y1]
 function stones(k, x0, x1, y0, y1, z, dir, pal, hole) {
-  for (let y = y0 + 0.12; y < y1 - 0.1; y += 0.32) {
+  for (let y = y0 + 0.12; y < y1 - 0.1; y += 0.42) {
     let x = x0 + k.r() * 0.4;
     while (x < x1 - 0.2) {
-      const w = 0.35 + k.r() * 0.75; const cx = Math.min(x + w / 2, x1 - w / 2);
-      if (!hole || !hole(cx, y)) k.add(G.box(w - 0.05, 0.24 + k.r() * 0.06, 0.06), pal[Math.floor(k.r() * pal.length)], { x: cx, y, z: z + dir * 0.03 });
+      const w = 0.55 + k.r() * 0.9; const cx = Math.min(x + w / 2, x1 - w / 2);
+      if (!hole || !hole(cx, y)) k.add(new THREE.PlaneGeometry(w - 0.05, 0.34 + k.r() * 0.06), pal[Math.floor(k.r() * pal.length)], { x: cx, y, z: z + dir * 0.03, ry: dir > 0 ? 0 : Math.PI });
       x += w;
     }
   }
 }
 // stesse pietre su una parete laterale (normale +x o -x)
 function stonesX(k, z0, z1, y0, y1, x, dir, pal, hole) {
-  for (let y = y0 + 0.12; y < y1 - 0.1; y += 0.34) {
+  for (let y = y0 + 0.12; y < y1 - 0.1; y += 0.5) {
     let z = z0 + k.r() * 0.4;
     while (z < z1 - 0.2) {
-      const w = 0.35 + k.r() * 0.8; const cz = Math.min(z + w / 2, z1 - w / 2);
-      if (!hole || !hole(cz, y)) k.add(G.box(0.06, 0.26, w - 0.05), pal[Math.floor(k.r() * pal.length)], { x: x + dir * 0.03, y, z: cz });
+      const w = 0.7 + k.r() * 1.1; const cz = Math.min(z + w / 2, z1 - w / 2);
+      if (!hole || !hole(cz, y)) k.add(new THREE.PlaneGeometry(w - 0.06, 0.42), pal[Math.floor(k.r() * pal.length)], { x: x + dir * 0.03, y, z: cz, ry: dir * Math.PI / 2 });
       z += w;
     }
   }
@@ -43,7 +43,7 @@ export function buildSantaMarta(seed = 1) {
   const L = SANTAMARTA.LEN_M, { HW, H, RIDGE, WALL } = SM, k = new Kit(500 + seed);
   const zc = -L / 2, OW = HW + WALL, zb = -L;
   const facePal = [C.schist, C.schistL, C.schistD, C.schistB, C.schist, '#8a8a88'];
-  const inPal = [C.stone, C.stoneL, '#6e6a62', '#8e7c66', C.stone];
+  const inPal = [C.stone, C.stoneL, '#4e4b46', '#6e5e4c', C.stone];
   const sl = Math.atan2(RIDGE - H, OW), len = Math.hypot(RIDGE - H, OW);
 
   // ---- 5 gradini rossi che si allargano verso il basso; vasi bianchi sull'ultimo
@@ -64,8 +64,8 @@ export function buildSantaMarta(seed = 1) {
   for (let x = -HW + 0.5; x < HW; x += 1.0) k.add(G.box(0.04, 0.085, L), '#8a4a34', { x, y: 0.045, z: zc });
   k.add(G.box(7.6, 0.1, L - 0.6), C.runnerD, { y: 0.06, z: zc });
   // treccia: file di "chicchi" allungati sfalsati (come la passatoia della foto)
-  for (let z = -0.5, r = 0; z > -L + 0.5; z -= 0.3, r++) for (let x = -3.55 + (r % 2) * 0.22; x <= 3.6; x += 0.44)
-    k.add(G.sph(0.22, 5, 3), (r + Math.round(x * 2)) % 3 ? C.runner : '#f2c84a', { x, y: 0.11, z, sy: 0.2, sz: 0.6, ry: (r % 2 ? 0.55 : -0.55), vary: 0.1 });
+  for (let z = -0.5, r = 0; z > -L + 0.5; z -= 0.36, r++) for (let x = -3.5 + (r % 2) * 0.25; x <= 3.6; x += 0.5)
+    k.add(new THREE.PlaneGeometry(0.26, 0.5), (r + Math.round(x * 2)) % 3 ? C.runner : '#f2c84a', { x, y: 0.12, z, rx: -Math.PI / 2, sy: 0.6, rz: (r % 2 ? 0.55 : -0.55), vary: 0.1 });
 
   // ---- muri esterni delle navatelle (pietra) con nicchie bianche e quadri della Via Crucis
   for (const s of [-1, 1]) {
@@ -103,16 +103,15 @@ export function buildSantaMarta(seed = 1) {
   for (let i = 1; i < 5; i++) { const z = -i * bay;
     k.add(tor(PX - 0.5, 0.42, 6, 18, Math.PI), C.brick, { y: H - PX + 0.2, z, vary: 0.04, sz: 1.4 });
     k.add(tor(PX - 0.05, 0.12, 4, 18, Math.PI), C.brickD, { y: H - PX + 0.2, z }); }
-  { const v = new THREE.CylinderGeometry(PX - 0.3, PX - 0.3, L, 18, 1, true, -Math.PI / 2, Math.PI), ix = v.index.array, n = v.attributes.normal.array;
+  { const v = new THREE.CylinderGeometry(PX - 0.3, PX - 0.3, L, 18, 1, true, Math.PI / 2, Math.PI), ix = v.index.array, n = v.attributes.normal.array;
     for (let j = 0; j < ix.length; j += 3) { const t = ix[j]; ix[j] = ix[j + 2]; ix[j + 2] = t; } for (let j = 0; j < n.length; j++) n[j] = -n[j];
     k.add(v, C.plaster, { y: H - PX + 0.2, z: zc, rx: Math.PI / 2 }); }
   k.add(G.box(OW * 2, 0.3, L), '#6a5a4a', { y: H + 0.15, z: zc });
   // ---- banchi di legno ai lati della passatoia
-  for (let z = -2.6; z > -L + 5; z -= 1.3) for (const s of [-1, 1]) {
+  for (let z = -2.6; z > -L + 5; z -= 1.45) for (const s of [-1, 1]) {
     const x = s * 4.95;
     k.add(G.box(1.7, 0.08, 0.42), C.pew, { x, y: 0.48, z, vary: 0.05 });
     k.add(G.box(1.7, 0.4, 0.07), C.pew, { x, y: 0.82, z: z - 0.22, vary: 0.05 });
-    k.add(G.box(1.7, 0.12, 0.08), C.pewD, { x, y: 0.95, z: z + 0.3 });
     for (const dx of [-0.82, 0.82]) k.add(G.box(0.08, 1.0, 0.6), C.pewD, { x: x + dx, y: 0.5, z });
   }
   // ---- lampadari in ottone con candele accese
@@ -141,7 +140,7 @@ export function buildSantaMarta(seed = 1) {
       k.add(G.box(len + 0.9, 0.22, 0.5), C.brick, { x: cx, y: cy + 0.15, z: zf + dir * 0.2, rz: -s * sl });
       k.add(G.box(len + 0.9, 0.14, 0.45), C.brickD, { x: cx, y: cy + 0.42, z: zf + dir * 0.15, rz: -s * sl });
       k.add(G.box(len + 0.9, 0.18, 0.6), C.brick, { x: cx, y: cy + 0.62, z: zf + dir * 0.22, rz: -s * sl });
-      for (let t = 0.03; t < 0.97; t += 0.045) { const px = s * OW * (1 - t), py = H + (RIDGE - H) * t;
+      for (let t = 0.03; t < 0.97; t += 0.07) { const px = s * OW * (1 - t), py = H + (RIDGE - H) * t;
         k.add(G.box(0.16, 0.16, 0.3), C.brickD, { x: px, y: py - 0.12, z: zf + dir * 0.12, rz: -s * sl }); }
       // risvolto orizzontale della cornice agli spigoli + lesene
       k.add(G.box(1.6, 0.6, 0.7), C.brick, { x: s * (OW - 0.6), y: H + 0.1, z: zf + dir * 0.2 });
@@ -149,8 +148,8 @@ export function buildSantaMarta(seed = 1) {
     }
     // pietre a vista
     stones(k, -OW + 1.1, OW - 1.1, 0, H, zf, dir, facePal, inDoor);
-    for (let y = H + 0.2; y < RIDGE - 0.6; y += 0.32) { const hw = OW * (1 - (y - H) / (RIDGE - H)) - 0.5;
-      for (let x = -hw; x < hw - 0.2;) { const w = 0.35 + k.r() * 0.7; k.add(G.box(w - 0.05, 0.25, 0.06), facePal[Math.floor(k.r() * facePal.length)], { x: x + w / 2, y, z: zf + dir * 0.03 }); x += w; } }
+    for (let y = H + 0.2; y < RIDGE - 0.6; y += 0.42) { const hw = OW * (1 - (y - H) / (RIDGE - H)) - 0.5;
+      for (let x = -hw; x < hw - 0.2;) { const w = 0.55 + k.r() * 0.9; k.add(new THREE.PlaneGeometry(w - 0.05, 0.34), facePal[Math.floor(k.r() * facePal.length)], { x: x + w / 2, y, z: zf + dir * 0.03, ry: dir > 0 ? 0 : Math.PI }); x += w; } }
     for (const s of [-1, 1]) { stones(k, s > 0 ? OW - 1.1 : -OW, s > 0 ? OW : -OW + 1.1, 0, H, zf + dir * 0.22, dir, [C.schistL, C.schist, '#9a968c']); }
     // portale: doppia ghiera di mattoni sull'arco e sugli stipiti
     k.add(tor(DR + 0.25, 0.32, 5, 20, Math.PI), C.brick, { y: DOOR_H - DR, z: zf + dir * 0.05 });
@@ -188,7 +187,6 @@ export function buildSantaMarta(seed = 1) {
         k.add(G.box(1.8, 1.0, 0.8), C.marble, { x: s * 5.0, y: 0.5, z: zb + 0.9 });
         k.add(G.box(1.9, 0.08, 0.9), '#ffffff', { x: s * 5.0, y: 1.04, z: zb + 0.9 });
         k.add(G.sph(0.3, 8, 6), '#d84a5a', { x: s * 5.0 + 0.5, y: 1.3, z: zb + 0.9 });
-        k.add(G.cyl(0.04, 0.04, 0.6, 6), C.gold, { x: s * 5.0 - 0.5, y: 1.35, z: zb + 0.9 });
       }
     }
   }
