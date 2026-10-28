@@ -582,7 +582,7 @@ export class World {
       if (e.kind === 'bancarella' || e.kind === 'festone') { if (v.shadow) v.shadow.visible = true; continue; }
       if (e.kind === 'panni') { if (v.shadow) v.shadow.visible = true; v.body.rotation.x = Math.sin(t * 1.7 + e.d) * 0.025; continue; }
       if (e.kind === 'tessitrice') {
-        v.body.scale.x = e.side < 0 ? -1 : 1; if (v.shadow) v.shadow.visible = true;
+        v.body.scale.set((e.side < 0 ? -1 : 1) * 1.3, 1.3, 1.3); if (v.shadow) v.shadow.visible = true;
         if (e.thrown && v.throwT < 0) v.throwT = 0;
         let k = 0; if (v.throwT >= 0) { v.throwT += dt; k = v.throwT < 0.9 ? Math.min(1, v.throwT * 8) : Math.max(0, 1 - (v.throwT - 0.9) * 3); }
         animateWeaver(v.weaver, t, k); continue;
@@ -742,8 +742,8 @@ export class World {
     if (!this.fans) { this.fans = []; for (let i = 0; i < 4; i++) { const f = buildWindowFan(this.mats2, i % 2 === 0, i % 3); f.root.visible = false; this.scene.add(f.root); this.fans.push(f); } }
     this.fans.forEach((f, i) => {
       const side = i % 2 ? 1 : -1;
-      f.root.position.set(side * 6.1, 3.4 + (i > 1 ? 0.0 : 0.4), pz - 26 - i * 5); f.root.scale.setScalar(1.5);
-      f.root.scale.x = side * 1.5;    // davanzale verso la via
+      f.root.position.set(side * 5.5, 3.3 + (i > 1 ? 0.0 : 0.4), pz - 20 - i * 4); f.root.scale.setScalar(1.9);   // v5s24: piu' grandi e vicini
+      f.root.scale.x = side * 1.9;    // davanzale verso la via
       f.root.visible = true; f.t = 0; f.ph = i * 1.3;
     });
   }

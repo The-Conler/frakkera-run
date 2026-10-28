@@ -348,13 +348,13 @@ export const SANTAMARTA = {
 export const VILLAGE = {
   BIOME: 'village',
   LAUNDRY_SHARE: 0.6,       // quota di travi nel paese che diventano panni stesi
-  WEAVER_FROM_M: 140, WEAVER_TO_M: 245,   // metri locali nel paese (dopo la festa)
+  WEAVER_FROM_M: 130, WEAVER_TO_M: 162,   // v5s24: dopo la festa, prima del vicolo in mezzo alla via (niente sovrapposizioni con blocchi e Santa Marta)
   WEAVER_GAP: [14, 22],     // file tra due tessitrici
-  WEAVER_X: 66,             // px dal centro (marciapiede)
+  WEAVER_X: 57,             // px dal centro (bordo del marciapiede, v5s24: piu' vicina per leggersi sul telefono)
   WEAVER_BRUSH_PX: 14,
   WEAVER_PTS: 15,
-  PROC_SHARE: 0.25,         // quota di travi nel paese che diventano processione (se non gia' fatta in questo giro)
-  PROC_FROM_M: 8, PROC_TO_M: 236,
+  PROC_SHARE: 0.5,         // quota di travi nel paese che diventano processione (se non gia' fatta in questo giro)
+  PROC_FROM_M: 8, PROC_TO_M: 70,   // v5s24: fuori dai blocchi in mezzo alla via e da Santa Marta
   PROC_LEN: 52,             // px di profondita' del corteo (statua + portatori)
   PROC_HALF: 13,
   PROC_FUEL: 12,            // urto: costa fuoco (mai sotto 1)
