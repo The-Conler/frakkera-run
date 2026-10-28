@@ -481,7 +481,7 @@ export class Sim {
         }
         if (e.kind === 'goat' && !e.bleat && e.d - T < MOVE_AHEAD - 10) { e.bleat = true; this.fx('sound', 'goat'); }
         if (e.kind === 'pecora' && !e.bleat && e.d - T < MOVE_AHEAD - 10) { e.bleat = true; this.stats.sheep++; if (!e.xoff) this.fx('sound', 'sheep'); }
-        if (e.kind === 'maialetto' && !e.bleat && e.d - T < MOVE_AHEAD - 10) { e.bleat = true; this.stats.piglets++; this.log('I', e.dir); this.fx('sound', 'piglet'); this.fx('popup', { text: 'SU PORCHEDDU!', style: 'small' }); }
+        if (e.kind === 'maialetto' && !e.bleat && e.d - T < MOVE_AHEAD - 10) { e.bleat = true; this.stats.piglets++; this.log('aP', e.dir); this.fx('sound', 'piglet'); this.fx('popup', { text: 'SU PORCHEDDU!', style: 'small' }); }
       }
       if (e.kind === 'rollin' && !e.done && e.d - T < MOVE_AHEAD) {
         // botte / carrello che rotola verso il giocatore lungo la corsia (velocita' proporzionale alla corsa)
@@ -527,22 +527,22 @@ export class Sim {
       }
       // v5s24: animali sulla strada
       if (e.kind === 'pastore') {
-        if (!e.seen && e.d - T < MOVE_AHEAD + 40) { e.seen = true; this.stats.flocks++; this.log('U', e.n); this.fx('shepherd', { e }); this.fx('sound', 'flockBells'); }
+        if (!e.seen && e.d - T < MOVE_AHEAD + 40) { e.seen = true; this.stats.flocks++; this.log('aF', e.n); this.fx('shepherd', { e }); this.fx('sound', 'flockBells'); }
         if (e.d + e.len < pBack) e.done = true;
         continue;
       }
       if (e.kind === 'cane') {
-        if (overlapD) { e.done = true; this.stats.dogs++; this.dogT = ANIMALS.DOG_S; this.dogSide = e.side; this.log('D', e.side); this.fx('dogJoin', { e, side: e.side }); this.fx('sound', 'bark'); this.fx('popup', { text: 'UN AMICO!', style: 'small' }); }
+        if (overlapD) { e.done = true; this.stats.dogs++; this.dogT = ANIMALS.DOG_S; this.dogSide = e.side; this.log('aD', e.side); this.fx('dogJoin', { e, side: e.side }); this.fx('sound', 'bark'); this.fx('popup', { text: 'UN AMICO!', style: 'small' }); }
         else if (e.d + e.len < pBack) e.done = true;
         continue;
       }
       if (e.kind === 'canepastore') {
-        if (overlapD) { e.done = true; this.stats.chases++; this.chase = { t: ANIMALS.CHASE_S, hit0: this.stats.hits }; this.log('C', 0); this.fx('chaseStart', { e }); this.fx('sound', 'bark'); this.fx('popup', { text: 'IL CANE TI INSEGUE!', style: 'white' }); }
+        if (overlapD) { e.done = true; this.stats.chases++; this.chase = { t: ANIMALS.CHASE_S, hit0: this.stats.hits }; this.log('aC', 0); this.fx('chaseStart', { e }); this.fx('sound', 'bark'); this.fx('popup', { text: 'IL CANE TI INSEGUE!', style: 'white' }); }
         else if (e.d + e.len < pBack) e.done = true;
         continue;
       }
       if (e.kind === 'caprarupe' && !e.landed && e.d - T < (this.currentSpeed || 0) * ANIMALS.ROCKGOAT_LEAD_S + 40) {
-        e.landed = true; this.stats.rockGoats++; this.log('G', e.lane); this.fx('rockGoatJump', { e }); this.fx('sound', 'goat');
+        e.landed = true; this.stats.rockGoats++; this.log('aG', e.lane); this.fx('rockGoatJump', { e }); this.fx('sound', 'goat');
       }
       if (e.kind === 'bancarella' || e.kind === 'festone') { if (e.d + e.len < pBack) e.done = true; continue; }   // v5s21: scena della festa
       if (e.kind === 'folla') {       // v5s21: passando vicino alla folla (corsia laterale) si sente l'applauso
@@ -759,7 +759,7 @@ export class Sim {
       for (const e of this.entities) {
         if (e.barked || e.done || !SOLID[e.kind] || e.d - T > ahead || e.d < T) continue;
         const x = this.entX(e); if (Math.abs(x - laneX(this.targetLane)) > WORLD.LANE_W / 2 + (HALF_W[e.kind] || 10)) continue;
-        e.barked = true; this.stats.barks++; this.log('L', e.lane); this.fx('dogBark', { e }); this.fx('sound', 'bark'); break;
+        e.barked = true; this.stats.barks++; this.log('aB', e.lane); this.fx('dogBark', { e }); this.fx('sound', 'bark'); break;
       }
       if (this.dogT === 0) this.fx('dogLeave', {});
     }
@@ -768,10 +768,10 @@ export class Sim {
       c.t -= dt;
       const slow = (this.currentSpeed || 0) < speedAt(Math.max(0, this.runD), this.mapOffsetM) * ANIMALS.CHASE_SLOW_K;
       if (this.stats.hits > c.hit0 || (slow && c.t < ANIMALS.CHASE_S - 0.5)) {
-        this.chase = null; this.stats.nips++; this.fuel -= ANIMALS.NIP_FUEL; this.log('V', ANIMALS.NIP_FUEL);
+        this.chase = null; this.stats.nips++; this.fuel -= ANIMALS.NIP_FUEL; this.log('aN', ANIMALS.NIP_FUEL);
         this.fx('dogNip', {}); this.fx('sound', 'bark'); this.fx('popup', { text: 'MORSO! -FUOCO', style: 'white' });
       } else if (c.t <= 0) {
-        this.chase = null; this.stats.escapes++; this.log('W', 0); this.fx('chaseEnd', {}); this.fx('popup', { text: 'SEMINATO!', style: 'small' });
+        this.chase = null; this.stats.escapes++; this.log('aE', 0); this.fx('chaseEnd', {}); this.fx('popup', { text: 'SEMINATO!', style: 'small' });
       }
     }
   }
