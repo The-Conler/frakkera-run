@@ -271,7 +271,7 @@ export class Generator {
     const used = new Array(L).fill(false); this._used = used;
     for (let l = 0; l < L; l++) if (this.blockedUntil[l] >= r) used[l] = true;
     // v5 stage 24: dentro Santa Marta niente ostacoli ne' falo' (si corre sulla passatoia): solo tappeti
-    if (santaMartaAt(D / PX_PER_METER + this.offM, SANTAMARTA.LEAD_M, 2)) { this.carpetRow(r, D, diff, used, emit); return; }
+    if (!this.parade && santaMartaAt(D / PX_PER_METER + this.offM, SANTAMARTA.LEAD_M, 2)) { this.carpetRow(r, D, diff, used, emit); return; }
     this.maybeFire(r, D, emit);
     this.maybeMine(r, D, emit);
     this.maybeFesta(r, D, emit);
@@ -291,7 +291,7 @@ export class Generator {
         biomeIdAt(D, this.offM) === 'village') {
       const bi = biomeAt(D / PX_PER_METER + this.offM), lap = bi.lap;
       // v5s20: il corteo non entra mai nel cerchio del ballu tundu (piazza della chiesa)
-      if (bi.local < bi.b.to - bi.b.from - 90 && !this.nearDance(D, 90, 30) && rng() < MK.P_LAP[Math.min(lap, MK.P_LAP.length - 1)]) {
+      if (bi.local < Math.min(bi.b.to - bi.b.from, SANTAMARTA.FROM_M - SANTAMARTA.LEAD_M) - 90 && !this.nearDance(D, 90, 30) && rng() < MK.P_LAP[Math.min(lap, MK.P_LAP.length - 1)]) {
         const g = ++this.paradeG;
         this.calmUntil = r + 6;
         this.nextMovingAt = Math.max(this.nextMovingAt, r + 14);
