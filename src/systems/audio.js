@@ -302,6 +302,11 @@ class AudioSys {
     if (!this.ok) return;
     this._tone({ f: 420, fEnd: 380, dur: 0.35, type: 'sawtooth', vol: 0.05 });
   }
+  // v5s24: animali
+  sheep() { if (!this.ok) return; [0, 0.18].forEach((t) => this._tone({ t, f: 520, fEnd: 470, dur: 0.3, type: 'sawtooth', vol: 0.045 })); }
+  flockBells() { if (!this.ok) return; [0, 0.13, 0.31, 0.47, 0.6].forEach((t, i) => this._tone({ t, f: [880, 1046, 932, 784, 988][i], dur: 0.25, type: 'triangle', vol: 0.07 })); this.sheep(); }
+  piglet() { if (!this.ok) return; this._tone({ f: 900, fEnd: 1400, dur: 0.18, type: 'square', vol: 0.04 }); this._tone({ t: 0.2, f: 1100, fEnd: 700, dur: 0.15, type: 'square', vol: 0.035 }); }
+  bark() { if (!this.ok) return; [0, 0.16].forEach((t) => this._tone({ t, f: 300, fEnd: 170, dur: 0.09, type: 'sawtooth', vol: 0.09 })); }
   milestone() {
     if (!this.ok) return;
     [0, 7, 12].forEach((s, i) => this._tone({ t: i * 0.09, f: 392 * Math.pow(2, s / 12), dur: 0.22, type: 'triangle', vol: 0.15 }));
