@@ -295,6 +295,6 @@ export const SPLIT = {
     { id: 'cappella', from: 206, len: 11 },  // cappella tonda ocra (pianta ovale)
   ],
   CLEAR_BEFORE_M: 42,                        // niente altri ostacoli da qui fino alla fine del blocco
-  CLEAR_AFTER_M: 3,
+  CLEAR_AFTER_M: 12,                         // dopo il blocco: tempo per tornare in mezzo
   HALF_W: 19,                                // px: mezza larghezza del blocco (corsie laterali a 34 px restano libere)
 };
