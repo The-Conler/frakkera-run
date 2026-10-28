@@ -19,7 +19,8 @@ const K = Math.ceil(switchPx / CELL) + 1;
 const PAD = 1;
 const MOVING = new Set(['goat', 'rollbarrel', 'maimoni', 'pecora', 'maialetto']);   // v5s24: anche gregge e maialetto
 const HELPERS = { pastore: 1, cane: 1, canepastore: 1 };   // v5s24: animali fuori dalle corsie / senza collisione
-const DUCKABLE = new Set(['trave', 'fune']);   // v5s10: la fune degli Stramaionis si passa come la trave
+const DUCKABLE = new Set(['trave', 'fune', 'ramo']);   // v5s10 fune, v5s24 ramo caduto: si passano abbassandosi
+const PASSABLE = new Set(['acqua']);   // v5s25: pozzanghera della pioggia: rallenta e basta (il salto non serve mai: percorso garantito senza saltare)
 import { biomeAt } from '../src/game/biomes/config.js';
 let parades = 0; const paradeLaps = {};
 
@@ -54,6 +55,7 @@ for (let s = 1; s <= SEEDS; s++) {
     totalObs++;
     if (MOVING.has(e.kind)) continue; // verificati a parte: finestra calma
     if (DUCKABLE.has(e.kind)) { beams.push(e); continue; }
+    if (PASSABLE.has(e.kind)) continue;
     if (e.kind === 'fuso' && e.idle) continue;     // sa Grastula senza lancio: non ferma // si passa abbassandosi in qualunque corsia (controllata a parte)
     // botte / carrello che rotola verso il giocatore: occupa la corsia per tutto il tratto che percorre
     const d0 = e.kind === 'rollin' ? e.d - e.sweep : e.d;
@@ -93,7 +95,7 @@ for (let s = 1; s <= SEEDS; s++) {
     if (e.kind === 'pistola') { pistols++; if (!reachable) { ok = false; console.log(`seed ${s}: pistola irraggiungibile @${e.d}`); } }
     if (e.kind === 'tappeto') {
       // la corsia deve restare libera per almeno 25 px dopo il tappeto
-      const after = ents.find((o) => !o.pickup && !MOVING.has(o.kind) && !DUCKABLE.has(o.kind) && o.lane === e.lane && o.d >= e.d + e.len && o.d < e.d + e.len + 25);
+      const after = ents.find((o) => !o.pickup && !MOVING.has(o.kind) && !DUCKABLE.has(o.kind) && !PASSABLE.has(o.kind) && o.lane === e.lane && o.d >= e.d + e.len && o.d < e.d + e.len + 25);
       if (after) { ok = false; console.log(`seed ${s}: trappola dopo un tappeto @${e.d} (${after.kind})`); }
     }
   }

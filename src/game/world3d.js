@@ -5,11 +5,13 @@
 // =====================================================================
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { WORLD, BIOME_OBST, FIRE, MINE, FESTA, ANIMALS } from '../config.js';
+import { WORLD, BIOME_OBST, FIRE, MINE, FESTA, WEATHER, ANIMALS } from '../config.js';
 import { laneX, isMoving, ROAD_HALF } from './sim.js';
 import { DanceRing } from './dance/dance3d.js';
 import { buildMaimoni, buildStramaione, buildGrastula, animateFigure, spindleGeom } from './masks/figures.js';
 import * as T3 from './tex3d.js';
+import { rainAt, fogAt } from '../systems/weather.js';
+import { buildRain } from './snow.js';
 import { addSnow, buildFlakes, snowAt, SNOW_U, SNOW_CFG } from './snow.js';
 import * as M from './models.js';
 import { PointPool, Shards } from './particles.js';
@@ -20,6 +22,7 @@ import { fireGeoms, FLAME_AT } from './fires3d.js';
 import { minerGeoms, HEADLAMP, LAMP_BULB } from './miners3d.js';
 import { cartGeoms } from './cart3d.js';
 import { bellGeom, sweetGeom } from './collect3d.js';
+import { magnetGeom, fennelGeom, bootsGeom, branchGeom } from './power3d.js';
 import { stallGeom, festoonGeom, buildCrowd, animateCrowd } from './festa3d.js';
 import { rng } from './kit.js';
 import { sheepGeom, pigGeom, dogGeom, shepherdGeom } from './animals3d.js';
@@ -98,6 +101,9 @@ export class World {
     { const mob = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
       this.flakes = buildFlakes(mob ? SNOW_CFG.FLAKES_MOBILE : SNOW_CFG.FLAKES_DESKTOP, this.tex.glow); this.scene.add(this.flakes); }
     this.snow = { ground: 0, fall: 0, lap: 0 }; this.breathT = 0;
+    { const mob = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;   // v5s25: pioggia e nebbia
+      this.rain = buildRain(mob ? 700 : 1400); this.scene.add(this.rain); }
+    this.rainK = 0; this.fogK = 0;
     this.light = { flameDist: 11, flameK: 1, mineral: 0, lamp: 0, darkByFuel: 0, tunnel: 0, exposure: 1.05 };
     this.amb = {}; this.farVis = 1; this.tgt = {}; this.burnT = -1;
     this.buildFx();
@@ -317,6 +323,9 @@ export class World {
       v.shadow = this.blob(2.4, 1.9);
     } else if (kind === 'muretto') {
       v.body = new THREE.Mesh(this.geo.wall[e.id % 3], this.mats2); v.shadow = this.blob(3.0, 1.4);
+    } else if (kind === 'acqua') {     // v5s25: pozzanghera della pioggia (rallenta un poco)
+      const wm = this.mat.rainPuddle || (this.mat.rainPuddle = new THREE.MeshBasicMaterial({ color: '#7f9cc8', transparent: true, opacity: 0.75, depthWrite: false }));
+      v.body = new THREE.Mesh(this.geo.puddle, wm); v.body.scale.set(1.5, 1, 1.3); v.body.position.y = 0.04; v.body.renderOrder = 3;
     } else if (kind === 'pozza') {
       v.body = new THREE.Group();
       const rim = new THREE.Mesh(this.geo.puddleRim, this.mat.puddleRim); rim.position.y = 0.03;
@@ -426,6 +435,16 @@ export class World {
       const ring = new THREE.Mesh(this.geo.ring, this.mat.ring); ring.rotation.x = Math.PI / 2; ring.position.y = -0.75; v.body.add(ring);
       v.glow = this.glowSprite(kind === 'campanaccio' ? '#ffd27a' : '#ffe9b0', 4.2, 0.8);
       v.shadow = this.blob(1.8, 1.8);
+    } else if (kind === 'calamita' || kind === 'finocchio' || kind === 'scarponi') {   // v5s24: potenziamenti
+      v.body = new THREE.Group();
+      const geo = this.geo[kind] || (this.geo[kind] = kind === 'calamita' ? magnetGeom() : kind === 'finocchio' ? fennelGeom() : bootsGeom());
+      const m = new THREE.Mesh(geo, this.mats2); m.scale.setScalar(1.35); v.spin = m; v.body.add(m);
+      const ring = new THREE.Mesh(this.geo.ring, this.mat.ring); ring.rotation.x = Math.PI / 2; ring.position.y = -0.85; v.ring = ring; v.body.add(ring);
+      v.glow = this.glowSprite(kind === 'calamita' ? '#ff6a5a' : kind === 'finocchio' ? '#c8ff7a' : '#ffc070', 4.4, 0.8);
+      v.shadow = this.blob(1.8, 1.8);
+    } else if (kind === 'ramo') {      // v5s24: ramo caduto (ci si abbassa)
+      const key = 'ramo' + ((e.variant || 0) % 2);
+      v.body = new THREE.Mesh(this.geo[key] || (this.geo[key] = branchGeom((e.variant || 0) % 2)), this.mats2); v.shadow = this.blob(12.8, 1.3);
     } else if (kind === 'tappeto') {
       v.body = new THREE.Mesh(this.geo.carpet, this.mat.carpet[(e.variant || 0) % 4]);
       v.glow = this.glowSprite('#ff7a5a', 2.6, 0.32);
@@ -507,7 +526,7 @@ export class World {
   placeView(e, v) {
     const zc = -(e.d + e.len / 2) * U;
     if (v.kind === 'narrow') { v.root.position.set(v.root.userData.x, 0, -e.d * U); return; }
-    const x = (e.kind === 'scambio' || e.kind === 'festone' ? 0 : e.kind === 'bancarella' || e.kind === 'folla' ? e.side * FESTA.X : e.kind === 'falo' ? e.side * FIRE.X : e.kind === 'minatore' ? e.side * MINE.MINER_X : e.kind === 'lampada' ? e.side * MINE.LAMP_X : e.kind === 'pastore' ? e.side * ANIMALS.SHEPHERD_X : isMoving(e.kind) ? e.x : laneX(e.lane)) * U;
+    const x = (e.kind === 'scambio' || e.kind === 'festone' ? 0 : e.kind === 'bancarella' || e.kind === 'folla' ? e.side * FESTA.X : e.kind === 'falo' ? e.side * FIRE.X : e.kind === 'minatore' ? e.side * MINE.MINER_X : e.kind === 'lampada' ? e.side * MINE.LAMP_X : e.kind === 'pastore' ? e.side * ANIMALS.SHEPHERD_X : isMoving(e.kind) ? e.x : e.kind === 'ramo' ? 0 : e.kind === 'tappeto' && e.mx !== undefined ? e.mx : laneX(e.lane)) * U;
     v.root.position.set(x, 0, zc);
   }
   // v5s24: cane randagio che corre al tuo fianco e cane pastore che ti insegue
@@ -554,6 +573,10 @@ export class World {
       if (e.kind === 'campanaccio' || e.kind === 'facciola') {
         v.body.position.y = 1.5 + Math.sin(t * 3 + e.d * 0.05) * 0.15; v.spin.rotation.y = t * 2.2;
         v.glow.position.y = 1.5;
+      } else if (e.kind === 'calamita' || e.kind === 'finocchio' || e.kind === 'scarponi') {
+        v.body.position.y = 1.35 + Math.sin(t * 3.5) * 0.16; v.spin.rotation.y = t * 2.4;
+        v.ring.scale.setScalar(1 + Math.sin(t * 6) * 0.08);
+        v.glow.position.y = 1.35; v.glow.material.opacity = 0.65 + Math.sin(t * 7) * 0.2;
       } else if (e.kind === 'tappeto') {
         v.body.position.y = 0.38 + Math.sin(t * 3.2 + e.d * 0.05) * 0.1;
         v.body.rotation.set(-Math.PI / 2 + 0.22 + Math.sin(t * 2.3 + e.d) * 0.05, 0, Math.sin(t * 1.7 + e.d) * 0.12);
@@ -744,6 +767,11 @@ export class World {
       case 'cartBoard': { this.dustPuff(sim.px * U, pz, 14); this.addShake(0.2, 0.2); break; }
       case 'cartExit': { this.dustPuff(sim.px * U, pz, 12); this.burst(sim.px * U, 0.4, pz - 1.5, COL.spark2, 24, 4); break; }
       case 'cartCrash': { const p = this.views.get(d.e.id)?.root.position; if (p) { this.dustPuff(p.x, p.z, 26); this.burst(p.x, 1.0, p.z, COL.spark2, 30, 6); } this.addShake(0.45, 0.3); break; }
+      case 'power': {                  // v5s24
+        const p = this.views.get(d.e.id)?.root.position || _v.set(sim.px * U, 0, pz);
+        this.burst(p.x, 1.3, p.z, d.kind === 'calamita' ? COL.ember : COL.gold, 40, 6);
+        break;
+      }
       case 'pistol': {
         const p = this.views.get(d.e.id)?.root.position || _v.set(sim.px * U, 0, pz);
         this.burst(p.x, 1.3, p.z, COL.gold, 40, 6);
@@ -861,6 +889,15 @@ export class World {
       const ck = sn.ground * SNOW_CFG.COLD * (1 - (tgt.light?.tunnel || 0));
       if (ck > 0.001) for (const key of ['top', 'mid', 'hor', 'fog', 'hemiS', 'hemiG', 'dirC', 'far']) { const c = tgt[key]; if (!c || !c.isColor) continue;
         const l = c.r * 0.3 + c.g * 0.55 + c.b * 0.15; c.lerp(_c.setRGB(l * 0.9, l * 0.97, l * 1.12), ck); } }
+    // v5s25: notte di pioggia (cielo piu' scuro e freddo) e chiazze di nebbia nella valle
+    { const out = 1 - (tgt.light?.tunnel || 0);
+      this.rainK += (rainAt(env.cur.bDist) * out - this.rainK) * Math.min(1, dt * 1.2);
+      this.fogK += (fogAt(env.cur.bDist) * out - this.fogK) * Math.min(1, dt * 1.5);
+      const rk = this.rainK * 0.7, fk = this.fogK;
+      if (rk > 0.001) { for (const key of ['top', 'mid', 'hor', 'fog', 'hemiS', 'dirC', 'far']) { const c = tgt[key]; if (c && c.isColor) c.lerp(_c.set(key === 'fog' || key === 'hor' ? '#3a4458' : '#262c3c'), rk); }
+        tgt.hemiI *= 1 - rk * 0.25; tgt.dirI *= 1 - rk * 0.6; tgt.sun *= 1 - rk; tgt.moon *= 1 - rk; tgt.fogFar *= 1 - rk * 0.45; }
+      if (fk > 0.001) { for (const key of ['fog', 'hor', 'far']) { const c = tgt[key]; if (c && c.isColor) c.lerp(_c.set('#c9d0d6'), fk * 0.85); }
+        tgt.fogNear *= 1 - fk * 0.85; tgt.fogFar = tgt.fogFar * (1 - fk) + Math.min(tgt.fogFar, 260) * WEATHER.FOG_FAR * fk; } }
     const k = 1 - Math.exp(-dt * 1.8);
     for (const key in tgt) {
       const v = tgt[key];
@@ -962,6 +999,9 @@ export class World {
       const fa = this.snow.fall * out * 0.85, f = this.flakes;
       f.visible = fa > 0.02;
       if (f.visible) { const u = f.material.uniforms; u.uT.value = this.clock; u.uCam.value.copy(this.camera.position); u.uA.value = fa; u.uPR.value = this.renderer.getPixelRatio(); }
+      { const r = this.rain, ra = this.rainK; r.visible = ra > 0.02;     // v5s25: pioggia + strada bagnata (riflesso freddo)
+        if (r.visible) { const u = r.material.uniforms; u.uT.value = this.clock; u.uCam.value.copy(this.camera.position); u.uA.value = ra; u.uPR.value = this.renderer.getPixelRatio(); }
+        for (const key in this.env.roadMat) { const m = this.env.roadMat[key]; if (!m.emissive) continue; if (!m.userData.e0) m.userData.e0 = m.emissive.clone(); m.emissive.copy(m.userData.e0).lerp(_c.set('#2a3a5a'), ra * 0.55); } }
       // fiato condensato davanti al viso quando fa freddo
       if (this.snow.ground > 0.45 && out > 0.5 && sim.mode === 'run') { this.breathT -= dt; if (this.breathT <= 0) { this.breathT = 1.3; this.breath?.(sim); } } }
     this.moon.position.set(this.camera.position.x - 70, 150, camZ - 300);

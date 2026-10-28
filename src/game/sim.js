@@ -5,14 +5,14 @@
 // tramite `fx(tipo, dati)`. Unita': px del mondo 2D (10 px = 1 m), corsie
 // centrate su x = 0.
 // =====================================================================
-import { SCORE, FUEL, WORLD, PX_PER_METER, PISTOL, SPEED_STEPS, BIOME_OBST, DUCK, SHOP, MASKS, DANCE, FIRE, MINE, CART, COLLECT, SKINS, FESTA, ANIMALS } from '../config.js';
+import { SCORE, FUEL, WORLD, PX_PER_METER, PISTOL, SPEED_STEPS, BIOME_OBST, DUCK, SHOP, MASKS, DANCE, FIRE, MINE, CART, COLLECT, SKINS, FESTA, POWER, JUMP, UPGRADES, WEATHER, ANIMALS } from '../config.js';
 import { biomeAt } from './biomes/config.js';
 import { cartAt, festaAt } from '../systems/generator.js';
 import { Generator, SOLID, DESTRUCTIBLE, PICKUP_KINDS, BIOME_KINDS, MASK_KINDS, difficultyAt, speedAt, speedStepsAt, lerp } from '../systems/generator.js';
 import { randomSeed, makeRng } from '../systems/rng.js';
 export const DANCE_DIRS = ['left', 'down', 'up', 'right'];
 
-export const HALF_W = { muretto: 12, botte: 7, bottecoricata: 11, botti: 12, pozza: 9, narrow: 17, goat: 7, rollbarrel: 7, rollin: 7, sasso: 8, bagnato: 9, trave: 60, maimoni: 8, fune: 26, fuso: 7, asfodelo: 10, ferula: 10, tappeto: 11, pistola: 11, pecora: 7, maialetto: 5, caprarupe: 8 };
+export const HALF_W = { muretto: 12, botte: 7, bottecoricata: 11, botti: 12, pozza: 9, narrow: 17, goat: 7, rollbarrel: 7, rollin: 7, sasso: 8, bagnato: 9, trave: 60, ramo: 60, acqua: 10, calamita: 11, finocchio: 11, scarponi: 11, maimoni: 8, fune: 26, fuso: 7, asfodelo: 10, ferula: 10, tappeto: 11, pistola: 11, pecora: 7, maialetto: 5, caprarupe: 8 };
 export const ATTRACT_SPEED = 34;
 const PLAYER_BACK = 3, PLAYER_FRONT = 5, PLAYER_HALF = 3;
 export const GUTTER = 4;
@@ -34,6 +34,8 @@ export class Sim {
     this.spendCarpets = opts.spendCarpets || ((n) => (this.carpetTotal >= n ? this.carpetTotal - n : -1));
     this.carpetTotal = opts.carpetTotal || 0;
     this.addCollectible = opts.addCollectible || (() => 0);   // v5s19: conteggi salvati in locale
+    this.getUpgrades = opts.getUpgrades || (() => ({}));   // v5s25: migliorie permanenti
+    this.setUpgrade = opts.setUpgrade || (() => {});
     this.skin = 'base';
     this.mode = 'attract';
     this.T = 0; this.genOffset = 0; this.clock = 0;
@@ -46,12 +48,14 @@ export class Sim {
 
   resetRunState() {
     this.score = 0; this.metersCredited = 0; this.fuel = FUEL.START; this.chain = 0;
-    this.stats = { pickups: 0, nearMiss: 0, chains: 0, milestones: 0, hits: 0, bonus: 0, carpets: 0, barrels: 0, goats: 0, shopVisits: 0, shopBuys: 0, shopSpent: 0, shields: 0, obst: 0, ducks: 0, beams: 0, slips: 0, speedSteps: 0, shots: 0, pistols: 0, masks: 0, parades: 0, ropes: 0, spindles: 0, dances: 0, danceSkips: 0, dancePerfect: 0, danceGood: 0, danceMiss: 0, danceBest: 0, survival: 0, capped: 0, fires: 0, fireFuel: 0, lamps: 0, miners: 0, carts: 0, junctions: 0, deadends: 0, bells: 0, sweets: 0, cheers: 0, roars: 0, flocks: 0, sheep: 0, piglets: 0, dogs: 0, barks: 0, chases: 0, nips: 0, escapes: 0, rockGoats: 0 };
+    this.stats = { pickups: 0, nearMiss: 0, chains: 0, milestones: 0, hits: 0, bonus: 0, carpets: 0, barrels: 0, goats: 0, shopVisits: 0, shopBuys: 0, shopSpent: 0, shields: 0, obst: 0, ducks: 0, beams: 0, slips: 0, speedSteps: 0, shots: 0, pistols: 0, masks: 0, parades: 0, ropes: 0, spindles: 0, dances: 0, danceSkips: 0, dancePerfect: 0, danceGood: 0, danceMiss: 0, danceBest: 0, survival: 0, capped: 0, fires: 0, fireFuel: 0, lamps: 0, miners: 0, carts: 0, junctions: 0, deadends: 0, bells: 0, sweets: 0, cheers: 0, roars: 0, magnets: 0, fennels: 0, fennelBlocks: 0, boots: 0, bootsPts: 0, branches: 0, magnetPulls: 0, jumps: 0, jumped: 0, upBuys: 0, wetSlows: 0, flocks: 0, sheep: 0, piglets: 0, dogs: 0, barks: 0, chases: 0, nips: 0, escapes: 0, rockGoats: 0 };
     this.dogT = 0; this.chase = null;
     this.shopLap = 0; this.shopOffer = 0; this.shop = null; this.shield = 0;
     this.danceLap = -1; this.danceCue = null; this.dance = null;
     this.cart = null; this.cartLap = -1; this.cartSpK = 1;
     this.duckT = 0; this.duckCd = 0; this.slipT = 0; this.speedStep = 0; this.beamHint = false;
+    this.magnetT = 0; this.fennelT = 0; this.bootsT = 0; this.bootsTick = 0;
+    this.jumpHint = false; this.jumpT = 0; this.jumpCd = 0; this.jumpH = 0; this.wetT = 0;
     this.carpetStreak = 0; this.ammo = 0; this.fireCd = 0; this.recoilT = 0;
     this.shots = [];
     this.nextSurvival = SCORE.SURVIVAL_EVERY_S;
@@ -78,6 +82,7 @@ export class Sim {
     // v5s19: costume scelto (registrato nel log: cambia la velocita')
     const sk = SKINS.find((x) => x.id === this.skin) || SKINS[0];
     this.skin = sk.id; this.skinK = sk.speedK; this.log('S', SKINS.indexOf(sk));
+    this.up = {}; { const u = this.getUpgrades() || {}; let code = 0; UPGRADES.forEach((x, i) => { const l = Math.max(0, Math.min(3, u[x.id] | 0)); this.up[x.id] = l; code += l << (i * 2); }); this.log('V', code); }
     this.fx('start');
   }
 
@@ -124,6 +129,31 @@ export class Sim {
     if (this.cart) this.fx('sound', 'cartClunk');   // v5s22: cambio binario nel carrello
     this.inputs.push([this.step, dir]);
     return true;
+  }
+
+  // v5s25: salto (swipe su): si passa sopra gli ostacoli bassi (JUMP.KINDS)
+  jump() {
+    if (this.mode !== 'run' || this.jumpCd > 0 || this.jumpT > 0 || this.cart || this.duckT > 0) return false;
+    this.jumpT = JUMP.TIME_S; this.stats.jumps++;
+    this.inputs.push([this.step, 'J']);
+    this.fx('jump'); this.fx('sound', 'jump');
+    return true;
+  }
+  upLvl(id) { return (this.up && this.up[id]) || 0; }
+  upVal(id) { const u = UPGRADES.find((x) => x.id === id); return u ? u.add * this.upLvl(id) : 0; }
+  // migliorie permanenti: comprate nel negozio, non contano nel tetto per visita
+  buyUpgrade(id) {
+    if (this.mode !== 'shop') return { ok: false, why: 'chiuso' };
+    const u = UPGRADES.find((x) => x.id === id); if (!u) return { ok: false, why: 'articolo' };
+    const lvl = this.upLvl(id); if (lvl >= 3) return { ok: false, why: 'massimo' };
+    const price = u.prices[lvl];
+    if (this.carpetTotal < price) return { ok: false, why: 'tappeti' };
+    const left = this.spendCarpets(price); if (left < 0) return { ok: false, why: 'tappeti' };
+    this.carpetTotal = left; this.up[id] = lvl + 1; this.setUpgrade(id, lvl + 1); this.stats.upBuys++;
+    this.inputs.push([this.step, 'U', UPGRADES.indexOf(u)]);
+    this.log('C', UPGRADES.indexOf(u) * 10 + lvl + 1);
+    this.fx('shopBuy', { id, price, total: left, upgrade: true });
+    return { ok: true, total: left, level: lvl + 1 };
   }
 
   // v5s6: abbassarsi (swipe giu', freccia giu', S) per passare sotto le travi basse
@@ -367,6 +397,10 @@ export class Sim {
     if (this.duckT > 0) { this.duckT = Math.max(0, this.duckT - dt); if (this.duckT === 0) this.duckCd = DUCK.COOLDOWN_S; }
     else this.duckCd = Math.max(0, this.duckCd - dt);
     this.slipT = Math.max(0, this.slipT - dt);
+    if (this.jumpT > 0) { this.jumpT = Math.max(0, this.jumpT - dt); if (this.jumpT === 0) { this.jumpCd = JUMP.COOLDOWN_S; this.fx('land'); } }
+    else this.jumpCd = Math.max(0, this.jumpCd - dt);
+    this.jumpH = this.jumpT > 0 ? Math.sin(Math.PI * (1 - this.jumpT / JUMP.TIME_S)) * JUMP.H_PX : 0;
+    this.wetT = Math.max(0, this.wetT - dt);
     // v5s18: giro in carrello (salita / discesa decise dalla distanza: deterministico)
     { const c = cartAt(rd / PX_PER_METER + this.mapOffsetM);
       if (c && !this.cart && c.lap !== this.cartLap) {
@@ -381,10 +415,13 @@ export class Sim {
     this.cartSpK = (this.cartSpK || 1) + ((this.cart ? CART.SPEED_K : 1) - (this.cartSpK || 1)) * Math.min(1, dt * 1.6);
     let speed = speedAt(rd, this.mapOffsetM) * slow * startK * this.cartSpK * (this.mode === 'run' ? (this.skinK || 1) : 1);
     if (this.danceCue) speed *= lerp(DANCE.CUE_SLOW, 1, Math.max(0, Math.min(1, ((DANCE.AT_M - biomeAt(rd / PX_PER_METER + this.mapOffsetM).local) * PX_PER_METER) / this.danceCue.d0)));
+    if (this.wetT > 0) speed *= WEATHER.PUDDLE_SLOW;
+    if (this.bootsT > 0 && this.mode === 'run') speed *= lerp(1, POWER.BOOTS_K, Math.min(1, this.bootsT * 2));
     this.currentSpeed = speed;
     this.T += speed * dt;
+    this.updatePowers(dt);
     this.invuln = Math.max(0, this.invuln - dt);
-    this.fuel -= lerp(FUEL.DRAIN_START, FUEL.DRAIN_END, difficultyAt(rd)) * dt;
+    this.fuel -= lerp(FUEL.DRAIN_START, FUEL.DRAIN_END, difficultyAt(rd)) * (1 - this.upVal('fiamma')) * dt;
 
     const meters = Math.floor(this.runD / PX_PER_METER);
     while (this.metersCredited < meters) {
@@ -462,7 +499,7 @@ export class Sim {
     return pts;
   }
 
-  entX(e) { if (e.kind === 'falo') return e.side * FIRE.X; if (e.kind === 'folla' || e.kind === 'bancarella') return e.side * FESTA.X; if (e.kind === 'minatore') return e.side * MINE.MINER_X; if (e.kind === 'lampada') return e.side * MINE.LAMP_X; if (e.kind === 'pastore') return e.side * ANIMALS.SHEPHERD_X; if (e.kind === 'cane' || e.kind === 'canepastore') return laneX(e.lane); return isMoving(e.kind) ? e.x : e.kind === 'fune' ? laneX(e.lane) + WORLD.LANE_W / 2 : laneX(e.lane); }
+  entX(e) { if (e.kind === 'falo') return e.side * FIRE.X; if (e.kind === 'folla' || e.kind === 'bancarella') return e.side * FESTA.X; if (e.kind === 'minatore') return e.side * MINE.MINER_X; if (e.kind === 'lampada') return e.side * MINE.LAMP_X; if (e.kind === 'pastore') return e.side * ANIMALS.SHEPHERD_X; if (e.kind === 'cane' || e.kind === 'canepastore') return laneX(e.lane); if (e.kind === 'tappeto' && e.mx !== undefined) return e.mx; return isMoving(e.kind) ? e.x : e.kind === 'fune' ? laneX(e.lane) + WORLD.LANE_W / 2 : laneX(e.lane); }
 
   updateEntities(dt) {
     const T = this.T;
@@ -497,6 +534,8 @@ export class Sim {
         if (!e.warned && e.d - T < sp * MASKS.FUSO_WARN_S + 30) { e.warned = true; this.fx('spindleWarn', { e }); }
         if (!e.landed && e.d - T < sp * MASKS.FUSO_THROW_S + 30) { e.landed = true; this.stats.spindles++; this.log('J', e.lane); this.fx('spindleThrow', { e }); this.fx('sound', 'spindle'); }
       }
+      if (!this.jumpHint && JUMP.KINDS[e.kind] && e.kind !== 'pozza' && e.kind !== 'acqua' && e.kind !== 'bagnato' && this.runTime > 4 && e.lane === this.targetLane && e.d - T < (this.currentSpeed || 0) * 1.4 && e.d > T) { this.jumpHint = true; this.fx('jumpHint', { e }); }
+      if (e.kind === 'ramo' && !e.hint && !this.beamHint && e.d - T < (this.currentSpeed || 0) * 1.7) { e.hint = true; this.beamHint = true; this.fx('beamHint', { e }); }
       if (e.kind === 'trave' && !e.hint && !this.beamHint && e.d - T < (this.currentSpeed || 0) * 1.7) {
         e.hint = true; this.beamHint = true; this.fx('beamHint', { e });
       }
@@ -567,11 +606,19 @@ export class Sim {
         }
         continue;
       }
+      if (overlapD && Math.abs(ex - px) <= hw + PLAYER_HALF && !e.hit && this.jumpH >= JUMP.CLEAR_PX && JUMP.KINDS[e.kind]) {
+        e.hit = true; e.jumped = true; this.stats.jumped++; const pts = this.addBonus(JUMP.PTS); this.log('a', pts); this.fx('jumped', { e }); continue;
+      }
       if (overlapD && Math.abs(ex - px) <= hw + PLAYER_HALF && !e.hit) {
+        if (e.kind === 'acqua') { e.hit = true; this.wetT = WEATHER.PUDDLE_SLOW_S; this.stats.wetSlows++; this.log('y', 0); this.fx('puddle', { e, rain: true }); this.fx('popup', { text: 'SPLASH!', style: 'water' }); continue; }
         if (e.kind === 'pozza') { this.hitPuddle(e); continue; }
         if (e.kind === 'bagnato') { this.hitWet(e); continue; }
         if (e.kind === 'fune') {
           if (this.duckT > 0) { e.hit = true; e.ducked = true; this.stats.ropes++; this.log('j', 0); this.fx('ducked', { e }); this.maskPass(e); continue; }
+          if (this.invuln <= 0) { this.hitSolid(e); continue; }
+        }
+        if (e.kind === 'ramo') {        // v5s24: ramo caduto, ci si abbassa
+          if (this.duckT > 0) { e.hit = true; e.ducked = true; this.stats.branches++; this.log('d', 0); this.fx('ducked', { e }); this.fx('sound', 'branchDuck'); continue; }
           if (this.invuln <= 0) { this.hitSolid(e); continue; }
         }
         if (e.kind === 'trave') {
@@ -689,6 +736,7 @@ export class Sim {
       if (this.carpetStreak % FESTA.STREAK === 0 && festaAt(this.runD / PX_PER_METER + this.mapOffsetM)) { this.stats.roars++; this.log('Y', this.carpetStreak); this.fx('crowdRoar', { streak: this.carpetStreak }); this.fx('sound', 'crowdRoar'); }
       return;
     }
+    if (type === 'power') { this.powerUp(e.kind, e); return; }
     if (type === 'pistol') {
       this.ammo = PISTOL.AMMO;
       this.fireCd = 0.15;
@@ -713,6 +761,35 @@ export class Sim {
       this.log('x', cb);
       this.fx('popup', { text: `CATENA x${SCORE.CHAIN_SIZE}  +${cb}`, style: 'gold' });
       this.fx('sound', 'chain');
+    }
+  }
+
+  // v5s24: potenziamenti (calamita 'G', finocchio 'I', scarponi 'U')
+  powerUp(kind, e) {
+    if (kind === 'calamita') { this.magnetT = POWER.MAGNET_S + this.upVal('calamita'); this.stats.magnets++; this.log('G', 0); this.fx('popup', { text: 'CALAMITA!', style: 'gold' }); this.fx('sound', 'magnetOn'); }
+    else if (kind === 'finocchio') { this.fennelT = POWER.FENNEL_S + this.upVal('finocchio'); this.stats.fennels++; this.log('I', 0); this.fx('popup', { text: 'SCUDO DI FINOCCHIO!', style: 'gold' }); this.fx('sound', 'fennelOn'); }
+    else { this.bootsT = POWER.BOOTS_S + this.upVal('scarponi'); this.bootsTick = 0; this.stats.boots++; this.log('U', 0); this.fx('popup', { text: 'SCARPONI DEL CALZOLAIO!', style: 'gold' }); this.fx('sound', 'bootsOn'); }
+    this.fx('power', { e, kind });
+  }
+
+  updatePowers(dt) {
+    if (this.magnetT > 0) {
+      this.magnetT = Math.max(0, this.magnetT - dt);
+      const k = Math.min(1, POWER.MAGNET_PULL * dt);
+      for (const e of this.entities) {
+        if (e.kind !== 'tappeto' || e.done) continue;
+        const gap = e.d - this.T;
+        if (gap > POWER.MAGNET_PX || gap < -PLAYER_BACK) continue;
+        if (e.mx === undefined) { e.mx = laneX(e.lane); this.stats.magnetPulls++; }
+        e.mx += (this.px - e.mx) * k;
+      }
+      if (this.magnetT === 0) this.fx('powerEnd', { kind: 'calamita' });
+    }
+    if (this.fennelT > 0) { this.fennelT = Math.max(0, this.fennelT - dt); if (this.fennelT === 0) this.fx('powerEnd', { kind: 'finocchio' }); }
+    if (this.bootsT > 0) {
+      this.bootsT = Math.max(0, this.bootsT - dt); this.bootsTick += dt;
+      if (this.bootsTick >= POWER.BOOTS_TICK_S) { this.bootsTick -= POWER.BOOTS_TICK_S; const pts = this.addBonus(POWER.BOOTS_PTS); this.stats.bootsPts += pts; this.log('L', pts); }
+      if (this.bootsT === 0) this.fx('powerEnd', { kind: 'scarponi' });
     }
   }
 
@@ -781,6 +858,15 @@ export class Sim {
     if (e.kind === 'deadend') { (this.cartBadJ || (this.cartBadJ = {}))[e.junction] = 1; this.stats.deadends++; this.fx('cartCrash', { e }); this.fx('popup', { text: 'BINARIO INTERROTTO!', style: 'white' }); }
     if (e.group && this.parades[e.group]) this.parades[e.group].fail = true;
     if (MASK_KINDS[e.kind]) this.stats.masks++;
+    if (this.fennelT > 0) {            // v5s24: lo scudo di finocchio para un urto e si consuma (log 'W')
+      this.fennelT = 0; this.stats.fennelBlocks++;
+      this.invuln = WORLD.HIT_INVULN_S;
+      this.log('W', 0);
+      this.fx('shieldBlock', { e, fennel: true });
+      this.fx('popup', { text: 'FINOCCHIO!', style: 'gold' });
+      this.fx('powerEnd', { kind: 'finocchio' });
+      return;
+    }
     if (this.shield > 0) {             // v5s7: lo scudo di sughero para un urto (log 'Z')
       this.shield--; this.stats.shields++;
       this.invuln = WORLD.HIT_INVULN_S;
@@ -790,7 +876,7 @@ export class Sim {
       return;
     }
     this.lastHitStep = this.step;
-    const loss = e.kind === 'maimoni' ? MASKS.HIT_MAIMONI : e.kind === 'fune' ? MASKS.HIT_FUNE : e.kind === 'fuso' ? MASKS.HIT_FUSO : isMoving(e.kind) || e.kind === 'rollin' ? FUEL.HIT_GOAT : e.kind === 'trave' ? FUEL.HIT_BEAM : FUEL.HIT_SOLID;
+    const loss = e.kind === 'maimoni' ? MASKS.HIT_MAIMONI : e.kind === 'fune' ? MASKS.HIT_FUNE : e.kind === 'fuso' ? MASKS.HIT_FUSO : isMoving(e.kind) || e.kind === 'rollin' ? FUEL.HIT_GOAT : e.kind === 'trave' || e.kind === 'ramo' ? FUEL.HIT_BEAM : FUEL.HIT_SOLID;
     this.log('h', loss);
     this.carpetStreak = 0;
     this.fuel -= loss;
@@ -815,7 +901,7 @@ export class Sim {
   debugState() {
     return {
       mode: this.mode, score: this.score, fuel: this.fuel, meters: Math.floor(this.runD / PX_PER_METER),
-      lane: this.targetLane, px: this.px, dance: this.dance && { lap: this.dance.lap, t: this.dance.t, bpm: this.dance.bpm, combo: this.dance.combo, perf: this.dance.perf, good: this.dance.good, miss: this.dance.miss, pts: this.dance.pts, notes: this.dance.notes.length, round: this.dance.round, end: this.dance.end }, danceCue: !!this.danceCue, T: this.T, stats: { ...this.stats }, speed: this.currentSpeed, baseSpeed: speedAt(Math.max(0, this.runD), this.mapOffsetM), speedStep: this.speedStep, shopOffer: this.shopOffer, shopLap: this.shopLap, shield: this.shield, shop: this.shop && { ...this.shop, buys: { ...this.shop.buys } }, duckT: this.duckT, slipT: this.slipT, dogT: this.dogT, chase: this.chase && this.chase.t,
+      lane: this.targetLane, px: this.px, dance: this.dance && { lap: this.dance.lap, t: this.dance.t, bpm: this.dance.bpm, combo: this.dance.combo, perf: this.dance.perf, good: this.dance.good, miss: this.dance.miss, pts: this.dance.pts, notes: this.dance.notes.length, round: this.dance.round, end: this.dance.end }, danceCue: !!this.danceCue, T: this.T, stats: { ...this.stats }, speed: this.currentSpeed, baseSpeed: speedAt(Math.max(0, this.runD), this.mapOffsetM), speedStep: this.speedStep, shopOffer: this.shopOffer, shopLap: this.shopLap, shield: this.shield, shop: this.shop && { ...this.shop, buys: { ...this.shop.buys } }, duckT: this.duckT, slipT: this.slipT, jumpT: this.jumpT, jumpH: this.jumpH, up: { ...(this.up || {}) }, magnetT: this.magnetT, fennelT: this.fennelT, bootsT: this.bootsT, dogT: this.dogT, chase: this.chase && this.chase.t,
       skin: this.skin, festa: !!festaAt(this.runD / PX_PER_METER + this.mapOffsetM) && this.mode !== 'attract', ammo: this.ammo, shotsInFlight: this.shots.length, carpetTotal: this.carpetTotal, events: this.events.length, inputs: this.inputs.length,
       entities: this.entities.filter((e) => !e.done).map((e) => ({ kind: e.kind, lane: e.lane, x: e.x, ahead: e.d - this.T, len: e.len, pickup: !!e.pickup, solid: e.solid, group: e.group || 0, side: e.side, idle: !!e.idle, destructible: !!DESTRUCTIBLE[e.kind] })),
     };

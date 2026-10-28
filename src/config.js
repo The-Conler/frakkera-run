@@ -301,3 +301,34 @@ export const ANIMALS = {
   ROCKGOAT_BIOMES: ['rock'], ROCKGOAT_LEAD_S: 1.1, ROCKGOAT_N: [1, 2],
   SHEPHERD_X: 62,
 };
+
+// ---- v5s24: potenziamenti rari (flusso RNG proprio) e ramo caduto nei boschi / sulla roccia ----
+export const POWER = {
+  FROM_M: 140,             // non prima di X metri
+  GAP_ROWS: [110, 190],    // file tra un potenziamento e l'altro (~330-570 m)
+  KINDS: [['calamita', 0.38], ['finocchio', 0.34], ['scarponi', 0.28]],
+  MAGNET_S: 10, MAGNET_PX: 320, MAGNET_PULL: 9,     // calamita: tira i tappeti da tutte le corsie
+  FENNEL_S: 5,             // scudo di finocchio intrecciato: para UN urto entro 5 s
+  BOOTS_S: 4, BOOTS_K: 1.28, BOOTS_PTS: 8, BOOTS_TICK_S: 0.5,   // scarponi del calzolaio
+  BRANCH_BIOMES: ['rock', 'river'], BRANCH_FROM_M: 60, BRANCH_GAP_ROWS: [26, 60], BRANCH_P: 0.09, BRANCH_LEN: 10,
+};
+
+// ---- v5s25: salto (swipe su / freccia su / W) sopra gli ostacoli bassi ----
+// Il generatore continua a garantire un percorso SENZA saltare (il salto e' solo una scorciatoia).
+export const JUMP = {
+  TIME_S: 0.62, COOLDOWN_S: 0.1, H_PX: 15, CLEAR_PX: 6, PTS: 5,
+  KINDS: { botte: true, bottecoricata: true, muretto: true, sasso: true, pozza: true, bagnato: true, acqua: true },   // NON travi, rami, funi
+};
+// ---- v5s25: migliorie permanenti nel Garag di Pinu (salvate in locale, 3 livelli) ----
+export const UPGRADES = [
+  { id: 'calamita', name: 'Calamita pi\u00f9 forte', unit: 's', add: 2, prices: [40, 90, 180] },
+  { id: 'finocchio', name: 'Finocchio pi\u00f9 fitto', unit: 's', add: 1.5, prices: [40, 90, 180] },
+  { id: 'scarponi', name: 'Scarponi risuolati', unit: 's', add: 1.2, prices: [40, 90, 180] },
+  { id: 'fiamma', name: 'Frakkera pi\u00f9 lenta', unit: '%', add: 0.07, prices: [60, 130, 260] },
+];
+// ---- v5s25: meteo: notte di pioggia (giri 4, 6, 8...) e nebbia nella valle (roccia / fiume) ----
+export const WEATHER = {
+  RAIN_FROM_LAP: 3,        // giro (da 0) della prima notte di pioggia; poi un giro si' e uno no
+  PUDDLE_GAP_ROWS: [8, 18], PUDDLE_SLOW: 0.86, PUDDLE_SLOW_S: 0.55,
+  FOG_BIOMES: ['rock', 'river'], FOG_BLOCK_M: 130, FOG_P: 0.6, FOG_LEN_M: [35, 65], FOG_FAR: 0.14,
+};

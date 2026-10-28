@@ -13,6 +13,7 @@ const K = {
   coll: 'frakkera.collect.v1',
   skins: 'frakkera.skins.v1',
   skin: 'frakkera.skin.v1',
+  up: 'frakkera.upgrades.v1',
 };
 
 const mem = {}; // fallback se localStorage non e' disponibile (es. privacy mode)
@@ -121,3 +122,7 @@ export function getUnlocked() {
 export function unlockSkin(id) { const l = getUnlocked(); if (!l.includes(id)) { l.push(id); set(K.skins, JSON.stringify(l)); } return l; }
 export const getSkin = () => { const s = get(K.skin) || 'base'; return getUnlocked().includes(s) ? s : 'base'; };
 export const setSkin = (id) => set(K.skin, id);
+
+// v5s25: migliorie permanenti del Garag di Pinu ({ id: livello 0..3 })
+export function getUpgrades() { try { const o = JSON.parse(get(K.up) || '{}'); return o && typeof o === 'object' ? o : {}; } catch { return {}; } }
+export function setUpgrade(id, lvl) { const o = getUpgrades(); o[id] = Math.max(0, Math.min(3, lvl | 0)); set(K.up, JSON.stringify(o)); return o; }

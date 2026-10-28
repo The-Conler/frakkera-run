@@ -208,6 +208,7 @@ export class Character3D {
     this.root.rotation.y = this.facing + (this.state === 'run' ? (st.vx || 0) * 0.22 : 0);
     this.cartK = (this.cartK || 0) + ((st.cart ? 1 : 0) - (this.cartK || 0)) * Math.min(1, dt * 8);
     if (this.cartK > 1e-3) this.root.position.y = SEAT_Y * this.cartK;   // v5s20: dentro il carrello (le gambe restano nascoste dalle sponde)
+    if (st.jumpH > 0) { this.root.position.y += st.jumpH * 0.16; }   // v5s25: salto piu' alto e visibile (px -> m)
     if (st.danceRy != null) { this.root.rotation.y = st.danceRy; this.root.position.y = st.danceHop || 0; }   // v5s11: nel cerchio del ballo
     // lampeggio durante l'invulnerabilita'
     this.model.visible = !(st.invuln > 0 && Math.floor(st.invuln * 14) % 2);
