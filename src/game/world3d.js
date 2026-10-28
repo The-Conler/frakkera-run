@@ -524,7 +524,7 @@ export class World {
       c.barkT = Math.max(0, c.barkT - dt);
       const bob = Math.abs(Math.sin(t * 16 + i)) * 0.25;
       if (i === 0) { const side = sim.dogSide || -1; c.m.position.set(px + side * ANIMALS.DOG_X * U * c.k + side * (1 - c.k) * 6, bob + (c.barkT > 0 ? 0.3 : 0), pz + 1.0 - (1 - c.k) * 4); }
-      else c.m.position.set(px + Math.sin(t * 3) * 0.6, bob, pz + 3.2 - Math.sin(t * 5) * 0.5 + (1 - c.k) * 5);
+      else c.m.position.set(px + 1.3 + Math.sin(t * 3) * 0.3, bob, pz + 1.8 - Math.sin(t * 5) * 0.5 + (1 - c.k) * 5);
       c.m.rotation.y = Math.PI / 2; c.m.rotation.z = Math.sin(t * 16 + i) * 0.08;
     });
   }
@@ -631,13 +631,13 @@ export class World {
         v.body.rotation.y = -Math.PI / 2; v.body.position.y = Math.abs(Math.sin(t * 5)) * 0.08;
       } else if (e.kind === 'caprarupe') {
         // v5s24: la capra aspetta sulla roccia a lato, poi salta giu' sulla corsia (ombra di avviso)
-        const sx = (e.side || 1) * 9;
+        const sx = (e.side || 1) * 4.5;
         if (!e.landed) {
-          v.body.position.set(sx, 4.5, 0); v.body.rotation.y = e.side > 0 ? Math.PI : 0;
+          v.body.position.set(sx, 3.2, 0); v.body.rotation.y = e.side > 0 ? Math.PI : 0;
           if (v.warn) { v.warn.visible = true; v.warn.scale.setScalar(1.3 + Math.sin(t * 10) * 0.2); }
         } else {
           v.fallT += dt; const q = Math.min(1, v.fallT / 0.55);
-          v.body.position.set(sx * (1 - q), 4.5 * (1 - q) + Math.sin(q * Math.PI) * 3, 0);
+          v.body.position.set(sx * (1 - q), 3.2 * (1 - q) + Math.sin(q * Math.PI) * 3, 0);
           if (v.warn) v.warn.visible = q < 1;
           if (q >= 1) { v.body.position.y = Math.abs(Math.sin(t * 3)) * 0.05; if (!v.landFx) { v.landFx = true; const p = v.root.position; this.dustPuff(p.x, p.z, 16); } }
         }
