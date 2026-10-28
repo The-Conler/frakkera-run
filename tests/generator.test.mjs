@@ -17,7 +17,8 @@ const switchS = Math.log(20) / WORLD.LANE_EASE;               // cambio corsia a
 const switchPx = switchS * DIFFICULTY.SPEED_MAX;
 const K = Math.ceil(switchPx / CELL) + 1;
 const PAD = 1;
-const MOVING = new Set(['goat', 'rollbarrel', 'maimoni']);
+const MOVING = new Set(['goat', 'rollbarrel', 'maimoni', 'pecora', 'maialetto']);   // v5s24: anche gregge e maialetto
+const HELPERS = { pastore: 1, cane: 1, canepastore: 1 };   // v5s24: animali fuori dalle corsie / senza collisione
 const DUCKABLE = new Set(['trave', 'fune']);   // v5s10: la fune degli Stramaionis si passa come la trave
 import { biomeAt } from '../src/game/biomes/config.js';
 let parades = 0; const paradeLaps = {};
@@ -31,8 +32,9 @@ for (let s = 1; s <= SEEDS; s++) {
   const ents = [], beams = [];
   const fires = [];
   const mines = [];
+  const helpers = [];
   const festa = [];   // v5s21: bancarelle, folla e festoni (provati in sim-festa)
-  g.fillUntil(LENGTH, (e) => (e.kind === 'falo' ? fires : ['bancarella', 'folla', 'festone'].includes(e.kind) ? festa : SIDE_KINDS[e.kind] ? mines : ents).push(e));
+  g.fillUntil(LENGTH, (e) => (HELPERS[e.kind] ? helpers : e.kind === 'falo' ? fires : ['bancarella', 'folla', 'festone'].includes(e.kind) ? festa : SIDE_KINDS[e.kind] ? mines : ents).push(e));
   for (const f of festa) if (biomeAt(f.d / 10).b.id !== 'village') { ok0 = false; console.log(`seed ${s}: ${f.kind} fuori dal paese @${f.d}`); }
   for (const m of mines) { totalMine[m.kind] = (totalMine[m.kind] || 0) + 1; const bid = biomeAt(m.d / 10).b.id; if (!bid.startsWith('mine') || (m.kind === 'lampada' && bid === 'mine-ext')) { ok0 = false; console.log(`seed ${s}: ${m.kind} fuori dalla miniera @${m.d} (${bid})`); } if (m.kind === 'minatore' && ents.some((o) => o.kind === 'narrow' && o.lane === m.lane && o.d < m.d + m.len && o.d + o.len > m.d)) { ok0 = false; console.log(`seed ${s}: minatore dentro la roccia @${m.d}`); } }
   // v5s16: frakkere a bordo strada: solo negli ambienti previsti, sul lato giusto, mai dentro una casa che sporge

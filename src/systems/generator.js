@@ -66,7 +66,7 @@ export const BIOME_OBST_KIND = { village: 'rollin', rock: 'sasso', river: 'bagna
 // v5s10: maschere del carnevale di Gadoni: la pistola le attraversa senza effetto
 export const MASK_KINDS = { maimoni: true, fune: true, fuso: true };
 // v5s16: frakkere accese a bordo strada (non occupano corsie)
-export const SIDE_KINDS = { falo: true, minatore: true, lampada: true, carrello: true, scambio: true, bancarella: true, folla: true, festone: true, pastore: true, cane: true, canepastore: true };
+export const SIDE_KINDS = { falo: true, minatore: true, lampada: true, carrello: true, scambio: true, bancarella: true, folla: true, festone: true };
 // v5s21: tratto in festa del paese alla distanza m (metri assoluti): null o { lap, local }
 export function festaAt(m) {
   const bi = biomeAt(Math.max(0, m));
@@ -200,7 +200,7 @@ export class Generator {
     if (r >= this.crowdNext) {
       const side = pr() < 0.5 ? -1 : 1;
       this.crowdNext = r + pr.int(FESTA.CROWD_GAP[0], FESTA.CROWD_GAP[1]);
-      if (!busy(side)) {
+      if (!busy(side) && festaAt((D + 10) / PX_PER_METER + this.offM)) {   // v5s24: mai a cavallo della fine della festa
         const edge = side < 0 ? 0 : L - 1; this.crowds++;
         this.sideBlocks.push({ edge, until: r + 1 });
         emit({ kind: 'folla', lane: edge, side, d: D + 10, len: 14, n: pr.int(3, 5), variant: pr.int(0, 5), crowd: this.crowds });
@@ -281,9 +281,11 @@ export class Generator {
       emit({ kind: 'maialetto', lane: dir > 0 ? 0 : L - 1, d: D + 3 * ROW + 4, len: 10, dir, vx: lerp(A.PIG_VX[0], A.PIG_VX[1], diff), animal: id });
       return true;
     }
-    // capre dalla roccia: 1-2 capre, mai tutte le corsie
-    const k = ar.int(A.ROCKGOAT_N[0], A.ROCKGOAT_N[1]), lanes = [0, 1, 2]; for (let i = 2; i > 0; i--) { const j = ar.int(0, i); [lanes[i], lanes[j]] = [lanes[j], lanes[i]]; } lanes.length = k;
-    lanes.forEach((l, i) => emit({ kind: 'caprarupe', lane: l, side: l === 0 ? -1 : l === 2 ? 1 : (dir), d: D + 4 * ROW + i * ROW * 2, len: 12, animal: id }));
+    // capre dalla roccia: 1-2 capre sulla stessa fila, mai sul sentiero sicuro (resta sempre un passaggio)
+    const k = ar.int(A.ROCKGOAT_N[0], A.ROCKGOAT_N[1]), lanes = [0, 1, 2].filter((l) => l !== this.path && this.freeUntil[l] < r && !(this._used || [])[l]);
+    for (let i = lanes.length - 1; i > 0; i--) { const j = ar.int(0, i); [lanes[i], lanes[j]] = [lanes[j], lanes[i]]; }
+    lanes.length = Math.min(k, lanes.length);
+    lanes.forEach((l) => { emit({ kind: 'caprarupe', lane: l, side: l === 0 ? -1 : l === 2 ? 1 : dir, d: D + 9, len: 12, animal: id }); this.blockedUntil[l] = Math.max(this.blockedUntil[l], r); });
     return true;
   }
 
