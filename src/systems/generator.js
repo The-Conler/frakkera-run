@@ -7,7 +7,7 @@
 // mobili compaiono solo in "finestre calme" senza altri ostacoli.
 // Tappeti, combustibile e pistola si piazzano solo in celle libere.
 // =====================================================================
-import { DIFFICULTY as DF, WORLD, PX_PER_METER, CARPETS as CP, PISTOL, SPEED_STEPS as SS, BIOME_OBST as BO, DUCK, MASKS as MK, FIRE, MINE, CART, COLLECT, DANCE, FESTA } from '../config.js';
+import { DIFFICULTY as DF, WORLD, PX_PER_METER, CARPETS as CP, PISTOL, SPEED_STEPS as SS, BIOME_OBST as BO, DUCK, MASKS as MK, FIRE, MINE, CART, COLLECT, DANCE, FESTA, VILLAGE as VL } from '../config.js';
 import { biomeAt, BIOMES } from '../game/biomes/config.js';
 import { makeRng } from './rng.js';
 
@@ -52,6 +52,8 @@ export const SOLID = {
   rollin: true, sasso: true, bagnato: false, trave: false,
   // v5s10: maschere di Gadoni (la fune si passa abbassandosi, come la trave)
   maimoni: true, fune: false, fuso: true,
+  // feat-village: panni stesi (ci si abbassa), processione (urto = fuoco, non ferma)
+  panni: false, processione: false,
   // v5s18: binario interrotto (respingente o crollo) durante il giro in carrello
   deadend: true,
 };
@@ -64,7 +66,7 @@ export const BIOME_OBST_KIND = { village: 'rollin', rock: 'sasso', river: 'bagna
 // v5s10: maschere del carnevale di Gadoni: la pistola le attraversa senza effetto
 export const MASK_KINDS = { maimoni: true, fune: true, fuso: true };
 // v5s16: frakkere accese a bordo strada (non occupano corsie)
-export const SIDE_KINDS = { falo: true, minatore: true, lampada: true, carrello: true, scambio: true, bancarella: true, folla: true, festone: true };
+export const SIDE_KINDS = { falo: true, minatore: true, lampada: true, carrello: true, scambio: true, bancarella: true, folla: true, festone: true, tessitrice: true };
 // v5s21: tratto in festa del paese alla distanza m (metri assoluti): null o { lap, local }
 export function festaAt(m) {
   const bi = biomeAt(Math.max(0, m));
@@ -116,6 +118,9 @@ export class Generator {
     // v5s21: flusso separato per la festa (bancarelle, folla, festoni)
     this.prng = makeRng(((seed >>> 0) ^ 0x21fe57) >>> 0);
     this.stallNext = { '-1': 0, '1': 0 }; this.crowdNext = 0; this.festoonNext = 0; this.crowds = 0;
+    // feat-village: flusso separato per la vita del paese (panni, tessitrice, processione)
+    this.vrng = makeRng(((seed >>> 0) ^ 0x7a11a9) >>> 0);
+    this.weaverNext = 0; this.weavers = 0; this.procLap = -1; this.procs = 0; this.laundry = 0;
     this.nextMinerRow = 0; this.nextLampRow = 0; this.minerSide = 1; this.lampSide = -1; this.miners = 0; this.lamps = 0;
   }
 
@@ -204,6 +209,19 @@ export class Generator {
     }
   }
 
+  // feat-village: tessitrice al telaio sul marciapiede (dopo la festa), flusso vrng
+  maybeWeaver(r, D, emit) {
+    if (r < this.weaverNext) return;
+    const bi = biomeAt(D / PX_PER_METER + this.offM);
+    if (bi.b.id !== VL.BIOME || bi.local < VL.WEAVER_FROM_M || bi.local >= VL.WEAVER_TO_M) return;
+    const vr = this.vrng, L = WORLD.LANES;
+    this.weaverNext = r + vr.int(VL.WEAVER_GAP[0], VL.WEAVER_GAP[1]);
+    const side = vr() < 0.5 ? -1 : 1, edge = side < 0 ? 0 : L - 1;
+    if (this.sideBlocks.some((b) => b.edge === edge && b.until >= r)) return;
+    this.sideBlocks.push({ edge, until: r + 1 }); this.weavers++;
+    emit({ kind: 'tessitrice', lane: edge, side, d: D + 8, len: 16, variant: vr.int(0, 3), weaver: this.weavers });
+  }
+
   // v5s16: falo' o paesano con la frakkera sul marciapiede, lato -1 (sinistra) / +1 (destra)
   maybeFire(r, D, emit) {
     if (r < this.nextFireRow || D / PX_PER_METER < FIRE.FROM_M) return;
@@ -264,6 +282,7 @@ export class Generator {
     this.maybeFire(r, D, emit);
     this.maybeMine(r, D, emit);
     this.maybeFesta(r, D, emit);
+    this.maybeWeaver(r, D, emit);
     if (this.sideBlocks.length > 4) this.sideBlocks = this.sideBlocks.filter((b) => b.until >= r);
     if (this.cartRow(r, D, diff, used, emit)) return;
 
@@ -352,6 +371,27 @@ export class Generator {
     if (diff >= DUCK.BEAM_FROM && r >= this.nextBeamAt && !longActive && rng() < lerp(DUCK.BEAM_P_START, DUCK.BEAM_P_END, diff)) {
       this.nextBeamAt = r + DUCK.BEAM_MIN_GAP_ROWS + rng.int(0, 8);
       for (let l = 0; l < L; l++) { used[l] = true; this.laneCool[l] = Math.max(this.laneCool[l], r + 1); }
+      // feat-village: nel paese la trave puo' diventare la processione di Santa Marta (rara) o i panni della nonna
+      const vb = biomeAt(D / PX_PER_METER + this.offM), vr = this.vrng;
+      if (vb.b.id === VL.BIOME) {
+        const pRoll = vr(), lRoll = vr();
+        if (vb.lap !== this.procLap && vb.local >= VL.PROC_FROM_M && vb.local < VL.PROC_TO_M && !this.nearDance(D, 80, 40) && pRoll < VL.PROC_SHARE) {
+          this.procLap = vb.lap; this.procs++;
+          const lane = this.path === 1 ? (vr() < 0.5 ? 0 : 2) : 1;     // mai sul sentiero sicuro
+          const rows = Math.ceil(VL.PROC_LEN / ROW) + 1;
+          this.blockedUntil[lane] = Math.max(this.blockedUntil[lane], r + rows); used[lane] = true;
+          for (let l = 0; l < L; l++) this.laneCool[l] = Math.max(this.laneCool[l], r + 1);
+          emit({ kind: 'processione', lane, d: D + 10, len: VL.PROC_LEN, proc: this.procs, variant: vr.int(0, 2) });
+          this.carpetRow(r, D, diff, used, emit);
+          return;
+        }
+        if (lRoll < VL.LAUNDRY_SHARE) {
+          this.laundry++;
+          emit({ kind: 'panni', lane: 1, d: D + 10, len: DUCK.BEAM_LEN, variant: vr.int(0, 3) });
+          this.carpetRow(r, D, diff, used, emit);
+          return;
+        }
+      }
       emit({ kind: 'trave', lane: 1, d: D + 10, len: DUCK.BEAM_LEN });
       this.carpetRow(r, D, diff, used, emit);
       return;

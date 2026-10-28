@@ -32,7 +32,7 @@ for (let s = 1; s <= SEEDS; s++) {
   const fires = [];
   const mines = [];
   const festa = [];   // v5s21: bancarelle, folla e festoni (provati in sim-festa)
-  g.fillUntil(LENGTH, (e) => (e.kind === 'falo' ? fires : ['bancarella', 'folla', 'festone'].includes(e.kind) ? festa : SIDE_KINDS[e.kind] ? mines : ents).push(e));
+  g.fillUntil(LENGTH, (e) => (e.kind === 'falo' ? fires : ['bancarella', 'folla', 'festone', 'tessitrice'].includes(e.kind) ? festa : SIDE_KINDS[e.kind] ? mines : ents).push(e));
   for (const f of festa) if (biomeAt(f.d / 10).b.id !== 'village') { ok0 = false; console.log(`seed ${s}: ${f.kind} fuori dal paese @${f.d}`); }
   for (const m of mines) { totalMine[m.kind] = (totalMine[m.kind] || 0) + 1; const bid = biomeAt(m.d / 10).b.id; if (!bid.startsWith('mine') || (m.kind === 'lampada' && bid === 'mine-ext')) { ok0 = false; console.log(`seed ${s}: ${m.kind} fuori dalla miniera @${m.d} (${bid})`); } if (m.kind === 'minatore' && ents.some((o) => o.kind === 'narrow' && o.lane === m.lane && o.d < m.d + m.len && o.d + o.len > m.d)) { ok0 = false; console.log(`seed ${s}: minatore dentro la roccia @${m.d}`); } }
   // v5s16: frakkere a bordo strada: solo negli ambienti previsti, sul lato giusto, mai dentro una casa che sporge
