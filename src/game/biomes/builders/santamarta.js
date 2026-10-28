@@ -6,17 +6,17 @@ import * as THREE from 'three';
 import { Kit, G } from '../../kit.js';
 import { SANTAMARTA } from '../../../config.js';
 
-const C = { schist: '#7a6e62', schistD: '#62584e', brick: '#a5553a', brickD: '#8a4630', stone: '#9c9284', plaster: '#d8cbb2',
+const C = { schist: '#a4a8ac', schistD: '#8e9296', brick: '#a5553a', brickD: '#8a4630', stone: '#9c9284', plaster: '#d8cbb2',
   floor: '#b8674a', runner: '#e2b33c', runnerB: '#b88a26', pew: '#6b4429', wood: '#4a2e1c', step: '#a8442e', marble: '#efe9de', gold: '#e0b450' };
 const tor = (r, t, rs, ts, arc = Math.PI * 2) => new THREE.TorusGeometry(r, t, rs, ts, arc);
-export const SM = { HW: 7.2, H: 11.5, RIDGE: 15.5, STEPS: 4, WALL: 0.8 };
+export const SM = { HW: 7.2, H: 13, RIDGE: 16.8, STEPS: 4, WALL: 0.8 };
 
 export function buildSantaMarta(seed = 1) {
   const L = SANTAMARTA.LEN_M, { HW, H, RIDGE, WALL } = SM, k = new Kit(500 + seed);
   const zc = -L / 2;
   // ---- gradini rossi davanti al portone (rampa bassa: la corsa non salta) e urne bianche
-  for (let i = 0; i < SM.STEPS; i++) k.add(G.box(HW * 2 - 1, 0.12 + i * 0.1, 1.0), C.step, { y: (0.12 + i * 0.1) / 2, z: 4 - i * 1.0, vary: 0.05 });
-  for (const s of [-1, 1]) { k.add(G.cyl(0.35, 0.5, 0.25, 10), C.marble, { x: s * 5.6, y: 0.55, z: 1.2 }); k.add(G.sph(0.55, 10, 7), C.marble, { x: s * 5.6, y: 1.1, z: 1.2, sy: 1.1 }); k.add(G.cyl(0.45, 0.3, 0.2, 10), C.marble, { x: s * 5.6, y: 1.75, z: 1.2 }); }
+  for (let i = 0; i < SM.STEPS; i++) k.add(G.box(10.4, 0.12 + i * 0.1, 1.0), C.step, { y: (0.12 + i * 0.1) / 2, z: 4 - i * 1.0, vary: 0.05 });
+  for (const s of [-1, 1]) { k.add(G.cyl(0.35, 0.5, 0.25, 10), C.marble, { x: s * 4.6, y: 0.55, z: 1.2 }); k.add(G.sph(0.55, 10, 7), C.marble, { x: s * 4.6, y: 1.1, z: 1.2, sy: 1.1 }); k.add(G.cyl(0.45, 0.3, 0.2, 10), C.marble, { x: s * 4.6, y: 1.75, z: 1.2 }); }
   // ---- pavimento in cotto e passatoia gialla tessuta lungo le corsie
   k.add(G.box(HW * 2, 0.08, L), C.floor, { y: 0.04, z: zc, vary: 0.08 });
   for (let z = -1; z > -L; z -= 1.2) k.add(G.box(HW * 2, 0.085, 0.05), '#8f4c36', { y: 0.045, z });
@@ -63,9 +63,9 @@ export function buildSantaMarta(seed = 1) {
   for (const s of [-1, 1]) k.add(G.box(len + 0.6, 0.3, L + 0.6), '#9a4a2e', { x: s * (HW + WALL) / 2, y: H + (RIDGE - H) / 2, z: zc, rz: -s * sl, vary: 0.05 });
   // ---- lampadari (luce calda, unlit)
   for (let i = 1; i < 6; i += 2) { const z = -i * bay - bay / 2;
-    k.add(G.box(0.05, 3.0, 0.05), '#3a2a1a', { y: H - 1.5, z });
-    k.add(G.torus(0.8, 0.06, 4, 12), C.gold, { y: H - 3.1, z, rx: Math.PI / 2 });
-    for (let j = 0; j < 6; j++) { const a = j / 6 * Math.PI * 2; k.add(G.sph(0.12, 6, 5), '#ffe3a0', { x: Math.cos(a) * 0.8, y: H - 2.9, z: z + Math.sin(a) * 0.8, unlit: true }); } }
+    k.add(G.box(0.05, 4.4, 0.05), '#3a2a1a', { y: H - 2.2, z });
+    k.add(G.torus(0.8, 0.06, 4, 12), C.gold, { y: H - 4.4, z, rx: Math.PI / 2 });
+    for (let j = 0; j < 6; j++) { const a = j / 6 * Math.PI * 2; k.add(G.sph(0.12, 6, 5), '#ffe3a0', { x: Math.cos(a) * 0.8, y: H - 4.2, z: z + Math.sin(a) * 0.8, unlit: true }); } }
   // ---- abside: altare bianco a lato, crocifisso e affresco (sopra il portale di uscita)
   const zb = -L;
   for (const s of [-1, 1]) {
@@ -73,7 +73,7 @@ export function buildSantaMarta(seed = 1) {
     for (const c of [-0.6, 0.6]) k.add(G.cyl(0.08, 0.08, 0.6, 6), C.gold, { x: s * 5.0 + c, y: 1.4, z: zb + 1.4 });
   }
   // ---- facciata in scisto (davanti) e parete posteriore, entrambe con grande portale ad arco in mattoni
-  const DOOR_W = 9.4, DOOR_H = 6.2;
+  const DOOR_W = 9.4, DOOR_H = 9.0;
   for (const [z, front] of [[0, true], [zb, false]]) {
     const zz = z + (front ? 0.4 : -0.4);
     for (const s of [-1, 1]) k.add(G.box((HW * 2 + WALL * 2 - DOOR_W) / 2, H, 0.8), C.schist, { x: s * (DOOR_W / 2 + (HW * 2 + WALL * 2 - DOOR_W) / 4), y: H / 2, z: zz, vary: 0.06 });
@@ -91,19 +91,19 @@ export function buildSantaMarta(seed = 1) {
     for (const s of [-1, 1]) k.add(G.box(0.15, DOOR_H - 1.0, DOOR_W / 2 - 0.5), C.wood, { x: s * (DOOR_W / 2 - 0.6), y: (DOOR_H - 1.0) / 2, z: zz + (front ? -1 : 1) * (DOOR_W / 4 + 0.2), vary: 0.05 });
     if (front) {
       // rosone tondo incorniciato di mattoni e croce in cima
-      k.add(G.torus(1.3, 0.3, 6, 18), C.brick, { y: 8.9, z: zz + 0.45 });
-      k.add(G.cyl(1.25, 1.25, 0.1, 16), '#e8c070', { y: 8.9, z: zz + 0.42, rx: Math.PI / 2, unlit: true });
-      for (let j = 0; j < 4; j++) k.add(G.box(2.4, 0.1, 0.12), '#5a3a22', { y: 8.9, z: zz + 0.5, rz: j * Math.PI / 4 });
+      k.add(G.torus(1.3, 0.3, 6, 18), C.brick, { y: 11.0, z: zz + 0.45 });
+      k.add(G.cyl(1.25, 1.25, 0.1, 16), '#e8c070', { y: 11.0, z: zz + 0.42, rx: Math.PI / 2, unlit: true });
+      for (let j = 0; j < 4; j++) k.add(G.box(2.4, 0.1, 0.12), '#5a3a22', { y: 11.0, z: zz + 0.5, rz: j * Math.PI / 4 });
       k.add(G.box(0.25, 1.8, 0.25), '#3a3030', { y: RIDGE + 0.9, z: zz }); k.add(G.box(1.1, 0.25, 0.25), '#3a3030', { y: RIDGE + 1.2, z: zz });
     } else {
       // affresco dell'abside sopra il portale di uscita, crocifisso
       k.add(new THREE.CylinderGeometry(2.6, 2.6, 0.1, 16, 1, false, 0, Math.PI), '#7a8ab0', { y: DOOR_H + 1.0, z: zz + 0.45, rx: Math.PI / 2, rz: Math.PI / 2 });
       k.add(G.box(3.6, 1.4, 0.12), '#c8a070', { y: DOOR_H + 1.9, z: zz + 0.5 });
-      k.add(G.box(0.18, 1.6, 0.15), '#5a3a22', { y: DOOR_H + 3.3, z: zz + 0.55 }); k.add(G.box(1.0, 0.18, 0.15), '#5a3a22', { y: DOOR_H + 3.6, z: zz + 0.55 });
+      k.add(G.box(0.18, 1.6, 0.15), '#5a3a22', { y: DOOR_H + 2.6, z: zz + 0.55 }); k.add(G.box(1.0, 0.18, 0.15), '#5a3a22', { y: DOOR_H + 2.9, z: zz + 0.55 });
       k.add(G.box(2.0, 0.3, 0.6), C.marble, { y: DOOR_H + 0.3, z: zz + 0.6 });
     }
   }
   return k.build({ ao: 0.15 });
 }
 // luci calde interne [x, y, z, intensita']
-export function santaMartaLamps() { const L = SANTAMARTA.LEN_M, bay = L / 6; return [1, 3, 5].map((i) => [0, SM.H - 3.0, -i * bay - bay / 2, 1]).concat([[0, 8.9, 0.5, 0.8]]); }
+export function santaMartaLamps() { const L = SANTAMARTA.LEN_M, bay = L / 6; return [1, 3, 5].map((i) => [0, SM.H - 4.3, -i * bay - bay / 2, 1]).concat([[0, 11.0, 0.5, 0.8]]); }
