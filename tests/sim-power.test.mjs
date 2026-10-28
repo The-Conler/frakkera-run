@@ -20,7 +20,7 @@ const genAll = (seed, rows, patch) => { const g = new Generator(seed); if (patch
   const clash = br.filter((r) => a.some((e) => e !== r && !e.side && e.d < r.d + r.len + 5 && e.d + e.len > r.d - 5 && !['scambio', 'carrello'].includes(e.kind)));
   ok('ramo da solo sulla fila', clash.length === 0, clash.length);
   const base = genAll(777, 3000, (g) => { g.maybePower = () => {}; });
-  ok('resto del percorso identico', JSON.stringify(base) === JSON.stringify(a.filter((e) => !PW[e.kind] && e.kind !== 'ramo')));
+  ok('resto del percorso identico', JSON.stringify(base) === JSON.stringify(a.filter((e) => !PW[e.kind] && e.kind !== 'ramo' && e.kind !== 'acqua')));
 }
 const mk = () => { const sim = new Sim(() => {}); sim.startRun(5); for (let i = 0; i < 120; i++) sim.tick(DT); sim.clearEntities(); sim.gen.fillUntil = () => {}; return sim; };
 const at = (sim, ahead) => sim.T - sim.genOffset + ahead;

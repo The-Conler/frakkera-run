@@ -21,7 +21,7 @@ const genAll = (seed, rows) => { const g = new Generator(seed), out = []; g.fill
   ok('mai sopra un altro oggetto', clash.length === 0, clash.length);
   // percorso principale invariato rispetto a un generatore senza collezionabili
   const g = new Generator(4242); g.maybeCollect = () => {}; const base = []; g.fillUntil(WORLD.LEAD_IN + 1500 * WORLD.ROW, (e) => base.push(e));
-  const PW = (e) => ['calamita', 'finocchio', 'scarponi', 'ramo'].includes(e.kind);   // v5s24: hanno un flusso proprio, ma usano le celle libere
+  const PW = (e) => ['calamita', 'finocchio', 'scarponi', 'ramo', 'acqua'].includes(e.kind);   // v5s24: hanno un flusso proprio, ma usano le celle libere
   ok('resto del percorso identico', JSON.stringify(base.filter((e) => !PW(e))) === JSON.stringify(a.filter((e) => !COLLECT.KINDS[e.kind] && !PW(e))));
 }
 // 2) raccolta: conteggio salvato, log, punti

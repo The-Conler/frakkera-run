@@ -7,7 +7,8 @@
 // mobili compaiono solo in "finestre calme" senza altri ostacoli.
 // Tappeti, combustibile e pistola si piazzano solo in celle libere.
 // =====================================================================
-import { DIFFICULTY as DF, WORLD, PX_PER_METER, CARPETS as CP, PISTOL, SPEED_STEPS as SS, BIOME_OBST as BO, DUCK, MASKS as MK, FIRE, MINE, CART, COLLECT, DANCE, FESTA, POWER } from '../config.js';
+import { DIFFICULTY as DF, WORLD, PX_PER_METER, CARPETS as CP, PISTOL, SPEED_STEPS as SS, BIOME_OBST as BO, DUCK, MASKS as MK, FIRE, MINE, CART, COLLECT, DANCE, FESTA, POWER, WEATHER } from '../config.js';
+import { rainLap } from './weather.js';
 import { biomeAt, BIOMES } from '../game/biomes/config.js';
 import { makeRng } from './rng.js';
 
@@ -49,7 +50,7 @@ export function cartAt(m, lead = 0, tail = 0) {
 export const SOLID = {
   muretto: true, botte: true, bottecoricata: true, botti: true, narrow: true, goat: true, rollbarrel: true, pozza: false,
   // v5s6: ostacoli d'ambiente (la pietra bagnata non ferma: fa scivolare) e trave bassa (si passa abbassandosi)
-  rollin: true, sasso: true, bagnato: false, trave: false, ramo: false,
+  rollin: true, sasso: true, bagnato: false, trave: false, ramo: false, acqua: false,
   // v5s10: maschere di Gadoni (la fune si passa abbassandosi, come la trave)
   maimoni: true, fune: false, fuso: true,
   // v5s18: binario interrotto (respingente o crollo) durante il giro in carrello
@@ -119,7 +120,8 @@ export class Generator {
     // v5s24: flusso separato per potenziamenti e rami caduti
     this.wrng = makeRng(((seed >>> 0) ^ 0x7e0b11) >>> 0);
     this.nextPowerRow = Math.ceil((POWER.FROM_M * PX_PER_METER - WORLD.LEAD_IN) / WORLD.ROW) + this.wrng.int(0, 30); this.powers = 0;
-    this.nextBranchRow = 0; this.branches = 0;
+    this.nextBranchRow = 0; this.branches = 0; this.nextPuddleRow = 0; this.puddles = 0;
+    this.rrng = makeRng(((seed >>> 0) ^ 0x4a1c9d) >>> 0);   // v5s25: pozzanghere della notte di pioggia
     this.nextMinerRow = 0; this.nextLampRow = 0; this.minerSide = 1; this.lampSide = -1; this.miners = 0; this.lamps = 0;
   }
 
@@ -254,6 +256,13 @@ export class Generator {
       for (const [k, p] of POWER.KINDS) { if (x < p) { kind = k; break; } x -= p; }
       const lane = free[wr.int(0, free.length - 1)]; used[lane] = true; this.powers++;
       emit({ kind, lane, d: D + 9, len: 12, pickup: true });
+      return;
+    }
+    // v5s25: notte di pioggia: pozzanghere che rallentano un poco (corsia libera, mai sola via d'uscita)
+    if (free.length >= 2 && r >= this.nextPuddleRow && rainLap(biomeAt(m).lap) && !biomeAt(m).b.id.startsWith('mine')) {
+      const rr = this.rrng; this.nextPuddleRow = r + rr.int(WEATHER.PUDDLE_GAP_ROWS[0], WEATHER.PUDDLE_GAP_ROWS[1]);
+      const lane = free[rr.int(0, free.length - 1)]; used[lane] = true; this.puddles++;
+      emit({ kind: 'acqua', lane, d: D + 8, len: 14, variant: rr.int(0, 2) });
       return;
     }
     if (free.length === L && r >= this.nextBranchRow && m >= POWER.BRANCH_FROM_M) {
