@@ -718,7 +718,9 @@ export class Env {
       cached('cappellaL', () => buildCappellaLeft());
       for (const z of [-1.6, -16.5]) lamps.push(this.lamp(-6.6, 4.5, z - W, '#ffd890', 2.4, 0.7));
     } else if (id === 'santamarta') {
-      cached('santamarta', () => buildSantaMarta(1));
+      // v5s24: la navata e' al coperto: niente neve per terra (passatoia gialla e cotto restano visibili nei giri di neve)
+      if (!this.mats2NoSnow) this.mats2NoSnow = this.mats2.map((m) => m.clone());
+      { const g = this.markGeom('santamarta', () => buildSantaMarta(1)); m_gpu.push(g); mesh(g, this.mats2NoSnow, true); }
       for (const [x, y, z, s] of santaMartaLamps()) lamps.push(this.lamp(x, y, z - W, '#ffc070', 3.2 * s, 0.9));
     } else if (id === 'pinnacle') {
       const m = cached('pinnacle', () => N.buildPinnacle(3)); m.position.set(-30, 0, 0); m.rotation.y = 0.4;    // nella valle a SINISTRA del sentiero: a destra c'e' la fiamma che la coprirebbe
