@@ -7,9 +7,9 @@
 // mobili compaiono solo in "finestre calme" senza altri ostacoli.
 // Tappeti, combustibile e pistola si piazzano solo in celle libere.
 // =====================================================================
-import { DIFFICULTY as DF, WORLD, PX_PER_METER, CARPETS as CP, PISTOL, SPEED_STEPS as SS, BIOME_OBST as BO, DUCK, MASKS as MK, FIRE, MINE, CART, COLLECT, DANCE, FESTA, POWER, WEATHER, ANIMALS } from '../config.js';
+import { DIFFICULTY as DF, WORLD, PX_PER_METER, CARPETS as CP, PISTOL, SPEED_STEPS as SS, BIOME_OBST as BO, DUCK, MASKS as MK, FIRE, MINE, CART, COLLECT, DANCE, FESTA, POWER, WEATHER, ANIMALS, SANTAMARTA } from '../config.js';
 import { rainLap } from './weather.js';
-import { biomeAt, BIOMES } from '../game/biomes/config.js';
+import { biomeAt, BIOMES, CYCLE } from '../game/biomes/config.js';
 import { makeRng } from './rng.js';
 
 export const lerp = (a, b, t) => a + (b - a) * t;
@@ -68,6 +68,13 @@ export const BIOME_OBST_KIND = { village: 'rollin', rock: 'sasso', river: 'bagna
 export const MASK_KINDS = { maimoni: true, fune: true, fuso: true };
 // v5s16: frakkere accese a bordo strada (non occupano corsie)
 export const SIDE_KINDS = { falo: true, minatore: true, lampada: true, carrello: true, scambio: true, bancarella: true, folla: true, festone: true };
+// v5 stage 24: navata di Santa Marta alla distanza m (metri assoluti): null o { lap, local }
+export function santaMartaAt(m, lead = 0, tail = 0) {
+  // misurata dall'inizio del paese nel giro (la navata sconfina nei primi metri della roccia)
+  const v = BIOMES.find((b) => b.id === SANTAMARTA.BIOME), mm = Math.max(0, m), lap = Math.floor(mm / CYCLE), local = mm - lap * CYCLE - v.from;
+  if (local < SANTAMARTA.FROM_M - lead || local >= SANTAMARTA.FROM_M + SANTAMARTA.LEN_M + tail) return null;
+  return { lap, local: local - SANTAMARTA.FROM_M };
+}
 // v5s21: tratto in festa del paese alla distanza m (metri assoluti): null o { lap, local }
 export function festaAt(m) {
   const bi = biomeAt(Math.max(0, m));
@@ -293,7 +300,7 @@ export class Generator {
     const roll = ar(), pick = ar();
     if (roll >= A.P_ROW) return false;
     const bid = biomeIdAt(D, this.offM), opts = [];
-    if (A.FLOCK_BIOMES.includes(bid)) opts.push('flock');
+    if (A.FLOCK_BIOMES.includes(bid) && A.FLOCK_BIOMES.includes(biomeIdAt(D + 30 * PX_PER_METER, this.offM))) opts.push('flock');
     if (A.PIG_BIOMES.includes(bid)) opts.push('pig');
     if (A.DOG_BIOMES.includes(bid)) opts.push('dog');
     if (A.ROCKGOAT_BIOMES.includes(bid)) opts.push('rockgoat');
@@ -332,6 +339,8 @@ export class Generator {
   rowDist(r) { return WORLD.LEAD_IN + r * WORLD.ROW; }
 
   fillUntil(maxDist, emit) {
+    // v5 stage 24: nessun ostacolo (anche mobile, nato nelle file prima) dentro la navata di Santa Marta
+    const em = emit; emit = (e) => { if (!MASK_KINDS[e.kind] && (SOLID[e.kind] || e.kind === 'pozza' || e.kind === 'trave') && (santaMartaAt((e.d) / PX_PER_METER + this.offM, SANTAMARTA.LEAD_M, 2) || santaMartaAt((e.d + (e.len || 0)) / PX_PER_METER + this.offM, SANTAMARTA.LEAD_M, 2))) return; em(e); };
     while (this.rowDist(this.row) < maxDist) {
       this._used = null;
       this.genRow(this.row, emit);
@@ -349,6 +358,8 @@ export class Generator {
     const diff = difficultyAt(D);
     const used = new Array(L).fill(false); this._used = used;
     for (let l = 0; l < L; l++) if (this.blockedUntil[l] >= r) used[l] = true;
+    // v5 stage 24: dentro Santa Marta niente ostacoli ne' falo' (si corre sulla passatoia): solo tappeti
+    if (!this.parade && santaMartaAt(D / PX_PER_METER + this.offM, SANTAMARTA.LEAD_M, 2)) { this.carpetRow(r, D, diff, used, emit); return; }
     this.maybeFire(r, D, emit);
     this.maybeMine(r, D, emit);
     this.maybeFesta(r, D, emit);
@@ -368,7 +379,7 @@ export class Generator {
         biomeIdAt(D, this.offM) === 'village') {
       const bi = biomeAt(D / PX_PER_METER + this.offM), lap = bi.lap;
       // v5s20: il corteo non entra mai nel cerchio del ballu tundu (piazza della chiesa)
-      if (bi.local < bi.b.to - bi.b.from - 90 && !this.nearDance(D, 90, 30) && rng() < MK.P_LAP[Math.min(lap, MK.P_LAP.length - 1)]) {
+      if (bi.local < Math.min(bi.b.to - bi.b.from, SANTAMARTA.FROM_M - SANTAMARTA.LEAD_M) - 90 && !this.nearDance(D, 90, 30) && rng() < MK.P_LAP[Math.min(lap, MK.P_LAP.length - 1)]) {
         const g = ++this.paradeG;
         this.calmUntil = r + 6;
         this.nextMovingAt = Math.max(this.nextMovingAt, r + 14);

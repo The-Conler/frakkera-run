@@ -6,6 +6,7 @@
 //  dissolvenze ai confini. Nulla qui influisce su sim.js.
 //  Coordinate: W = metri lungo il percorso (z del mondo = -W).
 // =====================================================================
+import { buildSantaMarta, santaMartaLamps } from './builders/santamarta.js';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { BIOMES, CYCLE, biomeAt, nextBoundary, byId, LAP_NIGHT, NIGHT_MOOD, mapFromURL } from './config.js';
@@ -138,6 +139,7 @@ const LANDMARKS = {
   church: { at: 140, exist: [-200, 70] },
   vicolo: { at: 188, exist: [-200, 40] },      // v5s23c: vicolo delle porte (target5-vicolo-porte)
   cappella: { at: 222, exist: [-200, 40] },    // v5s23c: cappella tonda (target5-cappella-tonda)
+  santamarta: { at: 240, exist: [-260, 60] },   // v5 stage 24: chiesa attraversata (builders/santamarta.js)
   pinnacle: { at: 230, exist: [-290, 120] },
   valley: { at: 0, exist: [-30, 390] },
   pool: { at: 0, exist: [-40, 280] },
@@ -715,6 +717,9 @@ export class Env {
       cached('cappella', () => buildCappella());
       cached('cappellaL', () => buildCappellaLeft());
       for (const z of [-1.6, -16.5]) lamps.push(this.lamp(-6.6, 4.5, z - W, '#ffd890', 2.4, 0.7));
+    } else if (id === 'santamarta') {
+      cached('santamarta', () => buildSantaMarta(1));
+      for (const [x, y, z, s] of santaMartaLamps()) lamps.push(this.lamp(x, y, z - W, '#ffc070', 3.2 * s, 0.9));
     } else if (id === 'pinnacle') {
       const m = cached('pinnacle', () => N.buildPinnacle(3)); m.position.set(-30, 0, 0); m.rotation.y = 0.4;    // nella valle a SINISTRA del sentiero: a destra c'e' la fiamma che la coprirebbe
     } else if (id === 'valley') {

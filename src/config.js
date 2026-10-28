@@ -332,3 +332,10 @@ export const WEATHER = {
   PUDDLE_GAP_ROWS: [8, 18], PUDDLE_SLOW: 0.86, PUDDLE_SLOW_S: 0.55,
   FOG_BIOMES: ['rock', 'river'], FOG_BLOCK_M: 130, FOG_P: 0.6, FOG_LEN_M: [35, 65], FOG_FAR: 0.14,
 };
+
+// v5 stage 24: chiesa di Santa Marta attraversata di corsa (fine del paese): navata libera, solo tappeti sulla passatoia
+export const SANTAMARTA = {
+  BIOME: 'village',
+  FROM_M: 240, LEN_M: 30,   // facciata a fine paese (dopo vicolo e cappella), la navata sconfina nei primi metri della roccia
+  LEAD_M: 8,                // niente ostacoli anche sui gradini davanti al portone
+};
