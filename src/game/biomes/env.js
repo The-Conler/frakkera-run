@@ -351,10 +351,10 @@ export class Env {
       // vuoti (piazza della chiesa, piazzale del portale)
       const gaps = (i.b.gaps && i.b.gaps[sd.s < 0 ? 'left' : 'right']) || [];
       let skip = 0;
-      if (this.mode !== 'attract') for (const [a, z] of gaps) if (i.local >= a - 0.01 && i.local < z) skip = z - i.local;
+      for (const [a, z] of gaps) if (i.local >= a - 0.01 && i.local < z) skip = z - i.local;
       if (skip > 0) { sd.cur = W + skip; continue; }
       let lim = maxLen;
-      if (this.mode !== 'attract') for (const [a] of gaps) if (a > i.local) lim = Math.min(lim, a - i.local);
+      for (const [a] of gaps) if (a > i.local) lim = Math.min(lim, a - i.local);
       const p = this.sidePiece(sd, W, i, lim);
       if (!p) { sd.cur = W + Math.min(lim, 6); continue; }
       sd.list.push(p);
