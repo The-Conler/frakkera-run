@@ -290,6 +290,7 @@ export const FESTA = {
 // v5s24: animali sulla strada (su pastore col gregge, maialetto, cane randagio, cane pastore, capre dalla roccia).
 // Flusso RNG separato nel generatore; tutto nel registro della corsa.
 export const ANIMALS = {
+  ROCKGOAT_SHOT_PTS: 10,     // v5s26: capra della roccia colpita con la pistola
   FROM_M: 60,                     // non nei primi metri
   P_ROW: 0.035,                   // probabilita' per fila (flusso separato) di un evento animale
   GAP_ROWS: [22, 34],             // file minime tra due eventi

@@ -681,6 +681,7 @@ export class Sim {
           const ex = this.entX(e);
           if (e.d <= p.d + 3 && e.d + e.len + 6 >= p.d && Math.abs(ex - p.x) <= (HALF_W[e.kind] || 10) + 2) {
             if (e.kind === 'goat') this.scareGoat(e);
+            else if (e.kind === 'caprarupe') this.scareRockGoat(e);   // v5s26: anche le capre scese dalla roccia
             else if (BIOME_KINDS[e.kind]) this.destroyObst(e);
             else if (DESTRUCTIBLE[e.kind]) this.destroyBarrel(e);
             else this.fx('ricochet', { x: p.x, d: p.d });
@@ -730,6 +731,16 @@ export class Sim {
     this.stats.goats++;
     this.log('g', pts);
     this.fx('goatScared', { e, pts, x: this.entX(e) });
+    this.fx('sound', 'goat');
+  }
+
+  // v5s26: colpo alla capra scesa dalla roccia: bela, salta via di lato e libera la corsia (+10, log 'aS')
+  scareRockGoat(e) {
+    e.done = true; e.scared = true;
+    const pts = this.addBonus(ANIMALS.ROCKGOAT_SHOT_PTS);
+    this.stats.rockGoatShots = (this.stats.rockGoatShots || 0) + 1;
+    this.log('aS', pts);
+    this.fx('goatScared', { e, pts, x: this.entX(e) }); this.fx('rockGoatFlee', { e });
     this.fx('sound', 'goat');
   }
 
