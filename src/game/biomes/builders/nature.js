@@ -255,27 +255,27 @@ export function valleyTerrain(W0, len, o = {}) {
 export function buildPinnacle(seed = 3) {
   const k = new Kit(seed);
   const r = rng(seed);
-  const H = 104, base = -48;
+  const H = 72, base = -9;   // v5s27b: ago slanciato (~6x piu' alto che largo) che parte dalla riva dell'acqua
   const NR = 48, NV = 84;
   const frac = (x) => x - Math.floor(x);
   const R0 = (t) => {
-    if (t < 0.1) return 10 - t * 34;               // piede largo
-    if (t < 0.86) return 6.6 - (t - 0.1) * 2.6;     // fusto slanciato, quasi dritto
-    return Math.max(1.6, 4.6 - (t - 0.86) * 20);    // testa frastagliata
+    if (t < 0.12) return 9.5 - t * 32;             // piede largo di massi
+    if (t < 0.84) return 5.7 - (t - 0.12) * 2.2;    // fusto slanciato, quasi dritto
+    return Math.max(1.2, 4.1 - (t - 0.84) * 18);    // testa stretta e frastagliata
   };
-  const LED = 11;                                    // numero di cenge
+  const LED = 13;                                    // numero di cenge
   const band = (t, a) => frac(t * LED + 0.35 * fbm(Math.cos(a) * 1.3, t * 2, Math.sin(a) * 1.3 + seed, 2));
   const crack = (a, t) => Math.abs(Math.sin(a * 6.5 + 2.2 * fbm(t * 3, seed, a, 2)));
   const radius = (a, t) => {
     const jag = band(t, a);
     let rr = R0(t) * (1 + 0.16 * fbm(Math.cos(a) * 2, t * 7, Math.sin(a) * 2 + seed, 3));
     rr *= 1 + 0.2 * (1 - jag) - 0.06;               // ogni cengia sporge e sopra rientra
-    rr *= 0.72 + 0.36 * Math.pow(crack(a, t), 0.45); // colonne e solchi verticali
-    if (t > 0.9) rr *= 0.45 + 0.7 * Math.max(0, Math.sin(a * 3 + seed + t * 4)); // punte multiple in cima
+    rr *= 0.66 + 0.42 * Math.pow(crack(a, t), 0.4); // colonne e solchi verticali
+    if (t > 0.88) rr *= 0.35 + 0.8 * Math.max(0, Math.sin(a * 4 + seed + t * 5)); // punte multiple in cima
     return rr;
   };
   const g = gridSurface(NR, NV, (u, v) => {
-    const a = -u * Math.PI * 2, t = v, y = base + t * H + (v === 1 ? 2.5 + 4 * Math.max(0, Math.sin(a * 3 + seed)) : 0);
+    const a = -u * Math.PI * 2, t = v, y = base + t * H + (v === 1 ? 1.5 + 5 * Math.max(0, Math.sin(a * 4 + seed)) * (0.5 + 0.5 * Math.abs(Math.sin(a * 7))) : 0);
     const fl = v === 0 ? 0 : v === 1 ? 0.3 : 1;
     const rr = radius(a, t);
     const lean = Math.sin(t * 2.2) * 1.4;               // leggera curva come nella foto
@@ -283,28 +283,36 @@ export function buildPinnacle(seed = 3) {
   }, (x, y, z) => {
     const t = (y - base) / H, a = Math.atan2(z / 0.78, x);
     const n = noise3(x / 2.5, y / 4, z / 2.5) * 0.5 + 0.5, n2 = noise3(x / 1.1, y / 7, z / 1.1) * 0.5 + 0.5;
-    _c.set(pickN(['#c2b196', '#d0bfa2', '#b3a287', '#dccbad', '#a89679'], n));   // calcare caldo grigio-beige
+    _c.set(pickN(['#cbbba0', '#d8c8ac', '#bfae93', '#e2d3b6', '#b2a185'], n));   // calcare caldo grigio-beige
     if (n2 > 0.7) _c.lerp(_c2.set('#b8946a'), 0.35);          // ossidi
     const cr = crack(a, t);
     if (cr < 0.22) _c.multiplyScalar(0.6 + cr);              // fessure scure
     const jag = band(t, a);
-    if (jag > 0.86 && n > 0.35 && t < 0.92) _c.lerp(_c2.set(n2 > 0.5 ? '#5f7a34' : '#6f8a3a'), 0.75);   // muschio sulla cengia
+    if (jag > 0.93 && n > 0.62 && t < 0.9) _c.lerp(_c2.set('#7d8a4a'), 0.35);
+    if (jag < 0.1) _c.multiplyScalar(0.88);                // ombra sotto la cengia   // muschio sulla cengia
     if (t < 0.07) _c.lerp(_c2.set('#4a5a34'), 0.45);
     return _c.getHex();
   });
   addColored(k, g);
   // macchia e muschio sulle cenge, a tutte le altezze (piu' fitta in basso)
   const leaf = ['#5a8a2e', '#6b9a36', '#4a7a2a', '#7aaa40', '#8ab84e', '#3f6a2a'];
-  for (let i = 0; i < 190; i++) {
-    const t = Math.min(0.9, Math.pow(r(), 1.25) * 0.92 + 0.04), a = r() * Math.PI * 2;
-    const tl = (Math.floor(t * LED) + 0.97) / LED;
-    const rr = radius(a, tl) * 0.98, lean = Math.sin(tl * 2.2) * 1.4, y = base + tl * H;
-    const s = r.range(0.9, 1.9) * (tl < 0.3 ? 1.4 : 1);
-    for (let j = 0; j < 3; j++) k.add(G.ico(s * r.range(0.55, 0.95), 0), r.pick(leaf), { x: Math.cos(a) * rr + lean + r.range(-0.5, 0.5), y: y + r.range(-0.3, 0.6) * s, z: Math.sin(a) * rr * 0.78 + r.range(-0.5, 0.5), flat: true, vary: 0.22, sy: 0.75 });
+  // v5s27b: ciuffi a macchie irregolari (non ad anelli), aggrappati alle cenge: piu' fitti in basso
+  for (let p = 0; p < 62; p++) {
+    const t0 = Math.min(0.86, Math.pow(r(), 1.5) * 0.84 + 0.05), a0 = r() * Math.PI * 2, n = 3 + Math.floor(r() * 5);
+    for (let i = 0; i < n; i++) {
+      const t = Math.max(0.03, Math.min(0.88, t0 + r.range(-0.035, 0.035))), a = a0 + r.range(-0.45, 0.45);
+      const rr = radius(a, t) * 0.97, lean = Math.sin(t * 2.2) * 1.4, y = base + t * H;
+      const s = r.range(0.9, 1.8) * (t < 0.3 ? 1.35 : 1);
+      for (let j = 0; j < 2; j++) k.add(G.ico(s * r.range(0.6, 1.0), 0), r.pick(leaf), { x: Math.cos(a) * rr + lean + r.range(-0.4, 0.4), y: y + r.range(-0.3, 0.5) * s, z: Math.sin(a) * rr * 0.78 + r.range(-0.4, 0.4), flat: true, vary: 0.22, sy: 0.7 });
+    }
   }
+  // v5s27b: testa a piu' punte (come nella foto): guglie strette e storte attorno alla cima
+  { const tT = 0.9, yT = base + tT * H, lT = Math.sin(tT * 2.2) * 1.4;
+    for (const [dx, dz, h, w] of [[-0.9, 0.3, 9, 1.5], [0.8, -0.4, 7, 1.3], [0.2, 0.9, 5.5, 1.1], [1.3, 0.6, 4.5, 1.0], [-0.4, -0.9, 6, 1.2]])
+      k.add(G.cyl(w * 0.2, w, h, 5), r.pick(['#cbbba0', '#bfae93', '#d8c8ac']), { x: lT + dx, y: yT + h / 2 - 0.5, z: dz, rz: r.range(-0.12, 0.12), rx: r.range(-0.12, 0.12), flat: true, vary: 0.08 }); }
   // base: massi e boscaglia folta (riva)
-  for (let i = 0; i < 22; i++) { const a = r() * Math.PI * 2, rr = r.range(9, 15); addRock(k, r, Math.cos(a) * rr, base + r.range(1, 4), Math.sin(a) * rr * 0.85, r.range(1.8, 3.6), ['#a99b86', '#9c8f7b', '#b8aa94'], { squash: 0.7, tilt: true }); }
-  for (let i = 0; i < 46; i++) { const a = r() * Math.PI * 2, rr = r.range(10, 24); k.add(G.ico(r.range(1.6, 3.2), 0), r.pick(['#2c4626', '#36522c', '#3f5e30', '#4a6a36']), { x: Math.cos(a) * rr, y: base + r.range(2, 8), z: Math.sin(a) * rr, flat: true, sy: 0.8, vary: 0.2 }); }
+  for (let i = 0; i < 22; i++) { const a = r() * Math.PI * 2, rr = r.range(7, 12); addRock(k, r, Math.cos(a) * rr, base + r.range(1, 4), Math.sin(a) * rr * 0.85, r.range(1.8, 3.6), ['#a99b86', '#9c8f7b', '#b8aa94'], { squash: 0.7, tilt: true }); }
+  for (let i = 0; i < 46; i++) { const a = Math.PI * r.range(0.45, 1.55), rr = r.range(8, 16); /* v5s27b: solo dal lato lontano dal sentiero */ k.add(G.ico(r.range(1.6, 3.2), 0), r.pick(['#2c4626', '#36522c', '#3f5e30', '#4a6a36']), { x: Math.cos(a) * rr, y: base + r.range(2, 8), z: Math.sin(a) * rr, flat: true, sy: 0.8, vary: 0.2 }); }
   return k.build();
 }
 
