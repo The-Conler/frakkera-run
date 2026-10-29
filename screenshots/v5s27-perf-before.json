@@ -1,0 +1,79 @@
+{
+ "village@20": {
+  "frames": 24,
+  "cpuAvgMs": 6.7,
+  "cpuP95Ms": 12.8,
+  "frameGapAvgMs": 178.98,
+  "drawCalls": 362,
+  "triangles": 275224,
+  "pixelRatio": 1,
+  "dcAvg": 352.9,
+  "dcMax": 366
+ },
+ "village@150": {
+  "frames": 28,
+  "cpuAvgMs": 21.31,
+  "cpuP95Ms": 36.5,
+  "frameGapAvgMs": 149.99,
+  "drawCalls": 257,
+  "triangles": 278496,
+  "pixelRatio": 1,
+  "dcAvg": 251.6,
+  "dcMax": 267
+ },
+ "rock@120": {
+  "frames": 27,
+  "cpuAvgMs": 32.33,
+  "cpuP95Ms": 45,
+  "frameGapAvgMs": 167.3,
+  "drawCalls": 274,
+  "triangles": 323942,
+  "pixelRatio": 1,
+  "dcAvg": 255.6,
+  "dcMax": 279
+ },
+ "river@60": {
+  "frames": 28,
+  "cpuAvgMs": 25.76,
+  "cpuP95Ms": 23.1,
+  "frameGapAvgMs": 159.26,
+  "drawCalls": 258,
+  "triangles": 303554,
+  "pixelRatio": 1,
+  "dcAvg": 248.6,
+  "dcMax": 265
+ },
+ "viaduct@100": {
+  "frames": 37,
+  "cpuAvgMs": 11.93,
+  "cpuP95Ms": 10,
+  "frameGapAvgMs": 120.36,
+  "drawCalls": 247,
+  "triangles": 157884,
+  "pixelRatio": 1,
+  "dcAvg": 237.2,
+  "dcMax": 255
+ },
+ "mine-ext@60": {
+  "frames": 47,
+  "cpuAvgMs": 9.6,
+  "cpuP95Ms": 7.6,
+  "frameGapAvgMs": 89.85,
+  "drawCalls": 237,
+  "triangles": 59726,
+  "pixelRatio": 1,
+  "dcAvg": 233.7,
+  "dcMax": 250
+ },
+ "mine-int@60": {
+  "frames": 49,
+  "cpuAvgMs": 13.62,
+  "cpuP95Ms": 13.4,
+  "frameGapAvgMs": 93.75,
+  "drawCalls": 243,
+  "triangles": 78938,
+  "pixelRatio": 1,
+  "dcAvg": 234.6,
+  "dcMax": 259
+ }
+}

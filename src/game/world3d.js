@@ -568,6 +568,7 @@ export class World {
     this.animateFans(dt);
     if (this.roarT > 0) this.roarT -= dt;
     if (this.fireMats) for (const m of this.fireMats) m.uniforms.uTime.value = t;
+    const farCull = this.camera.aspect < 0.8 ? 95 : 0;
     for (const e of sim.entities) {
       const v = this.views.get(e.id);
       if (!v) continue;
@@ -575,6 +576,8 @@ export class World {
       // inquadratura del game over: niente ostacoli addosso al personaggio caduto
       const ahead = e.d - sim.T;
       v.root.visible = !(this.moodName === 'over' && !e.pickup && ahead + (e.len || 0) > -210 && ahead < 70);
+      // v5s27 (telefono): oggetti oltre ~95 m sono pochi pixel nella nebbia: non si disegnano (meno draw call)
+      if (farCull && ahead * U > farCull && !(e.kind === 'processione' || e.kind === 'trave' || e.kind === 'panni')) v.root.visible = false;
       if (e.done && !v.dead && (e.pickup || e.destroyed)) { v.dead = true; v.body.visible = false; if (v.glow) v.glow.visible = false; if (v.warn) v.warn.visible = false; if (v.shadow) v.shadow.visible = !e.pickup && !e.destroyed; }
       if (v.dead) continue;
       v.t += dt;
@@ -1083,6 +1086,8 @@ export class World {
     for (const c of this.clouds) c.position.set(c.userData.x + this.camera.position.x * 0.0 + Math.sin(this.clock * 0.02 + c.userData.y) * 10, c.userData.y, camZ - 320 + c.userData.z);
     // v5: ambienti a tratti (terreno, lati, galleria, monumenti)
     this.env.update(-camZ, sim.T * U, dt, this.clock);
+    // v5s27 (telefono): festoni e lampadine oltre ~90 m non si disegnano (un draw call ciascuno, invisibili a quella distanza)
+    if (this.camera.aspect < 0.8) { const Wc = -camZ; for (const d of this.env.decor) if (d.mesh) d.mesh.visible = d.W0 - Wc < 90; }
     this.animateViews(sim, dt);
     this.animateCompanions(sim, dt);
     this.dir.position.set(px - 30, 40, pz - 25); this.dir.target.position.set(px, 0, pz);

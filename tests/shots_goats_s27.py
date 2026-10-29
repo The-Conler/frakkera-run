@@ -1,7 +1,7 @@
 # v5s27: capre sarde (salto con zampe raccolte, trotto) e masso d'attesa. Uso: python3 tests/shots_goats_s27.py [porta]
 import asyncio, sys
 from playwright.async_api import async_playwright
-PORT = sys.argv[1] if len(sys.argv) > 1 else '4797'
+PORT = sys.argv[1] if len(sys.argv) > 1 else '4811'
 SC = {
   'roccia': ('rock', 90, "[{kind:'caprarupe',lane:0,side:-1,len:12,at:260},{kind:'caprarupe',lane:2,side:1,len:12,at:420}]", [0.6, 1.3, 1.7, 2.1], None),
   'attraversa': ('rock', 90, "[{kind:'goat',lane:0,len:10,dir:1,vx:30,moving:true,at:190}]", [0.5, 0.9, 1.2], None),
