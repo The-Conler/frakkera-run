@@ -1,4 +1,3 @@
-import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 // Pezzi naturali costruiti al volo (per tratto di percorso) e paesaggi:
 // pareti di roccia, versanti boscosi, muretti a secco, sponde del fiume,
 // parete di travertino col muschio (piscina naturale), valle boscosa,
@@ -254,60 +253,80 @@ export function valleyTerrain(W0, len, o = {}) {
 // fessure verticali profonde, cenge orizzontali a gradini con ciuffi di macchia e muschio,
 // cima frastagliata a piu' punte, base piu' larga e cespugliosa con massi.
 export function buildPinnacle(seed = 3) {
+  // v5s27f: monolite ricostruito da zero: piu' colonne di roccia fuse insieme (sezioni poligonali irregolari, facce larghe,
+  // fessure verticali profonde), due punte frastagliate di altezza diversa, fusto che resta spesso, piede largo con speroni.
+  // Low-poly a facce piatte irregolari; niente anelli: le quote di ogni vertice sono sfalsate.
   const k = new Kit(seed);
-  const r = rng(seed);
-  const H = 104, base = -48;
-  const NR = 96, NV = 168;   // v5s27e: piu' suddivisioni (liscia, niente sfaccettature)
-  const frac = (x) => x - Math.floor(x);
-  const R0 = (t) => {
-    if (t < 0.1) return 10 - t * 34;               // piede largo
-    if (t < 0.86) return 6.6 - (t - 0.1) * 2.6;     // fusto slanciato, quasi dritto
-    return Math.max(1.6, 4.6 - (t - 0.86) * 20);    // testa frastagliata
-  };
-  const LED = 11;                                    // numero di cenge
-  const band = (t, a) => frac(t * LED + 0.35 * fbm(Math.cos(a) * 1.3, t * 2, Math.sin(a) * 1.3 + seed, 2));
-  const crack = (a, t) => Math.abs(Math.sin(a * 6.5 + 2.2 * fbm(t * 3, seed, a, 2)));
-  const radius = (a, t) => {
-    const jag = band(t, a);
-    let rr = R0(t) * (1 + 0.16 * fbm(Math.cos(a) * 2, t * 7, Math.sin(a) * 2 + seed, 3));
-    rr *= 1 + 0.2 * (1 - jag) - 0.06;               // ogni cengia sporge e sopra rientra
-    rr *= 0.72 + 0.36 * Math.pow(crack(a, t), 0.45); // colonne e solchi verticali
-    rr *= 1 + 0.035 * fbm(Math.cos(a) * 7, t * 30, Math.sin(a) * 7 + seed, 2);   // v5s27e: grana fine della roccia
-    if (t > 0.9) rr *= 0.45 + 0.7 * Math.max(0, Math.sin(a * 3 + seed + t * 4)); // punte multiple in cima
-    return rr;
-  };
-  const g = gridSurface(NR, NV, (u, v) => {
-    const a = -u * Math.PI * 2, t = v, y = base + t * H + (v === 1 ? 2.5 + 4 * Math.max(0, Math.sin(a * 3 + seed)) : 0);
-    const fl = v === 0 ? 0 : v === 1 ? 0.3 : 1;
-    const rr = radius(a, t);
-    const lean = Math.sin(t * 2.2) * 1.4;               // leggera curva come nella foto
-    return [Math.cos(a) * rr * fl + lean, y, Math.sin(a) * rr * 0.78 * fl];
-  }, (x, y, z) => {
-    const t = (y - base) / H, a = Math.atan2(z / 0.78, x);
-    const n = noise3(x / 2.5, y / 4, z / 2.5) * 0.5 + 0.5, n2 = noise3(x / 1.1, y / 7, z / 1.1) * 0.5 + 0.5;
-    _c.set(pickN(['#c2b196', '#d0bfa2', '#b3a287', '#dccbad', '#a89679'], n));   // calcare caldo grigio-beige
-    if (n2 > 0.7) _c.lerp(_c2.set('#b8946a'), 0.35);          // ossidi
-    _c.multiplyScalar(0.92 + 0.16 * (noise3(x / 0.5, y / 0.9, z / 0.5) * 0.5 + 0.5));   // v5s27e: grana fine
-    const cr = crack(a, t);
-    if (cr < 0.22) _c.multiplyScalar(0.6 + cr);              // fessure scure
-    const jag = band(t, a);
-    if (jag > 0.86 && n > 0.35 && t < 0.92) _c.lerp(_c2.set(n2 > 0.5 ? '#5f7a34' : '#6f8a3a'), 0.75);   // muschio sulla cengia
-    if (t < 0.07) _c.lerp(_c2.set('#4a5a34'), 0.45);
-    return _c.getHex();
+  const r = rng(seed * 7 + 11);
+  const base = -48;
+  const dark = new Map(); const key = (x, y, z) => `${x.toFixed(2)},${y.toFixed(2)},${z.toFixed(2)}`;
+  const pal = ['#cdb595', '#bca486', '#d8c2a0', '#b09a7e', '#c6ad8d', '#a8957f', '#dcc8a6', '#b9a085'];
+  // colonne: x, z, raggio, altezza, inclinazione in cima (dx, dz), quota di inizio della cima frastagliata
+  const COLS = [
+    { x: 0.0, z: 0.0, r: 5.6, h: 106, lx: -1.2, lz: 0.4, top: 0.86 },   // punta piu' alta
+    { x: 4.6, z: 1.2, r: 4.6, h: 93, lx: 2.2, lz: -0.6, top: 0.84 },    // seconda punta, staccata
+    { x: -3.4, z: 2.4, r: 4.2, h: 74, lx: -0.6, lz: 0.8, top: 0.8 },
+    { x: 1.6, z: -3.4, r: 4.8, h: 84, lx: 0.4, lz: -0.8, top: 0.82 },
+    { x: -2.4, z: -2.6, r: 4.4, h: 62, lx: -0.4, lz: -0.4, top: 0.78 },
+    { x: -6.2, z: -1.0, r: 5.8, h: 40, lx: -0.8, lz: 0, top: 0.7 },     // speroni del piede
+    { x: 6.4, z: -3.8, r: 5.2, h: 34, lx: 0.8, lz: -0.4, top: 0.68 },
+    { x: 1.0, z: 5.6, r: 5.0, h: 30, lx: 0, lz: 0.8, top: 0.66 },
+  ];
+  const surf = []; // per la vegetazione: punti delle fessure e delle cenge
+  COLS.forEach((C, ci) => {
+    const K = 6 + Math.floor(r() * 3), NV = Math.max(10, Math.round(C.h / 4));
+    const corners = [];
+    for (let i = 0; i < K; i++) corners.push({ a: (i + r.range(-0.3, 0.3)) / K * Math.PI * 2, rho: r.range(0.72, 1.18), crack: r() < 0.45 ? r.range(0.22, 0.42) : r.range(0, 0.08), tip: r.range(0.9, 1.0) });
+    const NU = K * 2;
+    const g = gridSurface(NU, NV, (u, v) => {
+      const jj = Math.round(u * NU) % NU, ci0 = Math.floor(jj / 2), odd = jj % 2 === 1;
+      const A = corners[ci0], B = corners[(ci0 + 1) % K];
+      const t = v;
+      // sagoma verticale: piede allargato, fusto quasi dritto e spesso, cima frastagliata (ogni spigolo con la sua quota)
+      const flare = 1 + 0.35 * Math.max(0, 1 - t / 0.12);
+      const tipT = (odd ? (A.tip + B.tip) / 2 - 0.04 : A.tip);
+      const topK = t <= C.top ? 1 : Math.max(0.08, 1 - ((t - C.top) / (tipT - C.top + 1e-3)) * 0.9);
+      let px, pz;
+      const ca = (a, rho) => [Math.cos(a) * rho, Math.sin(a) * rho];
+      if (!odd) { [px, pz] = ca(A.a, A.rho); }
+      else { let bA = B.a; if (bA < A.a) bA += Math.PI * 2; const [x1, z1] = ca(A.a, A.rho), [x2, z2] = ca(bA, B.rho); px = (x1 + x2) / 2; pz = (z1 + z2) / 2; const s = 1 - A.crack; px *= s; pz *= s; }
+      const R = 1.15 * C.r * flare * Math.min(1, topK) * (1 - 0.06 * t);
+      const lean = Math.pow(t, 2);
+      let x = C.x + px * R + C.lx * lean, z = C.z + pz * R + C.lz * lean;
+      let y = base + Math.min(t, tipT) / tipT * C.h * (v === 1 ? 1 : 1);
+      if (v === 1) y = base + C.h * (odd ? r.range(0.93, 0.98) : A.tip);
+      if (v > 0 && v < 1) y += r.range(-0.45, 0.45) * (C.h / NV);   // quote sfalsate: niente anelli
+      // spostamento irregolare dei vertici
+      const nx = noise3(x / 6 + ci, y / 11, z / 6), nz = noise3(z / 6 - ci, y / 11, x / 6 + 3);
+      x += nx * 1.1 * Math.min(1, topK + 0.3); z += nz * 1.1 * Math.min(1, topK + 0.3);
+      if (v === 0) y = base - 2;
+      const d = odd && A.crack > 0.2 ? 0.5 : odd ? 0.85 : 1;
+      dark.set(key(x, y, z), d);
+      if (odd && A.crack > 0.2 && t > 0.2 && t < C.top) surf.push([x, y, z, t * C.h / 106, ci]);
+      if (!odd && r() < 0.12 && t > 0.15 && t < C.top) surf.push([x, y, z, t * C.h / 106, ci]);
+      return [x, y, z];
+    }, (x, y, z) => {
+      const n = noise3(x / 7 + ci * 3.1, y / 13, z / 7) * 0.5 + 0.5, n2 = noise3(x / 2.2, y / 3.5, z / 2.2) * 0.5 + 0.5;
+      _c.set(pickN(pal, Math.min(0.999, Math.max(0, n * 0.8 + n2 * 0.3 - 0.05))));
+      if (n2 > 0.72) _c.lerp(_c2.set('#9a7a58'), 0.3);                     // vene brune
+      _c.multiplyScalar(dark.get(key(x, y, z)) ?? 1);                       // ombra nelle fessure
+      _c.multiplyScalar(1.12);   // calda alla luce del tramonto
+      const t = (y - base) / 106; if (t < 0.08) _c.lerp(_c2.set('#5a5a3c'), 0.35 * (1 - t / 0.08));
+      return _c.getHex();
+    });
+    addColored(k, g);
   });
-  { g.deleteAttribute('normal'); const m = mergeVertices(g, 1e-3); m.computeVertexNormals(); addColored(k, m); }   // v5s27e: normali morbide
-  // macchia e muschio sulle cenge, a tutte le altezze (piu' fitta in basso)
-  const leaf = ['#5a8a2e', '#6b9a36', '#4a7a2a', '#7aaa40', '#8ab84e', '#3f6a2a'];
-  for (let i = 0; i < 190; i++) {
-    const t = Math.min(0.9, Math.pow(r(), 1.25) * 0.92 + 0.04), a = r() * Math.PI * 2;
-    const tl = (Math.floor(t * LED) + 0.97) / LED;
-    const rr = radius(a, tl) * 0.98, lean = Math.sin(tl * 2.2) * 1.4, y = base + tl * H;
-    const s = r.range(0.9, 1.9) * (tl < 0.3 ? 1.4 : 1);
-    for (let j = 0; j < 2; j++) k.add(G.ico(s * r.range(0.6, 1.0), 1), r.pick(leaf), { x: Math.cos(a) * rr + lean + r.range(-0.5, 0.5), y: y + r.range(-0.3, 0.6) * s, z: Math.sin(a) * rr * 0.78 + r.range(-0.5, 0.5), flat: true, vary: 0.22, sy: 0.75 });
-  }
-  // base: massi e boscaglia folta (riva)
-  for (let i = 0; i < 22; i++) { const a = r() * Math.PI * 2, rr = r.range(9, 15); addRock(k, r, Math.cos(a) * rr, base + r.range(1, 4), Math.sin(a) * rr * 0.85, r.range(1.8, 3.6), ['#a99b86', '#9c8f7b', '#b8aa94'], { squash: 0.7, tilt: true }); }
-  for (let i = 0; i < 46; i++) { const a = r() * Math.PI * 2, rr = r.range(10, 24); k.add(G.ico(r.range(1.6, 3.2), 0), r.pick(['#2c4626', '#36522c', '#3f5e30', '#4a6a36']), { x: Math.cos(a) * rr, y: base + r.range(2, 8), z: Math.sin(a) * rr, flat: true, sy: 0.8, vary: 0.2 }); }
+  // vegetazione: macchie irregolari nate da fessure e cenge, piu' grandi a meta'-alto, poche isolate in basso
+  const leaf = ['#4f7a2a', '#5f8a30', '#6b9a38', '#3f6a26', '#7aa040', '#567f2c'];
+  const pickS = (lo, hi) => { for (let n = 0; n < 40; n++) { const p = surf[Math.floor(r() * surf.length)]; if (p[3] >= lo && p[3] <= hi) return p; } return null; };
+  const clump = (p, n, s0) => { for (let i = 0; i < n; i++) { const s = s0 * r.range(0.45, 1.1), ox = r.range(-1, 1) * s0, oy = r.range(-0.6, 0.8) * s0, oz = r.range(-1, 1) * s0;
+    k.add(G.ico(s, 0), r.pick(leaf), { x: p[0] + ox, y: p[1] + oy, z: p[2] + oz, flat: true, sy: r.range(0.6, 0.85), ry: r() * 6, vary: 0.2 }); } };
+  for (let i = 0; i < 24; i++) { const p = pickS(0.42, 0.85); if (p) clump(p, 5 + Math.floor(r() * 8), r.range(1.5, 2.6)); }   // macchie grandi
+  for (let i = 0; i < 16; i++) { const p = pickS(0.25, 0.9); if (p) clump(p, 1 + Math.floor(r() * 3), r.range(0.8, 1.4)); }    // ciuffi piccoli sparsi
+  for (let i = 0; i < 7; i++) { const p = pickS(0.06, 0.3); if (p) clump(p, 1 + Math.floor(r() * 2), r.range(0.8, 1.4)); }      // pochi cespugli isolati in basso
+  // piede: massi di frana e boscaglia (riva)
+  for (let i = 0; i < 18; i++) { const a = r() * Math.PI * 2, rr = r.range(8, 14); addRock(k, r, Math.cos(a) * rr, base + r.range(0, 3), Math.sin(a) * rr * 0.85, r.range(2, 4), ['#a99b86', '#9c8f7b', '#b8aa94'], { squash: 0.7, tilt: true }); }
+  for (let i = 0; i < 36; i++) { const a = r() * Math.PI * 2, rr = r.range(10, 22); k.add(G.ico(r.range(1.6, 3.2), 0), r.pick(['#2c4626', '#36522c', '#3f5e30', '#4a6a36']), { x: Math.cos(a) * rr, y: base + r.range(2, 7), z: Math.sin(a) * rr, flat: true, sy: 0.8, vary: 0.2 }); }
   return k.build();
 }
 
