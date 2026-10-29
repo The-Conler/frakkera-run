@@ -522,7 +522,7 @@ async def v2_section(page, name, mobile, cdp, check, shot, state, visible):
     check('v2 totale tappeti dopo ricarica', mc == str(ls2) and int(ls2) >= ls1, f'{mc} vs {ls2}')
     await shot('16-menu-dopo')
     # ---- v5s11: ballu tundu nella piazza (cue, ballo, freccia, SALTA senza penalita') ----
-    await page.goto(f'{URL}?test=1&fixeddpr&map=village&at=120')
+    await page.goto(f'{URL}?test=1&fixeddpr&map=village&at=120&lap=1')   # v5s27: il ballu tundu c'e' solo dal 2o giro (stage26)
     await page.wait_for_function('window.__frk && document.querySelector("#loading").classList.contains("hidden")', timeout=20000)
     await page.evaluate('window.__keepDance = true')
     await page.click('[data-act=play]')
