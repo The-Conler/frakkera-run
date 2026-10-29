@@ -1030,8 +1030,10 @@ export class World {
       // v5s27: idem per la cappella tonda (a sinistra, poco prima di Santa Marta): la camera la cerca da ~200 m
       const ec = this.env.cur, cl0 = ec.b.id === 'village' ? ec.local : -1, chk = cl0 < 186 || cl0 > 228 ? 0 : Math.min(1, (cl0 - 186) / 10, (228 - cl0) / 6);
       this.chapelCamK = (this.chapelCamK || 0) + (chk - (this.chapelCamK || 0)) * Math.min(1, dt * 2);
-      const yaw = (L.camYaw || 0) - 2.2 * this.vistaCamK - 2.4 * this.chapelCamK;   // verso la chiesa, a sinistra della via
+      const yaw = (L.camYaw || 0) - 5.5 * this.vistaCamK - 2.4 * this.chapelCamK;   // verso la chiesa, a sinistra della via
       if (yaw) { cl.x += yaw * por; cp.x -= yaw * 0.3 * por; }
+      // v5s27b: la chiesa col campanile intera sul telefono: un po' piu' larga e alta mentre entra in vista
+      { const vk2 = this.vistaCamK * por; const near = Math.max(0, Math.min(1, (26 - (this.vistaAhead ?? 999)) / 14)); cl.y += (3.0 + 5 * near) * vk2; fov += (8 + 6 * near) * vk2; }
       // v5s22: nel carrello camera piu' alta e piu' indietro: si vedono due scambi
       this.cartCamK = (this.cartCamK || 0) + ((sim.cart ? 1 : 0) - (this.cartCamK || 0)) * Math.min(1, dt * 1.8);
       const ck = this.cartCamK; if (ck > 1e-3) { cp.y += 1.5 * ck; cp.z += 1.8 * ck; cl.z -= 8 * ck; cl.y += 0.3 * ck; }   // v5s6: solo la piscina guarda un po' verso l'acqua a destra
