@@ -1000,7 +1000,11 @@ export class World {
       // per ambiente (config.light.camLook/camFov): un po' piu' larga e meno inclinata dove i monumenti devono entrare in verticale
       const L = this.light || {}, por = 1 - wide;
       cp = _v.set(px * 0.82 - 0.6, 6.4 - wide, pz + 9.4 - wide * 1.5); cl = _v2.set(px * 0.55 - 0.1, 1.8 + (L.camLook || 0) * por, pz - 15); fov = 64 - wide * 6 + (L.camFov || 0) * por;
-      if (L.camYaw) { cl.x += L.camYaw * por; cp.x -= L.camYaw * 0.3 * por; }
+      // v5s27: come alla piscina (camYaw), mentre la chiesa col campanile entra in vista la camera si sposta a destra e guarda un po' verso la chiesa (a sinistra)
+      const va = this.vistaAhead ?? 999, vk = va < -6 || va > 140 ? 0 : Math.min(1, (140 - va) / 40, (va + 6) / 14);
+      this.vistaCamK = (this.vistaCamK || 0) + (vk - (this.vistaCamK || 0)) * Math.min(1, dt * 2);
+      const yaw = (L.camYaw || 0) - 2.2 * this.vistaCamK;   // verso la chiesa, a sinistra della via
+      if (yaw) { cl.x += yaw * por; cp.x -= yaw * 0.3 * por; }
       // v5s22: nel carrello camera piu' alta e piu' indietro: si vedono due scambi
       this.cartCamK = (this.cartCamK || 0) + ((sim.cart ? 1 : 0) - (this.cartCamK || 0)) * Math.min(1, dt * 1.8);
       const ck = this.cartCamK; if (ck > 1e-3) { cp.y += 1.5 * ck; cp.z += 1.8 * ck; cl.z -= 8 * ck; cl.y += 0.3 * ck; }   // v5s6: solo la piscina guarda un po' verso l'acqua a destra
@@ -1033,9 +1037,9 @@ export class World {
     // ci si passa accanto e restano indietro. Si mostra quello del giro corrente o del successivo.
     { const bD = this.env.cur.bDist, C = CYCLE;
       let at = Math.floor(bD / C) * C + VISTA.AT_M; if (bD - at > 120) at += C;
-      const ahead = at - bD;
+      const ahead = at - bD; this.vistaAhead = this.vista.visible === false && ahead > 520 ? 999 : ahead;
       this.vista.visible = ahead < 520 && ahead > -120 && this.light.tunnel < 0.5;
-      const key = sim.mode === 'run' ? at + '|' + sim.genOffset : null;   // in corsa: fissato una volta per giro e mai piu' spostato
+      const key = sim.mode === 'run' && sim.T * U > 3 ? at + '|' + sim.genOffset : null;   // v5s27: non fissarlo coi metri del menu   // in corsa: fissato una volta per giro e mai piu' spostato
       if (!key || this.vistaAt !== key) { this.vistaAt = key; this.vistaZ = -sim.T * U - ahead; }   // fissato una volta: poi mai piu' spostato
       this.vista.position.set(VISTA.X, 0, this.vistaZ); }
     // v5s23: neve al suolo (niente nella galleria) e nevicata

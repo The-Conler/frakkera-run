@@ -279,11 +279,13 @@ export function buildChurchSquare(seed = 1) {
     k.add(G.box(T - 0.05, 0.12, T - 0.05), (i + j) % 2 ? r.pick(['#d9d6cf', '#e2dfd8', '#cfcbc3']) : r.pick(['#8e8c88', '#9a9792', '#85837f']), { x, y: 0.03, z, vary: 0.04 });
   }
   k.add(G.box(0.4, 0.25, PZ0 - PZ1), '#9a8e80', { x: PX0 - 0.15, y: 0.12, z: (PZ0 + PZ1) / 2 });
-  for (const [vx, vz] of []) {   // v5s26: piazzetta libera per chiesa e campanile   // vasi di fiori
+  for (const [vx, vz] of [[8.2, -12], [8.2, -16], [8.2, -28], [8.2, -32], [14.5, -12.5], [14.5, -31.5]]) {   // vasi di fiori
     k.add(G.cyl(0.42, 0.32, 0.7, 10), '#a8603a', { x: vx, y: 0.35, z: vz, vary: 0.08 });
     shrub(k, r, vx, 0.55, vz, 0.55, ['#4f6e2e', '#5f7f36'], 1);
     for (let i = 0; i < 6; i++) k.add(G.ico(0.16, 0), r.pick(['#e83a4a', '#f06a8a', '#ffffff', '#ffd23a']), { x: vx + r.range(-0.35, 0.35), y: 1.0 + r.range(0, 0.3), z: vz + r.range(-0.35, 0.35), flat: true });
   }
+  tree(k, r, 18, 0, -14, 1.7);
+  tree(k, r, 18.5, 0, -31, 1.5);
   // grande albero sul lato della chiesa, dietro la capanna (come nel target)
   tree(k, r, -21, 0, -3, 2.3);
   tree(k, r, -30, 0, -44, 1.3);
@@ -319,7 +321,7 @@ export function buildChurchSquare(seed = 1) {
     lamps.push([px - PW / 2, 2.6, pz - PL / 2, 3.2]);
   }
   // pali con lanterna ai bordi della piazza e della piazzetta
-  for (const [lx, lz] of [[-8.2, -30], [-8.2, -48], [-30, -2]]) {
+  for (const [lx, lz] of [[-8.2, -30], [-8.2, -48], [-30, -2], [8.0, -20], [8.0, -24.5]]) {
     k.add(G.cyl(0.08, 0.1, 3.6, 6), '#2b2a33', { x: lx, y: 1.8, z: lz });
     k.add(G.box(0.36, 0.46, 0.36), '#ffcf6a', { x: lx, y: 3.8, z: lz, unlit: true });
     k.add(G.cone(0.3, 0.3, 4), '#2b2a33', { x: lx, y: 4.2, z: lz, ry: Math.PI / 4 });
@@ -334,6 +336,7 @@ export function buildChurchSquare(seed = 1) {
     { seed: 9, x: -22.5, z: -LEN - 6.2, ry: -Math.PI / 2, flipZ: true },
     { seed: 13, x: -30.5, z: -LEN - 6.2, ry: -Math.PI / 2, flipZ: true },
     // fondale della piazzetta del campanile: case con la facciata verso la via (lato opposto)
+    { seed: 15, x: PX1, z: PZ0, road: true }, { seed: 17, x: PX1, z: null, road: true }, { seed: 19, x: PX1, z: null, road: true },
   ];
   return { geom: k.build({ ao: 0.25 }), lamps, houses, len: LEN, tower: { ...TOWER, ...TOWER_AT, S: TOWER_S } };
 }
@@ -342,7 +345,8 @@ export function buildChurchSquare(seed = 1) {
 // in fondo alla via. Coordinate: campanile centrato in x=0, faccia con orologio verso +z (chi arriva),
 // chiesa con la facciata a capanna verso +z, a SINISTRA (a destra la coprirebbe la fiamma). world3d lo tiene davanti alla camera.
 // v5s23b: oggetto FISSO nel mondo, a sinistra della strada, facciate rivolte verso la via (non la attraversa): campanile a sinistra, chiesa a destra
-export const VISTA = { S: 1.25, AT_M: 160, EDGE: -8.2, RY: 0.55, CS: 0.62, X: 0 };
+// v5s27: chiesa col campanile all'INIZIO del paese (vuoto a sinistra in config.js, gaps.left [26,62])
+export const VISTA = { S: 1.25, AT_M: 40, EDGE: -8.2, RY: 0.55, CS: 0.62, X: 0 };
 export function buildVista(seed = 1) {
   const r = rng(seed * 131 + 7);
   const kt = new Kit(seed + 501);
@@ -364,7 +368,7 @@ export function buildVista(seed = 1) {
   for (const g of gs) { g.applyMatrix4(mv); g.applyMatrix4(sc); k.lit.push(g); }
   for (const g of kc.unlit || []) { g.applyMatrix4(rot); g.applyMatrix4(mv); g.applyMatrix4(sc); k.unlit.push(g); }
   // basamento e case basse ai piedi (chiude il fondo della via)
-  k.add(G.box(12, 0.4, 12), '#9a8e80', { x: 3, y: 0.2, z: -4 });
+  k.add(G.box(7, 0.4, 9), '#9a8e80', { x: 2, y: 0.2, z: -4 });   // v5s27: basamento piu' raccolto (la chiesa sta piu' vicina alla via)
   const out = k.build({ ao: 0.2 });
   // ruotato di sbieco (facciate verso chi arriva e verso la via): campanile a sinistra, chiesa a destra, a lato della strada
   out.rotateY(VISTA.RY); out.computeBoundingBox(); out.computeBoundingSphere();
