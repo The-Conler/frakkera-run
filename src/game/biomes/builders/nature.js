@@ -256,34 +256,34 @@ export function buildPinnacle(seed = 3) {
   const k = new Kit(seed);
   const r = rng(seed);
   const H = 104, base = -48;
-  const NR = 30, NV = 84;
+  const NR = 48, NV = 84;
   const frac = (x) => x - Math.floor(x);
   const R0 = (t) => {
-    if (t < 0.1) return 10.5 - t * 30;             // piede largo
-    if (t < 0.8) return 7.5 - (t - 0.1) * 4.6;      // fusto slanciato che si assottiglia
-    return Math.max(0.5, 4.3 - (t - 0.8) * 19);     // testa a punta
+    if (t < 0.1) return 10 - t * 34;               // piede largo
+    if (t < 0.86) return 6.6 - (t - 0.1) * 2.6;     // fusto slanciato, quasi dritto
+    return Math.max(1.6, 4.6 - (t - 0.86) * 20);    // testa frastagliata
   };
   const LED = 11;                                    // numero di cenge
   const band = (t, a) => frac(t * LED + 0.35 * fbm(Math.cos(a) * 1.3, t * 2, Math.sin(a) * 1.3 + seed, 2));
-  const crack = (a, t) => Math.abs(Math.sin(a * 4.5 + 1.6 * fbm(t * 3, seed, a, 2)));
+  const crack = (a, t) => Math.abs(Math.sin(a * 6.5 + 2.2 * fbm(t * 3, seed, a, 2)));
   const radius = (a, t) => {
     const jag = band(t, a);
     let rr = R0(t) * (1 + 0.16 * fbm(Math.cos(a) * 2, t * 7, Math.sin(a) * 2 + seed, 3));
-    rr *= 1 + 0.13 * (1 - jag) - 0.04;               // ogni cengia sporge e sopra rientra
-    rr *= 0.86 + 0.18 * Math.pow(crack(a, t), 0.5);  // solchi verticali
-    if (t > 0.86) rr *= 0.55 + 0.6 * Math.max(0, Math.sin(a * 3 + seed + t * 4)); // punte multiple in cima
+    rr *= 1 + 0.2 * (1 - jag) - 0.06;               // ogni cengia sporge e sopra rientra
+    rr *= 0.72 + 0.36 * Math.pow(crack(a, t), 0.45); // colonne e solchi verticali
+    if (t > 0.9) rr *= 0.45 + 0.7 * Math.max(0, Math.sin(a * 3 + seed + t * 4)); // punte multiple in cima
     return rr;
   };
   const g = gridSurface(NR, NV, (u, v) => {
-    const a = -u * Math.PI * 2, t = v, y = base + t * H + (v === 1 ? 6 : 0);
-    const fl = (v === 0 || v === 1) ? (v === 1 ? 0.05 : 0) : 1;
+    const a = -u * Math.PI * 2, t = v, y = base + t * H + (v === 1 ? 2.5 + 4 * Math.max(0, Math.sin(a * 3 + seed)) : 0);
+    const fl = v === 0 ? 0 : v === 1 ? 0.3 : 1;
     const rr = radius(a, t);
     const lean = Math.sin(t * 2.2) * 1.4;               // leggera curva come nella foto
     return [Math.cos(a) * rr * fl + lean, y, Math.sin(a) * rr * 0.78 * fl];
   }, (x, y, z) => {
     const t = (y - base) / H, a = Math.atan2(z / 0.78, x);
     const n = noise3(x / 2.5, y / 4, z / 2.5) * 0.5 + 0.5, n2 = noise3(x / 1.1, y / 7, z / 1.1) * 0.5 + 0.5;
-    _c.set(pickN(['#a99b86', '#b8aa94', '#c7b9a2', '#9c8f7b', '#d2c4ac'], n));   // calcare caldo grigio-beige
+    _c.set(pickN(['#c2b196', '#d0bfa2', '#b3a287', '#dccbad', '#a89679'], n));   // calcare caldo grigio-beige
     if (n2 > 0.7) _c.lerp(_c2.set('#b8946a'), 0.35);          // ossidi
     const cr = crack(a, t);
     if (cr < 0.22) _c.multiplyScalar(0.6 + cr);              // fessure scure
@@ -294,12 +294,12 @@ export function buildPinnacle(seed = 3) {
   });
   addColored(k, g);
   // macchia e muschio sulle cenge, a tutte le altezze (piu' fitta in basso)
-  const leaf = ['#4f7a2c', '#5f8a34', '#3f6a28', '#6f9a3e', '#7fa84a', '#36582a'];
-  for (let i = 0; i < 120; i++) {
+  const leaf = ['#5a8a2e', '#6b9a36', '#4a7a2a', '#7aaa40', '#8ab84e', '#3f6a2a'];
+  for (let i = 0; i < 190; i++) {
     const t = Math.min(0.9, Math.pow(r(), 1.25) * 0.92 + 0.04), a = r() * Math.PI * 2;
     const tl = (Math.floor(t * LED) + 0.97) / LED;
     const rr = radius(a, tl) * 0.98, lean = Math.sin(tl * 2.2) * 1.4, y = base + tl * H;
-    const s = r.range(0.6, 1.5) * (tl < 0.3 ? 1.5 : 1);
+    const s = r.range(0.9, 1.9) * (tl < 0.3 ? 1.4 : 1);
     for (let j = 0; j < 3; j++) k.add(G.ico(s * r.range(0.55, 0.95), 0), r.pick(leaf), { x: Math.cos(a) * rr + lean + r.range(-0.5, 0.5), y: y + r.range(-0.3, 0.6) * s, z: Math.sin(a) * rr * 0.78 + r.range(-0.5, 0.5), flat: true, vary: 0.22, sy: 0.75 });
   }
   // base: massi e boscaglia folta (riva)
