@@ -114,7 +114,7 @@ export function buildCappella() {
   for (let i = 0; i < 40; i++) k.add(G.box(r.range(0.5, 0.9), 0.04, r.range(0.4, 0.7)), r.pick(['#9a958b', '#b7b2a6', '#8d887f']), { x: r.range(7.2, 19.5), y: 0.1, z: -r.range(-1.5, 19.5), ry: r.range(-0.3, 0.3) });
   for (const z of [-1.2, -17]) k.add(G.box(10, 0.06, 0.45), '#d8d4ca', { x: 13, y: 0.11, z });
   // cappella tonda: corpo ocra arrotondato (mezzo cilindro + parte dritta), gronda di coppi scuri
-  const cx = 11.4, cz = -9, rad = 4.6, H = 5.6, OCHRE = '#f9d488';
+  const cx = 11.4, cz = -9, rad = 4.6, H = 7.0, OCHRE = '#f9d488';
   k.add(G.cyl(rad, rad, H, 22), OCHRE, { x: cx, y: H / 2, z: cz, vary: 0.04 });
   k.add(G.cyl(rad + 0.05, rad + 0.05, 0.45, 22), '#c69a58', { x: cx, y: 0.22, z: cz });                          // zoccolo
   k.add(G.cyl(rad + 0.45, rad + 0.3, 0.32, 22), '#3e2a20', { x: cx, y: H + 0.1, z: cz });                        // gronda
@@ -134,9 +134,9 @@ export function buildCappella() {
   for (const [dy, dt] of [[0, 0.5], [0, -0.5], [0.72, 0], [-0.7, 0]]) F(0.06, ct + dt, 3.7 + dy, G.box(0.05, 0.2, 0.2), '#1e1b1a', { rx: Math.PI / 4 });
   F(0.03, 2.3, 2.6, G.box(0.08, 1.1, 0.35), '#ece6d8');                  // finestrella stretta
   // lampioni di ferro
-  streetLamp(k, 7.6, -1.6, 1); streetLamp(k, 7.6, -16.5, 1);
+  // v5s26: niente lampioni davanti alla cappella (la coprivano)
   // case bianche con balconi dietro, e di la' dal ramo
-  for (const [x, z, w, h, d] of [[21, -4, 7, 8.5, 7], [21, -13.5, 7, 9.5, 8], [16.5, -24, 9, 8, 6]]) {
+  for (const [x, z, w, h, d] of [[21, -4, 7, 8.5, 7], [21, -13.5, 7, 9.5, 8]]) {
     k.add(G.box(d, h, w), r.pick(['#eeeae2', '#e6e2d8', '#f2efe8']), { x, y: h / 2, z, vary: 0.05 });
     k.add(G.box(d + 0.4, 0.3, w + 0.4), '#b3593c', { x, y: h + 0.15, z });
     k.add(G.cone(Math.max(w, d) * 0.72, 1.4, 4), '#a8503a', { x, y: h + 1, z, ry: Math.PI / 4, sz: w / d });
@@ -151,7 +151,7 @@ export function buildCappella() {
 // lato sinistro davanti alla cappella: casa bianca con balcone di ferro (facciata verso la via)
 export function buildCappellaLeft() {
   const k = new Kit(5301);
-  for (const [z, w, h] of [[-4, 8, 8], [-14, 9, 9], [-24, 8, 7.5]]) {
+  for (const [z, w, h] of [[-4, 8, 8], [-13.5, 8, 9]]) {   // v5s26: spazio per la navatella destra di Santa Marta
     const x = -(E + 3.5);
     k.add(G.box(7, h, w), '#ece8df', { x, y: h / 2, z, vary: 0.05 });
     k.add(G.box(7.4, 0.3, w + 0.4), '#b3593c', { x, y: h + 0.15, z });

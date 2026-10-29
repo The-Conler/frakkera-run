@@ -295,8 +295,8 @@ export function buildChurchSquare(seed = 1) {
   // le case dei due lati prima e dopo la piazza
   // v5s12: fili di luci a zig-zag ATTRAVERSO la via (target4), da una facciata all'altra
   for (let z = 30; z > -70; z -= 4.5) {
-    const y1 = 7.6 + r.range(-0.5, 0.5), y2 = 7.6 + r.range(-0.5, 0.5);
-    catenary(k, new THREE.Vector3(7.0, y1, z), new THREE.Vector3(-7.0, y2, z - 2.2), r.range(1.2, 2.0), true, lamps, 0.9, 7);
+    const y1 = 10.6 + r.range(-0.3, 0.3), y2 = 10.6 + r.range(-0.3, 0.3);   // v5s26: sopra i tetti
+    catenary(k, new THREE.Vector3(7.0, y1, z), new THREE.Vector3(-7.0, y2, z - 2.2), r.range(0.8, 1.2), true, lamps, 0.9, 7);
   }
   // v5s12: pergolato di legno con bancarella, botti e vasi di fiori sul bordo della piazza (target4, a destra)
   {

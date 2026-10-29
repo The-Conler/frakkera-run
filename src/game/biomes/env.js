@@ -6,7 +6,7 @@
 //  dissolvenze ai confini. Nulla qui influisce su sim.js.
 //  Coordinate: W = metri lungo il percorso (z del mondo = -W).
 // =====================================================================
-import { buildSantaMarta, santaMartaLamps } from './builders/santamarta.js';
+import { buildSantaMarta, santaMartaLamps, santaMartaAisleLamps, burraRunner, frescoes } from './builders/santamarta.js';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { BIOMES, CYCLE, biomeAt, nextBoundary, byId, LAP_NIGHT, NIGHT_MOOD, mapFromURL } from './config.js';
@@ -630,7 +630,7 @@ export class Env {
         const pf = bulbs ? this.prefab('bulbs', r.int(4), () => ({ geom: buildBulbString(r.lastInt + 1), w: 0, lamps: [] })) : this.prefab('banner', r.int(4), () => ({ geom: M.buildBanner(r.lastInt + 1, FACADE), w: 0, lamps: [] }));
         const pool = this.pools.get(pf.key) || []; let m = pool.pop();
         if (!m) { m = new THREE.Mesh(pf.geom, bulbs ? this.mats2 : [this.world.bannerMat, this.world.mat.unlit]); this.scene.add(m); }
-        m.visible = true; m.position.set(0, bulbs ? r.range(7.6, 8.6) : r.range(9.3, 10.0), -W); m.rotation.set(0, r.range(-0.12, 0.12), 0);
+        m.visible = true; m.position.set(0, bulbs ? r.range(10.2, 10.9) : r.range(9.3, 10.0), -W); m.rotation.set(0, r.range(-0.12, 0.12), 0);
         m.userData.sway = !bulbs;
         this.decor.push({ W0: W, W1: W + step, mesh: m, key: pf.key, lamps: [] });
       } else this.decor.push({ W0: W, W1: W + step, mesh: null, lamps: [] });
@@ -716,12 +716,17 @@ export class Env {
       root.scale.x = -1;
       cached('cappella', () => buildCappella());
       cached('cappellaL', () => buildCappellaLeft());
-      for (const z of [-1.6, -16.5]) lamps.push(this.lamp(-6.6, 4.5, z - W, '#ffd890', 2.4, 0.7));
+      // v5s26: lampioni tolti davanti alla cappella
     } else if (id === 'santamarta') {
       // v5s24: la navata e' al coperto: niente neve per terra (passatoia gialla e cotto restano visibili nei giri di neve)
       if (!this.mats2NoSnow) this.mats2NoSnow = this.mats2.map((m) => m.clone());
       { const g = this.markGeom('santamarta', () => buildSantaMarta(1)); m_gpu.push(g); mesh(g, this.mats2NoSnow, true); }
       for (const [x, y, z, s] of santaMartaLamps()) lamps.push(this.lamp(x, y, z - W, '#ffc070', 3.2 * s, 0.9));
+      for (const [x, y, z, s] of santaMartaAisleLamps()) lamps.push(this.lamp(x, y, z - W, '#ffc878', 3.0 * s, 0.9));
+      if (!this.burra) this.burra = burraRunner();
+      mesh(this.burra.geo, this.burra.mat, true);   // v5s26: tappeto sa burra lungo la navata
+      if (!this.fresc) this.fresc = frescoes();
+      mesh(this.fresc.geo, this.fresc.mat, true);   // v5s26: affreschi dipinti
     } else if (id === 'pinnacle') {
       const m = cached('pinnacle', () => N.buildPinnacle(3)); m.position.set(-30, 0, 0); m.rotation.y = 0.4;    // nella valle a SINISTRA del sentiero: a destra c'e' la fiamma che la coprirebbe
     } else if (id === 'valley') {

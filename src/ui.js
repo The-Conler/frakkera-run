@@ -151,8 +151,11 @@ export function initUI(game) {
     if (p.x != null) { el.style.left = `${Math.max(12, Math.min(88, p.x * 100))}%`; el.style.top = `${Math.max(12, p.y * 100)}%`; }
     else {
       el.classList.add('center');
-      const n = popLayer.querySelectorAll('.pop.center').length;
-      el.style.top = `${26 + (n % 4) * 7}%`;
+      // v5s26: primo posto libero (mai due testi centrali sovrapposti, es. PIU' VELOCE! e SCAMBIO!)
+      const used = new Set([...popLayer.querySelectorAll('.pop.center')].map((q) => q.dataset.slot));
+      let slot = 0; while (used.has(String(slot)) && slot < 5) slot++;
+      if (slot >= 5) { popLayer.querySelector('.pop.center')?.remove(); slot = 0; }
+      el.dataset.slot = String(slot); el.style.top = `${26 + slot * 8}%`;
     }
     el.addEventListener('animationend', () => el.remove());
     popLayer.appendChild(el);

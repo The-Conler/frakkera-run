@@ -843,7 +843,7 @@ export class World {
       case 'dogNip': this.addShake(0.2, 0.15); if (this.comp) this.comp[1].barkT = 0.35; break;
       case 'weaverThrow': { const p = this.views.get(d.e.id)?.root.position; if (p) this.burst(p.x * 0.6, 2.2, p.z, COL.spark2, 16, 4); break; }
       case 'procBump': { const p = this.views.get(d.e.id)?.root.position; if (p) this.burst(p.x, 2.0, p.z, COL.spark2, 10, 3); break; }
-      case 'windowCheer': this.windowCheer(pz); break;
+      case 'windowCheer': break;   // v5s26: niente paesani alle finestre (sembravano sospesi); resta solo il punteggio
       case 'start': case 'attract':
         this.rideOn = false; this.rideLeft = null; if (this.ride) { this.ride.visible = false; this.rideShadow.visible = false; }   // v5s20: niente carrello della corsa prima
         this.add.clear(); this.norm.clear(); this.shards.clear();
