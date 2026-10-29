@@ -6,7 +6,7 @@ import { CYCLE } from '../src/game/biomes/config.js';
 const DT = WORLD.FIXED_DT;
 let fail = 0; const ok = (n, c, info = '') => { console.log((c ? '  PASS ' : '  FAIL ') + n + (info ? `  [${info}]` : '')); if (!c) fail++; };
 // corsa senza ostacoli fino alla piazza (salto di mappa nel paese)
-function toSquare(offM = 120, seed = 99) {
+function toSquare(offM = CYCLE + 120, seed = 99) {
   const fx = []; const sim = new Sim((t, d) => fx.push([t, d]), { mapOffsetM: offM }); sim.startRun(seed);
   sim.gen.fillUntil = () => {};
   for (let i = 0; i < 120 * 40 && sim.mode !== 'dance'; i++) { sim.fuel = 100; sim.entities = []; sim.tick(DT); }
@@ -26,7 +26,8 @@ function play(sim, how) {
   const cueStep = sim.events.find((e) => e[1] === 'A' && e[2] < 100)[0], startStep = sim.events.find((e) => e[1] === 'A' && e[2] >= 100)[0];
   const s = (startStep - cueStep) * DT;
   ok('il cue arriva 2-3 s prima (la corsa rallenta)', s >= 2 && s <= 3.6, `${s.toFixed(2)} s`);
-  ok('il ballo parte nella piazza', sim.mode === 'dance' && sim.dance.lap === 0);
+  ok('il ballo parte nella piazza', sim.mode === 'dance' && sim.dance.lap === 1);
+  { const f2 = []; const s0 = new Sim((t, d) => f2.push([t, d]), { mapOffsetM: 120 }); s0.startRun(99); s0.gen.fillUntil = () => {}; for (let i = 0; i < 120 * 12; i++) { s0.fuel = 100; s0.entities = []; s0.tick(DT); } ok('niente ballo al primo giro', s0.mode !== 'dance' && !f2.some((f) => f[0] === 'danceCue')); }
   const d = sim.dance; const r = d.rounds;
   ok('giri di 8-10 s', r.every((x) => x.n * 60 / x.bpm >= 8 && x.n * 60 / x.bpm <= 10), JSON.stringify(r));
   sim.fuel = 60; const score0 = sim.score, fuel0 = sim.fuel;
@@ -50,7 +51,7 @@ function play(sim, how) {
   sim.skipDance();
   ok('SALTA: nessuna penalita\', si riparte', sim.mode === 'run' && sim.fuel === f0 && sim.score === sc0 && sim.events.some((e) => e[1] === 'K'));
   // SALTA durante il cue: il ballo non parte
-  const fx = []; const s2 = new Sim((t, d) => fx.push([t, d]), { mapOffsetM: 120 }); s2.startRun(5); s2.gen.fillUntil = () => {};
+  const fx = []; const s2 = new Sim((t, d) => fx.push([t, d]), { mapOffsetM: CYCLE + 120 }); s2.startRun(5); s2.gen.fillUntil = () => {};
   for (let i = 0; i < 120 * 30; i++) { s2.fuel = 100; s2.entities = []; if (s2.danceCue && !s2.skipped) { s2.skipped = s2.skipDance(); } s2.tick(DT); }
   ok('SALTA durante il cue: niente ballo', s2.skipped && s2.stats.dances === 0 && s2.mode === 'run');
 }
@@ -60,10 +61,10 @@ function play(sim, how) {
   ok('il tempo sale a ogni giro', b[0] < b[1] && b[1] < b[2] && b[2] < b[3], b.join(','));
   ok('spartito deterministico', JSON.stringify(s.danceChart(2)) === JSON.stringify(s.danceChart(2)));
   // il ballo al giro 1 (mappa saltata all'inizio del secondo paese)
-  const { sim } = toSquare(CYCLE + 120); ok('ballo anche al giro successivo, piu\' veloce', sim.mode === 'dance' && sim.dance.lap === 1 && sim.dance.bpm > DANCE.BPM0);
+  const { sim } = toSquare(2 * CYCLE + 120); ok('ballo anche al giro successivo, piu\' veloce', sim.mode === 'dance' && sim.dance.lap === 2 && sim.dance.bpm > DANCE.BPM0 + DANCE.BPM_LAP * 1 - 0.01);
 }
 {
-  const go = () => { const { sim } = toSquare(120, 7); play(sim, 'good'); return JSON.stringify([sim.events, sim.inputs]); };
+  const go = () => { const { sim } = toSquare(CYCLE + 120, 7); play(sim, 'good'); return JSON.stringify([sim.events, sim.inputs]); };
   ok('deterministico (stesso log)', go() === go());
 }
 console.log(fail ? `FALLITO: ${fail}` : 'OK: ballu tundu');

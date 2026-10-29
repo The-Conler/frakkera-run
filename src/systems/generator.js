@@ -307,7 +307,7 @@ export class Generator {
   // v5s20: la fila D e' vicina al punto del ballu tundu (metri prima / dopo)?
   nearDance(D, before, after) {
     const bi = biomeAt(D / PX_PER_METER + this.offM);
-    if (bi.b.id !== 'village') return false;
+    if (bi.b.id !== 'village' || bi.lap < 1) return false;   // v5s26: niente ballo al primo giro
     return bi.local > DANCE.AT_M - before && bi.local < DANCE.AT_M + after;
   }
 

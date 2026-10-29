@@ -385,7 +385,7 @@ export class Sim {
       } }
     // v5s11: ballu tundu una volta per giro nella piazza della chiesa (launeddas e coro qualche secondo prima)
     { const bi = biomeAt(rd / PX_PER_METER + this.mapOffsetM);
-      if (bi.b.id === 'village' && bi.lap > this.danceLap && bi.local < DANCE.AT_M + 5) {
+      if (bi.b.id === 'village' && bi.lap >= 1 && bi.lap > this.danceLap && bi.local < DANCE.AT_M + 5) {   // v5s26: dal secondo giro
         const toGo = (DANCE.AT_M - bi.local) * PX_PER_METER;
         const sp = speedAt(rd, this.mapOffsetM);
         if (!this.danceCue && toGo > 0 && toGo <= sp * DANCE.CUE_S) {

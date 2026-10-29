@@ -46,7 +46,7 @@ const OFF = byId['mine-int'].from - 5;
     const g = new Generator(seed), a = []; g.fillUntil(WORLD.LEAD_IN + 1500 * WORLD.ROW, (e) => a.push(e));
     for (const e of a) {
       const bi = biomeAt(e.d / PX_PER_METER);
-      if (['maimoni', 'fune', 'fuso'].includes(e.kind) && bi.b.id === 'village' && bi.local > DANCE.AT_M - 45 && bi.local < DANCE.AT_M + 25) bad++;
+      if (['maimoni', 'fune', 'fuso'].includes(e.kind) && bi.b.id === 'village' && bi.lap >= 1 && bi.local > DANCE.AT_M - 45 && bi.local < DANCE.AT_M + 25) bad++;
       if (e.kind === 'carrello') { carts++; const l = (e.d + e.len / 2) / PX_PER_METER - (bi.b.from + CART.FROM_M) - bi.lap * 0; if (bi.b.id !== 'mine-int' || Math.abs(bi.local - CART.FROM_M) > 2) cartBad++; }
     }
   }
