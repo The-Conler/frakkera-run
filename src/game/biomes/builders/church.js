@@ -345,7 +345,7 @@ export function buildChurchSquare(seed = 1) {
 // in fondo alla via. Coordinate: campanile centrato in x=0, faccia con orologio verso +z (chi arriva),
 // chiesa con la facciata a capanna verso +z, a SINISTRA (a destra la coprirebbe la fiamma). world3d lo tiene davanti alla camera.
 // v5s23b: oggetto FISSO nel mondo, a sinistra della strada, facciate rivolte verso la via (non la attraversa): campanile a sinistra, chiesa a destra
-// v5s27: chiesa col campanile all'INIZIO del paese (vuoto a sinistra in config.js, gaps.left [26,62])
+// v5s27: chiesa col campanile all'INIZIO del paese (vuoto a sinistra in config.js, gaps.left [22,68])
 export const VISTA = { S: 1.25, AT_M: 40, EDGE: -8.2, RY: 0.55, CS: 0.62, X: 0 };
 export function buildVista(seed = 1) {
   const r = rng(seed * 131 + 7);
@@ -371,7 +371,27 @@ export function buildVista(seed = 1) {
   k.add(G.box(7, 0.4, 9), '#9a8e80', { x: 2, y: 0.2, z: -4 });   // v5s27: basamento piu' raccolto (la chiesa sta piu' vicina alla via)
   const out = k.build({ ao: 0.2 });
   // ruotato di sbieco (facciate verso chi arriva e verso la via): campanile a sinistra, chiesa a destra, a lato della strada
-  out.rotateY(VISTA.RY); out.computeBoundingBox(); out.computeBoundingSphere();
-  VISTA.X = VISTA.EDGE - out.boundingBox.max.x;
-  return out;
+  out.rotateY(VISTA.RY); out.computeBoundingBox();
+  const bx = out.boundingBox.max.x, z0 = out.boundingBox.min.z, z1 = out.boundingBox.max.z;
+  VISTA.X = VISTA.EDGE - bx;
+  // v5s27: la piazzetta intorno alla chiesa col campanile non e' piu' vuota: lastricato, panchine, fontanella, alberi
+  const kp = new Kit(seed + 504), rp = rng(seed * 17 + 3);
+  for (let z = z1 + 6; z > z0 - 6; z -= 1.6) for (let x = bx - 0.2; x > bx - 14; x -= 1.6) {
+    kp.add(G.box(1.52, 0.08, 1.52), rp.pick(['#b9b1a3', '#c6beb0', '#aaa293', '#d0c8b9']), { x: x - 0.8, y: 0.03, z: z - 0.8, vary: 0.06 });
+  }
+  const bench = (x, z, ry) => {
+    kp.add(G.box(0.5, 0.1, 1.9), '#8a5a32', { x, y: 0.48, z, ry }); kp.add(G.box(0.1, 0.5, 1.9), '#8a5a32', { x: x - 0.25 * Math.cos(ry), y: 0.78, z: z + 0.25 * Math.sin(ry), ry });
+    for (const d of [-0.75, 0.75]) kp.add(G.box(0.45, 0.45, 0.12), '#3a3a40', { x: x + d * Math.sin(ry), y: 0.23, z: z + d * Math.cos(ry), ry });
+  };
+  bench(bx - 1.2, z1 + 3.2, 0); bench(bx - 1.2, z0 - 2.4, 0);
+  // fontanella di pietra con vasca tonda
+  { const fx = bx - 6, fz = z1 + 3.5;
+    kp.add(G.cyl(1.25, 1.35, 0.6, 14), '#a89c8a', { x: fx, y: 0.3, z: fz }); kp.add(G.cyl(1.05, 1.05, 0.05, 14), '#4f8fa8', { x: fx, y: 0.58, z: fz });
+    kp.add(G.cyl(0.18, 0.24, 1.4, 8), '#9a8e7c', { x: fx, y: 1.1, z: fz }); kp.add(G.sph(0.3, 8, 6), '#b3a793', { x: fx, y: 1.85, z: fz }); }
+  tree(kp, rp, bx - 4, 0, z0 - 3.5, 1.4); tree(kp, rp, bx - 11, 0, z1 + 5, 1.2);
+  for (const [vx, vz] of [[bx - 0.6, z1 + 0.8], [bx - 0.6, z0 - 0.6]]) { kp.add(G.cyl(0.42, 0.32, 0.7, 10), '#a8603a', { x: vx, y: 0.35, z: vz }); shrub(kp, rp, vx, 0.55, vz, 0.55, ['#4f6e2e', '#5f7f36'], 1); }
+  for (const g of kp.lit) { g.rotateY(-VISTA.RY); k.lit.push(g); }   // nella stessa geometria (un solo draw call)
+  const all = k.build({ ao: 0.2 }); all.rotateY(VISTA.RY);
+  all.computeBoundingBox(); all.computeBoundingSphere();
+  return all;
 }

@@ -53,10 +53,12 @@ export function buildVicolo(len = 26) {
   for (let z0 = 0; z0 > -len; z0 -= 3.25) {
     const c = r.pick(['#b9a183', '#c4ab88', '#ad9677', '#c9b394']);
     const zc = z0 - 1.6, rec = zc > -26 && zc < -3 ? 4 : 0;          // slargo davanti al portone verde
+    if (zc < -22) continue;                                           // v5s27: niente case in fondo: la cappella tonda si vede da lontano
     k.add(G.box(6, 9.5 + r.range(-0.4, 0.4), 3.3), c, { x: L * (E + 3 + rec), y: 4.75, z: zc, vary: 0.12 });
   }
-  for (const [za, zb] of [[-26, -len]]) { k.add(G.box(0.25, 0.7, za - zb), '#6d655a', { x: L * (E + 0.05), y: 0.35, z: (za + zb) / 2, vary: 0.2 }); k.add(G.box(0.35, 0.25, za - zb), '#8a7e6c', { x: L * (E + 0.05), y: 9.4, z: (za + zb) / 2 }); }
-  for (let i = 0; i < 6; i++) k.add(G.box(0.06, r.range(0.6, 1.6), r.range(0.8, 2.2)), r.pick(['#9c8467', '#a88f72', '#d0bea0']), { x: L * (E - 0.01), y: r.range(1.5, 7.5), z: -r.range(26.5, len - 0.5) });   // macchie d'umido
+  // v5s27: in fondo solo un muretto basso con un orto (al posto delle case alte che coprivano la cappella)
+  for (const [za, zb] of [[-22.5, -len]]) k.add(G.box(0.5, 0.9, za - zb), '#a89a86', { x: L * (E + 0.25), y: 0.45, z: (za + zb) / 2, vary: 0.2 });
+  for (let i = 0; i < 6; i++) k.add(G.ico(r.range(0.5, 0.9), 0), r.pick(['#4f7a2c', '#5f8a34', '#3f6a28']), { x: L * (E + r.range(1.5, 6)), y: r.range(0.4, 0.8), z: -r.range(23.5, len - 1), flat: true, vary: 0.2 });
   // portone verde a due ante sotto l'arco di pietra, su un risvolto di muro di sbieco verso chi arriva
   const dz = -8, dw = 3.4, dh = 4.6;
   { const F = slanted(k, -8.6, dz, -1);
@@ -73,8 +75,7 @@ export function buildVicolo(len = 26) {
     for (let i = 1; i < 8; i++) for (const rr of [0.35, 0.65, 0.95]) { const a = (i / 8) * Math.PI; F(0.18, Math.cos(a) * rr * dw / 2, dh + 0.17 + Math.sin(a) * rr * dw / 2, G.box(0.05, 0.12, 0.12), '#9a7a50'); }
     F(0.15, 0, dh + 0.17, arcGeo(dw / 2 + 0.3, 0.3, Math.PI), '#c2b6a2', { ry: (-Math.PI / 4) + Math.PI / 2 });
     F(0.1, -dw / 2 - 0.9, 2.5, G.box(0.06, 0.3, 0.3), '#2a5a50'); }
-  windowFace(k, L * E, 6.3, -29.5, -L, '#6b5a44'); windowFace(k, L * (E + 4), 6.3, -3, -L, '#6b5a44', true);
-  k.add(G.box(0.1, 1.5, 0.6), '#8a3a2a', { x: L * E, y: 0.75, z: -29, vary: 0.2 });                            // mattoni a vista
+  windowFace(k, L * (E + 4), 6.3, -3, -L, '#6b5a44', true);   // v5s27: tolta la finestra della casa in fondo (non c'e' piu')
   // --- muro destro: casa rosata scrostata con porta azzurra e balcone di ferro azzurro
   const R = 1;
   for (let z0 = 0; z0 > -len; z0 -= 3.25) {
