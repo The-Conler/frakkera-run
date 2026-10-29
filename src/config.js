@@ -351,7 +351,7 @@ export const VILLAGE = {
   LAUNDRY_SHARE: 0.6,       // quota di travi nel paese che diventano panni stesi
   WEAVER_FROM_M: 130, WEAVER_TO_M: 162,   // v5s24: dopo la festa, prima del vicolo in mezzo alla via (niente sovrapposizioni con blocchi e Santa Marta)
   WEAVER_GAP: [14, 22],     // file tra due tessitrici
-  WEAVER_X: 57,             // px dal centro (bordo del marciapiede, v5s24: piu' vicina per leggersi sul telefono)
+  WEAVER_X: 52,             // px dal centro (bordo del marciapiede, v5s24: piu' vicina per leggersi sul telefono)
   WEAVER_BRUSH_PX: 14,
   WEAVER_PTS: 15,
   PROC_SHARE: 0.5,         // quota di travi nel paese che diventano processione (se non gia' fatta in questo giro)

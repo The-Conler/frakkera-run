@@ -428,7 +428,8 @@ export class World {
     } else if (kind === 'panni') {               // feat-village: i panni stesi della nonna (ci si abbassa)
       v.body = new THREE.Mesh(laundryGeom(e.variant || 0), this.mats2); v.shadow = this.blob(12.8, 1.0);
     } else if (kind === 'tessitrice') {          // feat-village: tessitrice al telaio sulla soglia
-      v.weaver = buildWeaver(this.mats2, e.variant || 0); v.body = v.weaver.root; v.throwT = -1; v.shadow = this.blob(2.2, 2.6);
+      v.weaver = buildWeaver(this.mats2, e.variant || 0); v.body = v.weaver.root; v.body.scale.multiplyScalar(1.4);   // v5s26: piu' grande, si legge di corsa
+      v.throwT = -1; v.shadow = this.blob(2.2, 2.6);
     } else if (kind === 'processione') {         // feat-village: processione di Santa Marta
       v.proc = buildProcession(this.mats2, e.variant || 0); v.body = v.proc.root; v.shadow = this.blob(2.6, 7.5);
       v.glow = this.glowSprite('#ffd27a', 3.0, 0.35); v.glow.position.set(0, 4.6, 0); v.body.add(v.glow);
@@ -673,7 +674,11 @@ export class World {
       } else if (e.kind === 'caprarupe') {
         // v5s24: la capra aspetta sulla roccia a lato, poi salta giu' sulla corsia (ombra di avviso)
         const sx = (e.side || 1) * 4.5;
-        if (!e.landed) {
+        if (e.scared) {   // v5s26: colpita: balzo fuori strada verso il lato (niente sangue)
+          v.fleeT = (v.fleeT || 0) + dt; const q = Math.min(1, v.fleeT / 0.7);
+          v.body.position.set((e.side || 1) * 9 * q, Math.sin(q * Math.PI) * 2.6, -q * 2); v.body.rotation.y = e.side > 0 ? 0 : Math.PI; v.body.rotation.z = (e.side || 1) * -0.4 * Math.sin(q * Math.PI);
+          if (v.warn) v.warn.visible = false;
+        } else if (!e.landed) {
           v.body.position.set(sx, 3.2, 0); v.body.rotation.y = e.side > 0 ? Math.PI : 0;
           if (v.warn) { v.warn.visible = true; v.warn.scale.setScalar(1.3 + Math.sin(t * 10) * 0.2); }
         } else {
