@@ -728,7 +728,7 @@ export class Env {
       if (!this.fresc) this.fresc = frescoes();
       mesh(this.fresc.geo, this.fresc.mat, true);   // v5s26: affreschi dipinti
     } else if (id === 'pinnacle') {
-      const m = cached('pinnacle', () => N.buildPinnacle(3)); m.position.set(-14.5, 0, 0); m.rotation.y = 0.4;   // v5s27b: piu' vicina al sentiero (riempie meta' schermo a sinistra)    // nella valle a SINISTRA del sentiero: a destra c'e' la fiamma che la coprirebbe
+      const m = cached('pinnacle', () => N.buildPinnacle(3)); m.position.set(-30, 0, 0); m.rotation.y = 0.4;    // nella valle a SINISTRA del sentiero: a destra c'e' la fiamma che la coprirebbe
     } else if (id === 'valley') {
       cached('valley', () => valleyRock(Bm)).position.z = Bm;
     } else if (id === 'pool') {
