@@ -217,7 +217,15 @@ export class Character3D {
     const dk = this.state === 'run' && st.duck > 0 ? 1 : 0;
     this.duckK = (this.duckK || 0) + (dk - (this.duckK || 0)) * Math.min(1, dt * (dk ? 18 : 9));
     const k = this.duckK;
-    this.root.scale.set(1 + 0.08 * k, 1 - 0.34 * k, 1 + 0.08 * k);
+    // v5s27: squash & stretch nel salto: allungato in salita/discesa, schiacciato un attimo all'atterraggio
+    const jh = Math.max(0, st.jumpH || 0) / 15, prevJ = this.prevJH || 0;
+    if (prevJ > 0.02 && jh <= 0) this.landT = 0.2;
+    this.prevJH = jh;
+    this.landT = Math.max(0, (this.landT || 0) - dt);
+    let jy = 1, jx = 1;
+    if (jh > 0) { jy = 1 + 0.12 * (1 - jh); jx = 1 - 0.05 * (1 - jh); }
+    else if (this.landT > 0) { const q = Math.sin(Math.PI * (this.landT / 0.2)); jy = 1 - 0.16 * q; jx = 1 + 0.08 * q; }
+    this.root.scale.set((1 + 0.08 * k) * jx, (1 - 0.34 * k) * jy, (1 + 0.08 * k) * jx);
     this.model.rotation.x = DUCK_LEAN * k;
     R.duck = Math.max(R.duck || 0, k);
     // molla sull'osso della presa: la frakkera arriva in ritardo nei cambi di corsia

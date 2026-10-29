@@ -858,6 +858,7 @@ export class World {
         this.char3d.kick((Math.random() < 0.5 ? -1 : 1) * 0.8, 0.6);
         break;
       }
+      case 'land': this.jumpPuff(sim.px * U, pz, 9); break;   // v5s27: polvere all'atterraggio
       case 'duck': { const x = sim.px * U; this.dustPuff(x, pz + 0.4, 6); break; }
       case 'die': this.smokeAtTip(30); this.burnT = 0; this.burnKeep = this.char3d.keep ?? 1; break;
       case 'cheer': { const p = this.views.get(d.e.id)?.root.position; if (p) this.burst(p.x, 3.2, p.z, COL.spark2, 14, 3); break; }
@@ -879,6 +880,8 @@ export class World {
   shopNod() { if (this.shopRoom) this.shopRoom.nod(); }
   breath(sim) { const x = sim.px * U, z = -sim.T * U - 0.5, y = (sim.cart ? 1.5 : 1.75) + (sim.jumpH || 0) * U;
     for (let i = 0; i < 4; i++) this.norm.emit(x + (Math.random() - 0.5) * 0.15, y + Math.random() * 0.1, z, (Math.random() - 0.5) * 0.4, 0.25, -0.6 - Math.random() * 0.5, 0.7, 0.35, 1.1, COL.breath, 0.45, 0, 1); }
+  // v5s27: sbuffi di polvere piccoli e bassi ai piedi (stacco e atterraggio): non coprono il corridore
+  jumpPuff(x, z, n) { for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2; this.norm.emit(x + Math.cos(a) * 0.4, 0.12, z + Math.sin(a) * 0.3, Math.cos(a) * 2.2, 0.3 + Math.random() * 0.5, Math.sin(a) * 1.2, 0.5, 0.35, 0.9, COL.dust, 0.5, 0, 1); } }
   dustPuff(x, z, n) { for (let i = 0; i < n; i++) this.norm.emit(x + (Math.random() - 0.5) * 1.6, 0.3 + Math.random() * 0.8, z + (Math.random() - 0.5) * 1.2, (Math.random() - 0.5) * 3, 0.8 + Math.random() * 1.6, (Math.random() - 0.5) * 2.4, 1.1, 1.0, 3.0, COL.dust, 0.55, 0, 1); }
   burst(x, y, z, color, n, sp) {
     for (let i = 0; i < n; i++) {
@@ -1087,6 +1090,15 @@ export class World {
     _up.setFromMatrixColumn(this.camera.matrixWorld, 1);
     const ch = this.character, c3 = this.char3d;
     const use3d = c3.ready;
+    // v5s27: ombra a terra del corridore durante il salto (resta sul suolo, si stringe e sbiadisce con l'altezza)
+    { let js = this.jumpShadow;
+      if (!js) { const m = this.mat.blob.clone(); m.transparent = true; js = this.jumpShadow = new THREE.Mesh(this.geo.blob, m); js.renderOrder = 2; this.scene.add(js); }
+      const h = Math.max(0, sim.jumpH || 0) / 15, on = view.cam === 'run' && h > 0.001;
+      js.visible = on;
+      if (on) { const s = 1.5 * (1 - 0.45 * h); js.scale.set(s, 1, s * 0.8); js.position.set(px, 0.035 + (this.cartK || 0) * 0, pz + 0.1); js.material.opacity = (this.mat.blob.opacity ?? 0.5) * (1 - 0.5 * h) + 0.15; }
+      const jumping = (sim.jumpH || 0) > 0;
+      if (jumping && !this.wasJump) this.jumpPuff(px, pz, 6);   // polvere allo stacco
+      this.wasJump = jumping; }
     ch.sprite.visible = !use3d;
     // v5: la frakkera si accorcia col carburante; a zero brucia fino alle mani (game over senza crudezze)
     const fuelF0 = view.fuelF;
