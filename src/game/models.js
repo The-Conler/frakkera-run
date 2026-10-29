@@ -196,25 +196,47 @@ export function buildStoneWall(seed) {
   return k.build({ ao: 0.3 });
 }
 
+// v5s27: capra sarda: corpo tondo e peloso (bianco-crema con macchie fulve), corna ricurve all'indietro,
+// barbetta. Le zampe sono a parte (buildGoatLeg) per animarle: raccolte nel salto, trotto sulla corsia.
+export const GOAT_LEGS = [[0.5, 0.24, 0], [0.5, -0.24, 1], [-0.48, 0.24, 1], [-0.48, -0.24, 0]];   // x, z, fase (coppie diagonali)
+export const GOAT_HIP = 0.78;
 export function buildGoat() {
-  const k = new Kit(42);
-  const W = '#f2ede3', B = '#7d5b3c';
-  k.add(G.box(1.35, 0.72, 0.68), W, { y: 1.0, vary: 0.05 });
-  k.add(G.box(0.55, 0.5, 0.7), B, { x: -0.25, y: 1.12, vary: 0.05 });
-  k.add(G.box(0.36, 0.5, 0.36), W, { x: 0.78, y: 1.35, rz: -0.35 });
-  k.add(G.box(0.42, 0.36, 0.38), W, { x: 0.98, y: 1.52 });
-  k.add(G.box(0.22, 0.2, 0.3), '#e8c0b0', { x: 1.2, y: 1.45 });
-  k.add(G.box(0.12, 0.25, 0.1), '#d8d0c2', { x: 1.12, y: 1.2 });
-  for (const z of [-0.12, 0.12]) {
-    k.add(G.cone(0.07, 0.5, 5), '#4a423c', { x: 0.88, y: 1.85, z, rz: 0.6 });
-    k.add(G.box(0.08, 0.1, 0.3), W, { x: 0.9, y: 1.62, z: z * 2.6, rx: z > 0 ? 0.6 : -0.6 });
-    k.add(G.sph(0.04, 5, 4), '#201a18', { x: 1.12, y: 1.6, z: z * 1.3 });
+  const k = new Kit(42); const r = rng(42);
+  const W = '#efe6d2', B = '#9a6a3c', D = '#5a3c26';
+  k.add(G.sph(0.5, 12, 9), W, { y: 1.05, sx: 1.55, sy: 0.95, sz: 0.85, vary: 0.04 });            // tronco tondo
+  for (let i = 0; i < 16; i++) {                                                                   // vello arruffato
+    const x = r.range(-0.7, 0.6), a = r.range(-2.4, 2.4);
+    k.add(G.ico(r.range(0.16, 0.26), 0), r.chance(0.3) ? B : W, { x, y: 1.0 + Math.cos(a) * 0.36, z: Math.sin(a) * 0.36, sy: 1.5, flat: true, vary: 0.1 });
   }
-  k.add(G.box(0.12, 0.25, 0.12), W, { x: -0.72, y: 1.3, rz: 0.6 });
-  for (const [x, z] of [[0.5, 0.22], [0.5, -0.22], [-0.5, 0.22], [-0.5, -0.22]]) {
-    k.add(G.box(0.15, 0.68, 0.15), x > 0 ? W : B, { x, y: 0.34, z });
-    k.add(G.box(0.16, 0.12, 0.16), '#3a302a', { x, y: 0.06, z });
+  k.add(G.sph(0.32, 10, 8), B, { x: -0.25, y: 1.18, z: 0.2, sx: 1.3, sz: 0.7 });                    // macchie fulve
+  k.add(G.sph(0.26, 10, 8), B, { x: 0.25, y: 1.1, z: -0.24, sx: 1.2, sz: 0.6 });
+  k.add(G.cyl(0.2, 0.26, 0.55, 8), W, { x: 0.78, y: 1.38, rz: -0.7 });                              // collo
+  k.add(G.sph(0.24, 10, 8), W, { x: 1.02, y: 1.62, sx: 1.25, sz: 0.85 });                            // testa
+  k.add(G.sph(0.14, 8, 6), '#e2cfc0', { x: 1.27, y: 1.53, sx: 1.2, sz: 0.9 });                       // muso
+  k.add(G.cone(0.08, 0.34, 5), '#d8ccb8', { x: 1.2, y: 1.28, rz: Math.PI, flat: true });             // barbetta
+  for (const z of [-1, 1]) {
+    for (let i = 0; i < 5; i++) {                                                                    // corna ricurve all'indietro
+      const a = i / 4 * 1.9;
+      k.add(G.cyl(0.05 - i * 0.007, 0.065 - i * 0.008, 0.16, 6), '#4a4038', { x: 0.98 - Math.sin(a) * 0.28, y: 1.82 + Math.sin(a * 0.9 + 0.3) * 0.18 - (i > 3 ? 0.06 : 0), z: z * (0.1 + i * 0.025), rz: 0.6 + a, flat: true });
+    }
+    k.add(G.box(0.08, 0.1, 0.3), W, { x: 0.94, y: 1.62, z: z * 0.28, rx: z * 0.6 });                // orecchie
+    k.add(G.sph(0.04, 6, 4), '#201a18', { x: 1.16, y: 1.68, z: z * 0.15 });                         // occhi
   }
+  k.add(G.cone(0.08, 0.26, 5), B, { x: -0.8, y: 1.32, rz: 0.9 });                                    // coda
+  return k.build();
+}
+// v5s27: masso a lato del sentiero su cui la capra della roccia aspetta prima di saltare (cima a y ~3.1)
+export function buildGoatPerch() {
+  const k = new Kit(44); const r = rng(44);
+  k.add(G.dode(1.5), '#9c8f7b', { y: 1.3, sy: 1.25, sx: 1.1, vary: 0.15, flat: true });
+  k.add(G.dode(1.0), '#b3a287', { y: 2.55, x: 0.1, sy: 0.7, vary: 0.15, flat: true });
+  for (let i = 0; i < 4; i++) k.add(G.ico(r.range(0.35, 0.55), 0), r.pick(['#4f7a2c', '#5f8a34', '#3f6a28']), { x: r.range(-1.3, 1.3), y: r.range(0.2, 0.6), z: r.range(-1.2, 1.2), flat: true });
+  return k.build();
+}
+export function buildGoatLeg(dark = false) {
+  const k = new Kit(43);
+  k.add(G.cyl(0.09, 0.06, 0.66, 6), dark ? '#9a6a3c' : '#efe6d2', { y: -0.33 });
+  k.add(G.cyl(0.075, 0.075, 0.12, 6), '#3a302a', { y: -0.72 });
   return k.build();
 }
 

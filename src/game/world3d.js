@@ -149,7 +149,7 @@ export class World {
     this.geo.barrelBody = B.body; this.geo.barrelLid = B.lid; this.geo.barrelHoops = mergeGeometries(B.hoops);
     this.geo.blob = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
     this.geo.wall = [M.buildStoneWall(1), M.buildStoneWall(2), M.buildStoneWall(3)];
-    this.geo.goat = M.buildGoat();
+    this.geo.goat = M.buildGoat(); this.geo.goatLeg = [M.buildGoatLeg(false), M.buildGoatLeg(true)];   // v5s27: zampe animate
     this.geo.asfodelo = M.buildAsphodel();
     this.geo.ferula = M.buildFerula();
     this.geo.pistol = M.buildPistol();
@@ -337,7 +337,13 @@ export class World {
       rim.renderOrder = 2; w.renderOrder = 3;
       v.body.add(rim, w);
     } else if (kind === 'goat' || kind === 'caprarupe') {
-      v.body = new THREE.Mesh(this.geo.goat, this.mats2); v.shadow = this.blob(2.0, 1.1);
+      // v5s27: capra sarda con zampe animate (gruppo: corpo + 4 zampe incernierate all'anca)
+      v.body = new THREE.Group(); v.body.add(new THREE.Mesh(this.geo.goat, this.mats2)); v.legs = [];
+      for (const [lx, lz, ph] of M.GOAT_LEGS) { const l = new THREE.Mesh(this.geo.goatLeg[lx < 0 && lz > 0 ? 1 : 0], this.mats2); l.position.set(lx, M.GOAT_HIP, lz); l.userData.ph = ph; l.userData.front = lx > 0; v.body.add(l); v.legs.push(l); }
+      v.shadow = this.blob(2.0, 1.1);
+      if (kind === 'caprarupe') {   // v5s27: masso su cui aspetta (prima galleggiava a meta' aria accanto al sentiero)
+        const pm = new THREE.Mesh(this.geo.perch || (this.geo.perch = M.buildGoatPerch()), this.mats2); pm.position.set((e.side || 1) * 4.5, 0, 0); root.add(pm); v.perch = pm;
+      }
       if (kind === 'caprarupe') { v.body.scale.setScalar(1.25); const wm = this.mat.warn || (this.mat.warn = new THREE.MeshBasicMaterial({ color: '#ff5a2a', transparent: true, opacity: 0.85, depthWrite: false, fog: false })); const ring = new THREE.Mesh(this.geo.ring, wm); ring.rotation.x = Math.PI / 2; ring.position.y = 0.06; ring.scale.setScalar(1.5); ring.renderOrder = 4; v.warn = ring; root.add(ring); }
     } else if (kind === 'pecora') {             // v5s24: animali
       v.body = new THREE.Mesh(sheepGeom(e.variant || 0), this.mats2); v.body.scale.setScalar(1.3); v.shadow = this.blob(2.2, 1.4);
@@ -653,6 +659,7 @@ export class World {
         if (e.moving) v.spin.rotation.z -= (e.vx * e.dir * U / 0.78) * dt;
       } else if (e.kind === 'goat') {
         v.body.rotation.y = e.dir > 0 ? 0 : Math.PI;
+        this.goatLegs(v, e.scared ? 'tuck' : e.moving ? 'trot' : 'stand', t);
         if (e.scared) {
           // colpita dalla pistola: balzo spaventato, capriola e via di corsa in una nuvola di polvere (niente sangue)
           v.scT = (v.scT || 0) + dt; const q = v.scT;
@@ -660,7 +667,7 @@ export class World {
           v.body.rotation.z = q < 0.7 ? (q / 0.7) * Math.PI * 2 * (e.dir > 0 ? -1 : 1) : 0;
           if (Math.random() < dt * 20) this.norm.emit(v.root.position.x, 0.3, v.root.position.z, (Math.random() - 0.5) * 2, 0.6 + Math.random(), (Math.random() - 0.5) * 1.5, 1.0, 0.8, 2.2, COL.dust, 0.5, 0, 1);
           if (q > 1.4 && !v.dead) { v.dead = true; v.body.visible = false; if (v.shadow) v.shadow.visible = false; this.dustPuff(v.root.position.x, v.root.position.z, 14); }
-        } else if (e.moving) { v.body.position.y = Math.abs(Math.sin(t * 12)) * 0.12; v.body.rotation.z = Math.sin(t * 12) * 0.05; }
+        } else if (e.moving) { v.body.position.y = Math.abs(Math.sin(t * 14)) * 0.1; v.body.rotation.z = Math.sin(t * 14) * 0.04; }
       } else if (e.kind === 'pecora' || e.kind === 'maialetto') {   // v5s24
         v.body.rotation.y = e.dir > 0 ? 0 : Math.PI;
         const f = e.kind === 'maialetto' ? 22 : 9;
@@ -676,14 +683,15 @@ export class World {
         const sx = (e.side || 1) * 4.5;
         if (e.scared) {   // v5s26: colpita: balzo fuori strada verso il lato (niente sangue)
           v.fleeT = (v.fleeT || 0) + dt; const q = Math.min(1, v.fleeT / 0.7);
-          v.body.position.set((e.side || 1) * 9 * q, Math.sin(q * Math.PI) * 2.6, -q * 2); v.body.rotation.y = e.side > 0 ? 0 : Math.PI; v.body.rotation.z = (e.side || 1) * -0.4 * Math.sin(q * Math.PI);
+          v.body.position.set((e.side || 1) * 9 * q, Math.sin(q * Math.PI) * 2.6, -q * 2); this.goatLegs(v, 'tuck', t); v.body.rotation.y = e.side > 0 ? 0 : Math.PI; v.body.rotation.z = (e.side || 1) * -0.4 * Math.sin(q * Math.PI);
           if (v.warn) v.warn.visible = false;
         } else if (!e.landed) {
-          v.body.position.set(sx, 3.2, 0); v.body.rotation.y = e.side > 0 ? Math.PI : 0;
+          v.body.position.set(sx, 3.2, 0); v.body.rotation.y = e.side > 0 ? Math.PI : 0; this.goatLegs(v, 'stand', t);
           if (v.warn) { v.warn.visible = true; v.warn.scale.setScalar(1.3 + Math.sin(t * 10) * 0.2); }
         } else {
           v.fallT += dt; const q = Math.min(1, v.fallT / 0.55);
           v.body.position.set(sx * (1 - q), 3.2 * (1 - q) + Math.sin(q * Math.PI) * 3, 0);
+          this.goatLegs(v, q < 0.92 ? 'tuck' : 'trot', t);   // v5s27: zampe raccolte nel salto, poi trotterella sul posto
           if (v.warn) v.warn.visible = q < 1;
           if (q >= 1) { v.body.position.y = Math.abs(Math.sin(t * 3)) * 0.05; if (!v.landFx) { v.landFx = true; const p = v.root.position; this.dustPuff(p.x, p.z, 16); } }
         }
@@ -760,6 +768,16 @@ export class World {
       const s = Math.sin(this.clock * 13 + f.ph), up = k * (2.6 + s * 0.3);
       f.d.arms[0].rotation.z = -0.15 - up * 0.95; f.d.arms[1].rotation.z = 0.15 + up * 0.95; f.d.fig.position.y = k * Math.max(0, s) * 0.12;
       if (f.t > 4.5) f.root.visible = false;
+    }
+  }
+  // v5s27: zampe della capra: 'stand' ferme, 'tuck' raccolte sotto la pancia (salto), 'trot' trotto a coppie diagonali
+  goatLegs(v, mode, t) {
+    if (!v.legs) return;
+    for (const l of v.legs) {
+      const f = l.userData.front ? 1 : -1;
+      const target = mode === 'tuck' ? f * 1.1 : mode === 'trot' ? Math.sin(t * 14 + l.userData.ph * Math.PI) * 0.65 : 0;
+      l.rotation.z += (target - l.rotation.z) * (mode === 'trot' ? 1 : 0.35);
+      l.scale.y = mode === 'tuck' ? 0.8 : 1;
     }
   }
   onFx(type, d, sim) {
