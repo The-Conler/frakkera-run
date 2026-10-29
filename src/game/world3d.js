@@ -1030,7 +1030,11 @@ export class World {
       // v5s27: idem per la cappella tonda (a sinistra, poco prima di Santa Marta): la camera la cerca da ~200 m
       const ec = this.env.cur, cl0 = ec.b.id === 'village' ? ec.local : -1, chk = cl0 < 186 || cl0 > 228 ? 0 : Math.min(1, (cl0 - 186) / 10, (228 - cl0) / 6);
       this.chapelCamK = (this.chapelCamK || 0) + (chk - (this.chapelCamK || 0)) * Math.min(1, dt * 2);
-      const yaw = (L.camYaw || 0) - 5.5 * this.vistaCamK - 2.4 * this.chapelCamK;   // verso la chiesa, a sinistra della via
+      // v5s27c: idem per la guglia (a sinistra del sentiero della roccia): la camera la cerca e guarda in alto
+      const rl = ec.b.id === 'rock' ? ec.local : -1, spk = rl < 110 || rl > 190 ? 0 : Math.min(1, (rl - 110) / 25, (190 - rl) / 10);
+      this.spireCamK = (this.spireCamK || 0) + (spk - (this.spireCamK || 0)) * Math.min(1, dt * 2);
+      if (this.spireCamK > 1e-3) { const sk = this.spireCamK * por; cl.y += 7 * sk; fov += 4 * sk; }
+      const yaw = (L.camYaw || 0) - 5.5 * this.vistaCamK - 2.4 * this.chapelCamK - 1.8 * (this.spireCamK || 0);   // verso la chiesa, a sinistra della via
       if (yaw) { cl.x += yaw * por; cp.x -= yaw * 0.3 * por; }
       // v5s27b: la chiesa col campanile intera sul telefono: un po' piu' larga e alta mentre entra in vista
       { const vk2 = this.vistaCamK * por; const near = Math.max(0, Math.min(1, (26 - (this.vistaAhead ?? 999)) / 14)); cl.y += (3.0 + 5 * near) * vk2; fov += (8 + 6 * near) * vk2; }
