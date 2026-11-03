@@ -1030,6 +1030,10 @@ export class World {
       // v5s27: idem per la cappella tonda (a sinistra, poco prima di Santa Marta): la camera la cerca da ~200 m
       const ec = this.env.cur, cl0 = ec.b.id === 'village' ? ec.local : -1, chk = cl0 < 186 || cl0 > 228 ? 0 : Math.min(1, (cl0 - 186) / 10, (228 - cl0) / 6);
       this.chapelCamK = (this.chapelCamK || 0) + (chk - (this.chapelCamK || 0)) * Math.min(1, dt * 2);
+      // v5s27j: la torre di roccia (a sinistra, sentiero della roccia): leggero sguardo in alto perche' si veda la cima spaccata
+      { const rl = this.env.cur.b.id === 'rock' ? this.env.cur.local : -1, tk = rl < 0 || rl > 150 ? 0 : Math.min(1, (rl + 10) / 20, (150 - rl) / 15);
+        this.towerCamK = (this.towerCamK || 0) + (tk - (this.towerCamK || 0)) * Math.min(1, dt * 1.5);
+        if (this.towerCamK > 1e-3) { const sk = this.towerCamK * por; cl.y += 9 * sk; fov += 8 * sk; } }
       const yaw = (L.camYaw || 0) - 5.5 * this.vistaCamK - 2.4 * this.chapelCamK;   // verso la chiesa, a sinistra della via
       if (yaw) { cl.x += yaw * por; cp.x -= yaw * 0.3 * por; }
       // v5s27b: la chiesa col campanile intera sul telefono: un po' piu' larga e alta mentre entra in vista
