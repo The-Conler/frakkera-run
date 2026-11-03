@@ -269,36 +269,47 @@ export function buildPinnacle(seed = 3) {
   const prof = (t) => {
     if (t < 0.12) return 20 + 9 * Math.pow(1 - t / 0.12, 1.4);                        // piede largo di massi
     if (t < 0.5) return 20 + 1.5 * Math.sin((t - 0.12) / 0.38 * Math.PI) - 1.5 * (t - 0.12);   // v5s27l: ~30% piu' larga in basso e a meta'
-    return 19.5 - 6 * Math.pow((t - 0.5) / 0.5, 1.4);   // v5s27l: parte alta piena, non a punta                                 // parte alta spessa (non una punta)
+    return 19.5 - 8.5 * Math.pow((t - 0.5) / 0.5, 1.3);   // v5s27l: parte alta piena, non a punta                                 // parte alta spessa (non una punta)
   };
   const smooth = (e0, e1, x) => { const q = Math.max(0, Math.min(1, (x - e0) / (e1 - e0))); return q * q * (3 - 2 * q); };
-  // grande sporgenza a SINISTRA (vista dalla via) a meta' altezza, con il piano superiore piatto (cengia)
-  const SHA = 2.9, PT0 = 0.42, PT1 = 0.78;
-  // v5s27l: non piu' una mensola: una seconda grande massa di roccia fusa nel pilastro, tondeggiante sopra e sotto
-  const protr = (a, t) => { const d = Math.abs(wrap(a - SHA - 0.25 * (t - 0.5))); if (d > 1.6) return 0;
-    const w = Math.pow(Math.cos(d / 1.6 * Math.PI / 2), 0.8), tt = (t - 0.4) / 0.4; if (tt <= 0 || tt >= 1) return 0;
-    return 17 * w * Math.pow(Math.sin(tt * Math.PI), 0.3) * (1 + 0.15 * Math.sin(tt * 9 + a * 2)); };
+  // v5s27m: anatomia geologica. Massa secondaria a SINISTRA: un secondo pilastro verticale, stretto e spigoloso,
+  // fuso nel principale ma separato da una fenditura profonda; la cima piu' alta di prima, tagliata in obliquo.
+  const SHA = 3.0, PT0 = 0.3, PT1 = 0.86;
+  const protr = (a, t) => { const d = wrap(a - SHA - 0.12 * (t - 0.5)), ad = Math.abs(d); if (ad > 0.78) return 0;
+    const tt = (t - PT0) / (PT1 - PT0); if (tt <= 0 || tt >= 1.08) return 0;
+    const w = Math.min(1, (0.78 - ad) / 0.22);                                   // fianchi a spigolo, faccia piatta
+    const top = 1 - smooth(0.78 + 0.18 * (d + 1) / 2, 1.06, tt);               // cima obliqua, piu' alta verso l'esterno
+    return 20.5 * w * Math.min(1, tt / 0.5) * top * (1 + 0.05 * tri(tt * 9)); };
+  const CL = [SHA - 0.8, SHA + 0.82];                                          // le due fenditure tra la massa e il pilastro
   // cengia orizzontale nella parte medio-alta (davanti e a sinistra)
-  const LT = 0.64, ledge = (a, t) => { const d = Math.abs(wrap(a - (SHA - 1.3))); if (d > 1.7) return 0;
-    return 3.6 * (1 - d / 1.7) * smooth(LT - 0.03, LT, t) * (1 - smooth(LT + 0.01, LT + 0.02, t)); };
+  const LT = 0.64, ledge = (a, t) => { const d = Math.abs(wrap(a - (SHA - 1.3))); if (d > 1.2) return 0; const lt = LT + 0.04 * Math.sin(a * 2.3);   // v5s27m: cengia corta e inclinata, non una fascia
+    return 3.2 * (1 - d / 1.2) * smooth(lt - 0.03, lt, t) * (1 - smooth(lt + 0.01, lt + 0.02, t)); };
+  const tri = (x) => { const f = x / (Math.PI * 2); return 2 * Math.abs(f - Math.floor(f + 0.5)); };   // onda triangolare 0..1 (creste a spigolo)
   const P = (u, v) => {
     const a = u * Math.PI * 2, t = v;
     let R = prof(t);
-    // sezione non circolare: lobi che ruotano con la quota + facce larghe (sezione poligonale a 7 lati, sfalsata per fasce)
-    R *= 1 + 0.2 * Math.cos(2 * a + 1.3 + 2.2 * t) + 0.12 * Math.cos(3 * a + 0.5 - 3 * t);
-    { const F = 5 + (Math.floor(t * 5) % 2), sa = (Math.PI * 2) / F, ph = ((a + 0.7 * Math.floor(t * 5) + 0.3 * Math.sin(t * 11)) % sa + sa) % sa - sa / 2; /* v5s27l: facce piu' grandi, meno ripetitive */ R *= Math.cos(sa / 2) / Math.cos(ph); }
+    R *= 1 + 0.16 * Math.cos(2 * a + 1.3 + 1.2 * t) + 0.08 * Math.cos(3 * a + 0.5 - 1.5 * t);
+    // lastre verticali grandi: sezione poligonale con fase che cambia solo ogni ~1/3 di altezza
+    if (t < 0.62) { const band = Math.floor(t * 3 + 0.3 * Math.sin(a * 3)), F = 6 + (band % 2), sa = (Math.PI * 2) / F, ph = ((a + 0.9 * band) % sa + sa) % sa - sa / 2; R *= Math.cos(sa / 2) / Math.cos(ph); }
+    else { // parte alta: creste verticali irregolari (non piu' una colonna rettangolare)
+      const k3 = smooth(0.58, 0.68, t), rid = tri(a * 7 + 1.7 * Math.sin(a * 2 + 1) + 0.4 * t) ;
+      R *= 1 + k3 * (0.2 * rid - 0.1 + 0.07 * Math.sin(a * 3 + 2)); }
     R += protr(a, t) + ledge(a, t);
-    R *= 1 + 0.1 * fbm(Math.cos(a) * 1.2, t * 3, Math.sin(a) * 1.2 + seed, 2);
-    for (const [ca, dep, w] of cracks) { const d = wrap(a - ca - 0.2 * Math.sin(t * 7 + ca)); R *= 1 - (dep + 0.2) * Math.max(0, 1 - Math.abs(d) / (w * 0.8)) * (t < 0.05 ? 0.3 : 1); }   // fessure profonde
-    // cima spaccata: un taglio la divide in due blocchi
-    if (t > 0.84) { const k2 = (t - 0.84) / 0.16; for (const ca of [1.9, 1.9 + Math.PI]) { const d = Math.abs(wrap(a - ca)); R *= 1 - 0.7 * Math.max(0, 1 - d / 0.55) * k2; } }
+    R *= 1 + 0.07 * fbm(Math.cos(a) * 1.5, t * 0.9, Math.sin(a) * 1.5 + seed, 2);       // ondulazioni lunghe, verticali
+    for (const [ca, dep, w] of cracks) { const d = wrap(a - ca - 0.08 * Math.sin(t * 3 + ca)); R *= 1 - (dep + 0.18) * Math.max(0, 1 - Math.abs(d) / (w * 0.8)) * smooth(0.04, 0.12, t); }   // fessure lunghe che scendono per tutto il fusto
+    for (const ca of CL) { const d = Math.abs(wrap(a - ca - 0.05 * Math.sin(t * 4))); R *= 1 - 0.55 * Math.max(0, 1 - d / 0.16) * smooth(PT0 - 0.06, PT0 + 0.04, t) * (1 - smooth(PT1 + 0.02, PT1 + 0.08, t)); }
+    // cima spaccata: UNA frattura naturale, asimmetrica (piu' larga da un lato), che scende obliqua
+    if (t > 0.74) { const k2 = smooth(0.74, 0.98, t), d = wrap(a - 2.15 - 0.4 * (t - 0.74)), w = d > 0 ? 0.36 : 0.18;
+      R *= 1 - 0.78 * Math.max(0, 1 - Math.abs(d) / w) * k2; }
     let y = base + t * H;
-    if (v === 1) y += 9 * Math.pow(Math.max(0, Math.cos(a - 0.4)), 2) + 5 * Math.pow(Math.max(0, Math.cos(a - 3.6)), 2) - 4 + r.range(-0.6, 0.6);   // due punte di altezza diversa
+    if (v === 1) y += 12 * Math.pow(Math.max(0, Math.cos(a - 0.9)), 3) + 13 * Math.pow(Math.max(0, Math.cos(a - 2.9)), 6) + 6 * Math.pow(Math.max(0, Math.cos(a - 4.4)), 6) + 3 * tri(a * 5 + 1) - 6 + r.range(-1, 1);   // v5s27m: punte irregolari, una piu' alta
+    else if (v > 0.9) y += (v - 0.9) * 10 * (8 * Math.pow(Math.max(0, Math.cos(a - 0.9)), 3) + 9 * Math.pow(Math.max(0, Math.cos(a - 2.9)), 6) + 4 * Math.pow(Math.max(0, Math.cos(a - 4.4)), 6));
     else if (v > 0) y += r.range(-0.3, 0.3) * (H / NV);
+    if (v > 0.86) { const d = wrap(a - 2.15 - 0.4 * (t - 0.74)), w = d > 0 ? 0.5 : 0.25; y -= 16 * smooth(0.86, 1, v) * Math.max(0, 1 - Math.abs(d) / w); }   // v5s27m: la frattura apre la cima in due punte diseguali
     const off = t >= 0.5 ? 1.0 * (t - 0.5) / 0.5 : 0;
     const fl = v === 1 ? 0.45 : 1;
     let x = Math.cos(a) * R * fl + off, z = Math.sin(a) * R * 0.86 * fl;
-    x += noise3(x / 9, y / 14, z / 9) * 1.6; z += noise3(z / 9 + 7, y / 14, x / 9) * 1.6;      // spostamenti ampi: cambia davvero il contorno
+    x += noise3(x / 10, y / 40, z / 10) * 1.3; z += noise3(z / 10 + 7, y / 40, x / 10) * 1.3;   // v5s27m: deformazioni allungate in verticale      // spostamenti ampi: cambia davvero il contorno
     if (v === 0) y = base - 3;
     return [x, y, z];
   };
@@ -319,9 +330,11 @@ export function buildPinnacle(seed = 3) {
   for (let f = 0; f < pa.count; f += 3) {
     const x = (pa.getX(f) + pa.getX(f + 1) + pa.getX(f + 2)) / 3, y = (pa.getY(f) + pa.getY(f + 1) + pa.getY(f + 2)) / 3, z = (pa.getZ(f) + pa.getZ(f + 1) + pa.getZ(f + 2)) / 3;
     const t = (y - base) / H, a = Math.atan2(z / 0.86, x);
-    const n = noise3(x / 9, y / 18, z / 9) * 0.5 + 0.5;
-    _c.set(pickN(pal, Math.min(0.999, Math.max(0, n * 0.75 + r() * 0.35))));
-    let cr = 1; for (const [ca, dep, w] of cracks) { const d = Math.abs(wrap(a - ca - 0.25 * Math.sin(t * 9 + ca))); if (d < w * 0.7) cr = Math.min(cr, 0.42 + d / w * 0.7); }
+    const n = noise3(Math.cos(a) * 1.6, t * 1.2, Math.sin(a) * 1.6) * 0.5 + 0.5;   // v5s27m: colore per lastra (macchie lunghe verticali), poco rumore per faccia
+    _c.set(pickN(pal, Math.min(0.999, Math.max(0, n * 0.85 + r() * 0.15))));
+    let cr = 1; for (const [ca, dep, w] of cracks) { const d = Math.abs(wrap(a - ca - 0.08 * Math.sin(t * 3 + ca))); if (d < w * 0.8) cr = Math.min(cr, 0.32 + d / w * 0.8); }
+    if (t > PT0 - 0.04 && t < PT1 + 0.06) for (const ca of CL) { const d = Math.abs(wrap(a - ca)); if (d < 0.16) cr = Math.min(cr, 0.28 + d / 0.16 * 0.72); }   // fenditura in ombra
+    if (t > 0.76) { const d = wrap(a - 2.15 - 0.4 * (t - 0.74)); if (Math.abs(d) < 0.35) cr = Math.min(cr, 0.3 + Math.abs(d) / 0.35 * 0.7); }
     _c.multiplyScalar(cr);
     const up = nrm.getY(f); if (up > 0.6 && t > 0.1) _c.lerp(_c2.set('#8a8a5a'), 0.3);    // cenge un po' verdastre
     if (t < 0.08) _c.lerp(_c2.set('#5d5a40'), 0.4 * (1 - t / 0.08));
@@ -329,21 +342,19 @@ export function buildPinnacle(seed = 3) {
   }
   g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
   addColored(k, g);
-  // poca vegetazione: ciuffi sulla spalla e qualcuno nelle fessure/cenge (tutti appoggiati alla roccia)
-  const leaf = ['#4f7a2a', '#5f8a30', '#3f6a26', '#6b9a38'];
-  const tuft = (j0, j1, n, s0, s1) => { for (let q = 0; q < n; q++) { const j = j0 + Math.floor(r() * (j1 - j0)), i = Math.floor(r() * NR), p = G2[j][i];
-    const cx = j >= SH * NV ? -2 : 0; const dx = p[0] - cx, dz = p[2], dl = Math.hypot(dx, dz) || 1, s = r.range(s0, s1);
-    k.add(G.ico(s, 0), r.pick(leaf), { x: p[0] + dx / dl * s * 0.3, y: p[1] + s * 0.3, z: p[2] + dz / dl * s * 0.3, flat: true, sy: 0.7, vary: 0.2 }); } };
-  // v5s27k: macchia folta sulla sporgenza e lungo la cengia (sul piano superiore, tra il bordo e la parete)
-  const shelf = (tt, a0, da, n, s0, s1) => { const j = Math.min(NV, Math.round(tt * NV));
-    for (let q = 0; q < n; q++) { const a = a0 + r.range(-da, da), i = Math.round(((a / (Math.PI * 2)) % 1 + 1) % 1 * NR) % NR, p = G2[j][i], s = r.range(s0, s1), f = r.range(0.55, 1.0);
-      k.add(G.ico(s, 0), r.pick(leaf), { x: p[0] * f, y: p[1] + s * r.range(0.2, 0.7), z: p[2] * f, flat: true, sy: 0.72, vary: 0.2 }); } };
-  shelf(PT1 - 0.01, SHA, 1.2, 90, 1.8, 3.4); shelf(PT1 - 0.06, SHA, 1.3, 40, 1.4, 2.6);
-  shelf(LT + 0.01, SHA - 1.3, 1.4, 50, 1.4, 2.6);
-  tuft(Math.round(0.3 * NV), Math.round(0.58 * NV), 7, 0.7, 1.3);         // fessure del fusto (pochi)
-  tuft(Math.round(0.8 * NV), Math.round(0.95 * NV), 14, 1.0, 1.8);         // blocco superiore
+  // v5s27m: cespugli low-poly veri: grappoli di 4-7 chiome sfaccettate, taglie diverse, ombra sotto e luce sopra
+  const leaf = ['#4f7a2a', '#5f8a30', '#3f6a26', '#6b9a38', '#7aa83c', '#8fb447'];
+  const shrub = (x, y, z, s) => { const n = 4 + Math.floor(r() * 4);
+    for (let q = 0; q < n; q++) { const qa = r() * Math.PI * 2, qr = s * r.range(0.2, 0.75), qs = s * r.range(0.45, 0.8), up = q === 0 ? 0.2 : r.range(0, 0.8);
+      k.add(G.ico(qs, 0), leaf[Math.min(5, Math.floor(up * 3 + r() * 3))], { x: x + Math.cos(qa) * qr, y: y + s * up * 0.7, z: z + Math.sin(qa) * qr, flat: true, sy: r.range(0.7, 0.95), vary: 0.15 }); } };
+  const at = (t, a, f = 0.92) => { const j = Math.min(NV, Math.round(t * NV)), i = Math.round(((a / (Math.PI * 2)) % 1 + 1) % 1 * NR) % NR, p = G2[j][i]; return [p[0] * f, p[1], p[2] * f]; };
+  for (let q = 0; q < 9; q++) { const [x, y, z] = at(PT1 - 0.02 + r.range(-0.01, 0.02), SHA + r.range(-0.7, 0.7), r.range(0.75, 0.95)); shrub(x, y + 2, z, r.range(4.5, 7.5)); }   // sulla massa di sinistra
+  for (let q = 0; q < 7; q++) { const [x, y, z] = at(r.range(0.5, 0.82), CL[q % 2] + r.range(-0.08, 0.08), 0.96); shrub(x, y, z, r.range(2.8, 4.6)); }       // nella fenditura
+  for (let q = 0; q < 10; q++) { const [x, y, z] = at(LT + 0.01 + r.range(-0.02, 0.03), SHA - 1.3 + r.range(-1.2, 1.2), r.range(0.8, 0.98)); shrub(x, y + 1.5, z, r.range(3.5, 6)); }   // cengia di mezzo
+  for (let q = 0; q < 6; q++) { const c = cracks[q % cracks.length]; const [x, y, z] = at(r.range(0.3, 0.8), c[0], 0.95); shrub(x, y, z, r.range(2.2, 3.6)); }   // alcune fessure
+  for (let q = 0; q < 4; q++) { const [x, y, z] = at(r.range(0.8, 0.9), 2.15 + r.range(-0.3, 0.4), 0.9); shrub(x, y, z, r.range(2.5, 4)); }    // nella frattura della cima
   for (let q = 0; q < 12; q++) { const a = r() * Math.PI * 2, rr = r.range(9, 15); addRock(k, r, Math.cos(a) * rr, base + 16 + r.range(-2, 2), Math.sin(a) * rr * 0.86, r.range(2.5, 4.5), ['#9a9083', '#8f877c', '#a49a8c', '#8a7a66'], { squash: 0.75, tilt: true }); }   // massi del piede, appoggiati
-  tuft(Math.round(0.1 * NV), Math.round(0.16 * NV), 5, 0.8, 1.4);
+  for (let q = 0; q < 6; q++) { const [x, y, z] = at(r.range(0.1, 0.16), r() * Math.PI * 2, 1.0); shrub(x, y, z, r.range(2.5, 4.5)); }
   // pendio al piede: macchia bassa (la roccia si fonde col terreno)
   for (let q = 0; q < 26; q++) { const a = r() * Math.PI * 2, rr = r.range(14, 24); k.add(G.ico(r.range(1.8, 3.4), 0), r.pick(['#2c4626', '#36522c', '#3f5e30', '#4a6a36']), { x: Math.cos(a) * rr, y: base + r.range(1, 6), z: Math.sin(a) * rr, flat: true, sy: 0.8, vary: 0.2 }); }
   return k.build();
