@@ -262,31 +262,27 @@ export function buildPinnacle(seed = 3) {
   const dark = new Map(); const key = (x, y, z) => `${x.toFixed(2)},${y.toFixed(2)},${z.toFixed(2)}`;
   const pal = ['#cdb595', '#bca486', '#d8c2a0', '#b09a7e', '#c6ad8d', '#a8957f', '#dcc8a6', '#b9a085'];
   // colonne: x, z, raggio, altezza, inclinazione in cima (dx, dz), quota di inizio della cima frastagliata
+  // v5s27h: come il pilastro vero: fusto spesso e panciuto (~3:1) fino alla spalla a ~62%, sopra un blocco piu' stretto
+  // quasi rettangolare, un po' inclinato, con la cima piatta e smussata
   const COLS = [
-    { x: 0.0, z: 0.0, r: 5.6, h: 106, lx: -1.2, lz: 0.4, top: 0.86 },   // punta piu' alta
-    { x: 4.6, z: 1.2, r: 4.6, h: 93, lx: 2.2, lz: -0.6, top: 0.84 },    // seconda punta, staccata
-    { x: -3.4, z: 2.4, r: 4.2, h: 74, lx: -0.6, lz: 0.8, top: 0.8 },
-    { x: 1.6, z: -3.4, r: 4.8, h: 84, lx: 0.4, lz: -0.8, top: 0.82 },
-    { x: -2.4, z: -2.6, r: 4.4, h: 62, lx: -0.4, lz: -0.4, top: 0.78 },
-    { x: -6.2, z: -1.0, r: 5.8, h: 40, lx: -0.8, lz: 0, top: 0.7 },     // speroni del piede
-    { x: 6.4, z: -3.8, r: 5.2, h: 34, lx: 0.8, lz: -0.4, top: 0.68 },
-    { x: 1.0, z: 5.6, r: 5.0, h: 30, lx: 0, lz: 0.8, top: 0.66 },
+    { x: 0.0, z: 0.0, r: 12.5, h: 66, lx: 0.4, lz: 0, top: 0.9, blunt: 0.82, bulge: 1, K: 9 },    // fusto
+    { x: -2.2, z: 0.6, r: 5.6, h: 106, lx: 2.6, lz: -0.4, top: 0.94, blunt: 0.85, K: 5 },         // blocco superiore
   ];
   const allP = []; // v5s27g: punti della superficie dove posare i blocchi
   const surf = []; // per la vegetazione: punti delle fessure e delle cenge
   COLS.forEach((C, ci) => {
-    const K = 6 + Math.floor(r() * 3), NV = Math.max(10, Math.round(C.h / 4));
+    const K = C.K || 6 + Math.floor(r() * 3), NV = Math.max(10, Math.round(C.h / 4));
     const corners = [];
-    for (let i = 0; i < K; i++) corners.push({ a: (i + r.range(-0.3, 0.3)) / K * Math.PI * 2, rho: r.range(0.72, 1.18), crack: r() < 0.45 ? r.range(0.22, 0.42) : r.range(0, 0.08), tip: r.range(0.9, 1.0) });
+    for (let i = 0; i < K; i++) corners.push({ a: (i + r.range(-0.3, 0.3)) / K * Math.PI * 2, rho: C.K ? r.range(0.88, 1.08) : r.range(0.72, 1.18), crack: r() < 0.35 ? r.range(0.12, 0.25) : r.range(0, 0.06), tip: C.blunt ? r.range(0.98, 1.0) : r.range(0.9, 1.0) });
     const NU = K * 2;
     const g = gridSurface(NU, NV, (u, v) => {
       const jj = Math.round(u * NU) % NU, ci0 = Math.floor(jj / 2), odd = jj % 2 === 1;
       const A = corners[ci0], B = corners[(ci0 + 1) % K];
       const t = v;
       // sagoma verticale: piede allargato, fusto quasi dritto e spesso, cima frastagliata (ogni spigolo con la sua quota)
-      const flare = 1 + 0.35 * Math.max(0, 1 - t / 0.12);
+      const flare = C.bulge ? 0.78 + 0.3 * Math.sin(Math.PI * Math.min(1, t / 0.8) * 0.85) : 1 + 0.35 * Math.max(0, 1 - t / 0.12);   // v5s27h: panciuto, stretto in basso
       const tipT = (odd ? (A.tip + B.tip) / 2 - 0.04 : A.tip);
-      const topK = t <= C.top ? 1 : Math.max(0.08, 1 - ((t - C.top) / (tipT - C.top + 1e-3)) * 0.9);
+      const topK = t <= C.top ? 1 : Math.max(C.blunt || 0.08, 1 - ((t - C.top) / (tipT - C.top + 1e-3)) * 0.9);
       let px, pz;
       const ca = (a, rho) => [Math.cos(a) * rho, Math.sin(a) * rho];
       if (!odd) { [px, pz] = ca(A.a, A.rho); }
@@ -295,7 +291,7 @@ export function buildPinnacle(seed = 3) {
       const lean = Math.pow(t, 2);
       let x = C.x + px * R + C.lx * lean, z = C.z + pz * R + C.lz * lean;
       let y = base + Math.min(t, tipT) / tipT * C.h * (v === 1 ? 1 : 1);
-      if (v === 1) y = base + C.h * (odd ? r.range(0.93, 0.98) : A.tip);
+      if (v === 1) y = base + C.h * (C.blunt ? 1 - 0.015 * r() : odd ? r.range(0.93, 0.98) : A.tip) + (C.blunt ? px * 1.2 : 0);   // cima piatta un po' inclinata
       if (v > 0 && v < 1) y += r.range(-0.45, 0.45) * (C.h / NV);   // quote sfalsate: niente anelli
       // spostamento irregolare dei vertici
       const nx = noise3(x / 6 + ci, y / 11, z / 6), nz = noise3(z / 6 - ci, y / 11, x / 6 + 3);
@@ -321,12 +317,12 @@ export function buildPinnacle(seed = 3) {
   // v5s27g: superficie fatta di tanti blocchi di roccia squadrati e irregolari (voxel ma organici), colore per blocco
   { const pal2 = ['#d6bf9c', '#c8ae8a', '#bfa889', '#e0cba8', '#b39c80', '#a8998a', '#cbb79a', '#9f8f7c', '#d9c4a2', '#b8a58e'];
     for (const [x, y, z, t, cx, cz, R, h] of allP) {
-      if (r() < 0.3) continue;
       const nx = x - cx, nz = z - cz, nl = Math.hypot(nx, nz) || 1, ux = nx / nl, uz = nz / nl;
-      const n = 1 + (R > 4.5 && r() < 0.5 ? 1 : 0);
+      if (h === 106 && y < base + 62) continue;   // dentro il fusto: non si vede
+      const n = Math.max(1, Math.round(R * R / 26));
       for (let i = 0; i < n; i++) {
         const sz = r.range(1.3, 2.6) * Math.max(0.55, Math.min(1, R / 5)), out = r.range(0.0, 0.45) * sz;
-        const yy = y + r.range(-1.6, 1.6), ox = r.range(-1, 1) * 1.2, oz = r.range(-1, 1) * 1.2;
+        const yy = y + r.range(-2.2, 2.2), ox = r.range(-1, 1) * Math.max(1.2, R * 0.33), oz = r.range(-1, 1) * 1.2;
         const n2 = noise3(x / 5, yy / 7, z / 5) * 0.5 + 0.5;
         k.add(G.box(sz * r.range(0.8, 1.35), sz * r.range(0.65, 1.25), sz * r.range(0.8, 1.3)), pickN(pal2, Math.min(0.999, Math.max(0, n2 * 0.6 + r() * 0.5))),
           { x: x + ux * out + ox * -uz, y: yy, z: z + uz * out + ox * ux + oz * 0.2, ry: Math.atan2(ux, uz) + r.range(-0.35, 0.35), rx: r.range(-0.25, 0.25), rz: r.range(-0.25, 0.25), vary: 0.12 });
@@ -337,9 +333,9 @@ export function buildPinnacle(seed = 3) {
   const pickS = (lo, hi) => { for (let n = 0; n < 40; n++) { const p = surf[Math.floor(r() * surf.length)]; if (p[3] >= lo && p[3] <= hi) return p; } return null; };
   const clump = (p, n, s0) => { for (let i = 0; i < n; i++) { const s = s0 * r.range(0.45, 1.1), ox = r.range(-1, 1) * s0, oy = r.range(-0.6, 0.8) * s0, oz = r.range(-1, 1) * s0;
     k.add(G.ico(s, 0), r.pick(leaf), { x: p[0] + ox, y: p[1] + oy, z: p[2] + oz, flat: true, sy: r.range(0.6, 0.85), ry: r() * 6, vary: 0.2 }); } };
-  for (let i = 0; i < 34; i++) { const p = pickS(0.38, 0.88); if (p) clump(p, 5 + Math.floor(r() * 8), r.range(1.5, 2.6)); }   // macchie grandi
-  for (let i = 0; i < 16; i++) { const p = pickS(0.25, 0.9); if (p) clump(p, 1 + Math.floor(r() * 3), r.range(0.8, 1.4)); }    // ciuffi piccoli sparsi
-  for (let i = 0; i < 7; i++) { const p = pickS(0.06, 0.3); if (p) clump(p, 1 + Math.floor(r() * 2), r.range(0.8, 1.4)); }      // pochi cespugli isolati in basso
+  { const sh = allP.filter((p) => p[7] === 66 && p[3] > 0.88); for (let i = 0; i < 9; i++) { const p = sh[Math.floor(r() * sh.length)]; if (p) clump([p[0], p[1] + 0.8, p[2]], 4 + Math.floor(r() * 4), r.range(1.4, 2.2)); } }   // v5s27h: ciuffi sulla spalla   // macchie grandi
+  { const lf = allP.filter((p) => p[0] < p[4] - 3 && p[3] > 0.3 && p[3] < 0.85); for (let i = 0; i < 5; i++) { const p = lf[Math.floor(r() * lf.length)]; if (p) clump(p, 1 + Math.floor(r() * 2), r.range(0.7, 1.2)); } }   // pochi sul lato sinistro    // ciuffi piccoli sparsi
+        // pochi cespugli isolati in basso
   // piede: massi di frana e boscaglia (riva)
   for (let i = 0; i < 18; i++) { const a = r() * Math.PI * 2, rr = r.range(8, 14); addRock(k, r, Math.cos(a) * rr, base + r.range(0, 3), Math.sin(a) * rr * 0.85, r.range(2, 4), ['#a99b86', '#9c8f7b', '#b8aa94'], { squash: 0.7, tilt: true }); }
   for (let i = 0; i < 36; i++) { const a = r() * Math.PI * 2, rr = r.range(10, 22); k.add(G.ico(r.range(1.6, 3.2), 0), r.pick(['#2c4626', '#36522c', '#3f5e30', '#4a6a36']), { x: Math.cos(a) * rr, y: base + r.range(2, 7), z: Math.sin(a) * rr, flat: true, sy: 0.8, vary: 0.2 }); }
