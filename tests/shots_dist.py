@@ -27,7 +27,7 @@ async def main():
     for _ in range(6000):
       loc,bid,T=await pg.evaluate(JS)
       if mi<len(MARKS) and MARKS[mi]<=loc<999 and (bid==(sys.argv[8] if len(sys.argv)>8 else bid)):
-        await pg.screenshot(path=f'screenshots/v5s27f-{NAME}-{int(MARKS[mi])}.png'); print(MARKS[mi],loc,bid,T,await pg.evaluate('window.__vv'),flush=True); mi+=1
+        await pg.screenshot(path=f'screenshots/v5s27g-{NAME}-{int(MARKS[mi])}.png'); print(MARKS[mi],loc,bid,T,await pg.evaluate('window.__vv'),flush=True); mi+=1
       if mi>=len(MARKS): break
       await asyncio.sleep(0.03)
     await b.close()

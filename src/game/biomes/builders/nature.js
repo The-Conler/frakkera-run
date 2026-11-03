@@ -272,6 +272,7 @@ export function buildPinnacle(seed = 3) {
     { x: 6.4, z: -3.8, r: 5.2, h: 34, lx: 0.8, lz: -0.4, top: 0.68 },
     { x: 1.0, z: 5.6, r: 5.0, h: 30, lx: 0, lz: 0.8, top: 0.66 },
   ];
+  const allP = []; // v5s27g: punti della superficie dove posare i blocchi
   const surf = []; // per la vegetazione: punti delle fessure e delle cenge
   COLS.forEach((C, ci) => {
     const K = 6 + Math.floor(r() * 3), NV = Math.max(10, Math.round(C.h / 4));
@@ -304,24 +305,39 @@ export function buildPinnacle(seed = 3) {
       dark.set(key(x, y, z), d);
       if (odd && A.crack > 0.2 && t > 0.2 && t < C.top) surf.push([x, y, z, t * C.h / 106, ci]);
       if (!odd && r() < 0.12 && t > 0.15 && t < C.top) surf.push([x, y, z, t * C.h / 106, ci]);
+      if (v > 0) allP.push([x, y, z, t, C.x + C.lx * lean, C.z + C.lz * lean, R, C.h]);
       return [x, y, z];
     }, (x, y, z) => {
       const n = noise3(x / 7 + ci * 3.1, y / 13, z / 7) * 0.5 + 0.5, n2 = noise3(x / 2.2, y / 3.5, z / 2.2) * 0.5 + 0.5;
       _c.set(pickN(pal, Math.min(0.999, Math.max(0, n * 0.8 + n2 * 0.3 - 0.05))));
       if (n2 > 0.72) _c.lerp(_c2.set('#9a7a58'), 0.3);                     // vene brune
       _c.multiplyScalar(dark.get(key(x, y, z)) ?? 1);                       // ombra nelle fessure
-      _c.multiplyScalar(1.12);   // calda alla luce del tramonto
+      _c.multiplyScalar(0.5);   // v5s27g: il nucleo resta scuro: si vede solo nelle fughe tra i blocchi
       const t = (y - base) / 106; if (t < 0.08) _c.lerp(_c2.set('#5a5a3c'), 0.35 * (1 - t / 0.08));
       return _c.getHex();
     });
     addColored(k, g);
   });
+  // v5s27g: superficie fatta di tanti blocchi di roccia squadrati e irregolari (voxel ma organici), colore per blocco
+  { const pal2 = ['#d6bf9c', '#c8ae8a', '#bfa889', '#e0cba8', '#b39c80', '#a8998a', '#cbb79a', '#9f8f7c', '#d9c4a2', '#b8a58e'];
+    for (const [x, y, z, t, cx, cz, R, h] of allP) {
+      if (r() < 0.3) continue;
+      const nx = x - cx, nz = z - cz, nl = Math.hypot(nx, nz) || 1, ux = nx / nl, uz = nz / nl;
+      const n = 1 + (R > 4.5 && r() < 0.5 ? 1 : 0);
+      for (let i = 0; i < n; i++) {
+        const sz = r.range(1.3, 2.6) * Math.max(0.55, Math.min(1, R / 5)), out = r.range(0.0, 0.45) * sz;
+        const yy = y + r.range(-1.6, 1.6), ox = r.range(-1, 1) * 1.2, oz = r.range(-1, 1) * 1.2;
+        const n2 = noise3(x / 5, yy / 7, z / 5) * 0.5 + 0.5;
+        k.add(G.box(sz * r.range(0.8, 1.35), sz * r.range(0.65, 1.25), sz * r.range(0.8, 1.3)), pickN(pal2, Math.min(0.999, Math.max(0, n2 * 0.6 + r() * 0.5))),
+          { x: x + ux * out + ox * -uz, y: yy, z: z + uz * out + ox * ux + oz * 0.2, ry: Math.atan2(ux, uz) + r.range(-0.35, 0.35), rx: r.range(-0.25, 0.25), rz: r.range(-0.25, 0.25), vary: 0.12 });
+      }
+    } }
   // vegetazione: macchie irregolari nate da fessure e cenge, piu' grandi a meta'-alto, poche isolate in basso
   const leaf = ['#4f7a2a', '#5f8a30', '#6b9a38', '#3f6a26', '#7aa040', '#567f2c'];
   const pickS = (lo, hi) => { for (let n = 0; n < 40; n++) { const p = surf[Math.floor(r() * surf.length)]; if (p[3] >= lo && p[3] <= hi) return p; } return null; };
   const clump = (p, n, s0) => { for (let i = 0; i < n; i++) { const s = s0 * r.range(0.45, 1.1), ox = r.range(-1, 1) * s0, oy = r.range(-0.6, 0.8) * s0, oz = r.range(-1, 1) * s0;
     k.add(G.ico(s, 0), r.pick(leaf), { x: p[0] + ox, y: p[1] + oy, z: p[2] + oz, flat: true, sy: r.range(0.6, 0.85), ry: r() * 6, vary: 0.2 }); } };
-  for (let i = 0; i < 24; i++) { const p = pickS(0.42, 0.85); if (p) clump(p, 5 + Math.floor(r() * 8), r.range(1.5, 2.6)); }   // macchie grandi
+  for (let i = 0; i < 34; i++) { const p = pickS(0.38, 0.88); if (p) clump(p, 5 + Math.floor(r() * 8), r.range(1.5, 2.6)); }   // macchie grandi
   for (let i = 0; i < 16; i++) { const p = pickS(0.25, 0.9); if (p) clump(p, 1 + Math.floor(r() * 3), r.range(0.8, 1.4)); }    // ciuffi piccoli sparsi
   for (let i = 0; i < 7; i++) { const p = pickS(0.06, 0.3); if (p) clump(p, 1 + Math.floor(r() * 2), r.range(0.8, 1.4)); }      // pochi cespugli isolati in basso
   // piede: massi di frana e boscaglia (riva)
