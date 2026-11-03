@@ -253,95 +253,84 @@ export function valleyTerrain(W0, len, o = {}) {
 // fessure verticali profonde, cenge orizzontali a gradini con ciuffi di macchia e muschio,
 // cima frastagliata a piu' punte, base piu' larga e cespugliosa con massi.
 export function buildPinnacle(seed = 3) {
-  // v5s27f: monolite ricostruito da zero: piu' colonne di roccia fuse insieme (sezioni poligonali irregolari, facce larghe,
-  // fessure verticali profonde), due punte frastagliate di altezza diversa, fusto che resta spesso, piede largo con speroni.
-  // Low-poly a facce piatte irregolari; niente anelli: le quote di ogni vertice sono sfalsate.
+  // v5s27i: UN solo pilastro di roccia continuo (una griglia di vertici connessi, chiusa in cima), sagoma del pilastro vero:
+  // piede largo che si fonde col pendio, fusto stretto e irregolare, spalla a ~62% e blocco superiore piu' stretto,
+  // spostato e un po' inclinato, con la cima spaccata e frastagliata. Fessure verticali profonde, cenge, speroni.
+  // Low-poly a facce piatte, anelli abbastanza fitti da tenere le facce quasi quadrate. Colore per faccia.
   const k = new Kit(seed);
-  const r = rng(seed * 7 + 11);
-  const base = -48;
-  const dark = new Map(); const key = (x, y, z) => `${x.toFixed(2)},${y.toFixed(2)},${z.toFixed(2)}`;
-  const pal = ['#cdb595', '#bca486', '#d8c2a0', '#b09a7e', '#c6ad8d', '#a8957f', '#dcc8a6', '#b9a085'];
-  // colonne: x, z, raggio, altezza, inclinazione in cima (dx, dz), quota di inizio della cima frastagliata
-  // v5s27h: come il pilastro vero: fusto spesso e panciuto (~3:1) fino alla spalla a ~62%, sopra un blocco piu' stretto
-  // quasi rettangolare, un po' inclinato, con la cima piatta e smussata
-  const COLS = [
-    { x: 0.0, z: 0.0, r: 12.5, h: 66, lx: 0.4, lz: 0, top: 0.9, blunt: 0.82, bulge: 1, K: 9 },    // fusto
-    { x: -2.2, z: 0.6, r: 5.6, h: 106, lx: 2.6, lz: -0.4, top: 0.94, blunt: 0.85, K: 5 },         // blocco superiore
-  ];
-  const allP = []; // v5s27g: punti della superficie dove posare i blocchi
-  const surf = []; // per la vegetazione: punti delle fessure e delle cenge
-  COLS.forEach((C, ci) => {
-    const K = C.K || 6 + Math.floor(r() * 3), NV = Math.max(10, Math.round(C.h / 4));
-    const corners = [];
-    for (let i = 0; i < K; i++) corners.push({ a: (i + r.range(-0.3, 0.3)) / K * Math.PI * 2, rho: C.K ? r.range(0.88, 1.08) : r.range(0.72, 1.18), crack: r() < 0.35 ? r.range(0.12, 0.25) : r.range(0, 0.06), tip: C.blunt ? r.range(0.98, 1.0) : r.range(0.9, 1.0) });
-    const NU = K * 2;
-    const g = gridSurface(NU, NV, (u, v) => {
-      const jj = Math.round(u * NU) % NU, ci0 = Math.floor(jj / 2), odd = jj % 2 === 1;
-      const A = corners[ci0], B = corners[(ci0 + 1) % K];
-      const t = v;
-      // sagoma verticale: piede allargato, fusto quasi dritto e spesso, cima frastagliata (ogni spigolo con la sua quota)
-      const flare = C.bulge ? 0.78 + 0.3 * Math.sin(Math.PI * Math.min(1, t / 0.8) * 0.85) : 1 + 0.35 * Math.max(0, 1 - t / 0.12);   // v5s27h: panciuto, stretto in basso
-      const tipT = (odd ? (A.tip + B.tip) / 2 - 0.04 : A.tip);
-      const topK = t <= C.top ? 1 : Math.max(C.blunt || 0.08, 1 - ((t - C.top) / (tipT - C.top + 1e-3)) * 0.9);
-      let px, pz;
-      const ca = (a, rho) => [Math.cos(a) * rho, Math.sin(a) * rho];
-      if (!odd) { [px, pz] = ca(A.a, A.rho); }
-      else { let bA = B.a; if (bA < A.a) bA += Math.PI * 2; const [x1, z1] = ca(A.a, A.rho), [x2, z2] = ca(bA, B.rho); px = (x1 + x2) / 2; pz = (z1 + z2) / 2; const s = 1 - A.crack; px *= s; pz *= s; }
-      const R = 1.15 * C.r * flare * Math.min(1, topK) * (1 - 0.06 * t);
-      const lean = Math.pow(t, 2);
-      let x = C.x + px * R + C.lx * lean, z = C.z + pz * R + C.lz * lean;
-      let y = base + Math.min(t, tipT) / tipT * C.h * (v === 1 ? 1 : 1);
-      if (v === 1) y = base + C.h * (C.blunt ? 1 - 0.015 * r() : odd ? r.range(0.93, 0.98) : A.tip) + (C.blunt ? px * 1.2 : 0);   // cima piatta un po' inclinata
-      if (v > 0 && v < 1) y += r.range(-0.45, 0.45) * (C.h / NV);   // quote sfalsate: niente anelli
-      // spostamento irregolare dei vertici
-      const nx = noise3(x / 6 + ci, y / 11, z / 6), nz = noise3(z / 6 - ci, y / 11, x / 6 + 3);
-      x += nx * 1.1 * Math.min(1, topK + 0.3); z += nz * 1.1 * Math.min(1, topK + 0.3);
-      if (v === 0) y = base - 2;
-      const d = odd && A.crack > 0.2 ? 0.5 : odd ? 0.85 : 1;
-      dark.set(key(x, y, z), d);
-      if (odd && A.crack > 0.2 && t > 0.2 && t < C.top) surf.push([x, y, z, t * C.h / 106, ci]);
-      if (!odd && r() < 0.12 && t > 0.15 && t < C.top) surf.push([x, y, z, t * C.h / 106, ci]);
-      if (v > 0) allP.push([x, y, z, t, C.x + C.lx * lean, C.z + C.lz * lean, R, C.h]);
-      return [x, y, z];
-    }, (x, y, z) => {
-      const n = noise3(x / 7 + ci * 3.1, y / 13, z / 7) * 0.5 + 0.5, n2 = noise3(x / 2.2, y / 3.5, z / 2.2) * 0.5 + 0.5;
-      _c.set(pickN(pal, Math.min(0.999, Math.max(0, n * 0.8 + n2 * 0.3 - 0.05))));
-      if (n2 > 0.72) _c.lerp(_c2.set('#9a7a58'), 0.3);                     // vene brune
-      _c.multiplyScalar(dark.get(key(x, y, z)) ?? 1);                       // ombra nelle fessure
-      _c.multiplyScalar(0.5);   // v5s27g: il nucleo resta scuro: si vede solo nelle fughe tra i blocchi
-      const t = (y - base) / 106; if (t < 0.08) _c.lerp(_c2.set('#5a5a3c'), 0.35 * (1 - t / 0.08));
-      return _c.getHex();
-    });
-    addColored(k, g);
-  });
-  // v5s27g: superficie fatta di tanti blocchi di roccia squadrati e irregolari (voxel ma organici), colore per blocco
-  { const pal2 = ['#d6bf9c', '#c8ae8a', '#bfa889', '#e0cba8', '#b39c80', '#a8998a', '#cbb79a', '#9f8f7c', '#d9c4a2', '#b8a58e'];
-    for (const [x, y, z, t, cx, cz, R, h] of allP) {
-      const nx = x - cx, nz = z - cz, nl = Math.hypot(nx, nz) || 1, ux = nx / nl, uz = nz / nl;
-      if (h === 106 && y < base + 62) continue;   // dentro il fusto: non si vede
-      const n = Math.max(1, Math.round(R * R / 26));
-      for (let i = 0; i < n; i++) {
-        const sz = r.range(1.3, 2.6) * Math.max(0.55, Math.min(1, R / 5)), out = r.range(0.0, 0.45) * sz;
-        const yy = y + r.range(-2.2, 2.2), ox = r.range(-1, 1) * Math.max(1.2, R * 0.33), oz = r.range(-1, 1) * 1.2;
-        const n2 = noise3(x / 5, yy / 7, z / 5) * 0.5 + 0.5;
-        k.add(G.box(sz * r.range(0.8, 1.35), sz * r.range(0.65, 1.25), sz * r.range(0.8, 1.3)), pickN(pal2, Math.min(0.999, Math.max(0, n2 * 0.6 + r() * 0.5))),
-          { x: x + ux * out + ox * -uz, y: yy, z: z + uz * out + ox * ux + oz * 0.2, ry: Math.atan2(ux, uz) + r.range(-0.35, 0.35), rx: r.range(-0.25, 0.25), rz: r.range(-0.25, 0.25), vary: 0.12 });
-      }
-    } }
-  // vegetazione: macchie irregolari nate da fessure e cenge, piu' grandi a meta'-alto, poche isolate in basso
-  const leaf = ['#4f7a2a', '#5f8a30', '#6b9a38', '#3f6a26', '#7aa040', '#567f2c'];
-  const pickS = (lo, hi) => { for (let n = 0; n < 40; n++) { const p = surf[Math.floor(r() * surf.length)]; if (p[3] >= lo && p[3] <= hi) return p; } return null; };
-  const clump = (p, n, s0) => { for (let i = 0; i < n; i++) { const s = s0 * r.range(0.45, 1.1), ox = r.range(-1, 1) * s0, oy = r.range(-0.6, 0.8) * s0, oz = r.range(-1, 1) * s0;
-    k.add(G.ico(s, 0), r.pick(leaf), { x: p[0] + ox, y: p[1] + oy, z: p[2] + oz, flat: true, sy: r.range(0.6, 0.85), ry: r() * 6, vary: 0.2 }); } };
-  { const sh = allP.filter((p) => p[7] === 66 && p[3] > 0.88); for (let i = 0; i < 9; i++) { const p = sh[Math.floor(r() * sh.length)]; if (p) clump([p[0], p[1] + 0.8, p[2]], 4 + Math.floor(r() * 4), r.range(1.4, 2.2)); } }   // v5s27h: ciuffi sulla spalla   // macchie grandi
-  { const lf = allP.filter((p) => p[0] < p[4] - 3 && p[3] > 0.3 && p[3] < 0.85); for (let i = 0; i < 5; i++) { const p = lf[Math.floor(r() * lf.length)]; if (p) clump(p, 1 + Math.floor(r() * 2), r.range(0.7, 1.2)); } }   // pochi sul lato sinistro    // ciuffi piccoli sparsi
-        // pochi cespugli isolati in basso
-  // piede: massi di frana e boscaglia (riva)
-  for (let i = 0; i < 18; i++) { const a = r() * Math.PI * 2, rr = r.range(8, 14); addRock(k, r, Math.cos(a) * rr, base + r.range(0, 3), Math.sin(a) * rr * 0.85, r.range(2, 4), ['#a99b86', '#9c8f7b', '#b8aa94'], { squash: 0.7, tilt: true }); }
-  for (let i = 0; i < 36; i++) { const a = r() * Math.PI * 2, rr = r.range(10, 22); k.add(G.ico(r.range(1.6, 3.2), 0), r.pick(['#2c4626', '#36522c', '#3f5e30', '#4a6a36']), { x: Math.cos(a) * rr, y: base + r.range(2, 7), z: Math.sin(a) * rr, flat: true, sy: 0.8, vary: 0.2 }); }
+  const r = rng(seed * 13 + 5);
+  const H = 150, base = -48, SH = 0.62;
+  const NR = 30, NV = 64;
+  // fessure verticali (angolo, profondita', larghezza) e cenge (quota relativa, rientro)
+  const cracks = [[0.4, 0.3, 0.16], [1.5, 0.22, 0.12], [2.6, 0.34, 0.18], [3.7, 0.2, 0.1], [4.6, 0.28, 0.14], [5.5, 0.18, 0.1]];
+  const ledges = [[0.18, 0.06], [0.33, 0.05], [0.47, 0.07], [SH, 0.0], [0.78, 0.05], [0.88, 0.04]];
+  const wrap = (d) => Math.atan2(Math.sin(d), Math.cos(d));
+  const prof = (t) => {
+    if (t < 0.1) return 9.2 + 9 * Math.pow(1 - t / 0.1, 1.6);                      // piede largo nel pendio
+    if (t < SH) { const u = (t - 0.1) / (SH - 0.1); return 9.2 + 1.6 * Math.sin(u * Math.PI * 0.8) - 1.4 * u; }   // fusto, panciuto in basso-meta'
+    return 5.6 - (t - SH) * 3.0;                                                      // blocco superiore
+  };
+  const P = (u, v) => {
+    const a = u * Math.PI * 2, t = v;
+    let R = prof(t);
+    // sezione irregolare e spigolosa: poche facce larghe (spigoli sfalsati), piu' squadrata in alto
+    const sq = t >= SH ? 1 / Math.pow(Math.pow(Math.abs(Math.cos(a + 0.3)), 3) + Math.pow(Math.abs(Math.sin(a + 0.3)), 3), 1 / 3) * 0.82 : 1;
+    R *= sq * (1 + 0.12 * fbm(Math.cos(a) * 1.4, t * 3.5, Math.sin(a) * 1.4 + seed, 2));
+    for (const [ca, dep, w] of cracks) { const d = wrap(a - ca - 0.25 * Math.sin(t * 9 + ca)); R *= 1 - dep * Math.max(0, 1 - Math.abs(d) / w) * (t < 0.05 ? 0.3 : 1); }
+    for (const [lt, dep] of ledges) { const d = t - lt; if (d > 0 && d < 0.035) R *= 1 - dep * (1 - d / 0.035); }   // cenge: rientro sopra ogni gradino
+    // spalla: gradino netto tra fusto e blocco superiore
+    if (t > SH - 0.012 && t < SH + 0.012) R = Math.max(R, prof(SH - 0.02) * 0.95);
+    // cima spaccata: due lobi separati da un taglio
+    if (t > 0.9) { const d = Math.abs(wrap(a - 1.9)); R *= 1 - 0.45 * Math.max(0, 1 - d / 0.5) * (t - 0.9) / 0.1; }
+    let y = base + t * H;
+    if (v === 1) y += 3 * Math.max(0, Math.cos(a - 4.2)) - 1.5 + r.range(-0.6, 0.6);      // cima inclinata e frastagliata
+    else if (v > 0) y += r.range(-0.35, 0.35) * (H / NV);                                    // quote sfalsate: niente anelli regolari
+    const off = t >= SH ? -2.0 + (t - SH) * 5 : 0;                                             // blocco superiore spostato e inclinato
+    const fl = v === 1 ? 0.25 : 1;
+    let x = Math.cos(a) * R * fl + off, z = Math.sin(a) * R * 0.86 * fl;
+    x += noise3(x / 4, y / 6, z / 4) * 0.8; z += noise3(z / 4 + 7, y / 6, x / 4) * 0.8;
+    if (v === 0) y = base - 3;
+    return [x, y, z];
+  };
+  // griglia condivisa: la cucitura (u=0 e u=1) usa gli stessi vertici, cosi' la superficie e' chiusa e continua
+  const G2 = []; for (let j = 0; j <= NV; j++) { const row = []; for (let i = 0; i < NR; i++) row.push(P(i / NR, j / NV)); row.push(row[0]); G2.push(row); }
+  const pos = [];
+  for (let j = 0; j < NV; j++) for (let i = 0; i < NR; i++) {
+    const a = G2[j][i], b = G2[j][i + 1], c = G2[j + 1][i + 1], d = G2[j + 1][i];
+    pos.push(...a, ...c, ...b, ...a, ...d, ...c);
+  }
+  { const top = G2[NV], cx = top.slice(0, NR).reduce((s, p) => s + p[0], 0) / NR, cz = top.slice(0, NR).reduce((s, p) => s + p[2], 0) / NR, cy = Math.max(...top.map((p) => p[1])) + 0.8;
+    for (let i = 0; i < NR; i++) pos.push(...top[i], cx, cy, cz, ...top[i + 1]); }   // chiusura in cima
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.computeVertexNormals();
+  // colore per faccia: grigio e bruno caldo, ombra nelle fessure, un po' di verde scuro al piede
+  const pal = ['#a39a8c', '#b2a794', '#978d80', '#b9a688', '#a8957c', '#8f877b', '#bfb19a', '#9e8a72'];
+  const col = [], pa = g.attributes.position, nrm = g.attributes.normal;
+  for (let f = 0; f < pa.count; f += 3) {
+    const x = (pa.getX(f) + pa.getX(f + 1) + pa.getX(f + 2)) / 3, y = (pa.getY(f) + pa.getY(f + 1) + pa.getY(f + 2)) / 3, z = (pa.getZ(f) + pa.getZ(f + 1) + pa.getZ(f + 2)) / 3;
+    const t = (y - base) / H, a = Math.atan2(z / 0.86, x);
+    const n = noise3(x / 9, y / 18, z / 9) * 0.5 + 0.5;
+    _c.set(pickN(pal, Math.min(0.999, Math.max(0, n * 0.75 + r() * 0.35))));
+    let cr = 1; for (const [ca, dep, w] of cracks) { const d = Math.abs(wrap(a - ca - 0.25 * Math.sin(t * 9 + ca))); if (d < w * 0.6) cr = Math.min(cr, 0.55 + d / w * 0.6); }
+    _c.multiplyScalar(cr);
+    const up = nrm.getY(f); if (up > 0.6 && t > 0.1) _c.lerp(_c2.set('#8a8a5a'), 0.3);    // cenge un po' verdastre
+    if (t < 0.08) _c.lerp(_c2.set('#5d5a40'), 0.4 * (1 - t / 0.08));
+    for (let q = 0; q < 3; q++) col.push(_c.r, _c.g, _c.b);
+  }
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  addColored(k, g);
+  // poca vegetazione: ciuffi sulla spalla e qualcuno nelle fessure/cenge (tutti appoggiati alla roccia)
+  const leaf = ['#4f7a2a', '#5f8a30', '#3f6a26', '#6b9a38'];
+  const tuft = (j0, j1, n, s0, s1) => { for (let q = 0; q < n; q++) { const j = j0 + Math.floor(r() * (j1 - j0)), i = Math.floor(r() * NR), p = G2[j][i];
+    const cx = j >= SH * NV ? -2 : 0; const dx = p[0] - cx, dz = p[2], dl = Math.hypot(dx, dz) || 1, s = r.range(s0, s1);
+    k.add(G.ico(s, 0), r.pick(leaf), { x: p[0] + dx / dl * s * 0.3, y: p[1] + s * 0.3, z: p[2] + dz / dl * s * 0.3, flat: true, sy: 0.7, vary: 0.2 }); } };
+  tuft(Math.round(SH * NV) - 1, Math.round(SH * NV) + 1, 12, 1.0, 1.8);   // spalla
+  tuft(Math.round(0.3 * NV), Math.round(0.58 * NV), 7, 0.7, 1.3);         // fessure del fusto (pochi)
+  tuft(Math.round(0.7 * NV), Math.round(0.85 * NV), 4, 0.6, 1.0);         // blocco superiore
+  // pendio al piede: macchia bassa (la roccia si fonde col terreno)
+  for (let q = 0; q < 26; q++) { const a = r() * Math.PI * 2, rr = r.range(14, 24); k.add(G.ico(r.range(1.8, 3.4), 0), r.pick(['#2c4626', '#36522c', '#3f5e30', '#4a6a36']), { x: Math.cos(a) * rr, y: base + r.range(1, 6), z: Math.sin(a) * rr, flat: true, sy: 0.8, vary: 0.2 }); }
   return k.build();
 }
-
 // ------------------------------------------------------------------ cascatelle e gocciolamenti (materiale animato a parte)
 export function waterfallGeometry(h, w) {
   const g = new THREE.PlaneGeometry(w, h, 1, 6); g.translate(0, -h / 2, 0); return g;
