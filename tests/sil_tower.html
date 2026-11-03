@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { buildPinnacle } from '/src/game/biomes/builders/nature.js';
 const R=new THREE.WebGLRenderer({antialias:true}); R.setSize(390,844); document.body.appendChild(R.domElement); R.setClearColor(0x2a2a2e);
 const S=new THREE.Scene(); const g=buildPinnacle(3); const geo=g.geometry||g;
-const m=new THREE.Mesh(geo,new THREE.MeshLambertMaterial({color:0xa0a0a0,flatShading:true})); m.rotation.y=0.4; S.add(m);
+const m=new THREE.Mesh(geo,(location.search.includes('col')?new THREE.MeshLambertMaterial({vertexColors:true,flatShading:true}):new THREE.MeshLambertMaterial({color:0xa0a0a0,flatShading:true}))); m.rotation.y=0.4; S.add(m);
 S.add(new THREE.HemisphereLight(0xffffff,0x444444,1.2)); const d=new THREE.DirectionalLight(0xffffff,1.6); d.position.set(60,80,80); S.add(d);
 // angolo della camera di gioco: dalla via (x ~ +21 rispetto alla torre), davanti e in basso
 const C=new THREE.PerspectiveCamera(50,390/844,1,2000); C.position.set(40,20,230); C.lookAt(0,30,0); R.render(S,C); window.done=1;

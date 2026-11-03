@@ -260,34 +260,36 @@ export function buildPinnacle(seed = 3) {
   const k = new Kit(seed);
   const r = rng(seed * 13 + 5);
   const H = 150, base = -48, SH = 0.58;
-  const NR = 30, NV = 64;
+  const NR = 44, NV = 72;
   // fessure verticali (angolo, profondita', larghezza) e cenge (quota relativa, rientro)
   const cracks = [[0.4, 0.3, 0.16], [1.5, 0.22, 0.12], [2.6, 0.34, 0.18], [3.7, 0.2, 0.1], [4.6, 0.28, 0.14], [5.5, 0.18, 0.1]];
   const ledges = [[0.18, 0.06], [0.33, 0.05], [0.47, 0.07], [SH, 0.0], [0.78, 0.05], [0.88, 0.04]];
   const wrap = (d) => Math.atan2(Math.sin(d), Math.cos(d));
   // v5s27k: sagoma prima di tutto. Il tratto visibile dalla via va da t~0.32 (quota della via) a 1.
   const prof = (t) => {
-    if (t < 0.12) return 14.5 + 9 * Math.pow(1 - t / 0.12, 1.4);                        // piede largo di massi
-    if (t < 0.5) return 14.5 + 1.0 * Math.sin((t - 0.12) / 0.38 * Math.PI);   // v5s27k: ~1.5x piu' spessa (proporzioni della scheda)
-    return 14.5 - 5.5 * Math.pow((t - 0.5) / 0.5, 1.2);                                 // parte alta spessa (non una punta)
+    if (t < 0.12) return 20 + 9 * Math.pow(1 - t / 0.12, 1.4);                        // piede largo di massi
+    if (t < 0.5) return 20 + 1.5 * Math.sin((t - 0.12) / 0.38 * Math.PI) - 1.5 * (t - 0.12);   // v5s27l: ~30% piu' larga in basso e a meta'
+    return 19.5 - 6 * Math.pow((t - 0.5) / 0.5, 1.4);   // v5s27l: parte alta piena, non a punta                                 // parte alta spessa (non una punta)
   };
   const smooth = (e0, e1, x) => { const q = Math.max(0, Math.min(1, (x - e0) / (e1 - e0))); return q * q * (3 - 2 * q); };
   // grande sporgenza a SINISTRA (vista dalla via) a meta' altezza, con il piano superiore piatto (cengia)
-  const SHA = 2.9, PT0 = 0.42, PT1 = 0.66;
-  const protr = (a, t) => { const d = Math.abs(wrap(a - SHA)); if (d > 1.25) return 0;
-    const w = Math.pow(1 - d / 1.25, 0.6); return 12 * w * smooth(PT0, PT0 + 0.12, t) * (1 - smooth(PT1 - 0.012, PT1, t)); };
+  const SHA = 2.9, PT0 = 0.42, PT1 = 0.78;
+  // v5s27l: non piu' una mensola: una seconda grande massa di roccia fusa nel pilastro, tondeggiante sopra e sotto
+  const protr = (a, t) => { const d = Math.abs(wrap(a - SHA - 0.25 * (t - 0.5))); if (d > 1.6) return 0;
+    const w = Math.pow(Math.cos(d / 1.6 * Math.PI / 2), 0.8), tt = (t - 0.4) / 0.4; if (tt <= 0 || tt >= 1) return 0;
+    return 17 * w * Math.pow(Math.sin(tt * Math.PI), 0.3) * (1 + 0.15 * Math.sin(tt * 9 + a * 2)); };
   // cengia orizzontale nella parte medio-alta (davanti e a sinistra)
-  const LT = 0.76, ledge = (a, t) => { const d = Math.abs(wrap(a - (SHA - 0.5))); if (d > 1.7) return 0;
+  const LT = 0.64, ledge = (a, t) => { const d = Math.abs(wrap(a - (SHA - 1.3))); if (d > 1.7) return 0;
     return 3.6 * (1 - d / 1.7) * smooth(LT - 0.03, LT, t) * (1 - smooth(LT + 0.01, LT + 0.02, t)); };
   const P = (u, v) => {
     const a = u * Math.PI * 2, t = v;
     let R = prof(t);
     // sezione non circolare: lobi che ruotano con la quota + facce larghe (sezione poligonale a 7 lati, sfalsata per fasce)
     R *= 1 + 0.2 * Math.cos(2 * a + 1.3 + 2.2 * t) + 0.12 * Math.cos(3 * a + 0.5 - 3 * t);
-    { const F = 7, sa = (Math.PI * 2) / F, ph = ((a + 0.45 * Math.floor(t * 7)) % sa + sa) % sa - sa / 2; R *= Math.cos(sa / 2) / Math.cos(ph); }
+    { const F = 5 + (Math.floor(t * 5) % 2), sa = (Math.PI * 2) / F, ph = ((a + 0.7 * Math.floor(t * 5) + 0.3 * Math.sin(t * 11)) % sa + sa) % sa - sa / 2; /* v5s27l: facce piu' grandi, meno ripetitive */ R *= Math.cos(sa / 2) / Math.cos(ph); }
     R += protr(a, t) + ledge(a, t);
     R *= 1 + 0.1 * fbm(Math.cos(a) * 1.2, t * 3, Math.sin(a) * 1.2 + seed, 2);
-    for (const [ca, dep, w] of cracks) { const d = wrap(a - ca - 0.2 * Math.sin(t * 7 + ca)); R *= 1 - (dep + 0.14) * Math.max(0, 1 - Math.abs(d) / w) * (t < 0.05 ? 0.3 : 1); }   // fessure profonde
+    for (const [ca, dep, w] of cracks) { const d = wrap(a - ca - 0.2 * Math.sin(t * 7 + ca)); R *= 1 - (dep + 0.2) * Math.max(0, 1 - Math.abs(d) / (w * 0.8)) * (t < 0.05 ? 0.3 : 1); }   // fessure profonde
     // cima spaccata: un taglio la divide in due blocchi
     if (t > 0.84) { const k2 = (t - 0.84) / 0.16; for (const ca of [1.9, 1.9 + Math.PI]) { const d = Math.abs(wrap(a - ca)); R *= 1 - 0.7 * Math.max(0, 1 - d / 0.55) * k2; } }
     let y = base + t * H;
@@ -336,8 +338,8 @@ export function buildPinnacle(seed = 3) {
   const shelf = (tt, a0, da, n, s0, s1) => { const j = Math.min(NV, Math.round(tt * NV));
     for (let q = 0; q < n; q++) { const a = a0 + r.range(-da, da), i = Math.round(((a / (Math.PI * 2)) % 1 + 1) % 1 * NR) % NR, p = G2[j][i], s = r.range(s0, s1), f = r.range(0.55, 1.0);
       k.add(G.ico(s, 0), r.pick(leaf), { x: p[0] * f, y: p[1] + s * r.range(0.2, 0.7), z: p[2] * f, flat: true, sy: 0.72, vary: 0.2 }); } };
-  shelf(PT1 - 0.016, SHA, 1.0, 70, 1.6, 3.0);
-  shelf(LT + 0.01, SHA - 0.5, 1.4, 40, 1.2, 2.2);
+  shelf(PT1 - 0.01, SHA, 1.2, 90, 1.8, 3.4); shelf(PT1 - 0.06, SHA, 1.3, 40, 1.4, 2.6);
+  shelf(LT + 0.01, SHA - 1.3, 1.4, 50, 1.4, 2.6);
   tuft(Math.round(0.3 * NV), Math.round(0.58 * NV), 7, 0.7, 1.3);         // fessure del fusto (pochi)
   tuft(Math.round(0.8 * NV), Math.round(0.95 * NV), 14, 1.0, 1.8);         // blocco superiore
   for (let q = 0; q < 12; q++) { const a = r() * Math.PI * 2, rr = r.range(9, 15); addRock(k, r, Math.cos(a) * rr, base + 16 + r.range(-2, 2), Math.sin(a) * rr * 0.86, r.range(2.5, 4.5), ['#9a9083', '#8f877c', '#a49a8c', '#8a7a66'], { squash: 0.75, tilt: true }); }   // massi del piede, appoggiati

@@ -11,5 +11,5 @@ async def main():
       if not os.path.exists(f): return await route.fulfill(status=404,body='')
       await route.fulfill(status=200,body=open(f,'rb').read(),content_type='text/javascript' if f.endswith('.js') else mimetypes.guess_type(f)[0] or 'text/html')
     await pg.route('http://frk.local/**',serve); await pg.goto('http://frk.local/sil.html')
-    await pg.wait_for_function('window.done',timeout=60000); await pg.screenshot(path='/workspace/frakkera-run/screenshots/v5s27k-tower-silhouette.png'); await b.close()
+    await pg.wait_for_function('window.done',timeout=60000); await pg.screenshot(path='/workspace/frakkera-run/screenshots/v5s27l-tower-silhouette.png'); await b.close()
 asyncio.run(main())
