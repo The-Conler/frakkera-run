@@ -13,6 +13,7 @@ import { BIOMES, CYCLE, biomeAt, nextBoundary, byId, LAP_NIGHT, NIGHT_MOOD, mapF
 import * as M from '../models.js';
 import * as BT from './textures.js';
 import * as N from './builders/nature.js';
+import { loadTower, fitTower } from './towerModel.js';
 import * as S from './builders/structures.js';
 import { buildChurchSquare } from './builders/church.js';
 import { buildVicolo, buildCappella, buildCappellaLeft } from './builders/gadoni5.js';
@@ -421,6 +422,7 @@ export class Env {
       () => this.prefab('church', 0, () => { const s = buildChurchSquare(1); return { geom: s.geom, w: 0, lamps: s.lamps, houses: s.houses }; }),
       () => { for (const h of this.prefabs.get('church0').houses) this.prefab('house', h.seed % 26, () => M.buildHouse(h.seed % 26 + 1)); },
       () => this.markGeom('pinnacle', () => N.buildPinnacle(3)),
+      () => { loadTower(); },
       () => this.markGeom('valley', () => valleyRock(250)),
       () => this.markGeom('viaduct', () => S.buildViaduct((x) => (x < 0 ? -2 : -5))),
       () => this.markGeom('valleyRiverR', () => N.valleyTerrain(750 - 150, 460, { side: 1, x0: 70, topY: -4.4, floorY: -4.4, dropW: 2, floorW: 30, far: 340, mtnH: 85, seed: 11, trees: 520 })),
@@ -728,7 +730,7 @@ export class Env {
       if (!this.fresc) this.fresc = frescoes();
       mesh(this.fresc.geo, this.fresc.mat, true);   // v5s26: affreschi dipinti
     } else if (id === 'pinnacle') {
-      const m = cached('pinnacle', () => N.buildPinnacle(3)); m.position.set(-25, 0, 0); m.rotation.y = 0.4;   // v5s27k: un po' piu' vicina alla via    // nella valle a SINISTRA del sentiero: a destra c'e' la fiamma che la coprirebbe
+      const m = cached('pinnacle', () => N.buildPinnacle(3)); m.position.set(-25, 0, 0); m.rotation.y = 0.4; fitTower(m, root);   /* v5s27n: modello 3D al posto della procedurale (che resta se il modello manca) */   // v5s27k: un po' piu' vicina alla via    // nella valle a SINISTRA del sentiero: a destra c'e' la fiamma che la coprirebbe
     } else if (id === 'valley') {
       cached('valley', () => valleyRock(Bm)).position.z = Bm;
     } else if (id === 'pool') {
