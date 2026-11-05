@@ -101,23 +101,22 @@ export function buildNascimentu(tex) {
     const nb = Math.floor(L / every); for (let i = 1; i < nb; i++) { const p = cat(a, b, sag, i / nb); bulbs.push(p.x, p.y - 0.06, p.z); }
   };
   const ry = VISTA.RY, rot = (x, z) => [x * Math.cos(ry) + z * Math.sin(ry), -x * Math.sin(ry) + z * Math.cos(ry)];
-  // cima: i fili partono dagli spigoli alti del campanile
-  const hub = (ang) => { const [x, z] = rot(Math.cos(ang) * tw, Math.sin(ang) * tw); return new THREE.Vector3(x, NASC.HUB_Y, z); };
-  // 1) raggiera attraverso la via verso le facciate di destra (davanti e dietro al campanile)
-  const XR = toLocal(NASC.ROAD_R);
-  for (let i = 0; i < 13; i++) { const z = 46 - i * 7.5; strand(hub(Math.atan2(z, XR)), new THREE.Vector3(XR, 9.2 + r.range(-0.4, 0.6), z), 1.6 + r.range(0, 0.8)); }
-  // 2) verso chi arriva sul lato sinistro e verso la capanna/piazza (pali bassi a terra)
-  // pali bassi nella piazzetta (mai sul marciapiede): davanti, a sinistra e dietro al campanile
-  const poles = [[7.6, 19], [2.5, 21.5], [-3.5, 18], [-8.5, 11], [-11.5, 2.5], [-11, -7], [-7, -15], [7.8, 26]];
-  for (const [x, z] of poles) strand(hub(Math.atan2(z, x)), new THREE.Vector3(x, 5.6, z), 1.0 + r.range(0, 0.6));
-  // 3) gonna di luci sotto la cella campanaria (cono luminoso fitto, come nella foto)
-  for (let i = 0; i < 28; i++) { const ang = (i / 28) * Math.PI * 2, [x0, z0] = rot(Math.cos(ang) * tw * 1.05, Math.sin(ang) * tw * 1.05);
-    const R = 5.4 + Math.sin(i * 1.7) * 0.4; strand(new THREE.Vector3(x0, NASC.SKIRT_Y, z0), new THREE.Vector3(Math.cos(ang) * R, NASC.SKIRT_Y - 3.6, Math.sin(ang) * R), 0.25, 0.42); }
-  // 4) filo che scende al centro della facciata verso chi arriva
-  { const [fx, fz] = rot(0, tw + 0.08); strand(new THREE.Vector3(fx, NASC.HUB_Y - 0.4, fz), new THREE.Vector3(fx, NASC.SKIRT_Y - 3.0, fz), 0, 0.45); }
-  // pali di legno dei fili bassi (in mesh Kit)
+  // v5s37b (foto di riferimento): tutti i fili partono da UN punto sul campanile, alla base della cella campanaria,
+  // e salgono a raggiera sopra la via fino ai pali sui marciapiedi (davanti e dietro): da chi corre si vedono come
+  // raggi che convergono sulla torre. Attorno al punto, la "gonna" fitta di luci; tre fili salgono fino alla cima.
+  const [hx, hz] = rot(tw * 0.55, tw + 0.15), HUB = new THREE.Vector3(hx, NASC.SKIRT_Y + 0.6, hz);
+  const XR = toLocal(6.75), XL = toLocal(-6.75), poles = [];
+  const RZ = [66, 54, 43, 33, 24, 15, 6, -4, -15, -27], LZ = [66, 56, 47];
+  for (const z of RZ) { poles.push([XR, z, 13.6]); strand(HUB, new THREE.Vector3(XR, 13.4, z), 0.5, 0.62); strand(HUB, new THREE.Vector3(XR, 12.2, z + 1.2), 0.7, 0.62); }
+  for (const z of LZ) { poles.push([XL, z, 13.6]); strand(HUB, new THREE.Vector3(XL, 13.4, z), 0.5, 0.62); strand(HUB, new THREE.Vector3(XL, 12.2, z - 1.2), 0.7, 0.62); }
+  // gonna di luci attorno al punto di partenza (il cono luminoso della foto)
+  for (let i = 0; i < 34; i++) { const ang = (i / 34) * Math.PI * 2, [x0, z0] = rot(Math.cos(ang) * tw * 1.04, Math.sin(ang) * tw * 1.04);
+    const R = 4.6 + Math.sin(i * 1.7) * 0.35; strand(new THREE.Vector3(x0, HUB.y + 0.2, z0), new THREE.Vector3(Math.cos(ang) * R, HUB.y - 3.0, Math.sin(ang) * R), 0.2, 0.36); }
+  // fili verticali sulla facciata, dal punto fino alla cima
+  for (const u of [-0.6, 0, 0.6]) { const [fx, fz] = rot(u * tw, tw + 0.1); strand(new THREE.Vector3(fx, HUB.y, fz), new THREE.Vector3(fx, NASC.HUB_Y, fz), 0, 0.5); }
+  // pali scuri sui marciapiedi (reggono i fili; stile dei pali dei fili del paese)
   const kp = new Kit(2416);
-  for (const [x, z] of poles) { kp.add(G.cyl(0.08, 0.11, 5.9, 6), '#5a4330', { x, y: 2.95, z, flat: true }); kp.add(G.box(0.2, 0.08, 0.2), '#3a2a1e', { x, y: 5.95, z }); }
+  for (const [x, z, h] of poles) { kp.add(G.cyl(0.07, 0.11, h, 6), '#2e2a2a', { x, y: h / 2, z, flat: true }); kp.add(G.box(0.18, 0.08, 0.18), '#1e1a1a', { x, y: h + 0.02, z }); }
   // ---------------------------------------------------- assemblaggio mesh
   const gHut = hutMesh.geo.clone(); gHut.applyMatrix4(hutMesh.m);
   const kAll = new Kit(2417); kAll.lit.push(...splitLit(gHut, 0), ...splitLit(treeGeo, 0), ...splitLit(kp.build(), 0)); kAll.unlit.push(...splitLit(gHut, 1));
@@ -127,7 +126,7 @@ export function buildNascimentu(tex) {
   const wg = new THREE.BufferGeometry(); wg.setAttribute('position', new THREE.Float32BufferAttribute(wires, 3));
   root.add(new THREE.LineSegments(wg, new THREE.LineBasicMaterial({ color: WIRE, transparent: true, opacity: 0.85 })));
   const bg = new THREE.BufferGeometry(); bg.setAttribute('position', new THREE.Float32BufferAttribute(bulbs, 3));
-  const core = new THREE.Points(bg, new THREE.PointsMaterial({ color: '#fff4cc', size: 0.32, sizeAttenuation: true, map: tex.glow, transparent: true, depthWrite: false, toneMapped: false }));
+  const core = new THREE.Points(bg, new THREE.PointsMaterial({ color: '#fff4cc', size: 0.36, sizeAttenuation: true, map: tex.glow, transparent: true, depthWrite: false, toneMapped: false }));
   root.add(core);
   // aloni: due gruppi alterni che sfarfallano piano
   const halos = [];
