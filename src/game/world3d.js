@@ -41,6 +41,7 @@ const ROAD_W = 11.0;
 const WALK_W = 1.45;
 const FACADE = ROAD_W / 2 + WALK_W;
 const FAR_Z = 185;
+const CARPET_Y = 0.05;              // v5s29d: tappeto steso sulla strada (sopra l'ombra a 0.025)
 // v5s27p: crinali lontani
 const RIDGE_VS = `attribute vec2 aK; varying vec2 vK; void main(){ vK = aK; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
 const RIDGE_FS = `uniform vec3 uTop; uniform vec3 uMid; uniform vec3 uHor; uniform vec3 uFog; varying vec2 vK;
@@ -165,7 +166,7 @@ export class World {
       chock: new THREE.MeshLambertMaterial({ color: '#6b4426' }),
       puddle: new THREE.MeshPhongMaterial({ color: '#8fb9d8', specular: '#ffffff', shininess: 90, transparent: true, opacity: 0.86, depthWrite: false }),
       puddleRim: new THREE.MeshLambertMaterial({ color: '#7d756b', transparent: true, opacity: 0.6, depthWrite: false }),
-      carpet: this.tex.carpets.map((t) => new THREE.MeshLambertMaterial({ map: t, alphaTest: 0.5, side: THREE.DoubleSide })),
+      carpet: this.tex.carpets.map((t) => new THREE.MeshLambertMaterial({ map: t, alphaTest: 0.35, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })),
       blob: new THREE.MeshBasicMaterial({ map: this.tex.blob, transparent: true, depthWrite: false, toneMapped: false }),
       ring: new THREE.MeshBasicMaterial({ color: '#ffd45a', transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false }),
       shot: new THREE.MeshBasicMaterial({ color: '#fff2b0' }),
@@ -500,7 +501,7 @@ export class World {
     } else if (kind === 'tappeto') {
       v.body = new THREE.Mesh(this.geo.carpet, this.mat.carpet[(e.variant || 0) % 4]);
       v.glow = this.glowSprite('#ff7a5a', 2.6, 0.32);
-      v.shadow = this.blob(2.2, 1.4);
+      v.shadow = this.blob(2.3, 3.0);   // v5s29d: ombra di contatto sotto il tappeto steso
     } else if (kind === 'pistola') {
       v.body = new THREE.Group();
       const m = new THREE.Mesh(this.geo.pistol, this.mats2); m.scale.setScalar(1.25); v.body.add(m);
@@ -644,8 +645,7 @@ export class World {
         v.ring.scale.setScalar(1 + Math.sin(t * 6) * 0.08);
         v.glow.position.y = 1.35; v.glow.material.opacity = 0.65 + Math.sin(t * 7) * 0.2;
       } else if (e.kind === 'tappeto') {
-        v.body.position.y = 0.38 + Math.sin(t * 3.2 + e.d * 0.05) * 0.1;
-        v.body.rotation.set(-Math.PI / 2 + 0.22 + Math.sin(t * 2.3 + e.d) * 0.05, 0, Math.sin(t * 1.7 + e.d) * 0.12);
+        v.body.position.y = CARPET_Y; v.body.rotation.set(-Math.PI / 2, 0, 0);   // v5s29d: steso a terra (niente volo ne' ondeggio)
         v.glow.position.y = 0.4; v.glow.material.opacity = 0.32 * (1 + this.light.tunnel * 1.3);
         if (v.shadow) v.shadow.visible = true;
       } else if (e.kind === 'carrello') {

@@ -166,9 +166,11 @@ export function carpetTexture(v) {
 // public/textures/sa-burra-1..4.webp (512 px) e sa-burra-N-icon.png (128 px) per l'interfaccia.
 // La texture parte con il disegno procedurale e viene sostituita appena l'immagine e' caricata;
 // se il caricamento fallisce resta il disegno procedurale (fallback).
-export const CARPET_ASPECT = 512 / 272;          // lunghezza / larghezza, frange comprese
+// v5s29d: un'unica foto (versione finale, 860x557) per tutte e 4 le varianti; per cambiarla basta CARPET_TEX
+export const CARPET_ASPECT = 860 / 557;          // lunghezza / larghezza, frange comprese
+export const CARPET_TEX = 'textures/sa-burra-carpet.webp';
 const BASE = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.BASE_URL) || './';
-export const carpetURL = (v, icon = false) => `${BASE}textures/sa-burra-${(v % 4) + 1}${icon ? '-icon.png' : '.webp'}`;
+export const carpetURL = (v, icon = false) => icon ? `${BASE}textures/sa-burra-${(v % 4) + 1}-icon.png` : `${BASE}${CARPET_TEX}`;   // icone: ancora le vecchie
 const carpetLoads = [];
 export function loadCarpetTexture(v, maxAniso = 8) {
   const t = carpetTexture(v);
