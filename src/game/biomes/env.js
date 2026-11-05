@@ -394,16 +394,16 @@ export class Env {
       case 'river': {
         // target2-fiume: bosco fitto e alto a sinistra con alberi chini sul sentiero; a destra piscina larga,
         // parete di travertino muschiata alta e lontana, massi bianchi e felci sulla riva
-        if (s < 0) { const w = fit(7, 11); return own(() => N.slopePiece(W, w, { Hs: 15, dist: 30, trees: 0.75, ferns: 1.0, rocks: 0.7, fence: true, bigFence: true, canopy: true, leaf: LEAF.fresh, rockPal: ROCK.limestone, ground: ['#4f7a2a', '#5f8a30', '#6b8a3c', '#3f6a24', '#7a8a4a'], seed: 9 }), w); }
+        if (s < 0) { const w = fit(7, 11); return own(() => N.slopePiece(W, w, { Hs: 15, dist: 30, trees: 0.75, ferns: 1.0, rocks: 0.7, fence: true, bigFence: true, canopy: true, leaf: LEAF.fresh, rockPal: ROCK.limestone, ground: ['#4f7a2a', '#5f8a30', '#6b8a3c', '#3f6a24', '#7a8a4a'], seed: 9 , skirt: -50 }), w); }
         const w = fit(8, 12); return own(() => N.poolBankPiece(W, w, { cliffX: -21, cliffH: 30, mossy: true, beachW: 1.4, beachX0: 0.95, mossTo: 0.8, lush: true, shallow: true }), w);
       }
       case 'valley': {
-        if (s < 0) { const w = fit(8, 12); return own(() => N.slopePiece(W, w, { Hs: 16, dist: 30, trees: 0.22, rocks: 0.5, wall: true, wallH: 0.9, ferns: 0.05, seed: 13, ground: ['#7a7a44', '#6b7a3e', '#8a7a5a', '#9a8f6a', '#6e6a40'], conifers: true }), w); }
+        if (s < 0) { const w = fit(8, 12); return own(() => N.slopePiece(W, w, { Hs: 16, dist: 30, trees: 0.22, rocks: 0.5, wall: true, wallH: 0.9, ferns: 0.05, seed: 13, ground: ['#7a7a44', '#6b7a3e', '#8a7a5a', '#9a8f6a', '#6e6a40'], conifers: true , skirt: -50 }), w); }
         const w = fit(8, 12); return own(() => N.riverDropPiece(W, w, { depth: 4 }), w);
       }
       case 'mineYard': {
-        if (s < 0) { const w = fit(8, 13); return own(() => N.cliffPiece(W, w, { H0: 17, Hamp: 7, lean: 0.12, pal: ['#7d7a74', '#8f8b83', '#6c6a65', '#9c978e'], moss: 0.2, mossCol: '#7a6a52', leaf: LEAF.dry, top: 'shrub', seed: 17 }), w); }
-        const w = fit(8, 12); return own(() => N.slopePiece(W, w, { Hs: 18, dist: 26, trees: 0.06, rocks: 0.6, wall: true, wallH: 1.4, leaf: LEAF.dry, ground: ['#8a857c', '#7a766e', '#9a958c', '#7a7a56'], rockPal: ['#7d7a74', '#8f8b83', '#6c6a65'], seed: 19, ferns: 0 }), w);
+        if (s < 0) { const w = fit(8, 13); return own(() => N.cliffPiece(W, w, { H0: 17, Hamp: 7, lean: 0.12, pal: ['#7d7a74', '#8f8b83', '#6c6a65', '#9c978e'], moss: 0.2, mossCol: '#7a6a52', leaf: LEAF.dry, top: 'shrub', seed: 17 , solid: 22 }), w); }
+        const w = fit(8, 12); return own(() => N.slopePiece(W, w, { Hs: 18, dist: 26, trees: 0.06, rocks: 0.6, wall: true, wallH: 1.4, leaf: LEAF.dry, ground: ['#8a857c', '#7a766e', '#9a958c', '#7a7a56'], rockPal: ['#7d7a74', '#8f8b83', '#6c6a65'], seed: 19, ferns: 0 , skirt: -50 }), w);
       }
       case 'tunnel': default:
         return { W0: W, W1: W + Math.min(lim, 20), w: Math.min(lim, 20), mesh: null, lamps: [] };

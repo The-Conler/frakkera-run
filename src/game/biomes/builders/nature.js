@@ -41,6 +41,15 @@ export function cliffPiece(W0, len, o = {}) {
     return _c.getHex();
   });
   addColored(k, g);
+  // v5s27q: parete piena (non un foglio): pianoro in cima che va indietro, scarpata dietro fino a terra e fianchi chiusi ai capi
+  if (o.solid) {
+    const D = o.solid, xt = (W) => -0.35 - lean * Hf(W) - 3.5, sc = () => pickN(pal, 0.4), tc = (x, y, z) => pickN(['#6b6a48', '#7a7656', '#5f6a40', '#8a8468'], fbm((W0 - z) / 6, x / 5, sd + 7, 2) * 0.5 + 0.5);
+    const both = (f, col) => { for (const rev of [false, true]) addColored(k, gridSurface(Math.max(2, Math.ceil(len / 3)), 2, (u, v) => f(rev ? 1 - u : u, v), col)); };
+    both((u, v) => { const W = W0 + u * len; return [xt(W) - v * D, Hf(W) + 0.6 - v * v * 3, -u * len]; }, tc);                              // pianoro
+    both((u, v) => { const W = W0 + u * len; return [xt(W) - D - v * 8, Hf(W) - 2.4 - v * (Hf(W) + 30), -u * len]; }, sc);                  // scarpata dietro
+    for (const e of [0, 1]) for (const rev of [false, true]) addColored(k, gridSurface(6, 4, (u0, v) => { const u = rev ? 1 - u0 : u0, W = W0 + e * len, H = Hf(W);
+      const x0 = -0.35 - lean * v * H - 1.2, x1 = xt(W) - D - 8 * v; return [x0 + (x1 - x0) * u, v * H + (1 - v) * (u > 0.9 ? -30 : 0), -e * len]; }, sc));   // fianchi
+  }
   // cespugli aggrappati e alberi in cima
   const nS = Math.round(len * (o.shrubs ?? 0.5));
   for (let i = 0; i < nS; i++) {
@@ -74,6 +83,15 @@ export function slopePiece(W0, len, o = {}) {
   const g = gridSurface(nu, nv, (u, v) => { const W = W0 + u * len; const x = 0.6 - Math.pow(v, 1.25) * D; return [x, hAt(x, W) - (v === 0 ? 0.05 : 0), -u * len]; },
     (x, y, z) => { const W = W0 - z; return pickN(gcol, fbm(W / 6, x / 5, sd + 2, 2) * 0.5 + 0.5); });
   addColored(k, g);
+  // v5s27q: gonna di roccia/terra sotto il bordo esterno e ai due capi (il pendio non resta piu' sospeso sopra la valle
+  // della roccia: da lontano si vedeva il piano inclinato tagliato e il vuoto sotto)
+  if (o.skirt) {
+    const B = o.skirt, sc = (x, y) => pickN(['#c4d080', '#b4c470', '#c8bc8c', '#a8c068'], fbm(x / 7, y / 6, sd + 4, 2) * 0.5 + 0.5);
+    const wall = (f, revs = [false, true]) => { for (const rev of revs) addColored(k, gridSurface(8, 3, (u, v) => f(rev ? 1 - u : u, v), sc)); };
+    // scarpate inclinate (non pareti verticali: cosi' prendono la luce del cielo e sembrano un versante naturale)
+    wall((u, v) => { const W = W0 + u * len, x = 0.6 - D, h = hAt(x, W); return [x - (h - B) * 0.9 * v, h + (B - h) * v, -u * len]; });
+    for (const e of [0, 1]) wall((u, v) => { const W = W0 + e * len, x = 0.6 - Math.pow(u, 1.25) * D, h = hAt(x, W) - 0.05, dy = (h - B) * v * Math.min(1, u * 6); return [x, h - dy, -e * len + (e ? -1 : 1) * dy * 0.9]; }, [e === 1]);
+  }
   const dens = o.trees ?? 0.25;
   for (let i = 0; i < Math.round(len * dens); i++) {
     const zl = -r() * len, x = -r.range(3.5, D * 0.95), W = W0 - zl, y = hAt(x, W);

@@ -340,6 +340,7 @@ export const SANTAMARTA = {
   BIOME: 'village',
   FROM_M: 240, LEN_M: 30,   // facciata a fine paese (dopo vicolo e cappella), la navata sconfina nei primi metri della roccia
   LEAD_M: 8,                // niente ostacoli anche sui gradini davanti al portone
+  NO_SPAN_M: 80,            // v5s27q: niente travi/balconi di traverso negli ultimi 80 m prima della chiesa (coprivano il portone)
 };
 
 // ---- feat-village: vita del paese (flusso RNG separato, vedi generator.maybeVillage) ----

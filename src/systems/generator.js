@@ -358,7 +358,8 @@ export class Generator {
 
   fillUntil(maxDist, emit) {
     // v5 stage 24: nessun ostacolo (anche mobile, nato nelle file prima) dentro la navata di Santa Marta
-    const em = emit; emit = (e) => { if (!MASK_KINDS[e.kind] && (SOLID[e.kind] || e.kind === 'pozza' || e.kind === 'trave' || e.kind === 'panni' || e.kind === 'processione' || e.kind === 'acqua') && (santaMartaAt((e.d) / PX_PER_METER + this.offM, SANTAMARTA.LEAD_M, 2) || santaMartaAt((e.d + (e.len || 0)) / PX_PER_METER + this.offM, SANTAMARTA.LEAD_M, 2))) return; em(e); };
+    const em = emit; emit = (e) => { if ((e.kind === 'trave' || e.kind === 'panni' || e.kind === 'processione') && (santaMartaAt(e.d / PX_PER_METER + this.offM, SANTAMARTA.NO_SPAN_M, 2) || santaMartaAt((e.d + (e.len || 0)) / PX_PER_METER + this.offM, SANTAMARTA.NO_SPAN_M, 2))) return;   // v5s27q: nessuna trave/balcone di traverso davanti alla chiesa (su ogni giro)
+    if (!MASK_KINDS[e.kind] && (SOLID[e.kind] || e.kind === 'pozza' || e.kind === 'trave' || e.kind === 'panni' || e.kind === 'processione' || e.kind === 'acqua') && (santaMartaAt((e.d) / PX_PER_METER + this.offM, SANTAMARTA.LEAD_M, 2) || santaMartaAt((e.d + (e.len || 0)) / PX_PER_METER + this.offM, SANTAMARTA.LEAD_M, 2))) return; em(e); };
     while (this.rowDist(this.row) < maxDist) {
       this._used = null;
       this.genRow(this.row, emit);
