@@ -592,8 +592,9 @@ export class Generator {
       if (rng() >= pObs * (boost ? 1.25 : 1)) continue;
       let kind;
       const k = rng();
+      const village = biomeIdAt(D, this.offM) === 'village';   // v5s36: nel paese niente dischi d'acqua sulle pietre
       if (boost) kind = k < 0.6 ? 'botte' : k < 0.85 ? 'bottecoricata' : 'muretto';
-      else if (diff >= DF.PUDDLE_FROM && k < 0.22) kind = 'pozza';
+      else if (!village && diff >= DF.PUDDLE_FROM && k < 0.14) kind = 'pozza';   // v5s36: pozze piu' rare anche fuori (prima 0.22)
       else if (k < 0.48) kind = 'muretto';
       else if (k < (nature ? 1 - NT.LOG_SHARE : 0.8)) kind = 'botte';
       else kind = 'bottecoricata';

@@ -308,10 +308,10 @@ export const SKINS = [
 export const FESTA = {
   BIOME: 'village',
   FROM_M: 30, TO_M: 128,    // metri dentro il paese (dopo l'offerta del Garag, prima del ballu tundu)
-  X: 66,                    // bancarelle e folla sul marciapiede (px dal centro strada)
-  STALL_GAP: [4, 6],        // file tra due bancarelle sullo stesso lato
-  CROWD_GAP: [3, 5],        // file tra due gruppi di folla
-  FESTOON_ROWS: 4,          // un festone con le luci ogni X file
+  X: 74,                    // v5s36: piu' sul marciapiede (prima 66: le bancarelle entravano nella via e nelle case)
+  STALL_GAP: [10, 16],      // v5s36: meno bancarelle (prima [4,6]: via intasata)
+  CROWD_GAP: [5, 8],        // v5s36: folla un po' piu' rada
+  FESTOON_ROWS: 10,         // v5s36: meno festoni (prima ogni 4 file: cielo pieno di bandierine)
   BRUSH_PX: 14,             // passando nella corsia laterale vicino alla folla: applauso
   PTS: 20,
   STREAK: 6,                // ogni X tappeti di fila nella festa: la folla esulta
@@ -379,7 +379,7 @@ export const SANTAMARTA = {
 // paesani alle finestre: esultano per le scie di tappeti nel paese fuori dalla festa (log V)
 export const VILLAGE = {
   BIOME: 'village',
-  LAUNDRY_SHARE: 0.6,       // quota di travi nel paese che diventano panni stesi
+  LAUNDRY_SHARE: 0.22,      // v5s36: meno panni (prima 0.6: lenzuola bianche luminose di traverso alla via)
   WEAVER_FROM_M: 130, WEAVER_TO_M: 162,   // v5s24: dopo la festa, prima del vicolo in mezzo alla via (niente sovrapposizioni con blocchi e Santa Marta)
   WEAVER_GAP: [14, 22],     // file tra due tessitrici
   WEAVER_X: 52,             // px dal centro (bordo del marciapiede, v5s24: piu' vicina per leggersi sul telefono)

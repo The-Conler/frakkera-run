@@ -11,21 +11,21 @@ const LINE_Y = 2.25, HALF = 6.3;          // come la trave (biomes/builders/skin
 
 // filo da balcone a balcone con lenzuola, tovaglie e camicie; la nonna affacciata a sinistra
 export function laundryGeom(v = 0) {
-  return once('laundry' + v, () => {
+  return once('laundry36_' + v, () => {   // v5s36: nuovo cache key (palette + lit)
     const k = new Kit(410 + v), r = rng(410 + v);
     const N = 20, yAt = (t) => LINE_Y + 1.25 - Math.sin(t * Math.PI) * 0.35;
     for (let i = 0; i < N; i++) {
       const t0 = i / N, t1 = (i + 1) / N, x0 = -HALF - 0.5 + (HALF * 2 + 1) * t0, x1 = -HALF - 0.5 + (HALF * 2 + 1) * t1, ya = yAt(t0), yb = yAt(t1);
       k.add(G.box(Math.hypot(x1 - x0, yb - ya), 0.04, 0.04), '#e8e2d4', { x: (x0 + x1) / 2, y: (ya + yb) / 2, rz: Math.atan2(yb - ya, x1 - x0) });
     }
-    const PAL = ['#e6e0d4', '#ece8e0', '#d4dce8', '#e8c8c0', '#b8cce0', '#e8d8a8'];
+    const PAL = ['#d8cbb6', '#cfc3a8', '#c4b8a0', '#d2b09e', '#a8b4c0', '#d0c090'];   // v5s36: crema (niente bianco puro che sembra un placeholder)
     let x = -HALF + 0.3;
     while (x < HALF - 0.6) {
       const t = (x + HALF + 0.5) / (HALF * 2 + 1), y = yAt(t), kind = r.int(0, 3);
       if (kind <= 1) {             // lenzuolo / tovaglia: lungo fino quasi all'altezza della trave
         const w = r.range(1.1, 1.7), h = y - LINE_Y + 0.05, col = r.pick(PAL);
-        k.add(G.box(w, h, 0.05), col, { x: x + w / 2, y: y - h / 2, rz: r.range(-0.03, 0.03), unlit: true });
-        if (kind === 1) for (let j = 0; j < 3; j++) k.add(G.box(w, 0.08, 0.07), '#c8283a', { x: x + w / 2, y: y - 0.25 - j * 0.3, unlit: true });   // tovaglia a righe rosse
+        k.add(G.box(w, h, 0.05), col, { x: x + w / 2, y: y - h / 2, rz: r.range(-0.03, 0.03) });   // v5s36: lit (unlit faceva lenzuola bianche al neon)
+        if (kind === 1) for (let j = 0; j < 3; j++) k.add(G.box(w, 0.08, 0.07), '#c8283a', { x: x + w / 2, y: y - 0.25 - j * 0.3 });   // tovaglia a righe rosse
         k.add(G.box(0.05, 0.12, 0.08), '#8a6a3a', { x: x + 0.1, y: y + 0.02 }); k.add(G.box(0.05, 0.12, 0.08), '#8a6a3a', { x: x + w - 0.1, y: y + 0.02 });   // mollette
         x += w + 0.15;
       } else {                     // camicia o calze
