@@ -39,13 +39,13 @@ export const BIOMES = [
   },
   {
     id: 'river', name: 'Il fiume e la piscina naturale', from: 500, to: 750,
-    ground: { road: 'stoneTrail', shoulder: 'mossEdge', curb: false, terrain: '#4f6e2e', terrainY: -0.06, right: 'water' },
+    ground: { road: 'stoneTrail', shoulder: 'mossEdge', curb: false, terrain: '#4f6e2e', terrainY: -0.06, right: 'water', mirrorWater: true },
     sides: 'river',
     landmarks: ['pool'],
     skins: { botte: 'mossBoulder', botti: 'mossBoulders', bottecoricata: 'log', rollbarrel: 'log', muretto: 'mossWall', goat: 'goat', pozza: 'puddle', narrow: 'mossOutcrop', bagnato: 'wetStone', trave: 'beamTrunkMoss' },
     decor: { banners: false, bulbs: false, lanterns: false },
-    mood: { top: '#5f96cc', mid: '#a8d0b8', hor: '#e8f0c0', fog: '#b8d0a0', hemiS: '#f4ffd0', hemiG: '#2f4a20', hemiI: 1.3, dirC: '#ffd890', dirI: 2.4, moon: 0, sun: 0.9, far: '#8fb090', fogNear: 120, fogFar: 560 },
-    light: { flameDist: 13, flameK: 1.15, mineral: 0, lamp: 0, darkByFuel: 0, tunnel: 0, exposure: 1.05, camLook: 0.2, camFov: 5, camYaw: 2.4 },  // v5s6: inquadratura girata verso la piscina (target3-cascata)
+    mood: { top: '#5f96cc', mid: '#a8d0b8', hor: '#e8f0c0', fog: '#a4bc98', hemiS: '#f4ffd0', hemiG: '#2f4a20', hemiI: 1.3, dirC: '#ffd890', dirI: 2.4, moon: 0, sun: 0.9, far: '#8fb090', fogNear: 170, fogFar: 640 },
+    light: { flameDist: 13, flameK: 1.15, mineral: 0, lamp: 0, darkByFuel: 0, tunnel: 0, exposure: 1.05, camLook: 0.2, camFov: 5, camYaw: 0.9 },  // v5s28: fiume a sinistra e parete a destra entrambi in quadro; v5s6: inquadratura girata verso la piscina (target3-cascata)
     ambience: { wind: 0.04, water: 0.22, drips: 0, birds: 0.7, bells: 0, cave: 0 },
     transitionOut: 35,
   },

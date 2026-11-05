@@ -381,3 +381,51 @@ export function buildPinnacle(seed = 3) {
 export function waterfallGeometry(h, w) {
   const g = new THREE.PlaneGeometry(w, h, 1, 6); g.translate(0, -h / 2, 0); return g;
 }
+
+// ------------------------------------------------------------------ v5s28: Sa Stiddiosa
+// Parete enorme a strati (cenge che sporgono verso la via, rientranze scure sotto), tende di felci e muschio
+// che pendono dalle cenge (fronde allungate, non cespugli tondi), rocce bagnate scure dove cadono le cascatelle.
+// Costruita a sinistra (x<0, x=0 = bordo del sentiero), specchiata a destra da sidePiece.
+export function stiddiosaCliffPiece(W0, len, o = {}) {
+  const sd = o.seed || 28, r = rng((Math.floor(W0 * 11) ^ sd) >>> 0);
+  const k = new Kit(Math.floor(W0) + 28);
+  const BH = 5.2;                                                     // altezza di una cengia
+  const Hf = (W) => 30 + 7 * fbm(W / 50, sd, 0.4, 2);
+  const lip = (W, y) => { const b = Math.floor(y / BH); return 0.9 * Math.sin(b * 2.3 + W / 23) + 0.6 * fbm(W / 14, b, sd + 2, 2); };
+  const wet = (W) => { const f = o.falls || []; let m = 0; for (const fw of f) m = Math.max(m, 1 - Math.abs(W - fw) / 3.2); return m; };
+  const X = (W, y) => {
+    const b = y / BH, t = b - Math.floor(b);                           // 0 in basso alla cengia, 1 al labbro
+    const recess = 2.6 * Math.pow(1 - t, 1.7);                         // rientranza sotto ogni labbro
+    const over = 3.2 * Math.min(1, y / 22);                            // la parete in alto sporge verso la via
+    return -2.6 - recess + over + lip(W, y) + 0.7 * noise3(W / 3.1, y / 2.7, sd);
+  };
+  const nu = Math.max(2, Math.ceil(len / 1.4)), nv = 30;
+  const g = gridSurface(nu, nv, (u, v) => {
+    const W = W0 + u * len, H = Hf(W), y = v * H;
+    return [v === 1 ? X(W, y) - 4 : X(W, y), v === 1 ? H + 0.5 : y, -u * len];
+  }, (x, y, z) => {
+    const W = W0 - z, b = y / BH, t = b - Math.floor(b), n = fbm(W / 8, y / 5, sd + 5, 2) * 0.5 + 0.5;
+    _c.set(pickN(['#9a8a72', '#ab9a7e', '#8a7a64', '#b8a684', '#7e705e'], n));
+    _c.lerp(_c2.set('#2e2a24'), Math.pow(1 - t, 3) * 0.6);             // ombra sotto le cenge
+    if (t > 0.82) _c.lerp(_c2.set('#d8bf8e'), 0.35);                    // labbro caldo preso dal sole
+    const w = wet(W); if (w > 0) _c.lerp(_c2.set('#3a3a32'), w * 0.65);  // roccia bagnata
+    if (noise3(W / 5, y / 4, sd + 8) > 0.35 && t > 0.5) _c.lerp(_c2.set('#4f7a2e'), 0.55);   // muschio
+    return _c.getHex();
+  });
+  addColored(k, g);
+  // tende di felci che pendono dai labbri delle cenge (fronde coniche verso il basso, verdi diversi)
+  const greens = ['#3f7a26', '#4f8a2c', '#5f9a34', '#2f6a22', '#6aa83a', '#37702a'];
+  for (let y = BH; y < 34; y += BH) for (let z = -r() * 1.5; z > -len; z -= r.range(0.5, 1.3)) {
+    const W = W0 - z; if (y > Hf(W) - 1 || wet(W) > 0.4) continue;
+    if (noise3(W / 7, y / 9, sd + 3) < -0.25) continue;                 // tende a chiazze irregolari
+    const x = X(W, y - 0.05) + 0.2, L = r.range(1.2, 4.2) * (0.6 + 0.6 * (noise3(W / 4, y, sd) * 0.5 + 0.5));
+    k.add(G.cone(r.range(0.25, 0.5), L, 4), r.pick(greens), { x: x + r.range(-0.2, 0.4), y: y - L / 2, z: z + r.range(-0.3, 0.3), rx: Math.PI, rz: r.range(-0.15, 0.15), ry: r.range(0, 3), flat: true, vary: 0.18, sx: r.range(0.5, 0.9) });
+    if (r.chance(0.5)) k.add(G.cone(0.6, 0.5, 5), r.pick(greens), { x, y: y + 0.1, z, flat: true, vary: 0.2, sy: 0.6 });   // ciuffo sul bordo
+  }
+  // felci grandi alla base e alberi in cima
+  for (let z = -r() * 2; z > -len; z -= r.range(1.4, 3)) fern(k, r, -r.range(0.6, 2.2), 0, z, r.range(1.0, 1.6));
+  for (let z = -r() * 3; z > -len; z -= r.range(3, 6)) { const W = W0 - z; tree(k, r, X(W, Hf(W)) - r.range(5, 9), Hf(W) + 0.3, z, r.range(1.2, 1.8), LEAF.fresh); }
+  // massi muschiati ai piedi
+  for (let z = -r() * 3; z > -len; z -= r.range(3, 6)) addRock(k, r, -r.range(0.3, 1.6), 0.1, z, r.range(0.4, 0.9), ['#7e7a68', '#6e7458', '#8a8670'], { squash: 0.7 });
+  return k.build({ ao: 0.3 });
+}

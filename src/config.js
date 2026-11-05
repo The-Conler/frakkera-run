@@ -332,7 +332,7 @@ export const UPGRADES = [
 export const WEATHER = {
   RAIN_FROM_LAP: 3,        // giro (da 0) della prima notte di pioggia; poi un giro si' e uno no
   PUDDLE_GAP_ROWS: [8, 18], PUDDLE_SLOW: 0.86, PUDDLE_SLOW_S: 0.55,
-  FOG_BIOMES: ['rock', 'river'], FOG_BLOCK_M: 130, FOG_P: 0.6, FOG_LEN_M: [35, 65], FOG_FAR: 0.14,
+  FOG_BIOMES: ['rock'], FOG_BLOCK_M: 130, FOG_P: 0.6, FOG_LEN_M: [35, 65], FOG_FAR: 0.3,   // v5s28: niente nebbia a Sa Stiddiosa (copriva le cascate), nebbia meno fitta sulla roccia (QA L3)
 };
 
 // v5 stage 24: chiesa di Santa Marta attraversata di corsa (fine del paese): navata libera, solo tappeti sulla passatoia

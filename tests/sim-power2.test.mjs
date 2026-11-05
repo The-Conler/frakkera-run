@@ -58,7 +58,7 @@ const runUntilNear = (sim, e, gap, act) => { for (let i = 0; i < 2000; i++) { if
 { // nebbia
   let inFog = 0, bad = 0;
   for (let m = 0; m < CYCLE * 2; m += 1) { const f = fogAt(m); if (f > 0) { inFog++; if (!WEATHER.FOG_BIOMES.includes(biomeAt(m).b.id)) bad++; } }
-  ok('nebbia solo su roccia e fiume', inFog > 100 && bad === 0, inFog);
+  ok('nebbia solo sulla roccia (v5s28: niente a Sa Stiddiosa)', inFog > 50 && bad === 0, inFog);
   ok('nebbia deterministica', fogAt(612.3) === fogAt(612.3));
 }
 console.log(fail ? `\n${fail} FALLITI` : '\nTUTTI OK'); process.exit(fail ? 1 : 0);

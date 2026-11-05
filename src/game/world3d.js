@@ -96,6 +96,7 @@ const COL = {
   green: new THREE.Color('#d8f07a'), white: new THREE.Color('#fff6e0'),
 };
 
+const _vf = new THREE.Vector3();
 export class World {
   constructor(container) {
     this.container = container;
@@ -1108,6 +1109,11 @@ export class World {
       const key = sim.mode === 'run' && sim.T * U > 3 ? at + '|' + sim.genOffset : null;   // v5s27: non fissarlo coi metri del menu   // in corsa: fissato una volta per giro e mai piu' spostato
       if (!key || this.vistaAt !== key) { this.vistaAt = key; this.vistaZ = -sim.T * U - ahead; }   // fissato una volta: poi mai piu' spostato
       this.vista.position.set(VISTA.X, 0, this.vistaZ); }
+    // v5s28: spruzzi al piede delle cascatelle di Sa Stiddiosa (poche particelle, solo quelle vicine)
+    if (this.env.falls && this.env.falls.length) { this._fallAcc = (this._fallAcc || 0) + dt;
+      if (this._fallAcc > 0.06) { this._fallAcc = 0; const cz = this.camera.position.z;
+        for (const f of this.env.falls) { if (!f.parent || !f.visible) continue; f.getWorldPosition(_vf); if (_vf.z > cz + 4 || _vf.z < cz - 70) continue;
+          this.norm.emit(_vf.x - 0.4 + Math.random() * 0.8, 0.25, _vf.z + (Math.random() - 0.5) * 1.6, (Math.random() - 0.7) * 1.6, Math.random() * 2.2 + 0.8, (Math.random() - 0.5) * 1.2, 0.7, 0.22, 0.1, COL.water, 0.8, 9, 0.5); } } }
     // v5s23: neve al suolo (niente nella galleria) e nevicata
     { const st = this.snowTgt || this.snow, kk = Math.min(1, dt * 1.5), out = 1 - this.light.tunnel;
       this.snow.ground += (st.ground - this.snow.ground) * kk; this.snow.fall += (st.fall - this.snow.fall) * kk;

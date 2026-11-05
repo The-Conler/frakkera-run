@@ -133,6 +133,7 @@ function strip(x0, x1, y = 0) { const g = new THREE.PlaneGeometry(x1 - x0, 1).ro
 
 // valle della roccia: a sinistra del sentiero (la destra dell'inquadratura e' occupata dalla fiamma)
 // le montagne cominciano presto (floorW 70) cosi' entrano nell'inquadratura verticale dietro la guglia
+export const STIDDIOSA_FALLS = [[34, 17, 2.4], [62, 20, 1.8], [96, 16, 2.6], [128, 19, 2.0], [166, 17, 2.4], [204, 20, 1.8], [238, 16, 2.5]];   // v5s28: (z locale, altezza, larghezza)
 const valleyRock = (Bm) => N.valleyTerrain(Bm - 30, 430, { side: -1, x0: 14.5, topY: -7, floorY: -46, dropW: 24, floorW: 70, far: 300, mtnH: 120, seed: 7, trees: 900 });
 // ---------------------------------------------------------------- monumenti (per bioma, distanza locale)
 // at: punto di riferimento (distanza locale nel bioma); exist: [da, a] relativo ad at in cui esiste
@@ -205,11 +206,13 @@ export class Env {
       none: groundMat(this.tex.mineFloor, { phong: true, shininess: 30 }),
     };
     this.waterMat = { pool: waterMat(nrm, '#0f8a72', 0.8, { x0: 6.5, x1: 16, a: '0.03, 0.21, 0.17', b: '0.004, 0.075, 0.062' }), river: waterMat(nrm, '#3f7f7c', 0.86) };
+    this.waterMat.pool.side = THREE.DoubleSide;   // v5s28: specchiata a sinistra (fiume di Sa Stiddiosa)
     this.tunnelMat = { rock: tunnelMat(false), blue: tunnelMat(true) };
     this.fallMat = new THREE.MeshBasicMaterial({ color: '#f4fbff', transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide, map: this.fallTexture() });
     this.fallMat.map.wrapT = THREE.RepeatWrapping; this.fallMat.map.repeat.set(1, 2);
     this.lit = new THREE.MeshLambertMaterial({ vertexColors: true });
-    this.shaftMat = new THREE.MeshBasicMaterial({ map: this.shaftTexture(), color: '#fff2c8', transparent: true, opacity: 0.2, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+    this.mistMat = new THREE.MeshBasicMaterial({ map: this.mistTexture(), color: '#f0fff8', transparent: true, opacity: 0.45, depthWrite: false, side: THREE.DoubleSide });
+    this.shaftMat = new THREE.MeshBasicMaterial({ map: this.shaftTexture(), color: '#fff2c8', transparent: true, opacity: 0.12, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
     this.geo = {
       road: strip(-ROAD_W / 2, ROAD_W / 2),
       walk: (() => { const a = new THREE.BoxGeometry(WALK_W, 0.22, 1); a.translate(0, 0.11, -0.5); return a; })(),
@@ -218,6 +221,11 @@ export class Env {
       waterPool: strip(6.1, 80, -0.3), edgeN: strip(5.5, 6.25, 0.02), waterRiver: strip(13.0, 85, -4.0),
     };
     this.miscGeo = new Map();
+  }
+  mistTexture() {
+    const c = document.createElement('canvas'); c.width = 64; c.height = 64; const x = c.getContext('2d');
+    const g = x.createRadialGradient(32, 40, 2, 32, 40, 30); g.addColorStop(0, 'rgba(255,255,255,0.8)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+    x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c);
   }
   shaftTexture() {
     const c = document.createElement('canvas'); c.width = 32; c.height = 128; const x = c.getContext('2d');
@@ -229,7 +237,8 @@ export class Env {
   }
   fallTexture() {
     const c = document.createElement('canvas'); c.width = 32; c.height = 128; const x = c.getContext('2d');
-    for (let i = 0; i < 40; i++) { x.fillStyle = `rgba(255,255,255,${0.2 + Math.random() * 0.6})`; x.fillRect(Math.random() * 32, Math.random() * 128, 1 + Math.random() * 2, 10 + Math.random() * 40); }
+    x.fillStyle = 'rgba(220,240,255,0.35)'; x.fillRect(4, 0, 24, 128);   // v5s28: velo continuo, le cascatelle si leggono
+    for (let i = 0; i < 60; i++) { x.fillStyle = `rgba(255,255,255,${0.4 + Math.random() * 0.6})`; x.fillRect(Math.random() * 32, Math.random() * 128, 1 + Math.random() * 2, 10 + Math.random() * 40); }
     const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
   }
   blendMat(a, b) {
@@ -245,10 +254,10 @@ export class Env {
     const one = (w, h, x, y, col) => k.add(G.box(w, h, 1), col, { x, y, z: -0.5 });
     if (g.curb) for (const s of [-1, 1]) one(0.22, 0.26, s * (ROAD_W / 2 + 0.05), 0.13, '#9a8e80');
     if (g.terrain) {
-      if (g.left !== 'drop') one(80, 0.1, -(9.0 + 40), (g.terrainY ?? -0.06) - 0.05, g.terrain);   // con la valle a sinistra niente terreno piano
-      if (!g.right) one(80, 0.1, 9.0 + 40, (g.terrainY ?? -0.06) - 0.05, g.terrain);
+      if (g.left !== 'drop' && !g.mirrorWater) one(80, 0.1, -(9.0 + 40), (g.terrainY ?? -0.06) - 0.05, g.terrain);   // con la valle a sinistra niente terreno piano
+      if (!g.right || g.mirrorWater) one(80, 0.1, 9.0 + 40, (g.terrainY ?? -0.06) - 0.05, g.terrain);
     }
-    if (g.right === 'water') one(80, 0.1, 6.2 + 40, -3.2, '#0e6e58');
+    if (g.right === 'water') one(80, 0.1, (6.2 + 40) * (g.mirrorWater ? -1 : 1), -3.2, '#0e6e58');   // v5s28: fiume a sinistra (Sa Stiddiosa)
     if (g.right === 'river') one(80, 0.1, 12 + 40, -6.0, '#5a5a48');
     if (g.rails) for (const lx of [0, 3.4]) for (const s of [-0.52, 0.52]) { one(0.1, 0.12, lx + s, 0.06, '#6a4a32'); one(0.05, 0.03, lx + s, 0.135, g.wet ? '#c4cfee' : '#9a7a62'); }
     const geom = k.build();
@@ -335,6 +344,7 @@ export class Env {
     add(this.misc(b.id), this.mats2, 'misc');
     if (g.right === 'water') add(this.geo.waterPool, this.waterMat.pool, 'water');
     if (g.right === 'river') add(this.geo.waterRiver, this.waterMat.river, 'water');
+    if (g.mirrorWater) for (const m of meshes) if (m.userData.key === 'water' || m.userData.key === 'edgeRn' || m.userData.key === 'edgeL') m.scale.x = -m.scale.x;   // v5s28: acqua a sinistra, riva erbosa a destra
     for (const m of meshes) if (m.scale.x < 0) m.material = m.material; // (specchio: three gestisce il determinante negativo)
     this.stats.segs++;
     return { W0, W1, meshes, b: b.id };
@@ -394,8 +404,9 @@ export class Env {
       case 'river': {
         // target2-fiume: bosco fitto e alto a sinistra con alberi chini sul sentiero; a destra piscina larga,
         // parete di travertino muschiata alta e lontana, massi bianchi e felci sulla riva
-        if (s < 0) { const w = fit(7, 11); return own(() => N.slopePiece(W, w, { Hs: 15, dist: 30, trees: 0.75, ferns: 1.0, rocks: 0.7, fence: true, bigFence: true, canopy: true, leaf: LEAF.fresh, rockPal: ROCK.limestone, ground: ['#4f7a2a', '#5f8a30', '#6b8a3c', '#3f6a24', '#7a8a4a'], seed: 9 , skirt: -50 }), w); }
-        const w = fit(8, 12); return own(() => N.poolBankPiece(W, w, { cliffX: -21, cliffH: 30, mossy: true, beachW: 1.4, beachX0: 0.95, mossTo: 0.8, lush: true, shallow: true }), w);
+        // v5s28 (Sa Stiddiosa): fiume a sinistra (riva bassa e boscosa di la'), parete a strati con felci e cascatelle a destra
+        if (s < 0) { const w = fit(8, 12); return own(() => N.poolBankPiece(W, w, { cliffX: -24, cliffH: 7, mossy: true, beachW: 1.4, beachX0: 0.95, mossTo: 0.8, lush: true, shallow: true }), w); }
+        const w = fit(8, 12), F = STIDDIOSA_FALLS.map(([lz]) => W - loc + lz); return own(() => N.stiddiosaCliffPiece(W, w, { falls: F }), w);
       }
       case 'valley': {
         if (s < 0) { const w = fit(8, 12); return own(() => N.slopePiece(W, w, { Hs: 16, dist: 30, trees: 0.22, rocks: 0.5, wall: true, wallH: 0.9, ferns: 0.05, seed: 13, ground: ['#7a7a44', '#6b7a3e', '#8a7a5a', '#9a8f6a', '#6e6a40'], conifers: true , skirt: -50 }), w); }
@@ -734,20 +745,20 @@ export class Env {
     } else if (id === 'valley') {
       cached('valley', () => valleyRock(Bm)).position.z = Bm;
     } else if (id === 'pool') {
-      // cascate grandi e ben visibili davanti alla parete (ora piu' lontana: piscina larga)
-      // v5s6 (target3-cascata): parete lontana (piscina larga fino al sentiero), tante cascate sottili e luminose + qualche grande
-      for (const [lz, h, w] of [[30, 26, 7], [58, 29, 5], [85, 28, 9], [112, 30, 6], [140, 30, 8], [168, 27, 5], [195, 28, 9], [222, 27, 6], [248, 25, 7]]) {
-        const fall = mesh(N.waterfallGeometry(h, w), this.fallMat); fall.position.set(19.8, h - 0.6, -lz); fall.rotation.y = -1.05;   // rivolta verso chi arriva
-        lamps.push(this.lamp(21, 0.7, -lz - W, '#ffffff', 12, 0.45));
-      }
-      for (const [lz, h, w] of [[22, 26, 2.4], [52, 30, 2.0], [88, 29, 2.6], [122, 31, 2.2], [158, 28, 2.4], [192, 30, 2.0], [226, 27, 2.6], [252, 25, 2.2]]) {
-        const fall = mesh(N.waterfallGeometry(h, w), this.fallMat); fall.position.set(20.4, h - 0.6, -lz); fall.rotation.y = -1.05;
+      // v5s28 (Sa Stiddiosa): cascatelle sottili dalle cenge della parete a destra, spruzzi e foschia leggera al piede,
+      // fiume a sinistra con isolotti e massi muschiati; niente piu' nebbia bianca che copre tutto
+      this.falls = [];
+      for (const [lz, h, w] of STIDDIOSA_FALLS) {
+        const fall = mesh(N.waterfallGeometry(h, w), this.fallMat); fall.position.set(6.4, h - 0.3, -lz); fall.rotation.y = -1.0;
+        const fall2 = mesh(N.waterfallGeometry(h * 0.8, w * 0.45), this.fallMat); fall2.position.set(6.6, h * 0.8 - 0.3, -lz - w * 0.8); fall2.rotation.y = -1.0;
+        const mist = mesh(this.mistGeo || (this.mistGeo = new THREE.PlaneGeometry(4.5, 2.6)), this.mistMat, true); mist.position.set(6.6, 1.0, -lz); mist.rotation.y = -1.0;
+        this.falls.push(fall);
+        lamps.push(this.lamp(7.2, 0.7, -lz - W, '#e8fff4', 7, 0.35));
       }
       const ig = this.markGeom('islet', () => N.isletGeometry(41)); m_gpu.push(ig);
-      for (const [x, lz, ry] of [[13, 58, 0.4], [15, 150, -0.6], [12.5, 228, 1.2]]) { const isl = mesh(ig, this.mats2, true); isl.position.set(x, -0.2, -lz); isl.rotation.y = ry; }
-      // fasci di luce che filtrano tra le chiome (piani additivi: 1 draw call ciascuno, solo qui)
+      for (const [x, lz, ry] of [[-14, 58, 0.4], [-16, 150, -0.6], [-13, 228, 1.2]]) { const isl = mesh(ig, this.mats2, true); isl.position.set(x, -0.2, -lz); isl.rotation.y = ry; }
       const sg = this.shaftGeo || (this.shaftGeo = (() => { const g = new THREE.PlaneGeometry(3.2, 26); g.translate(0, -13, 0); return g; })());
-      for (const [sx, lz, rz] of [[2.5, 28, 0.42], [6.5, 64, 0.38], [1.5, 101, 0.45], [7.5, 138, 0.4], [3.5, 176, 0.42], [6, 214, 0.36]]) {
+      for (const [sx, lz, rz] of [[2.5, 28, 0.42], [1.5, 101, 0.45], [3.5, 176, 0.42]]) {
         const sh = mesh(sg, this.shaftMat, true); sh.position.set(sx, 24, -lz); sh.rotation.set(0, -0.6, rz);
       }
     } else if (id === 'viaduct') {
