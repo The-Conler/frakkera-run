@@ -1139,7 +1139,8 @@ export class World {
       // fiato condensato davanti al viso quando fa freddo
       if (this.snow.ground > 0.45 && out > 0.5 && sim.mode === 'run') { this.breathT -= dt; if (this.breathT <= 0) { this.breathT = 1.3; this.breath?.(sim); } } }
     this.moon.position.set(this.camera.position.x - 70, 150, camZ - 300);
-    this.sunGlow.position.set(this.camera.position.x + 60, 16, camZ - 360);
+    { const L = this.light || {}; this.sunGlow.position.set(this.camera.position.x + 60 + (L.glowX || 0), 16 + (L.glowY || 0), camZ - 360);   // v5s32: sole per ambiente (Sa Stiddiosa: basso a sinistra)
+      this.skyU.uSunDir.value.set(0.25 + (L.skySunX || 0), 0.08, -1).normalize(); }
     for (const c of this.clouds) c.position.set(c.userData.x + this.camera.position.x * 0.0 + Math.sin(this.clock * 0.02 + c.userData.y) * 10, c.userData.y, camZ - 320 + c.userData.z);
     // v5: ambienti a tratti (terreno, lati, galleria, monumenti)
     this.env.update(-camZ, sim.T * U, dt, this.clock);
@@ -1147,7 +1148,7 @@ export class World {
     if (this.camera.aspect < 0.8) { const Wc = -camZ; for (const d of this.env.decor) if (d.mesh) d.mesh.visible = d.W0 - Wc < 90; }
     this.animateViews(sim, dt);
     this.animateCompanions(sim, dt);
-    this.dir.position.set(px - 30, 40, pz - 25); this.dir.target.position.set(px, 0, pz);
+    { const L = this.light || {}; this.dir.position.set(px - 30 + (L.sunDX || 0), 40 + (L.sunDY || 0), pz - 25 + (L.sunDZ || 0)); this.dir.target.position.set(px, 0, pz); }   // v5s32: direzione del sole per ambiente
 
     // personaggio: modello 3D (v4) oppure sprite di riserva (v3) se il GLB non e' (ancora) disponibile
     const base = _v3.set(px, 0, pz);

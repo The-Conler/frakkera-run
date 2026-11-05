@@ -56,6 +56,27 @@ export function trailTexture() {
   }
   return tex(c);
 }
+// v5s32 (Sa Stiddiosa, target): terra battuta bruna con pochi sassetti grigi, centro piu' chiaro e consumato,
+// bordo destro in ombra (finta ombra della parete) e bordo sinistro scurito dal muretto
+export function earthTrailTexture() {
+  const S = 512; const [c, ctx] = cv(S, S); const r = rng(52);
+  ctx.fillStyle = '#86705c'; ctx.fillRect(0, 0, S, S);
+  speckle(ctx, S, r, 2600, ['#7e6852', '#957c64', '#705c4a', '#9c846c', '#887462'], 2, 9, 0.55);
+  speckle(ctx, S, r, 900, ['#b08a62', '#6f5236'], 1, 3, 0.5);
+  // fascia centrale consumata (piu' chiara) e due tracce leggere
+  { const g = ctx.createLinearGradient(0, 0, S, 0);
+    g.addColorStop(0.0, 'rgba(200,170,128,0)'); g.addColorStop(0.3, 'rgba(200,170,128,0.0)'); g.addColorStop(0.5, 'rgba(196,170,136,0.16)'); g.addColorStop(0.7, 'rgba(200,170,128,0.0)'); g.addColorStop(1, 'rgba(200,170,128,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, S, S); }
+  for (let i = 0; i < 140; i++) { const x = S * r.range(0.4, 0.6), y = r() * S; ctx.fillStyle = 'rgba(200,178,146,0.10)'; wrapDraw(S, x, y, (X, Y) => blob(ctx, X, Y, r.range(6, 18), r.range(12, 40), 0)); }
+  stones(ctx, S, r, 420, ['#9a958c', '#aaa59a', '#8a857c', '#b8b2a6', '#7c776e'], 1.5, 5, 'rgba(40,28,16,0.45)');
+  stones(ctx, S, r, 60, ['#a19c92', '#8e897f', '#b4aea2'], 5, 9, 'rgba(40,28,16,0.5)');
+  // bordi: piu' sassi e un po' di muschio, ombra a destra (parete) e a sinistra (muretto)
+  for (let i = 0; i < 220; i++) { const side = i % 2, x = side ? S - r() * 34 : r() * 26, y = r() * S; ctx.fillStyle = r.pick(['#6a7a36', '#5a6a2e', '#8a8a5a', '#7a7468']); wrapDraw(S, x, y, (X, Y) => blob(ctx, X, Y, r.range(2, 6), r.range(2, 5), r() * 3)); }
+  { const g = ctx.createLinearGradient(0, 0, S, 0);
+    g.addColorStop(0, 'rgba(30,18,10,0.42)'); g.addColorStop(0.07, 'rgba(30,18,10,0)'); g.addColorStop(0.72, 'rgba(24,16,14,0)'); g.addColorStop(0.9, 'rgba(24,16,14,0.30)'); g.addColorStop(1, 'rgba(24,16,14,0.5)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, S, S); }
+  return tex(c);
+}
 // lastricato naturale di pietra chiara con muschio (sentiero del fiume)
 export function stoneTrailTexture() {
   // v5s13 (target4 cascata): letto di torrente - ciottoli chiari grigio-beige tondeggianti, sabbia e muschio
@@ -102,6 +123,7 @@ export function edgeTexture(kind) {
     grassEdge: ['#6f8a3a', ['#7f9a44', '#5d7a32', '#8aa34e', '#a99a6c', '#9a8c70']],
     mossEdge: ['#4f7a2a', ['#5f8a30', '#6f9a3a', '#86ad4a', '#cfc8b4', '#3f6a24']],
     drystone: ['#8f7f62', ['#a89a7e', '#7f9a44', '#bfb092', '#6f8a3a']],
+    earthEdge: ['#5e4c34', ['#6a5638', '#4e5a2a', '#7a6a4c', '#5a6a30', '#8a857c', '#3e4a24']],   // v5s32: terra scura in ombra, muschio e sassi
     gravelEdge: ['#77736c', ['#8d8a84', '#6c6a62', '#7a7a56', '#a19d96']],
   }[kind] || ['#777', ['#888']];
   ctx.fillStyle = P[0]; ctx.fillRect(0, 0, S, S);

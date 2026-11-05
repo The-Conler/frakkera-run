@@ -39,13 +39,14 @@ export const BIOMES = [
   },
   {
     id: 'river', name: 'Il fiume e la piscina naturale', from: 500, to: 750,
-    ground: { road: 'stoneTrail', shoulder: 'mossEdge', curb: false, terrain: '#4f6e2e', terrainY: -0.06, right: 'water', mirrorWater: true },
+    ground: { road: 'earthTrail', shoulder: 'earthEdge', curb: false, terrain: '#4f6e2e', terrainY: -0.06, right: 'water', mirrorWater: true },   // v5s32: terra battuta (target)
     sides: 'river',
     landmarks: ['pool'],
     skins: { botte: 'mossBoulder', botti: 'mossBoulders', bottecoricata: 'log', rollbarrel: 'log', muretto: 'mossWall', goat: 'goat', pozza: 'puddle', narrow: 'mossOutcrop', bagnato: 'wetStone', trave: 'beamTrunkMoss' },
     decor: { banners: false, bulbs: false, lanterns: false },
-    mood: { top: '#5f96cc', mid: '#a8d0b8', hor: '#e8f0c0', fog: '#a4bc98', hemiS: '#f4ffd0', hemiG: '#2f4a20', hemiI: 1.3, dirC: '#ffd890', dirI: 2.4, moon: 0, sun: 0.9, far: '#8fb090', fogNear: 170, fogFar: 640 },
-    light: { flameDist: 13, flameK: 1.15, mineral: 0, lamp: 0, darkByFuel: 0, tunnel: 0, exposure: 1.05, camLook: 0.2, camFov: 5, camYaw: 0.9 },  // v5s28: fiume a sinistra e parete a destra entrambi in quadro; v5s6: inquadratura girata verso la piscina (target3-cascata)
+    // v5s32 (target): tramonto - cielo blu-viola, lilla, pesca all'orizzonte; sole basso dietro a sinistra; foschia calda
+    mood: { top: '#3a4a9c', mid: '#b08ac0', hor: '#ffb070', fog: '#c89a8e', hemiS: '#ffe8d8', hemiG: '#3a3644', hemiI: 1.3, dirC: '#ffd8b0', dirI: 3.0, moon: 0, sun: 1.6, far: '#d8a8a0', fogNear: 60, fogFar: 380 },
+    light: { flameDist: 13, flameK: 1.15, mineral: 0, lamp: 0, darkByFuel: 0, tunnel: 0, exposure: 1.2, camLook: 0.2, camFov: 5, camYaw: 0.9, sunDX: -30, sunDY: -22, sunDZ: -45, glowX: -88, glowY: 30, skySunX: -0.3 },  // v5s28: fiume a sinistra e parete a destra entrambi in quadro; v5s6: inquadratura girata verso la piscina (target3-cascata)
     ambience: { wind: 0.04, water: 0.22, drips: 0, birds: 0.7, bells: 0, cave: 0 },
     transitionOut: 35,
   },

@@ -387,50 +387,110 @@ export function waterfallGeometry(h, w) {
   const g = new THREE.PlaneGeometry(w, h, 1, 6); g.translate(0, -h / 2, 0); return g;
 }
 
+// v5s33: albero tondo leggero per i piani lontani (chioma di icosaedri semplici: ~1/4 dei triangoli di tree())
+function lowTree(k, r, x, y, z, s = 1, leaf = LEAF.fresh) {
+  const h = s * r.range(2.4, 3.4);
+  k.add(G.cyl(0.14 * s, 0.24 * s, h, 5), '#5a4430', { x, y: y + h / 2, z, flat: true });
+  for (let i = 0; i < 4; i++) k.add(G.ico(s * r.range(1.0, 1.6), 0), r.pick(leaf), { x: x + r.range(-0.9, 0.9) * s, y: y + h + r.range(-0.2, 1.2) * s, z: z + r.range(-0.9, 0.9) * s, flat: true, vary: 0.25, sy: 0.85 });
+}
+// ------------------------------------------------------------------ v5s32: Sa Stiddiosa, sponda sinistra (target)
+// muretto basso di pietra sul bordo del sentiero, sponda rocciosa che scende nel fiume, massi tondi muschiati
+// nell'acqua, ogni tanto un grande albero sulla riva vicina, riva lontana bassa e boscosa
+export function stiddiosaBankPiece(W0, len, o = {}) {
+  const r = rng((Math.floor(W0 * 23) ^ 91) >>> 0);
+  const k = new Kit(Math.floor(W0) + 32);
+  const CL = o.farX ?? -22;
+  dryWall(k, r, 0.95, 0, len, 0.62, ['#8a8478', '#9a9486', '#7a766a', '#a8a292', '#878f74'], 0.6);
+  for (let z = -r() * 3; z > -len; z -= r.range(2.5, 5)) k.add(G.box(0.7, 0.08, r.range(0.4, 0.9)), r.pick(['#5f7a30', '#6f8a3a', '#4f6a2a']), { x: 0.95, y: 0.72, z, vary: 0.2 });   // muschio sul colmo
+  // sponda: dal piede del muretto giu' nell'acqua
+  addColored(k, gridSurface(Math.max(2, Math.ceil(len / 1.5)), 3, (u, v) => { const W = W0 + u * len; return [0.66 - v * 1.4 + noise3(W / 2.3, v * 3, 5) * 0.25 * v, 0.02 - v * 1.5, -u * len]; },
+    (x, y, z) => pickN(['#6e6a5c', '#7c776a', '#5f6a3e', '#8a857a'], noise3((W0 - z) / 1.7, y * 2, 3) * 0.5 + 0.5)));
+  // letto del fiume (si vede sotto l'acqua bassa vicino alla riva)
+  addColored(k, gridSurface(Math.max(2, Math.ceil(len / 3)), 6, (u, v) => { const W = W0 + u * len; return [-0.6 + v * (CL + 0.6), -1.3 - Math.pow(v, 0.6) * 1.6 + noise3(W / 4, v * 5, 9) * 0.15, -u * len]; },
+    (x, y, z) => { const t = Math.min(1, (-0.6 - x) / (-0.6 - CL)); _c.set('#5a7a5a').lerp(_c2.set('#1e5a4c'), Math.min(1, t * 2.2)).lerp(_c2.set('#0c3a34'), Math.max(0, t * 1.5 - 0.5)); return _c.getHex(); }));
+  // massi tondi muschiati nel fiume
+  const rc = ['#8a877c', '#9a968a', '#7a786e', '#a8a496', '#6f7a5a'];
+  for (let i = 0; i < len * 0.42; i++) { const v = Math.pow(r(), 1.6), x = -0.9 - v * 15, s = r.range(0.35, 1.0) * (1 + v * 0.8);
+    addRock(k, r, x, -0.45 - v * 0.4, -r() * len, s, rc, { squash: 0.58, rough: 0.18, detail: s > 0.8 ? 1 : 0 });
+    if (r.chance(0.4)) k.add(G.ico(s * 0.75, 0), r.pick(['#5a7a30', '#6a8a3a', '#4e6a2a']), { x, y: -0.45 - v * 0.4 + s * 0.42, z: -r() * len, sy: 0.32, vary: 0.15 }); }
+  // grande albero sulla riva vicina (ogni tanto), radici sul masso
+  if (o.bigTree ?? r.chance(0.34)) { const z = -r.range(1, len - 1); addRock(k, r, -1.6, -0.6, z, 1.3, rc, { squash: 0.6, rough: 0.2, detail: 1 }); tree(k, r, -1.7, 0.1, z, r.range(2.2, 2.7), LEAF.fresh); }
+  // riva lontana: bassa, boscosa (alberi tondi), qualche masso
+  addColored(k, gridSurface(Math.max(2, Math.ceil(len / 2)), 4, (u, v) => { const W = W0 + u * len; return [CL - v * 8 - (v > 0.7 ? 6 : 0), -1.5 + v * (3.2 + 2.5 * (fbm(W / 30, 3, 1, 2) + 0.5)), -u * len]; },
+    (x, y, z) => pickN(['#4f6a2a', '#5f7a30', '#6a7a3a', '#7a7a5a', '#8a8470'], noise3((W0 - z) / 3, y / 2, 4) * 0.5 + 0.5)));
+  for (let z = -r() * 4; z > -len; z -= r.range(5, 8)) { const W = W0 - z; lowTree(k, r, CL - r.range(5, 12), 1.7 + 2.5 * (fbm(W / 30, 3, 1, 2) + 0.5), z, r.range(1.4, 2.1), LEAF.fresh); }
+  return k.build({ ao: 0.15 });
+}
+
 // ------------------------------------------------------------------ v5s28: Sa Stiddiosa
 // Parete enorme a strati (cenge che sporgono verso la via, rientranze scure sotto), tende di felci e muschio
 // che pendono dalle cenge (fronde allungate, non cespugli tondi), rocce bagnate scure dove cadono le cascatelle.
 // Costruita a sinistra (x<0, x=0 = bordo del sentiero), specchiata a destra da sidePiece.
+export const STIDDIOSA_CLIFF = { BH: 8, FOOT: 0.55, LEAN: 6.5, LEAN_Y0: 8, H0: 41 };   // v5s32: piede a ~6.4 m dal centro, 40-45 m, sbalzo 6.5 m solo sopra 8 m
+// profilo della parete (coordinate del pezzo: x=0 facciata, +x verso la via). Condiviso con le tende di felci della piscina.
+export function stiddiosaProfile(sd = 28, falls = [], back = 0) {
+  const { BH, FOOT, LEAN, LEAN_Y0, H0 } = STIDDIOSA_CLIFF;
+  const Hf = (W) => H0 + 4 * fbm(W / 50, sd, 0.4, 2);
+  const wet = (W) => { let m = 0; for (const fw of falls) m = Math.max(m, 1 - Math.abs(W - fw) / 3.4); m = Math.max(0, m); return m * m * (3 - 2 * m); };
+  const band = (W, y) => { const yy = y + 3.5 * fbm(W / 14, sd + 1, 0.3, 2); const b = Math.floor(yy / BH); return { b, t: yy / BH - b }; };
+  const X = (W, y) => {
+    const { b, t } = band(W, y), w = wet(W);
+    const mass = 0.35 + 0.65 * (noise3(W / 5, b * 1.7, sd + 4) * 0.5 + 0.5);         // masse tondeggianti a blocchi, non fasce continue
+    const bulge = (Math.pow(Math.sin(Math.PI * Math.min(1, t * 1.08)), 0.55) - 0.5) * 2.2 * mass;   // cuscino tondo per cengia, piega scura tra le cenge
+    const lump = 1.2 * noise3(W / 6, y / 5, sd) + 0.5 * noise3(W / 2.2, y / 2.0, sd + 7);
+    const yl = Math.max(0, Math.min(1, (y - LEAN_Y0) / 30)), over = LEAN * yl * yl * (3 - 2 * yl) * (1 - 0.85 * w);
+    let x = FOOT + bulge + lump + over - 1.6 * w - back - (back ? 1.5 * w : 0);
+    if (y < 3.5) x = Math.min(x, 1.0);                                                  // mai dentro la via sotto i 3 m (bordo via: x = 1.45)
+    return x;
+  };
+  return { Hf, wet, band, X };
+}
+// griglia con normali morbide (masse arrotondate invece delle sfaccettature)
+function smoothGrid(nu, nv, f, col) {
+  const P = []; for (let j = 0; j <= nv; j++) { const row = []; for (let i = 0; i <= nu; i++) row.push(new THREE.Vector3(...f(i / nu, j / nv))); P.push(row); }
+  const N = P.map((row, j) => row.map((p, i) => { const a = P[j][Math.min(nu, i + 1)].clone().sub(P[j][Math.max(0, i - 1)]), b = P[Math.min(nv, j + 1)][i].clone().sub(P[Math.max(0, j - 1)][i]); return a.cross(b).normalize(); }));
+  const pos = [], nor = [], cols = [];
+  const push = (j, i) => { const p = P[j][i], n = N[j][i]; pos.push(p.x, p.y, p.z); nor.push(n.x, n.y, n.z); _c.set(col(p.x, p.y, p.z, n)); cols.push(_c.r, _c.g, _c.b); };
+  for (let j = 0; j < nv; j++) for (let i = 0; i < nu; i++) { push(j, i); push(j, i + 1); push(j + 1, i + 1); push(j, i); push(j + 1, i + 1); push(j + 1, i); }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+  return g;
+}
 export function stiddiosaCliffPiece(W0, len, o = {}) {
   const sd = o.seed || 28, r = rng((Math.floor(W0 * 11) ^ sd) >>> 0);
   const k = new Kit(Math.floor(W0) + 28);
-  const BH = 5.2;                                                     // altezza di una cengia
-  const Hf = (W) => 30 + 7 * fbm(W / 50, sd, 0.4, 2);
-  const lip = (W, y) => { const b = Math.floor(y / BH); return 0.9 * Math.sin(b * 2.3 + W / 23) + 0.6 * fbm(W / 14, b, sd + 2, 2); };
-  const wet = (W) => { const f = o.falls || []; let m = 0; for (const fw of f) m = Math.max(m, 1 - Math.abs(W - fw) / 3.2); return m; };
-  const X = (W, y) => {
-    const b = y / BH, t = b - Math.floor(b);                           // 0 in basso alla cengia, 1 al labbro
-    const recess = 2.6 * Math.pow(1 - t, 1.7);                         // rientranza sotto ogni labbro
-    const over = 3.2 * Math.min(1, y / 22);                            // la parete in alto sporge verso la via
-    return -2.6 - recess + over + lip(W, y) + 0.7 * noise3(W / 3.1, y / 2.7, sd);
-  };
-  const nu = Math.max(2, Math.ceil(len / 1.4)), nv = 30;
-  const g = gridSurface(nu, nv, (u, v) => {
+  const B = !!o.backing;                                                              // v5s33: dietro i moduli 3D basta una parete semplice, un po' arretrata
+  const { Hf, wet, band, X } = stiddiosaProfile(sd, o.falls || [], B ? 2.5 : 0);
+  const nu = Math.max(2, Math.ceil(len / (B ? 2.2 : 1.1))), nv = B ? 16 : 46;
+  const rockPal = ['#9a9080', '#aaa08c', '#887e70', '#b4aa96', '#786e62', '#a09682'];
+  const g = smoothGrid(nu, nv, (u, v) => {
     const W = W0 + u * len, H = Hf(W), y = v * H;
     return [v === 1 ? X(W, y) - 4 : X(W, y), v === 1 ? H + 0.5 : y, -u * len];
-  }, (x, y, z) => {
-    const W = W0 - z, b = y / BH, t = b - Math.floor(b), n = fbm(W / 8, y / 5, sd + 5, 2) * 0.5 + 0.5;
-    _c.set(pickN(['#9a8a72', '#ab9a7e', '#8a7a64', '#b8a684', '#7e705e'], n));
-    _c.lerp(_c2.set('#2e2a24'), Math.pow(1 - t, 3) * 0.6);             // ombra sotto le cenge
-    if (t > 0.82) _c.lerp(_c2.set('#d8bf8e'), 0.35);                    // labbro caldo preso dal sole
-    const w = wet(W); if (w > 0) _c.lerp(_c2.set('#3a3a32'), w * 0.65);  // roccia bagnata
-    if (noise3(W / 5, y / 4, sd + 8) > 0.35 && t > 0.5) _c.lerp(_c2.set('#4f7a2e'), 0.55);   // muschio
+  }, (x, y, z, n) => {
+    const W = W0 - z, { t } = band(W, y), nn = fbm(W / 8, y / 5, sd + 5, 2) * 0.5 + 0.5;
+    _c.set(pickN(rockPal, nn));
+    const up = Math.max(0, n.y);                                                        // facce rivolte in alto: muschio e luce calda
+    _c.lerp(_c2.set('#2a241e'), Math.pow(1 - Math.sin(Math.PI * t), 2.2) * (t < 0.5 ? 0.7 : 0.35));   // pieghe scure tra le masse
+    if (up > 0.22 && noise3(W / 4, y / 3, sd + 8) > -0.35) _c.lerp(_c2.set(pickN(['#4f7a2e', '#5f8a34', '#3f6a26'], nn)), Math.min(0.9, (up - 0.22) * 2.5));
+    else if (noise3(W / 3, y / 2.5, sd + 12) > 0.45) _c.lerp(_c2.set('#56703a'), 0.45);   // macchie di muschio sulle pareti
+    else if (n.y < -0.3) _c.multiplyScalar(0.72);                                       // sotto le sporgenze
+    const w = wet(W); if (w > 0) _c.lerp(_c2.set('#34342c'), w * 0.6);
     return _c.getHex();
   });
   addColored(k, g);
-  // tende di felci che pendono dai labbri delle cenge (fronde coniche verso il basso, verdi diversi)
-  const greens = ['#3f7a26', '#4f8a2c', '#5f9a34', '#2f6a22', '#6aa83a', '#37702a'];
-  for (let y = BH; y < 34; y += BH) for (let z = -r() * 1.5; z > -len; z -= r.range(0.5, 1.3)) {
-    const W = W0 - z; if (y > Hf(W) - 1 || wet(W) > 0.4) continue;
-    if (noise3(W / 7, y / 9, sd + 3) < -0.25) continue;                 // tende a chiazze irregolari
-    const x = X(W, y - 0.05) + 0.2, L = r.range(1.2, 4.2) * (0.6 + 0.6 * (noise3(W / 4, y, sd) * 0.5 + 0.5));
-    k.add(G.cone(r.range(0.25, 0.5), L, 4), r.pick(greens), { x: x + r.range(-0.2, 0.4), y: y - L / 2, z: z + r.range(-0.3, 0.3), rx: Math.PI, rz: r.range(-0.15, 0.15), ry: r.range(0, 3), flat: true, vary: 0.18, sx: r.range(0.5, 0.9) });
-    if (r.chance(0.5)) k.add(G.cone(0.6, 0.5, 5), r.pick(greens), { x, y: y + 0.1, z, flat: true, vary: 0.2, sy: 0.6 });   // ciuffo sul bordo
+  const BH = STIDDIOSA_CLIFF.BH;   // v5s33: le tende di felci sono carte (stiddiosa3d.js), appese nel monumento della piscina
+  // cuscini di muschio tondi sopra le masse (normali morbide)
+  if (!B) for (let y = BH * 0.75; y < 40; y += BH) for (let z = -r() * 2; z > -len; z -= r.range(1.8, 3.2)) {
+    const W = W0 - z; if (y > Hf(W) - 1 || wet(W) > 0.3 || noise3(W / 6, y / 7, sd + 21) < -0.2) continue;
+    k.add(G.ico(r.range(0.7, 1.3), 0), r.pick(['#4f7a2e', '#5f8a34', '#3f6a26', '#6a9a3a']), { x: X(W, y) - 0.4, y: y + 0.2, z, sy: 0.55, sx: 1.2, vary: 0.15 });
   }
-  // felci grandi alla base e alberi in cima
-  for (let z = -r() * 2; z > -len; z -= r.range(1.4, 3)) fern(k, r, -r.range(0.6, 2.2), 0, z, r.range(1.0, 1.6));
-  for (let z = -r() * 3; z > -len; z -= r.range(3, 6)) { const W = W0 - z; tree(k, r, X(W, Hf(W)) - r.range(5, 9), Hf(W) + 0.3, z, r.range(1.2, 1.8), LEAF.fresh); }
-  // massi muschiati ai piedi
-  for (let z = -r() * 3; z > -len; z -= r.range(3, 6)) addRock(k, r, -r.range(0.3, 1.6), 0.1, z, r.range(0.4, 0.9), ['#7e7a68', '#6e7458', '#8a8670'], { squash: 0.7 });
+  // piede: massi grigi tondi e felci sul bordo della via (mai dentro la via sotto i 3 m)
+  for (let z = -r() * 2; z > -len; z -= r.range(1.6, 3.4)) {
+    const s = r.range(0.45, 1.0), x = Math.min(1.45 - 1.3 * s, X(W0 - z, 0.5) + 0.2);
+    addRock(k, r, x, 0.05, z, s, ['#8a877c', '#9a968a', '#7a786e', '#6f7a5a'], { squash: 0.75, rough: 0.2, detail: 1 });
+  }
+  for (let z = -r() * 2; z > -len; z -= r.range(1.3, 2.6)) fern(k, r, r.range(-0.45, 0.05), 0, z, r.range(0.6, 0.8));
+  // alberi tondi in cima
+  for (let z = -r() * 3; z > -len; z -= r.range(4.5, 7) * (B ? 1.4 : 1)) { const W = W0 - z; lowTree(k, r, X(W, Hf(W)) - r.range(3, 8), Hf(W) + 0.3, z, r.range(1.5, 2.1), LEAF.fresh); }
   return k.build({ ao: 0.3 });
 }

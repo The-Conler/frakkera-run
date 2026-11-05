@@ -14,6 +14,8 @@ import * as M from '../models.js';
 import * as BT from './textures.js';
 import * as N from './builders/nature.js';
 import { loadTower, fitTower, towerModel } from './towerModel.js';
+import { loadCliffModels, cliffModels, buildCliffInstances, buildCurtains, fernMaterial, FERN_U } from './stiddiosa3d.js';
+import { buildFalls, makeFaceX, stiddiosaFallSpecs, waterMaterial, fxMaterial, WATER_U } from './stiddiosaFalls.js';
 import * as S from './builders/structures.js';
 import { buildChurchSquare } from './builders/church.js';
 import { buildVicolo, buildCappella, buildCappellaLeft } from './builders/gadoni5.js';
@@ -33,7 +35,7 @@ const LOD_D = 230, LOD_MIN = 0.8, BATCH = 70;   // i pezzi lontani sono uniti a 
 const _c = new THREE.Color();
 const MOOD_KEYS = ['top', 'mid', 'hor', 'fog', 'hemiS', 'hemiG', 'dirC', 'far'];
 const NUM_KEYS = ['hemiI', 'dirI', 'moon', 'sun', 'fogNear', 'fogFar'];
-const LIGHT_KEYS = ['flameDist', 'flameK', 'mineral', 'lamp', 'darkByFuel', 'tunnel', 'exposure', 'camLook', 'camFov', 'camYaw'];
+const LIGHT_KEYS = ['flameDist', 'flameK', 'mineral', 'lamp', 'darkByFuel', 'tunnel', 'exposure', 'camLook', 'camFov', 'camYaw', 'sunDX', 'sunDY', 'sunDZ', 'glowX', 'glowY', 'skySunX'];   // v5s32: sole per ambiente (0 = come prima)
 const AMB_KEYS = ['wind', 'water', 'drips', 'birds', 'bells', 'cave'];
 
 // ---------------------------------------------------------------- materiali del suolo con UV nel mondo
@@ -159,6 +161,8 @@ export class Env {
     this.world = world; this.scene = world.scene; this.mats2 = world.mats2;
     this.markCache = new Map();
     if (typeof window !== 'undefined') setTimeout(() => this.prewarm(), 200);
+    // v5s33: i moduli della parete arrivano in un attimo (3 x ~11 KB); se nel frattempo si e' gia' costruito qualcosa, si ricostruisce una volta
+    if (typeof window !== 'undefined') loadCliffModels().then((m) => { if (m && this._camW != null) this.rebuild(null, this._camW); });
     const dev = mapFromURL();
     this.dev = dev;
     // salto di mappa (solo grafica): ?map=<id> e, opzionale, &at=<metri dentro l'ambiente>
@@ -189,11 +193,11 @@ export class Env {
     const t = this.world.tex;
     const nrm = BT.waterNormalTexture();
     this.tex = {
-      cobble: t.cobble, slab: t.slab, trail: BT.trailTexture(), stoneTrail: BT.stoneTrailTexture(), gravel: BT.gravelTexture(),
+      cobble: t.cobble, slab: t.slab, trail: BT.trailTexture(), stoneTrail: BT.stoneTrailTexture(), earthTrail: BT.earthTrailTexture(), gravel: BT.gravelTexture(),
       mineFloor: BT.gravelTexture({ floor: true }), blueFloor: BT.gravelTexture({ blue: true }), nrm,
-      grassEdge: BT.edgeTexture('grassEdge'), mossEdge: BT.edgeTexture('mossEdge'), drystone: BT.edgeTexture('drystone'), gravelEdge: BT.edgeTexture('gravelEdge'),
+      grassEdge: BT.edgeTexture('grassEdge'), mossEdge: BT.edgeTexture('mossEdge'), drystone: BT.edgeTexture('drystone'), gravelEdge: BT.edgeTexture('gravelEdge'), earthEdge: BT.edgeTexture('earthEdge'),
     };
-    this.roadTex = { cobble: this.tex.cobble, trail: this.tex.trail, stoneTrail: this.tex.stoneTrail, gravel: this.tex.gravel, mineFloor: this.tex.mineFloor, blueFloor: this.tex.blueFloor };
+    this.roadTex = { cobble: this.tex.cobble, trail: this.tex.trail, stoneTrail: this.tex.stoneTrail, earthTrail: this.tex.earthTrail, gravel: this.tex.gravel, mineFloor: this.tex.mineFloor, blueFloor: this.tex.blueFloor };
     this.roadMat = {};
     for (const k in this.roadTex) this.roadMat[k] = groundMat(this.roadTex[k], k === 'blueFloor' || k === 'mineFloor' ? { phong: true, wet: false, shininess: k === 'blueFloor' ? 24 : 18, specular: k === 'blueFloor' ? '#2a3044' : '#2a2c30' } : {});
     this.blendMats = new Map();
@@ -203,6 +207,7 @@ export class Env {
       mossEdge: groundMat(this.tex.mossEdge, { sx: 1 / 3, sz: 1 / 3, x0: 0, abs: true }),
       drystone: groundMat(this.tex.drystone, { sx: 1 / 3, sz: 1 / 3, x0: 0, abs: true }),
       gravelEdge: groundMat(this.tex.gravelEdge, { sx: 1 / 3, sz: 1 / 3, x0: 0, abs: true }),
+      earthEdge: groundMat(this.tex.earthEdge, { sx: 1 / 3, sz: 1 / 3, x0: 0, abs: true }),
       none: groundMat(this.tex.mineFloor, { phong: true, shininess: 30 }),
     };
     this.waterMat = { pool: waterMat(nrm, '#0f8a72', 0.8, { x0: 6.5, x1: 16, a: '0.03, 0.21, 0.17', b: '0.004, 0.075, 0.062' }), river: waterMat(nrm, '#3f7f7c', 0.86) };
@@ -405,8 +410,8 @@ export class Env {
         // target2-fiume: bosco fitto e alto a sinistra con alberi chini sul sentiero; a destra piscina larga,
         // parete di travertino muschiata alta e lontana, massi bianchi e felci sulla riva
         // v5s28 (Sa Stiddiosa): fiume a sinistra (riva bassa e boscosa di la'), parete a strati con felci e cascatelle a destra
-        if (s < 0) { const w = fit(8, 12); return own(() => N.poolBankPiece(W, w, { cliffX: -24, cliffH: 7, mossy: true, beachW: 1.4, beachX0: 0.95, mossTo: 0.8, lush: true, shallow: true }), w); }
-        const w = fit(8, 12), F = STIDDIOSA_FALLS.map(([lz]) => W - loc + lz); return own(() => N.stiddiosaCliffPiece(W, w, { falls: F }), w);
+        if (s < 0) { const w = fit(8, 12); return own(() => N.stiddiosaBankPiece(W, w, {}), w); }   // v5s32: muretto + fiume vicino (target)
+        const w = fit(8, 12), F = STIDDIOSA_FALLS.map(([lz]) => W - loc + lz); return own(() => N.stiddiosaCliffPiece(W, w, { falls: F, backing: !!cliffModels() }), w);
       }
       case 'valley': {
         if (s < 0) { const w = fit(8, 12); return own(() => N.slopePiece(W, w, { Hs: 16, dist: 30, trees: 0.22, rocks: 0.5, wall: true, wallH: 0.9, ferns: 0.05, seed: 13, ground: ['#7a7a44', '#6b7a3e', '#8a7a5a', '#9a8f6a', '#6e6a40'], conifers: true , skirt: -50 }), w); }
@@ -434,6 +439,7 @@ export class Env {
       () => { for (const h of this.prefabs.get('church0').houses) this.prefab('house', h.seed % 26, () => M.buildHouse(h.seed % 26 + 1)); },
       () => this.markGeom('pinnacle', () => N.buildPinnacle(3)),
       () => { loadTower(); },
+      () => { loadCliffModels(); },   // v5s33: moduli della parete di Sa Stiddiosa
       () => this.markGeom('valley', () => valleyRock(250)),
       () => this.markGeom('viaduct', () => S.buildViaduct((x) => (x < 0 ? -2 : -5))),
       () => this.markGeom('valleyRiverR', () => N.valleyTerrain(750 - 150, 460, { side: 1, x0: 70, topY: -4.4, floorY: -4.4, dropW: 2, floorW: 30, far: 340, mtnH: 85, seed: 11, trees: 520, relief: 38 })),
@@ -773,14 +779,19 @@ export class Env {
     } else if (id === 'pool') {
       // v5s28 (Sa Stiddiosa): cascatelle sottili dalle cenge della parete a destra, spruzzi e foschia leggera al piede,
       // fiume a sinistra con isolotti e massi muschiati; niente piu' nebbia bianca che copre tutto
-      this.falls = [];
-      for (const [lz, h, w] of STIDDIOSA_FALLS) {
-        const fall = mesh(N.waterfallGeometry(h, w), this.fallMat); fall.position.set(6.4, h - 0.3, -lz); fall.rotation.y = -1.0;
-        const fall2 = mesh(N.waterfallGeometry(h * 0.8, w * 0.45), this.fallMat); fall2.position.set(6.6, h * 0.8 - 0.3, -lz - w * 0.8); fall2.rotation.y = -1.0;
-        const mist = mesh(this.mistGeo || (this.mistGeo = new THREE.PlaneGeometry(4.5, 2.6)), this.mistMat, true); mist.position.set(6.6, 1.0, -lz); mist.rotation.y = -1.0;
-        this.falls.push(fall);
-        lamps.push(this.lamp(7.2, 0.7, -lz - W, '#e8fff4', 7, 0.35));
-      }
+      // v5s33: parete a moduli 3D (3 draw call) + tende di felci su carte (1 draw call); senza modelli: felci sulle cenge procedurali
+      { const fl = STIDDIOSA_FALLS.map(([lz]) => lz), cm = cliffModels(); let lips = [], cliffMeshes = [];
+        if (cm) { const ci = buildCliffInstances(cm, this.mats2[0], fl); for (const im of ci.meshes) { root.add(im); own.push({ dispose: () => im.dispose() }); } lips = ci.lips; cliffMeshes = ci.meshes; }
+        else { const P = N.stiddiosaProfile(28, fl.map((lz) => W + lz)); for (let lz = -10; lz < 262; lz += 1.25) for (let y = N.STIDDIOSA_CLIFF.BH; y < 42; y += N.STIDDIOSA_CLIFF.BH) { const Wa = W + lz; if (y > P.Hf(Wa) - 1 || P.wet(Wa) > 0.3) continue; lips.push({ x: FACADE - P.X(Wa, y - 0.6), y: y - 0.6, z: -lz, t: 0 }); } }
+        const FS = stiddiosaFallSpecs(fl), avoid = FS.map((f) => ({ z: -f.lz, half: f.w * 0.5 + (f.kind === 'trickle' ? 1.2 : 2.2), y0: f.y0 }));
+        for (const g of buildCurtains(lips, 5 + lap, { keep: cm ? 1 : 0.9, avoid })) mesh(g, fernMaterial());
+        // v5s37: cascate vere (acqua curva a strati sulle cenge + pozza, schiuma, foschia): 2 draw call al posto delle 21 strisce piatte
+        const P = N.stiddiosaProfile(28, fl.map((lz) => W + lz), cm ? 2.5 : 0), back = (lz, y) => (y > P.Hf(W + lz) ? 99 : FACADE - P.X(W + lz, y));
+        const FA = buildFalls(makeFaceX(cliffMeshes, back), FS, 7 + lap);
+        mesh(FA.water, waterMaterial()).renderOrder = 2; mesh(FA.fx, fxMaterial()).renderOrder = 3;
+        this.falls = [];
+        FA.bases.forEach((b, i) => { const o = new THREE.Object3D(); o.position.set(b.x, 0, b.z); o.userData.big = b.big; root.add(o); this.falls.push(o);
+          if (!FA.bases.some((c, j) => j < i && Math.abs(c.z - b.z) < 4)) lamps.push(this.lamp(Math.max(6.4, b.x + 0.6), 0.7, b.z - W, '#e8fff4', 7, 0.35 * Math.max(0.7, b.big))); }); }
       const ig = this.markGeom('islet', () => N.isletGeometry(41)); m_gpu.push(ig);
       for (const [x, lz, ry] of [[-14, 58, 0.4], [-16, 150, -0.6], [-13, 228, 1.2]]) { const isl = mesh(ig, this.mats2, true); isl.position.set(x, -0.2, -lz); isl.rotation.y = ry; }
       const sg = this.shaftGeo || (this.shaftGeo = (() => { const g = new THREE.PlaneGeometry(3.2, 26); g.translate(0, -13, 0); return g; })());
@@ -830,6 +841,7 @@ export class Env {
   }
   // ------------------------------------------------------------ frame
   update(camW, playerW, dt, clock) {
+    this._camW = camW;
     const back = camW - BEHIND, front = playerW + this.reach(playerW);
     this.lastPW = playerW; this.mustW = playerW + MUST; this.deadline = performance.now() + BUDGET;
     this.front = front;
@@ -854,6 +866,8 @@ export class Env {
     for (const sd of this.sides) for (const p of sd.list) for (const g of p.lamps) g.material.opacity = g.userData.op * (0.85 + Math.sin(clock * 3 + g.userData.ph) * 0.12);
     for (const k in this.waterMat) { const u = this.waterMat[k].userData.u.uFlow.value; u.set(clock * 0.012, -clock * (k === 'river' ? 0.05 : 0.018)); }
     if (this.fallMat.map) this.fallMat.map.offset.y = -clock * 1.6;
+    FERN_U.uT.value = clock;   // v5s33: felci che ondeggiano
+    WATER_U.uT.value = clock;  // v5s37: acqua delle cascate
     this.fade = Math.min(1, this.fade + dt * 2.2);
     // bioma corrente
     const b = this.bAt(playerW);
