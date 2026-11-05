@@ -373,8 +373,9 @@ export class World {
       v.body = new THREE.Group();
       const rim = new THREE.Mesh(this.geo.puddleRim, this.mat.puddleRim); rim.position.y = 0.03;
       let pm = this.mat.puddle;
-      if (sk && sk.puddle) { pm = this.mat['puddle_' + skin] || (this.mat['puddle_' + skin] = Object.assign(this.mat.puddle.clone(), {})); pm.color.set(sk.puddle); }
+      if (sk && sk.puddle) { pm = this.mat['puddle_' + skin] || (this.mat['puddle_' + skin] = sk.dry ? new THREE.MeshLambertMaterial({ color: sk.puddle }) : Object.assign(this.mat.puddle.clone(), {})); pm.color.set(sk.puddle); }
       const w = new THREE.Mesh(this.geo.puddle, pm); w.position.y = 0.045;
+      if (sk && sk.dry) { w.scale.set(1, 3.2, 1); w.position.y = 0.06; }   // v5s34: polvere di carbone asciutta, opaca (niente riflessi d'acqua)
       rim.renderOrder = 2; w.renderOrder = 3;
       v.body.add(rim, w);
     } else if (kind === 'goat' || kind === 'caprarupe') {
@@ -884,8 +885,8 @@ export class World {
         break;
       }
       case 'puddle': {
-        const x = sim.px * U;
-        for (let i = 0; i < 26; i++) this.norm.emit(x + (Math.random() - 0.5), 0.2, pz, (Math.random() - 0.5) * 5, Math.random() * 5 + 2, (Math.random() - 0.5) * 3, 0.6, 0.28, 0.12, COL.water, 0.9, 14, 0.5);
+        const x = sim.px * U, dry = this.env.cur.b.id.startsWith('mine-');   // v5s34: in galleria e' polvere, non acqua
+        for (let i = 0; i < 26; i++) this.norm.emit(x + (Math.random() - 0.5), 0.2, pz, (Math.random() - 0.5) * 5, Math.random() * 5 + 2, (Math.random() - 0.5) * 3, 0.6, 0.28, 0.12, dry ? COL.iron : COL.water, 0.9, 14, 0.5);
         this.smokeAtTip(10);
         this.popWorld('SSSS...', x, 3.2, pz, 'water');
         break;

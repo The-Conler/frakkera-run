@@ -106,7 +106,7 @@ export const FIRE = {
   BRUSH_PX: 14,            // il giocatore deve stare entro questa distanza dal centro della corsia laterale
   FROM_M: 20,              // non prima di questi metri
   // ambiente -> lati ammessi e passo (file) tra una frakkera e l'altra
-  BIOMES: { village: { sides: [-1, 1], gap: [12, 20] }, rock: { sides: [-1, 1], gap: [22, 34] }, river: { sides: [-1], gap: [24, 36] } },
+  BIOMES: { village: { sides: [-1, 1], gap: [12, 20] } },   // v5s34: solo in paese (nella natura niente frakkere a bordo strada)
   VILLAGER_SHARE: 0.5,     // quota di paesani con la frakkera in braccio (il resto: falo' a terra)
 };
 
@@ -181,6 +181,34 @@ export const SPEED_STEPS = {
   PER_STEP: 4,             // px/s per ogni ambiente nuovo
   CAP_STEPS: 10,           // al massimo 10 gradini (+40 px/s), poi resta la rampa
   BANNER: 'PI\u00d9 VELOCE!',
+};
+
+// ---- v5s34: zona 3 (dal terzo giro): velocita' frenata e ritmo leggibile ------
+// Dal terzo giro la velocita' scende dolcemente sotto un tetto e cresce appena;
+// tra due "file di ostacoli" (cio' che obbliga a cambiare corsia, abbassarsi o saltare)
+// passa almeno MIN_GAP_S secondi; meno ostacoli per fila; se il sentiero sicuro e'
+// su una corsia esterna al massimo un'altra corsia bloccata (niente doppio scarto).
+// I giri 1 e 2 restano identici (stesse file, stessa velocita').
+// ---- v5s34: meno alberi caduti nella natura (roccia, fiume, viadotto) ----
+export const NATURE_TREES = {
+  BIOMES: ['rock', 'river', 'viaduct'],
+  BEAM_K: 0.5,             // tronchi da passare abbassandosi: meta' probabilita'
+  BRANCH_K: 0.45,          // rami caduti
+  LOG_SHARE: 0.07,         // tronco a terra tra gli ostacoli corti (prima 0.2; il resto diventa masso)
+  ROLL_LOG_SHARE: 0.22,    // tronco che rotola tra gli ostacoli mobili (prima 0.45; il resto capre)
+};
+
+export const ZONE3 = {
+  FROM_LAP: 2,             // giro (da 0) da cui vale: il terzo
+  SPEED_CAP: 212,          // px/s (prima: ~235-240)
+  SPEED_GROW: 0.003,       // px/s per metro oltre l'inizio della zona
+  SPEED_CAP_MAX: 222,
+  EASE_M: 150,             // metri di frenata dolce all'ingresso
+  MIN_GAP_S: 0.7,          // secondi minimi tra due azioni obbligate
+  OBST_K: 1.4,             // probabilita' degli ostacoli corti
+  LONG_K: 1.2,             // vicoli e gruppi di botti
+  BEAM_GAP_K: 1.35,        // travi piu' distanziate
+  BIOME_GAP_K: 1.4,        // ostacoli d'ambiente piu' distanziati
 };
 
 // ---- v5s6: ostacoli tipici di ogni ambiente (tutti distruttibili con la pistola) ----

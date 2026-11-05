@@ -89,7 +89,7 @@ export const BIOMES = [
   },
   {
     id: 'mine-blue', name: 'Miniera Fenice - galleria blu', from: 1350, to: 1600,
-    ground: { road: 'blueFloor', shoulder: 'none', curb: false, terrain: null, rails: true, wet: true },
+    ground: { road: 'blueFloor', shoulder: 'none', curb: false, terrain: null, rails: true },   // v5s34: pavimento asciutto (niente pozze lucide in galleria)
     sides: 'tunnel', tunnel: 'blue',
     landmarks: ['mineExit'],
     skins: { botte: 'barrel', botti: 'oreCart', bottecoricata: 'timbers', rollbarrel: 'barrel', muretto: 'rubbleBlue', goat: 'trolley', pozza: 'bluePuddle', narrow: 'tunnelBlue', rollin: 'oreCart', trave: 'beamTimber' },
@@ -98,7 +98,7 @@ export const BIOMES = [
     // riempimento blu forte (luce di contorno blu su personaggio e frakkera), nebbia blu in profondita'
     mood: { top: '#05060a', mid: '#05060a', hor: '#0a0c18', fog: '#030820', hemiS: '#5a80ff', hemiG: '#2a2440', hemiI: 0.95, dirC: '#7a9cff', dirI: 0.9, moon: 0, sun: 0, far: '#000000', fogNear: 16, fogFar: 135 },   // v5s9: piu' leggibile
     light: { flameDist: 22, flameK: 1.4, mineral: 1, lamp: 1.05, darkByFuel: 0.35, tunnel: 1, exposure: 1.35, camLook: 0, camFov: 0 },
-    ambience: { wind: 0, water: 0.05, drips: 1, birds: 0, bells: 0, cave: 1 },
+    ambience: { wind: 0, water: 0, drips: 0.5, birds: 0, bells: 0, cave: 1 },   // v5s34: niente scroscio d'acqua in galleria
     transitionOut: 16,          // uscita dalla miniera: di nuovo all'aperto
   },
 ];

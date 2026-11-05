@@ -2,6 +2,7 @@
 // laterale la fiamma riprende fuoco: +FIRE.BONUS (tetto 100), punti, log 'F', una volta sola.
 // Generate dal generatore con un flusso RNG separato: deterministiche.
 // Uso: node tests/sim-fire.test.mjs
+import { biomeIdAt } from '../src/systems/generator.js';
 import { Sim } from '../src/game/sim.js';
 import { Generator } from '../src/systems/generator.js';
 import { WORLD, FIRE, FUEL } from '../src/config.js';
@@ -55,7 +56,8 @@ const run = (sim, n, f) => { for (let i = 0; i < n; i++) { if (f) f(i); sim.tick
   ok('generatore deterministico (frakkere comprese)', JSON.stringify(a) === JSON.stringify(b));
   const fires = a.filter((e) => e.kind === 'falo');
   const vil = fires.filter((e) => e.variant === 1).length;
-  ok('frakkere presenti, falo\' e paesani', fires.length > 10 && vil > 0 && vil < fires.length, `${fires.length} (${vil} paesani)`);
+  ok('frakkere presenti, falo\' e paesani', fires.length > 5 && vil > 0 && vil < fires.length, `${fires.length} (${vil} paesani)`);   // v5s34: solo in paese (prima anche roccia e fiume)
+  ok('v5s34: nessuna frakkera a bordo strada fuori dal paese', fires.every((e) => biomeIdAt(e.d) === 'village'));
 }
 // 5) partita lunga simulata: log riproducibile con le frakkere
 {

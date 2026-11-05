@@ -244,6 +244,11 @@ export function valleyTerrain(W0, len, o = {}) {
     if (d < (o.dropW ?? 26)) { const t = d / (o.dropW ?? 26); y = (o.topY ?? -1) + (F - (o.topY ?? -1)) * Math.pow(t, 0.7); }
     else if (d < (o.floorW ?? 150)) y = F + 6 * fbm(W / 30, d / 25, sd, 2);
     else { const t = (d - (o.floorW ?? 150)) / (X1 - x0 - (o.floorW ?? 150)); y = F + (M - F) * Math.pow(Math.min(1, t), 0.8) + 14 * fbm(W / 60, d / 40, sd + 3, 3) * t + (o.relief ? o.relief * (Math.abs(fbm(W / 70, d / 55, sd + 21, 3)) * 1.6 - 0.35) * Math.min(1, t * 1.5) : 0); }   // v5s29: creste e valloni (niente fondale piatto)
+    if (o.rise) {   // v5s34: il fondovalle risale fino al livello del fiume dell'ambiente dopo (prima sotto la riva si vedeva il vuoto)
+      const [w0, w1, ry] = o.rise, tw = Math.min(1, Math.max(0, (W - w0) / (w1 - w0))), kx = 1 - Math.min(1, Math.max(0, (d - (o.floorW ?? 150)) / 45));
+      const k = tw * tw * (3 - 2 * tw) * kx;
+      if (k > 0 && y < ry) y += (ry - y) * k;
+    }
     return y;
   };
   const xs = []; for (let i = 0; i <= 34; i++) xs.push(x0 + Math.pow(i / 34, 1.6) * (X1 - x0));

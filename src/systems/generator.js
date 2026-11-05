@@ -7,7 +7,7 @@
 // mobili compaiono solo in "finestre calme" senza altri ostacoli.
 // Tappeti, combustibile e pistola si piazzano solo in celle libere.
 // =====================================================================
-import { DIFFICULTY as DF, WORLD, PX_PER_METER, CARPETS as CP, PISTOL, SPEED_STEPS as SS, BIOME_OBST as BO, DUCK, MASKS as MK, FIRE, MINE, CART, COLLECT, DANCE, FESTA, POWER, WEATHER, ANIMALS, SANTAMARTA, VILLAGE as VL } from '../config.js';
+import { DIFFICULTY as DF, WORLD, PX_PER_METER, CARPETS as CP, PISTOL, SPEED_STEPS as SS, BIOME_OBST as BO, DUCK, MASKS as MK, FIRE, MINE, CART, COLLECT, DANCE, FESTA, POWER, WEATHER, ANIMALS, SANTAMARTA, VILLAGE as VL, ZONE3 as Z3, NATURE_TREES as NT } from '../config.js';
 import { rainLap } from './weather.js';
 import { biomeAt, BIOMES, CYCLE } from '../game/biomes/config.js';
 import { makeRng } from './rng.js';
@@ -29,7 +29,18 @@ export function speedStepsAt(px, offM = 0) {
 export const biomeIdAt = (px, offM = 0) => biomeAt(Math.max(0, px / PX_PER_METER + offM)).b.id;
 
 export function speedAt(px, offM = 0) {
-  return Math.min(baseSpeedAt(px) + speedStepsAt(px, offM) * SS.PER_STEP, DF.SPEED_MAX);
+  const s = Math.min(baseSpeedAt(px) + speedStepsAt(px, offM) * SS.PER_STEP, DF.SPEED_MAX);
+  return zone3Speed(s, px / PX_PER_METER + offM);
+}
+// v5s34: zona 3 (dal terzo giro): la velocita' scende dolcemente sotto il tetto e poi cresce appena
+export const ZONE3_FROM_M = Z3.FROM_LAP * CYCLE;
+export const inZone3 = (m) => m >= ZONE3_FROM_M;
+export function zone3Speed(s, m) {
+  if (m < ZONE3_FROM_M) return s;
+  const x = m - ZONE3_FROM_M, cap = Math.min(Z3.SPEED_CAP_MAX, Z3.SPEED_CAP + x * Z3.SPEED_GROW);
+  if (s <= cap) return s;
+  const t = Math.min(1, x / Z3.EASE_M), k = t * t * (3 - 2 * t);
+  return s - (s - cap) * k;
 }
 export function baseSpeedAt(px) {
   const d = difficultyAt(px);
@@ -94,6 +105,7 @@ export class Generator {
     this.debugPistol = !!opts.debugPistol;
     this.offM = opts.mapOffsetM || 0;     // salto di mappa (sviluppo): ostacoli dell'ambiente mostrato
     this.nextBeamAt = 20; this.nextBiomeAt = 10;
+    this.z3Next = -1;   // v5s34: zona 3, prima fila in cui puo' arrivare la prossima azione obbligata
     const L = WORLD.LANES;
     this.row = 0;
     this.path = 1;
@@ -294,11 +306,13 @@ export class Generator {
       emit({ kind: 'acqua', lane, d: D + 8, len: 14, variant: rr.int(0, 2) });
       return;
     }
-    if (free.length === L && r >= this.nextBranchRow && m >= POWER.BRANCH_FROM_M) {
+    const z3 = this.z3Rows(D);
+    if (free.length === L && r >= this.nextBranchRow && m >= POWER.BRANCH_FROM_M && (!z3 || (r >= this.z3Next && this.hold <= 0))) {
       const bi = biomeAt(m);
-      if (POWER.BRANCH_BIOMES.includes(bi.b.id) && wr() < POWER.BRANCH_P) {
+      if (POWER.BRANCH_BIOMES.includes(bi.b.id) && wr() < POWER.BRANCH_P * NT.BRANCH_K) {   // v5s34: rami caduti piu' rari
         this.nextBranchRow = r + wr.int(POWER.BRANCH_GAP_ROWS[0], POWER.BRANCH_GAP_ROWS[1]); this.branches++;
         for (let l = 0; l < L; l++) used[l] = true;
+        if (z3) { this.z3Next = Math.max(this.z3Next, r + z3); this.hold = Math.max(this.hold, z3); }
         emit({ kind: 'ramo', lane: 1, d: D + 10, len: POWER.BRANCH_LEN, variant: wr.int(0, 2) });
       }
     }
@@ -356,6 +370,12 @@ export class Generator {
 
   rowDist(r) { return WORLD.LEAD_IN + r * WORLD.ROW; }
 
+  // v5s34: zona 3: file minime tra due azioni obbligate (0 = fuori zona, nessun vincolo)
+  z3Rows(D) {
+    if (!inZone3(D / PX_PER_METER + this.offM)) return 0;
+    return Math.ceil(Z3.MIN_GAP_S * speedAt(D - WORLD.LEAD_IN, this.offM) / WORLD.ROW);
+  }
+
   fillUntil(maxDist, emit) {
     // v5 stage 24: nessun ostacolo (anche mobile, nato nelle file prima) dentro la navata di Santa Marta
     const em = emit; emit = (e) => { if ((e.kind === 'trave' || e.kind === 'panni' || e.kind === 'processione') && (santaMartaAt(e.d / PX_PER_METER + this.offM, SANTAMARTA.NO_SPAN_M, 2) || santaMartaAt((e.d + (e.len || 0)) / PX_PER_METER + this.offM, SANTAMARTA.NO_SPAN_M, 2))) return;   // v5s27q: nessuna trave/balcone di traverso davanti alla chiesa (su ogni giro)
@@ -375,7 +395,10 @@ export class Generator {
     const ROW = WORLD.ROW;
     const D = this.rowDist(r);
     const diff = difficultyAt(D);
+    const nature = NT.BIOMES.includes(biomeIdAt(D, this.offM));   // v5s34: meno alberi caduti nella natura
     const used = new Array(L).fill(false); this._used = used;
+    const z3 = this.z3Rows(D), z3ok = !z3 || r >= this.z3Next;   // v5s34: zona 3, si puo' mettere un'azione in questa fila?
+    const z3mark = (row) => { if (z3) this.z3Next = Math.max(this.z3Next, row + z3); };
     this.prevPath = this.lastPath ?? this.path; this.lastPath = this.path;
     for (let l = 0; l < L; l++) if (this.blockedUntil[l] >= r) used[l] = true;
     // v5 stage 24: dentro Santa Marta niente ostacoli ne' falo' (si corre sulla passatoia): solo tappeti
@@ -396,7 +419,7 @@ export class Generator {
     }
     const longActive = this.blockedUntil.some((b) => b >= r);
     // ---- v5s10: corteo di Gadoni (solo nel paese): parte con su Maimoni in una finestra calma ----
-    if (!this.parade && !longActive && r >= this.nextParadeAt && D / PX_PER_METER >= MK.FROM_M &&
+    if (!this.parade && !longActive && z3ok && r >= this.nextParadeAt && D / PX_PER_METER >= MK.FROM_M &&
         biomeIdAt(D, this.offM) === 'village') {
       const bi = biomeAt(D / PX_PER_METER + this.offM), lap = bi.lap;
       // v5s20: il corteo non entra mai nel cerchio del ballu tundu (piazza della chiesa)
@@ -406,18 +429,20 @@ export class Generator {
         this.nextMovingAt = Math.max(this.nextMovingAt, r + 14);
         this.nextParadeAt = r + MK.MIN_GAP_ROWS + rng.int(0, 10);
         this.parade = { g, stage: 1, next: r + 7 + MK.FUNE_GAP_ROWS, tries: 0 };
+        z3mark(r + 3);
         const dir = rng() < 0.5 ? 1 : -1;
         emit({ kind: 'maimoni', lane: dir > 0 ? 0 : L - 1, d: D + 3 * ROW + 4, len: 12, dir,
           vx: lerp(MK.MAIMONI_VX[0], MK.MAIMONI_VX[1], diff), group: g });
         return;
       }
     }
-    if (!longActive && this.maybeAnimals(r, D, diff, emit)) return;
-    if (diff >= DF.MOVING_FROM && r >= this.nextMovingAt && !longActive &&
+    if (!longActive && z3ok && this.maybeAnimals(r, D, diff, emit)) { z3mark(r + 3); return; }
+    if (diff >= DF.MOVING_FROM && r >= this.nextMovingAt && !longActive && z3ok &&
         rng() < 0.07 + 0.12 * diff) {
       this.calmUntil = r + 6;
       this.nextMovingAt = r + 16 + rng.int(0, 12);
-      const kind = rng() < 0.55 ? 'goat' : 'rollbarrel';
+      const kind = rng() < (nature ? 1 - NT.ROLL_LOG_SHARE : 0.55) ? 'goat' : 'rollbarrel';
+      z3mark(r + 3);
       const dir = rng() < 0.5 ? 1 : -1;
       emit({
         kind, lane: dir > 0 ? 0 : L - 1, d: D + 3 * ROW + 4, len: 12,
@@ -438,7 +463,7 @@ export class Generator {
         this.freeUntil[this.path] = Math.max(this.freeUntil[this.path], r + 1);
         this.freeUntil[target] = Math.max(this.freeUntil[target], r + 1);
         this.path = target;
-        this.hold = Math.round(lerp(4, 2, diff));
+        this.hold = Math.max(Math.round(lerp(4, 2, diff)), z3);   // v5s34: in zona 3 il sentiero resta fermo almeno MIN_GAP_S
       }
     }
     const required = new Array(L).fill(false);
@@ -447,7 +472,9 @@ export class Generator {
     // ---- v5s10: i due Stramaionis con la fune tesa su 2 corsie (ci si abbassa), poi sa Grastula ----
     const pa = this.parade;
     if (pa && r >= pa.next && this.nearDance(D, 55, 30)) pa.next = r + 1;   // v5s20: niente fune/fuso nel cerchio del ballo
+    if (pa && r >= pa.next && !z3ok) pa.next = r + 1;   // v5s34: in zona 3 fune e fuso aspettano il loro turno
     if (pa && r >= pa.next && !longActive) {
+      z3mark(r);
       if (pa.stage === 1) {
         const left = this.path === 0 ? 1 : this.path === L - 1 ? 0 : (rng() < 0.5 ? 0 : 1);  // il sentiero resta libero se si puo'
         for (let l = 0; l < L; l++) { used[l] = true; this.laneCool[l] = Math.max(this.laneCool[l], r + 1); }
@@ -470,8 +497,9 @@ export class Generator {
       }
     }
     // ---- v5s6: trave bassa (tutte le corsie, si passa abbassandosi: niente altro sulla fila) ----
-    if (diff >= DUCK.BEAM_FROM && r >= this.nextBeamAt && !longActive && rng() < lerp(DUCK.BEAM_P_START, DUCK.BEAM_P_END, diff)) {
-      this.nextBeamAt = r + DUCK.BEAM_MIN_GAP_ROWS + rng.int(0, 8);
+    if (diff >= DUCK.BEAM_FROM && r >= this.nextBeamAt && !longActive && z3ok && (!z3 || this.hold <= 0) && rng() < lerp(DUCK.BEAM_P_START, DUCK.BEAM_P_END, diff) * (nature ? NT.BEAM_K : 1)) {
+      this.nextBeamAt = r + Math.round((DUCK.BEAM_MIN_GAP_ROWS + rng.int(0, 8)) * (z3 ? Z3.BEAM_GAP_K : 1));
+      z3mark(r); if (z3) this.hold = Math.max(this.hold, z3);   // niente cambio di sentiero subito dopo la trave
       for (let l = 0; l < L; l++) { used[l] = true; this.laneCool[l] = Math.max(this.laneCool[l], r + 1); }
       // feat-village: nel paese la trave puo' diventare la processione di Santa Marta (rara) o i panni della nonna
       const vb = biomeAt(D / PX_PER_METER + this.offM), vr = this.vrng;
@@ -501,14 +529,25 @@ export class Generator {
       return;
     }
     // ---- v5s6: ostacolo tipico dell'ambiente (fuori dal sentiero sicuro) ----
-    if (diff >= BO.FROM && r >= this.nextBiomeAt && rng() < lerp(BO.P_START, BO.P_END, diff)) {
+    // v5s34: zona 3: una corsia si puo' ancora bloccare? (fila permessa; se il sentiero e' su una corsia
+    // esterna, al massimo un'altra corsia bloccata: mai obbligare a uno scarto di due corsie)
+    const z3can = (l) => {
+      if (!z3) return true;
+      if (!z3ok) return false;
+      if (this.path !== 0 && this.path !== L - 1) return true;
+      for (let k = 0; k < L; k++) if (k !== this.path && k !== l && (used[k] || this.blockedUntil[k] >= r)) return false;
+      return true;
+    };
+    let z3hit = false;
+    if (diff >= BO.FROM && r >= this.nextBiomeAt && z3ok && rng() < lerp(BO.P_START, BO.P_END, diff)) {
       const kind = BIOME_OBST_KIND[biomeIdAt(D, this.offM)];
       const free = [];
-      for (let l = 0; l < L; l++) if (!required[l] && !used[l] && this.blockedUntil[l] < r && this.laneCool[l] < r) free.push(l);
+      for (let l = 0; l < L; l++) if (!required[l] && !used[l] && this.blockedUntil[l] < r && this.laneCool[l] < r && z3can(l)) free.push(l);
       if (kind && free.length) {
         const l = rng.pick(free);
-        this.nextBiomeAt = r + BO.MIN_GAP_ROWS + rng.int(0, 6);
+        this.nextBiomeAt = r + Math.round((BO.MIN_GAP_ROWS + rng.int(0, 6)) * (z3 ? Z3.BIOME_GAP_K : 1));
         used[l] = true;
+        if (z3) { z3hit = true; if (kind === 'rollin') z3mark(r + BO.ROLL_ROWS - 2); }
         if (kind === 'rollin') {
           // rotola verso il giocatore: la corsia resta riservata per le file che attraversa
           this.blockedUntil[l] = r + BO.ROLL_ROWS; this.laneCool[l] = r + BO.ROLL_ROWS + 1;
@@ -522,45 +561,48 @@ export class Generator {
     }
 
     // ---- ostacoli lunghi -------------------------------------------
-    const canLong = (l) => !required[l] && !used[l] && this.blockedUntil[l] < r;
-    if (diff >= DF.NARROW_FROM && rng() < 0.035 + 0.05 * diff) {
+    const canLong = (l) => !required[l] && !used[l] && this.blockedUntil[l] < r && z3can(l);
+    const longK = z3 ? Z3.LONG_K : 1;
+    if (diff >= DF.NARROW_FROM && rng() < (0.035 + 0.05 * diff) * longK) {
       const l = rng() < 0.5 ? 0 : L - 1;
       const rows = 3 + rng.int(0, Math.round(1 + 2 * diff));
       if (canLong(l) && !this.sideBlocks.some((b) => b.edge === l && b.until >= r)) {
         this.blockedUntil[l] = r + rows - 1;
         this.laneCool[l] = r + rows;
-        used[l] = true;
+        used[l] = true; z3hit = true;
         emit({ kind: 'narrow', lane: l, d: D + 2, len: rows * ROW - 6 });
       }
     }
-    if (diff >= DF.GROUP_FROM && rng() < 0.04 + 0.06 * diff) {
+    if (diff >= DF.GROUP_FROM && rng() < (0.04 + 0.06 * diff) * longK) {
       const l = rng.int(0, L - 1);
       if (canLong(l)) {
         this.blockedUntil[l] = r + 1;
         this.laneCool[l] = r + 2;
-        used[l] = true;
+        used[l] = true; z3hit = true; z3mark(r + 1);
         emit({ kind: 'botti', lane: l, d: D + 4, len: 2 * ROW - 10 });
       }
     }
 
     // ---- ostacoli corti --------------------------------------------
-    const pObs = lerp(DF.OBSTACLE_P_START, DF.OBSTACLE_P_END, diff);
+    const pObs = lerp(DF.OBSTACLE_P_START, DF.OBSTACLE_P_END, diff) * (z3 ? Z3.OBST_K : 1);
     const boost = r <= this.barrelBoostUntil;
     for (let l = 0; l < L; l++) {
       if (required[l] || used[l] || this.laneCool[l] >= r) continue;
+      if (!z3can(l)) continue;
       if (rng() >= pObs * (boost ? 1.25 : 1)) continue;
       let kind;
       const k = rng();
       if (boost) kind = k < 0.6 ? 'botte' : k < 0.85 ? 'bottecoricata' : 'muretto';
       else if (diff >= DF.PUDDLE_FROM && k < 0.22) kind = 'pozza';
       else if (k < 0.48) kind = 'muretto';
-      else if (k < 0.8) kind = 'botte';
+      else if (k < (nature ? 1 - NT.LOG_SHARE : 0.8)) kind = 'botte';
       else kind = 'bottecoricata';
       const len = SHORT_LEN[kind];
-      used[l] = true;
+      used[l] = true; z3hit = true;
       this.laneCool[l] = r + 1;
       emit({ kind, lane: l, d: D + Math.floor((ROW - len) / 2), len });
     }
+    if (z3hit) z3mark(r);
 
     this.maybePistol(r, D, used, emit);
     this.maybePickup(r, D, diff, used, emit, 0);

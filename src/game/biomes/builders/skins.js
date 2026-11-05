@@ -209,7 +209,7 @@ export const SKINS = {
   rubble: { make: () => once('rubble', () => rubble(23, ROCK.mine)) },
   rubbleBlue: { make: () => once('rubbleBlue', () => rubble(24, ['#2433a8', '#2f45c8', '#c08a4a', '#1c2a8a'], true)) },
   goat: { orig: true }, trolley: { make: () => once('trolley', () => trolley(25)) },
-  puddle: { orig: true }, darkPuddle: { orig: true, puddle: '#3a5560' }, bluePuddle: { orig: true, puddle: '#4a6aff' },
+  puddle: { orig: true }, darkPuddle: { orig: true, puddle: '#2e2a26', dry: true }, bluePuddle: { orig: true, puddle: '#2a2a3a', dry: true },   // v5s34: in miniera niente acqua: mucchio di polvere di carbone (stesso effetto: spegne un po' la fiamma)
   house: { orig: true },
   // v5s6
   rollBarrel: { orig: true, shards: 'barrel' },

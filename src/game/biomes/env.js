@@ -134,7 +134,7 @@ function strip(x0, x1, y = 0) { const g = new THREE.PlaneGeometry(x1 - x0, 1).ro
 // valle della roccia: a sinistra del sentiero (la destra dell'inquadratura e' occupata dalla fiamma)
 // le montagne cominciano presto (floorW 70) cosi' entrano nell'inquadratura verticale dietro la guglia
 export const STIDDIOSA_FALLS = [[34, 17, 2.4], [62, 20, 1.8], [96, 16, 2.6], [128, 19, 2.0], [166, 17, 2.4], [204, 20, 1.8], [238, 16, 2.5]];   // v5s28: (z locale, altezza, larghezza)
-const valleyRock = (Bm) => N.valleyTerrain(Bm - 30, 430, { side: -1, x0: 14.5, topY: -7, floorY: -46, dropW: 24, floorW: 70, far: 300, mtnH: 120, seed: 7, trees: 900 });
+const valleyRock = (Bm) => N.valleyTerrain(Bm - 30, 430, { side: -1, x0: 14.5, topY: -7, floorY: -46, dropW: 24, floorW: 70, far: 300, mtnH: 120, seed: 7, trees: 900, rise: [Bm + 175, Bm + 252, -3.6] });   // v5s34: risale sotto la riva del fiume (niente vuoto visto da ~430 m)
 // ---------------------------------------------------------------- monumenti (per bioma, distanza locale)
 // at: punto di riferimento (distanza locale nel bioma); exist: [da, a] relativo ad at in cui esiste
 const LANDMARKS = {
@@ -195,7 +195,7 @@ export class Env {
     };
     this.roadTex = { cobble: this.tex.cobble, trail: this.tex.trail, stoneTrail: this.tex.stoneTrail, gravel: this.tex.gravel, mineFloor: this.tex.mineFloor, blueFloor: this.tex.blueFloor };
     this.roadMat = {};
-    for (const k in this.roadTex) this.roadMat[k] = groundMat(this.roadTex[k], k === 'blueFloor' || k === 'mineFloor' ? { phong: true, wet: k === 'blueFloor', shininess: k === 'blueFloor' ? 120 : 40, specular: k === 'blueFloor' ? '#c8d8ff' : '#606870' } : {});
+    for (const k in this.roadTex) this.roadMat[k] = groundMat(this.roadTex[k], k === 'blueFloor' || k === 'mineFloor' ? { phong: true, wet: false, shininess: k === 'blueFloor' ? 24 : 18, specular: k === 'blueFloor' ? '#2a3044' : '#2a2c30' } : {});
     this.blendMats = new Map();
     this.shoulderMat = {
       walk: groundMat(this.tex.slab, { sx: 1 / WALK_W, sz: 1 / 2.9, x0: 5.5, abs: true }),
@@ -244,7 +244,7 @@ export class Env {
   blendMat(a, b) {
     const key = a + '>' + b;
     let m = this.blendMats.get(key);
-    if (!m) { m = groundMat(this.roadTex[a], { mapB: this.roadTex[b], phong: b === 'blueFloor' || b === 'mineFloor' || a === 'blueFloor', wet: b === 'blueFloor' || a === 'blueFloor', specular: '#a8b8e0', shininess: 90 }); this.blendMats.set(key, m); }
+    if (!m) { m = groundMat(this.roadTex[a], { mapB: this.roadTex[b], phong: b === 'blueFloor' || b === 'mineFloor' || a === 'blueFloor', wet: false, specular: '#2a3044', shininess: 24 }); this.blendMats.set(key, m); }
     return m;
   }
   // geometria varia unita (cordoli, terreni ai lati, binari, letto del fiume), lunga 1 m

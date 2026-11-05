@@ -254,12 +254,13 @@ svg { display: block; }
 @media (hover: hover) and (pointer: fine) { #fire-btn .fire-key { display: block; } }
 
 /* v5s7: Garag di Pinu */
-#shop-offer { position: absolute; left: 50%; top: 36%;   /* v5s29 (QA M7): sotto la scritta PIU' VELOCE */ transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 22px 12px; border: 0; border-radius: 18px; cursor: pointer;
-  background: linear-gradient(#7a4a2a, #5a3420); box-shadow: inset 0 2px 0 rgba(255,220,160,0.35), 0 5px 0 #3a2010, 0 8px 18px rgba(0,0,0,0.45); color: #ffe7b0; animation: shopPulse 0.9s ease-in-out infinite alternate; touch-action: none; }
-#shop-offer .so-sign { font-family: var(--f-disp); font-size: calc(var(--u) * 15); color: var(--gold1); letter-spacing: 0.5px; }
-#shop-offer .so-q { font-family: var(--f-disp); font-size: calc(var(--u) * 26); color: #fff; -webkit-text-stroke: 1px #3a1a10; paint-order: stroke fill; }
-#shop-offer .so-bar { width: 100%; height: 6px; border-radius: 3px; background: rgba(0,0,0,0.35); overflow: hidden; } #shop-offer .so-bar i { display: block; height: 100%; width: 100%; background: var(--gold1); transform-origin: left; }
-@keyframes shopPulse { from { transform: translateX(-50%) scale(1); } to { transform: translateX(-50%) scale(1.06); } }
+/* v5s34: pulsante compatto e piu' in alto (prima copriva meta' della strada e del paese) */
+#shop-offer { position: absolute; left: 50%; top: 27%;   /* v5s29 (QA M7): sotto la scritta PIU' VELOCE */ transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 14px 7px; min-height: 44px; border: 0; border-radius: 14px; cursor: pointer;
+  background: linear-gradient(rgba(122,74,42,0.9), rgba(90,52,32,0.9)); box-shadow: inset 0 1px 0 rgba(255,220,160,0.35), 0 3px 0 #3a2010, 0 5px 10px rgba(0,0,0,0.35); color: #ffe7b0; animation: shopPulse 0.9s ease-in-out infinite alternate; touch-action: none; }
+#shop-offer .so-sign { font-family: var(--f-disp); font-size: calc(var(--u) * 10); color: var(--gold1); letter-spacing: 0.5px; }
+#shop-offer .so-q { font-family: var(--f-disp); font-size: calc(var(--u) * 16); color: #fff; -webkit-text-stroke: 1px #3a1a10; paint-order: stroke fill; }
+#shop-offer .so-bar { width: 100%; height: 4px; border-radius: 3px; background: rgba(0,0,0,0.35); overflow: hidden; } #shop-offer .so-bar i { display: block; height: 100%; width: 100%; background: var(--gold1); transform-origin: left; }
+@keyframes shopPulse { from { transform: translateX(-50%) scale(1); } to { transform: translateX(-50%) scale(1.04); } }
 #scr-shop { padding-top: max(12px, env(safe-area-inset-top)); }
 .shop-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .shop-title { margin: 0; font-family: var(--f-disp); font-weight: 400; font-size: calc(var(--u) * 30); color: var(--gold1); -webkit-text-stroke: 1.5px #3a1a10; paint-order: stroke fill; text-shadow: 0 3px 0 rgba(40,15,5,0.6); }

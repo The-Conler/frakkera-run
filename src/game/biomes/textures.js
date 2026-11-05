@@ -89,8 +89,8 @@ export function gravelTexture({ floor = false, blue = false } = {}) {
     ctx.fillStyle = r.pick(blue ? ['#4a3a2c', '#3f3226'] : ['#6b5136', '#5e4630', '#77593a']); ctx.fillRect(S * u - 31, y, 62, 14);
   }
   ctx.globalAlpha = 1;
-  if (floor || blue) { // pozze e zone bagnate (nella blu: zone scure lucide, il riflesso e' nello shader)
-    for (let i = 0; i < 10; i++) { ctx.fillStyle = blue ? 'rgba(10,14,34,0.35)' : 'rgba(30,40,45,0.35)'; const x = r() * S, y = r() * S; wrapDraw(S, x, y, (X, Y) => blob(ctx, X, Y, r.range(20, 60), r.range(10, 26), r() * 3)); }
+  if (floor || blue) { // v5s34: chiazze di polvere asciutta (prima pozze bagnate: in miniera non c'e' acqua)
+    for (let i = 0; i < 10; i++) { ctx.fillStyle = blue ? 'rgba(70,62,58,0.22)' : 'rgba(96,86,74,0.25)'; const x = r() * S, y = r() * S; wrapDraw(S, x, y, (X, Y) => blob(ctx, X, Y, r.range(20, 60), r.range(10, 26), r() * 3)); }
   }
   if (blue) { speckle(ctx, S, r, 400, ['#6f8cff', '#9db0ff', '#c59a52'], 1, 3, 0.7); }
   return tex(c);
