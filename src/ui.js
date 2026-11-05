@@ -347,7 +347,7 @@ export function initUI(game) {
     const BASE = { calamita: POWER.MAGNET_S, finocchio: POWER.FENNEL_S, scarponi: POWER.BOOTS_S };
     for (const u of UPGRADES) {
       const lvl = (st.up && st.up[u.id]) || 0, max = lvl >= 3, price = u.prices[Math.min(2, lvl)];
-      const now = u.unit === '%' ? `-${Math.round(u.add * lvl * 100)}% consumo` : `${(BASE[u.id] + u.add * lvl).toFixed(1).replace('.0', '')} s`;
+      const now = u.unit === '%' ? (lvl ? `-${Math.round(u.add * lvl * 100)}% consumo` : 'consumo normale') : `${(BASE[u.id] + u.add * lvl).toFixed(1).replace('.0', '')} s`;
       const b = document.createElement('button'); b.className = 'shop-item up-item'; b.dataset.up = u.id;
       const poor = !max && st.carpetTotal < price;
       if (max) b.classList.add('owned'); else if (poor) b.classList.add('poor');

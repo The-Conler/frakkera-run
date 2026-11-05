@@ -176,7 +176,7 @@ export function loadCarpetTexture(v, maxAniso = 8) {
   const p = new Promise((res) => {
     const img = new Image();
     img.decoding = 'async';
-    img.onload = () => { t.image = img; t.colorSpace = THREE.SRGBColorSpace; t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter; t.needsUpdate = true; t.userData.official = true; res(true); };
+    img.onload = () => { t.dispose(); t.image = img;   /* v5s29: dimensione diversa dalla tela iniziale: riallocata (niente avviso GL_INVALID_VALUE) */ t.colorSpace = THREE.SRGBColorSpace; t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter; t.needsUpdate = true; t.userData.official = true; res(true); };
     img.onerror = () => { console.warn('tappeto ufficiale non caricato, uso il disegno procedurale', v); res(false); };
     img.src = carpetURL(v);
   });

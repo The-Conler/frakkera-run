@@ -241,7 +241,7 @@ export class Game {
     const sim = this.sim;
     bus.emit('hud', {
       mode: sim.mode, score: sim.score,
-      best: Math.max(sim.best, sim.mode === 'run' || sim.mode === 'dying' || sim.mode === 'over' ? sim.score : 0),
+      best: Math.max(sim.best, sim.mode === 'run' || sim.mode === 'dying' || sim.mode === 'over' || sim.mode === 'dance' || sim.mode === 'shop' ? sim.score : 0),   // v5s29 (QA L1): REC non torna a 0 durante il ballo
       meters: Math.floor(Math.max(0, sim.runD) / PX_PER_METER),
       fuel: Math.max(0, sim.fuel) / FUEL.MAX, chain: sim.chain,
       carpets: sim.mode === 'attract' ? 0 : sim.stats.carpets, carpetTotal: sim.carpetTotal,

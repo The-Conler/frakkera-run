@@ -13,7 +13,7 @@ import { BIOMES, CYCLE, biomeAt, nextBoundary, byId, LAP_NIGHT, NIGHT_MOOD, mapF
 import * as M from '../models.js';
 import * as BT from './textures.js';
 import * as N from './builders/nature.js';
-import { loadTower, fitTower } from './towerModel.js';
+import { loadTower, fitTower, towerModel } from './towerModel.js';
 import * as S from './builders/structures.js';
 import { buildChurchSquare } from './builders/church.js';
 import { buildVicolo, buildCappella, buildCappellaLeft } from './builders/gadoni5.js';
@@ -150,7 +150,7 @@ const LANDMARKS = {
   viaduct: { at: 150, exist: [-200, 130], reveal: { biome: 'viaduct', from: -45, to: -10 } },
   valleyRiver: { at: 0, exist: [-70, 290], reveal: { biome: 'viaduct', from: -45, to: -10 } },
   minePortal: { at: 150, exist: [-200, 30] },
-  mineExit: { at: 250, exist: [-80, 20] },
+  mineExit: { at: 250, exist: [-80, 9] },   // v5s29 (QA L7): sparisce subito dopo l'uscita (restava come sagoma scura sopra il paese)
   farVillage: null,
 };
 
@@ -436,13 +436,21 @@ export class Env {
       () => { loadTower(); },
       () => this.markGeom('valley', () => valleyRock(250)),
       () => this.markGeom('viaduct', () => S.buildViaduct((x) => (x < 0 ? -2 : -5))),
-      () => this.markGeom('valleyRiverR', () => N.valleyTerrain(750 - 150, 460, { side: 1, x0: 70, topY: -4.4, floorY: -4.4, dropW: 2, floorW: 30, far: 340, mtnH: 85, seed: 11, trees: 520 })),
-      () => this.markGeom('valleyRiverL', () => N.valleyTerrain(750 - 150, 460, { side: -1, x0: 36, topY: 14, floorY: 14, dropW: 2, floorW: 8, far: 320, mtnH: 70, seed: 12, trees: 420 })),
+      () => this.markGeom('valleyRiverR', () => N.valleyTerrain(750 - 150, 460, { side: 1, x0: 70, topY: -4.4, floorY: -4.4, dropW: 2, floorW: 30, far: 340, mtnH: 85, seed: 11, trees: 520, relief: 38 })),
+      () => this.markGeom('valleyRiverL', () => N.valleyTerrain(750 - 150, 460, { side: -1, x0: 36, topY: 14, floorY: 14, dropW: 2, floorW: 8, far: 320, mtnH: 70, seed: 12, trees: 420, relief: 38 })),
       () => this.prefab('portal', 0, () => ({ geom: S.buildMinePortal(5), w: 0, lamps: [] })),
       () => this.prefab('cartDecor', 0, () => ({ geom: S.buildMineCartDecor(), w: 0, lamps: [] })),
       () => this.prefab('exit', 0, () => ({ geom: S.buildMineExit(8), w: 0, lamps: [] })),
       () => this.prefab('drill', 0, () => ({ geom: S.buildDrillMachine(), w: 0, lamps: [] })),
+      // v5s29 (QA M1): anche i monumenti che mancavano, poi tutto caricato sulla GPU una volta (niente scatti al primo arrivo)
+      () => this.markGeom('santamarta', () => buildSantaMarta(1)),
+      () => this.markGeom('islet', () => N.isletGeometry(41)),
+      () => this.markGeom('cappella', () => buildCappella()),
+      () => this.markGeom('cappellaL', () => buildCappellaLeft()),
+      () => this.markGeom('vicolo', () => buildVicolo(32)),
       () => this.warmShaders(),
+      () => this.warmGPU(),
+      () => { const p = loadTower(); if (p && p.then) p.then(() => idle(() => this.warmGPU())); },
     ];
     // nel menu: un lavoro per ogni momento libero. In corsa (partenza rapida): un lavoro ogni 0.7 s, mai a ridosso
     // di un confine (li' il frame deve restare libero)
@@ -459,6 +467,21 @@ export class Env {
   }
   // compila in anticipo TUTTI i materiali degli ambienti (anche i fondi di passaggio tra un ambiente e l'altro),
   // cosi' al confine non c'e' la pausa di compilazione dello shader alla prima apparizione
+  // v5s29 (QA M1): disegna una volta, fuori schermo, ogni geometria pesante gia' costruita (buffer e shader pronti sulla GPU)
+  warmGPU() {
+    const r = this.world.renderer; if (!r) return;
+    try {
+      const grp = new THREE.Group(); grp.position.set(0, -2000, 0);
+      const geos = new Set([...this.markCache.values()]); for (const p of this.prefabs.values()) if (p && p.geom) geos.add(p.geom);
+      for (const g of geos) { if (!g || !g.attributes) continue; const m = new THREE.Mesh(g, this.mats2); m.frustumCulled = false; grp.add(m); }
+      const tm = towerModel(); if (tm) { const c = tm.clone(); c.traverse((o) => { o.frustumCulled = false; }); grp.add(c); }
+      for (const mat of [this.fallMat, this.mistMat, this.shaftMat]) { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 0.1), mat); m.frustumCulled = false; grp.add(m); }
+      this.scene.add(grp);
+      const rt = this._warmRT || (this._warmRT = new THREE.WebGLRenderTarget(4, 4));
+      const prev = r.getRenderTarget(); r.setRenderTarget(rt); r.render(this.scene, this.world.camera); r.setRenderTarget(prev);
+      this.scene.remove(grp);
+    } catch (e) { /* solo ottimizzazione */ }
+  }
   warmShaders() {
     const r = this.world.renderer; if (!r || !r.compile) return;
     for (let k = 0; k < BIOMES.length; k++) this.blendMat(BIOMES[k].ground.road, BIOMES[(k + 1) % BIOMES.length].ground.road);
@@ -675,7 +698,10 @@ export class Env {
   revealMarks(playerW) {
     const pb = this.bAt(playerW);
     for (const [key, m] of this.marks) {
-      const [id, lap] = key.split('@'); const rv = LANDMARKS[id].reveal; if (!rv) continue;
+      const [id, lap] = key.split('@');
+      // v5s29 (QA H1): usciti dalla navata di Santa Marta la chiesa sparisce: la camera (qualche metro dietro) non resta dentro il muro d'uscita
+      if (id === 'santamarta') { const ex = lap * CYCLE + byId.village.from + LANDMARKS.santamarta.at + 30 + 2.5; m.root.visible = this.mode === 'attract' || pb < ex; continue; }
+      const rv = LANDMARKS[id].reveal; if (!rv) continue;
       let k = 1;
       if (this.mode !== 'attract') { const t = (pb - (lap * CYCLE + byId[rv.biome].from) - rv.from) / (rv.to - rv.from); k = Math.max(0, Math.min(1, t)); k = k * k * (3 - 2 * k); }
       m.root.visible = k > 0.001;
@@ -764,8 +790,8 @@ export class Env {
     } else if (id === 'viaduct') {
       cached('viaduct', () => S.buildViaduct((x) => (x < 0 ? -2 : -5)));
     } else if (id === 'valleyRiver') {
-      cached('valleyRiverR', () => N.valleyTerrain(Bm - 150, 460, { side: 1, x0: 70, topY: -4.4, floorY: -4.4, dropW: 2, floorW: 30, far: 340, mtnH: 85, seed: 11, trees: 520 })).position.z = Bm;
-      cached('valleyRiverL', () => N.valleyTerrain(Bm - 150, 460, { side: -1, x0: 36, topY: 14, floorY: 14, dropW: 2, floorW: 8, far: 320, mtnH: 70, seed: 12, trees: 420 })).position.z = Bm;
+      cached('valleyRiverR', () => N.valleyTerrain(Bm - 150, 460, { side: 1, x0: 70, topY: -4.4, floorY: -4.4, dropW: 2, floorW: 30, far: 340, mtnH: 85, seed: 11, trees: 520, relief: 38 })).position.z = Bm;
+      cached('valleyRiverL', () => N.valleyTerrain(Bm - 150, 460, { side: -1, x0: 36, topY: 14, floorY: 14, dropW: 2, floorW: 8, far: 320, mtnH: 70, seed: 12, trees: 420, relief: 38 })).position.z = Bm;
     } else if (id === 'minePortal') {
       mesh(this.prefab('portal', 0, () => ({ geom: S.buildMinePortal(5), w: 0, lamps: [] })).geom, this.mats2, true);
       const cart = mesh(this.prefab('cartDecor', 0, () => ({ geom: S.buildMineCartDecor(), w: 0, lamps: [] })).geom, this.mats2, true); cart.position.set(8.6, 0, 7.5); cart.rotation.y = 0.15;

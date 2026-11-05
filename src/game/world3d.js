@@ -8,6 +8,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { WORLD, BIOME_OBST, FIRE, MINE, FESTA, WEATHER, ANIMALS } from '../config.js';
 import { laneX, isMoving, ROAD_HALF } from './sim.js';
 import { DanceRing } from './dance/dance3d.js';
+import { towerLookK, TOWER_LOOK } from './camRules.js';
 import { buildMaimoni, buildStramaione, buildGrastula, animateFigure, spindleGeom } from './masks/figures.js';
 import * as T3 from './tex3d.js';
 import { rainAt, fogAt } from '../systems/weather.js';
@@ -52,9 +53,10 @@ function buildRidges() {
   const pos = [], k = [];
   const L = [[470, 150, 1.3, 0.0], [435, 115, 2.1, 0.5], [400, 80, 3.4, 1.0]];   // raggio, altezza, frequenza, strato
   for (const [R, H, F, layer] of L) {
-    const N = 150, top = [];
+    const N = 220, top = [];
     for (let i = 0; i <= N; i++) { const a = i / N * Math.PI * 2;
-      let h = 0.55 + 0.25 * Math.sin(a * F * 2 + layer * 5) + 0.15 * Math.sin(a * F * 5.3 + 1.7 + layer) + 0.08 * Math.sin(a * F * 11.7 + layer * 3);
+      // v5s29: cime piu' marcate e valloni (prima un fondale piatto vicino al viadotto)
+      let h = 0.28 + 0.5 * Math.pow(0.5 + 0.5 * Math.sin(a * F * 2 + layer * 5), 2) + 0.28 * Math.abs(Math.sin(a * F * 5.3 + 1.7 + layer)) + 0.1 * Math.sin(a * F * 11.7 + layer * 3);
       h += 0.06 * (((i * 7919 + layer * 131) % 17) / 17 - 0.5);   // spigoli
       top.push([Math.cos(a) * R, Math.max(0.12, h) * H - 6, Math.sin(a) * R]); }
     for (let i = 0; i < N; i++) { const a = top[i], b = top[i + 1], a0 = [a[0], -40, a[2]], b0 = [b[0], -40, b[2]];
@@ -107,7 +109,7 @@ export class World {
     this.renderer.toneMappingExposure = 1.05;
     container.appendChild(this.renderer.domElement);
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(62, 0.5, 0.3, 520);
+    this.camera = new THREE.PerspectiveCamera(62, 0.5, 1.4, 520);   // v5s29 (QA H1/M2/M3): near piu' lontano, le pareti radenti alla camera vengono tagliate invece di coprire lo schermo
     this.scene.fog = new THREE.Fog('#f4c9a0', 40, 175);
     this.mood = {}; this.moodName = 'menu';
     for (const k in MOODS.menu) this.mood[k] = typeof MOODS.menu[k] === 'string' ? new THREE.Color(MOODS.menu[k]) : MOODS.menu[k];
@@ -122,7 +124,7 @@ export class World {
     this.bannerMat = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
     this.env = new Env(this);           // v5: ambienti di Gadoni a tratti (terreno, lati, galleria, monumenti)
     // v5s23: neve sui materiali (tetti, strada, alberi, rocce) e fiocchi
-    for (const m of [this.mat.lit, this.mat.stave, this.mat.lid, this.mat.chock, this.bannerMat, this.env.lit]) addSnow(m);
+    for (const m of [this.mat.lit, this.bannerMat, this.env.lit]) addSnow(m);   // v5s29: botti senza neve (QA L4)
     for (const k in this.env.roadMat) addSnow(this.env.roadMat[k], { road: true, cap: 0.85 });
     for (const k in this.env.shoulderMat) addSnow(this.env.shoulderMat[k]);
     { const mob = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
@@ -169,6 +171,8 @@ export class World {
       shot: new THREE.MeshBasicMaterial({ color: '#fff2b0' }),
     };
     this.mats2 = [this.mat.lit, this.mat.unlit];
+    // v5s29 (QA L4): ostacoli senza neve (sul giro innevato restano scuri e leggibili sulla strada bianca)
+    { const l = this.mat.lit.clone(); l.onBeforeCompile = () => {}; l.customProgramCacheKey = () => 'obstNoSnow'; this.matsObst = [l, this.mat.unlit]; }
     this.geo = {};
     const B = M.barrelGeometry(1.8, 0.62, 0.16);
     this.geo.barrelBody = B.body; this.geo.barrelLid = B.lid; this.geo.barrelHoops = mergeGeometries(B.hoops);
@@ -293,23 +297,23 @@ export class World {
     const root = new THREE.Group();
     const v = { kind, root, body: null, glow: null, shadow: null, t: Math.random() * 6, skin };
     if (kind === 'trave') {
-      v.body = new THREE.Mesh(sk.make(false), this.mats2); v.shadow = this.blob(12.8, 1.3);
+      v.body = new THREE.Mesh(sk.make(false), this.matsObst); v.shadow = this.blob(12.8, 1.3);
     } else if (kind === 'sasso') {
-      v.body = new THREE.Mesh(sk.make(false), this.mats2); v.shadow = this.blob(2.8, 2.8);  // ombra = avviso prima della caduta
+      v.body = new THREE.Mesh(sk.make(false), this.matsObst); v.shadow = this.blob(2.8, 2.8);  // ombra = avviso prima della caduta
       const wm = this.mat.warn || (this.mat.warn = new THREE.MeshBasicMaterial({ color: '#ff5a2a', transparent: true, opacity: 0.85, depthWrite: false, fog: false }));
       const ring = new THREE.Mesh(this.geo.ring, wm); ring.rotation.x = Math.PI / 2; ring.position.y = 0.06; ring.scale.setScalar(1.5); ring.renderOrder = 4; v.warn = ring; root.add(ring);
     } else if (kind === 'bagnato') {
       v.body = new THREE.Group();
       const w = new THREE.Mesh(this.geo.puddle, this.mat.wet || (this.mat.wet = Object.assign(this.mat.puddle.clone(), {})));
       this.mat.wet.color.set('#5fd0c0'); w.position.y = 0.04; w.scale.set(1.25, 1, 1.25); w.renderOrder = 3;
-      v.body.add(w, new THREE.Mesh(sk.make(false), this.mats2)); v.water = w;
+      v.body.add(w, new THREE.Mesh(sk.make(false), this.matsObst)); v.water = w;
     } else if (kind === 'rollbarrel') {
       v.body = new THREE.Group();
       const b = new THREE.Mesh(sk.make(true), this.mats2);
       const pivot = new THREE.Group(); pivot.add(b); pivot.rotation.x = Math.PI / 2; pivot.position.y = 0.78;
       v.spin = pivot; v.body.add(pivot); v.shadow = this.blob(1.9, 2.4);
     } else {
-      v.body = new THREE.Mesh(sk.make(false), this.mats2);
+      v.body = new THREE.Mesh(sk.make(false), this.matsObst);
       const sh = { botte: [2.0, 2.0], botti: [3.6, 4.4], bottecoricata: [3.0, 1.8], muretto: [3.0, 1.4], goat: [2.0, 1.1] }[kind] || [2, 2];
       v.shadow = this.blob(sh[0], sh[1]);
     }
@@ -609,6 +613,8 @@ export class World {
       const ahead = e.d - sim.T;
       v.root.visible = !(this.moodName === 'over' && !e.pickup && ahead + (e.len || 0) > -210 && ahead < 70);
       // v5s27 (telefono): oggetti oltre ~95 m sono pochi pixel nella nebbia: non si disegnano (meno draw call)
+      // v5s29 (QA M4/M5/M6): passato il corridore, l'ostacolo sparisce (travi, panni, ringhiere non coprono piu' la camera)
+      if ((ahead + (e.len || 0)) * U < -1.5 && this.moodName !== 'over') v.root.visible = false;
       if (farCull && ahead * U > farCull && !(e.kind === 'processione' || e.kind === 'trave' || e.kind === 'panni')) v.root.visible = false;
       if (e.done && !v.dead && (e.pickup || e.destroyed)) { v.dead = true; v.body.visible = false; if (v.glow) v.glow.visible = false; if (v.warn) v.warn.visible = false; if (v.shadow) v.shadow.visible = !e.pickup && !e.destroyed; }
       if (v.dead) continue;
@@ -890,7 +896,7 @@ export class World {
       case 'slip': {
         const x = sim.px * U;
         for (let i = 0; i < 22; i++) this.norm.emit(x + (Math.random() - 0.5), 0.2, pz, (Math.random() - 0.5) * 4, Math.random() * 3 + 1.5, (Math.random() - 0.5) * 3, 0.5, 0.25, 0.1, COL.water, 0.9, 14, 0.5);
-        this.char3d.kick((Math.random() < 0.5 ? -1 : 1) * 0.8, 0.6);
+        this.char3d.kick((Math.random() < 0.5 ? -1 : 1) * 0.3, 0.2);   // v5s29 (QA L2): scivolata senza ribaltare la fiamma verso la camera
         break;
       }
       case 'land': this.jumpPuff(sim.px * U, pz, 9); break;   // v5s27: polvere all'atterraggio
@@ -1063,13 +1069,14 @@ export class World {
       const ec = this.env.cur, cl0 = ec.b.id === 'village' ? ec.local : -1, chk = cl0 < 186 || cl0 > 228 ? 0 : Math.min(1, (cl0 - 186) / 10, (228 - cl0) / 6);
       this.chapelCamK = (this.chapelCamK || 0) + (chk - (this.chapelCamK || 0)) * Math.min(1, dt * 2);
       // v5s27j: la torre di roccia (a sinistra, sentiero della roccia): leggero sguardo in alto perche' si veda la cima spaccata
-      { const rl = this.env.cur.b.id === 'rock' ? this.env.cur.local : -1, tk = rl < 0 || rl > 150 ? 0 : Math.min(1, (rl + 10) / 20, (150 - rl) / 15);
+      // v5s29 (QA H2): solo al primo giro, e meno marcato: il corridore resta a ~75% dello schermo, mai dietro SPARA
+      { const tk = towerLookK(this.env.cur.b.id, this.env.cur.local, Math.floor(this.env.cur.bDist / CYCLE));
         this.towerCamK = (this.towerCamK || 0) + (tk - (this.towerCamK || 0)) * Math.min(1, dt * 1.5);
-        if (this.towerCamK > 1e-3) { const sk = this.towerCamK * por; cl.y += 9 * sk; fov += 8 * sk; } }
-      const yaw = (L.camYaw || 0) - 5.5 * this.vistaCamK - 2.4 * this.chapelCamK;   // verso la chiesa, a sinistra della via
-      if (yaw) { cl.x += yaw * por; cp.x -= yaw * 0.3 * por; }
+        if (this.towerCamK > 1e-3) { const sk = this.towerCamK * por; cl.y += TOWER_LOOK.lookY * sk; cp.y += TOWER_LOOK.camY * sk; fov += TOWER_LOOK.fov * sk; } }
+      const yaw = (L.camYaw || 0) - 2.6 * this.vistaCamK - 2.4 * this.chapelCamK;   // v5s29 (QA M8): sguardo alla chiesa piu' leggero, il corridore resta in quadro   // verso la chiesa, a sinistra della via
+      if (yaw) { cl.x += yaw * por; cp.x -= yaw * 0.45 * por; }
       // v5s27b: la chiesa col campanile intera sul telefono: un po' piu' larga e alta mentre entra in vista
-      { const vk2 = this.vistaCamK * por; const near = Math.max(0, Math.min(1, (26 - (this.vistaAhead ?? 999)) / 14)); cl.y += (3.0 + 5 * near) * vk2; fov += (8 + 6 * near) * vk2; }
+      { const vk2 = this.vistaCamK * por; const near = Math.max(0, Math.min(1, (26 - (this.vistaAhead ?? 999)) / 14)); cl.y += (1.8 + 2.5 * near) * vk2; cp.y += 1.2 * vk2; fov += (6 + 4 * near) * vk2; }
       // v5s22: nel carrello camera piu' alta e piu' indietro: si vedono due scambi
       this.cartCamK = (this.cartCamK || 0) + ((sim.cart ? 1 : 0) - (this.cartCamK || 0)) * Math.min(1, dt * 1.8);
       const ck = this.cartCamK; if (ck > 1e-3) { cp.y += 1.5 * ck; cp.z += 1.8 * ck; cl.z -= 8 * ck; cl.y += 0.3 * ck; }   // v5s6: solo la piscina guarda un po' verso l'acqua a destra

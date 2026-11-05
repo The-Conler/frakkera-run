@@ -89,7 +89,7 @@ export function slopePiece(W0, len, o = {}) {
     const B = o.skirt, sc = (x, y) => pickN(['#c4d080', '#b4c470', '#c8bc8c', '#a8c068'], fbm(x / 7, y / 6, sd + 4, 2) * 0.5 + 0.5);
     const wall = (f, revs = [false, true]) => { for (const rev of revs) addColored(k, gridSurface(8, 3, (u, v) => f(rev ? 1 - u : u, v), sc)); };
     // scarpate inclinate (non pareti verticali: cosi' prendono la luce del cielo e sembrano un versante naturale)
-    wall((u, v) => { const W = W0 + u * len, x = 0.6 - D, h = hAt(x, W); return [x - (h - B) * 0.9 * v, h + (B - h) * v, -u * len]; });
+    wall((u, v) => { const W = W0 + u * len, x = 0.6 - D, h = hAt(x, W); return [x - (h - B) * 1.6 * v, h + (B - h) * v, -u * len]; });   // v5s29: scarpata piu' dolce, prende piu' luce
     for (const e of [0, 1]) wall((u, v) => { const W = W0 + e * len, x = 0.6 - Math.pow(u, 1.25) * D, h = hAt(x, W) - 0.05, dy = (h - B) * v * Math.min(1, u * 6); return [x, h - dy, -e * len + (e ? -1 : 1) * dy * 0.9]; }, [e === 1]);
   }
   const dens = o.trees ?? 0.25;
@@ -243,7 +243,7 @@ export function valleyTerrain(W0, len, o = {}) {
     let y;
     if (d < (o.dropW ?? 26)) { const t = d / (o.dropW ?? 26); y = (o.topY ?? -1) + (F - (o.topY ?? -1)) * Math.pow(t, 0.7); }
     else if (d < (o.floorW ?? 150)) y = F + 6 * fbm(W / 30, d / 25, sd, 2);
-    else { const t = (d - (o.floorW ?? 150)) / (X1 - x0 - (o.floorW ?? 150)); y = F + (M - F) * Math.pow(Math.min(1, t), 0.8) + 14 * fbm(W / 60, d / 40, sd + 3, 3) * t; }
+    else { const t = (d - (o.floorW ?? 150)) / (X1 - x0 - (o.floorW ?? 150)); y = F + (M - F) * Math.pow(Math.min(1, t), 0.8) + 14 * fbm(W / 60, d / 40, sd + 3, 3) * t + (o.relief ? o.relief * (Math.abs(fbm(W / 70, d / 55, sd + 21, 3)) * 1.6 - 0.35) * Math.min(1, t * 1.5) : 0); }   // v5s29: creste e valloni (niente fondale piatto)
     return y;
   };
   const xs = []; for (let i = 0; i <= 34; i++) xs.push(x0 + Math.pow(i / 34, 1.6) * (X1 - x0));

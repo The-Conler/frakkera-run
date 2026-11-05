@@ -254,7 +254,7 @@ svg { display: block; }
 @media (hover: hover) and (pointer: fine) { #fire-btn .fire-key { display: block; } }
 
 /* v5s7: Garag di Pinu */
-#shop-offer { position: absolute; left: 50%; top: 21%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 22px 12px; border: 0; border-radius: 18px; cursor: pointer;
+#shop-offer { position: absolute; left: 50%; top: 36%;   /* v5s29 (QA M7): sotto la scritta PIU' VELOCE */ transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 22px 12px; border: 0; border-radius: 18px; cursor: pointer;
   background: linear-gradient(#7a4a2a, #5a3420); box-shadow: inset 0 2px 0 rgba(255,220,160,0.35), 0 5px 0 #3a2010, 0 8px 18px rgba(0,0,0,0.45); color: #ffe7b0; animation: shopPulse 0.9s ease-in-out infinite alternate; touch-action: none; }
 #shop-offer .so-sign { font-family: var(--f-disp); font-size: calc(var(--u) * 15); color: var(--gold1); letter-spacing: 0.5px; }
 #shop-offer .so-q { font-family: var(--f-disp); font-size: calc(var(--u) * 26); color: #fff; -webkit-text-stroke: 1px #3a1a10; paint-order: stroke fill; }
@@ -356,7 +356,7 @@ svg { display: block; }
 
 /* ============ v5s15: game over + Garag di Pinu in stile menu ============ */
 .go-head { display: flex; flex-direction: column; align-items: center; }
-#scr-over .over-logo .logo-l1 { font-size: calc(var(--u) * 46); white-space: nowrap; }
+#scr-over .over-logo .logo-l1 { font-size: calc(var(--u) * 38); white-space: nowrap; }   /* v5s29 (QA L5) */
 .go-band { width: 74%; height: calc(var(--u) * 16); margin-top: 4px; background-image: var(--carpet-band); background-size: 100% 100%; border-radius: 3px;
   box-shadow: 0 3px 0 rgba(40,15,5,0.5), 0 0 0 2px rgba(255,220,140,0.25); animation: riseIn 0.5s 0.3s both; }
 #scr-over .over-spacer { min-height: 24px; }

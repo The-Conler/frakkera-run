@@ -19,3 +19,10 @@ test('case della piazza fuori dal corridoio della via, giri 0-2', () => {
     }
   }
 });
+// v5s29: anche le file di case a bordo via (prefab del paese e orti): a terra niente oltre il bordo della via (x = 5.5)
+test('case a bordo via fuori dalla carreggiata, ogni prefab', () => {
+  const ROAD = 11 / 2;
+  const chk = (g, name) => { const p = g.attributes.position; for (let j = 0; j < p.count; j++) if (p.getY(j) < 2.6) assert.ok(FACADE - p.getX(j) >= ROAD - 0.01, `${name} sporge sulla via`); };
+  for (let i = 1; i <= 26; i++) chk(M.buildHouse(i).geom, 'casa ' + i);
+  for (let i = 1; i <= 5; i++) chk(M.buildGarden(i).geom, 'orto ' + i);
+});

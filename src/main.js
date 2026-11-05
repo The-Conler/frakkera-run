@@ -21,7 +21,7 @@ function applyFrame({ w, h }) {
   f.style.width = `${w}px`;
   f.style.height = `${h}px`;
   // unita' UI: scala con la larghezza (riferimento 390 px), limitata
-  const u = Math.max(0.78, Math.min(1.25, Math.min(w / 390, h / 760)));
+  const u = Math.max(0.5, Math.min(1.25, Math.min(w / 390, h / 760)));   // v5s29 (QA M8): in orizzontale la cornice e' stretta, l'HUD deve rimpicciolirsi
   document.documentElement.style.setProperty('--u', `${u.toFixed(3)}px`);
 }
 
