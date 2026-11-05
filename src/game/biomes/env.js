@@ -263,9 +263,12 @@ export class Env {
         one(80, 0.1, -(9.0 + 40), (g.terrainY ?? -0.06) - 0.05, g.terrain);   // con la valle a sinistra niente terreno piano
         // v5s37: ciglio rialzato sul bordo lontano del terreno paese — nasconde il cielo sotto la mappa (buco a ~28 m)
         if (bid === 'village') {
-          one(3.2, 2.8, -(9.0 + 80 - 1.6), 1.3, '#5f6a40');
-          one(4.5, 4.5, -(9.0 + 80 + 2.0), 2.0, '#6e7a3e');
-          one(6.0, 7.0, -(9.0 + 80 + 6.5), 3.2, '#5a6640');
+          // v5s37b: ciglio alto scuro (chiude il cielo a ~28 m). Colori bassi cosi' non sembrano gradoni chiari.
+          const rim = -(9.0 + 80);
+          for (const [dx, h, col] of [
+            [2, 10, '#3a4530'], [10, 18, '#343e2c'], [20, 26, '#2e3728'],
+            [32, 34, '#293224'], [46, 42, '#242c20'],
+          ]) one(14, h, rim - dx, h * 0.45, col);
         }
       }
       if (!g.right || g.mirrorWater) one(80, 0.1, 9.0 + 40, (g.terrainY ?? -0.06) - 0.05, g.terrain);
@@ -390,10 +393,10 @@ export class Env {
           return { W0: W, W1: W + ww, w: ww, mesh, owned: true, lamps: [], make, lod };
         };
         const piece = own(() => N.slopePiece(W, w, {
-          Hs: 16, dist: 32, trees: 0.18, wall: false, rocks: 0.12, ferns: 0.04,
-          seed: 77 + Math.floor(W), flowers: 0.15,
+          Hs: 22, dist: 70, trees: 0.22, wall: false, rocks: 0.1, ferns: 0.03,
+          seed: 77 + Math.floor(W), flowers: 0.1,
           ground: ['#7d8a4e', '#6e7a3e', '#8a9a56', '#5f6a40', '#9a8f6a'],
-          skirt: -55,
+          skirt: -70,
         }), w);
         sd.list.push(piece); sd.cur = W + piece.w; continue;
       }

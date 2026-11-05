@@ -390,6 +390,39 @@ export function buildVista(seed = 1) {
     kp.add(G.cyl(0.18, 0.24, 1.4, 8), '#9a8e7c', { x: fx, y: 1.1, z: fz }); kp.add(G.sph(0.3, 8, 6), '#b3a793', { x: fx, y: 1.85, z: fz }); }
   tree(kp, rp, bx - 4, 0, z0 - 3.5, 1.4); tree(kp, rp, bx - 11, 0, z1 + 5, 1.2);
   for (const [vx, vz] of [[bx - 0.6, z1 + 0.8], [bx - 0.6, z0 - 0.6]]) { kp.add(G.cyl(0.42, 0.32, 0.7, 10), '#a8603a', { x: vx, y: 0.35, z: vz }); shrub(kp, rp, vx, 0.55, vz, 0.55, ['#4f6e2e', '#5f7f36'], 1); }
+  // v5s37: chiude il vuoto a sinistra della piazzetta (a ~28 m si vedeva il cielo sotto la mappa).
+  // Collina + case basse sul fondo (lontano dalla via), muretti ai lati: la chiesa resta aperta verso la strada.
+  {
+    const far = bx - 28, near = bx - 0.4, zA = z1 + 14, zB = z0 - 14;
+    // pavimento allargato fino al bordo lontano
+    for (let z = zA; z > zB; z -= 1.6) for (let x = bx - 14; x > far - 2; x -= 1.6) {
+      kp.add(G.box(1.52, 0.08, 1.52), rp.pick(['#b9b1a3', '#c6beb0', '#aaa293', '#7d8a4e', '#6e7a3e']), { x: x - 0.8, y: 0.02, z: z - 0.8, vary: 0.08 });
+    }
+    // collina/scarpata sul bordo lontano: sale e nasconde il cielo
+    for (let z = zA; z > zB; z -= 2.2) {
+      const h = 10 + rp.range(0, 8);
+      kp.add(G.box(4.5, h, 2.6), rp.pick(['#6e7a3e', '#7d8a4e', '#5f6a40', '#8a7a5a']), { x: far - 2.0, y: h / 2, z: z - 1.1, vary: 0.12 });
+      if (rp.chance(0.55)) tree(kp, rp, far - 2.5, h * 0.55, z - 1.0, rp.range(1.1, 1.7));
+      else shrub(kp, rp, far - 1.8, h * 0.7, z - 0.8, rp.range(0.7, 1.2), ['#4f6e2e', '#5f7f36']);
+    }
+    // case basse di fondale (schiena alla piazzetta, facciate verso -x = verso la via da lontano)
+    for (let i = 0, z = zA - 2; i < 5; i++, z -= 5.5) {
+      const hw = rp.range(3.6, 4.6), hh = rp.range(3.2, 4.4), hd = rp.range(2.8, 3.6);
+      const cx = far + 1.2, cz = z;
+      kp.add(G.box(hd, hh, hw), rp.pick(['#e8d2b8', '#dcc6a8', '#cbb89a', '#eaa595']), { x: cx, y: hh / 2, z: cz, vary: 0.04 });
+      kp.add(G.box(hd + 0.4, 0.35, hw + 0.4), rp.pick(['#b9603a', '#c46c42', '#a9553a']), { x: cx, y: hh + 0.15, z: cz });
+      // tetto a due falde grezzo
+      kp.add(G.box(hd + 0.5, 0.2, hw * 0.55), rp.pick(['#b9603a', '#a9553a']), { x: cx, y: hh + 0.55, z: cz - hw * 0.22, rx: 0.45 });
+      kp.add(G.box(hd + 0.5, 0.2, hw * 0.55), rp.pick(['#b9603a', '#a9553a']), { x: cx, y: hh + 0.55, z: cz + hw * 0.22, rx: -0.45 });
+    }
+    // muretti ai capi (+z verso chi arriva, -z in fondo) che collegano via e collina
+    for (const zWall of [zA - 0.6, zB + 0.6]) {
+      for (let x = near; x > far; x -= 1.8) {
+        const wh = 1.1 + rp.range(0, 0.5);
+        kp.add(G.box(1.7, wh, 0.45), rp.pick(['#9a8e80', '#8a8478', '#a89c8a']), { x: x - 0.85, y: wh / 2, z: zWall, vary: 0.06 });
+      }
+    }
+  }
   for (const g of kp.lit) { g.rotateY(-VISTA.RY); k.lit.push(g); }   // nella stessa geometria (un solo draw call)
   const all = k.build({ ao: 0.2 }); all.rotateY(VISTA.RY);
   all.computeBoundingBox(); all.computeBoundingSphere();

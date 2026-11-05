@@ -48,7 +48,7 @@ export function cliffModels() { return models; }
 // disposizione dei moduli: colonne tra una cascata e l'altra (tacca libera di ~6 m attorno a ogni cascata), due piani
 // piano 0: fronte a ~6.3 m dal centro della via, alto ~22 m; piano 1: da ~20 m, fronte 3.5 m piu' in fuori e inclinato verso la via
 // v5s35: tre piani di blocchi piu' piccoli (~16 m) che seguono lo sbalzo: fronte 6.3 -> 4.6 -> 2.2 m, l'ultimo inclinato verso la via
-export const CLIFF_LAYOUT = { FRONT: [6.3, 4.6, 2.2], H: [16.5, 16, 16], Y: [-0.8, 13.2, 26.6], TILT: [0, 0.05, 0.12], DEPTH: 8, NOTCH: 3.2 };
+export const CLIFF_LAYOUT = { FRONT: [6.3, 4.6, 2.2], H: [16.5, 16, 16], Y: [-0.8, 13.2, 26.6], TILT: [0, 0.05, 0.12], DEPTH: 8, NOTCH: 2.2 };
 export function cliffLayout(fallsLz, from = -6, to = 247) {   // solo dentro Sa Stiddiosa (0..250 m): niente moduli nel viadotto
   const L = CLIFF_LAYOUT, r = rng(331), cols = [];
   const cuts = [from, ...fallsLz.slice().sort((a, b) => a - b), to];
