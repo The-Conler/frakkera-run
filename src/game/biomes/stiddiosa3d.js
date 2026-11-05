@@ -64,6 +64,15 @@ export function cliffLayout(fallsLz, from = -6, to = 247) {   // solo dentro Sa 
     const front = L.FRONT[t] + r.range(-0.5, 0.6) * (t ? 1 : 0.4);
     inst.push({ type, t, lz: c.lz + r.range(-1.2, 1.2), w, h, d, ry, rz: L.TILT[t] + r.range(-0.03, 0.04), x: front + d / 2, y: L.Y[t] + (t ? r.range(-1, 1) : 0) });
   }
+  // v5s37: architrave SOLO sul piano alto sopra ogni cascata (niente mensole a meta' che fluttuano):
+  // la tacca resta sotto (canale), in cima c'e' sbalzo continuo e l'acqua nasce SOTTO la roccia
+  for (let i = 1; i < cuts.length - 1; i++) {
+    const lz = cuts[i], t = 2;
+    const w = L.NOTCH * 2.6 + r.range(1.5, 3.2), h = L.H[t] * r.range(0.65, 0.9), d = L.DEPTH * r.range(0.95, 1.25);
+    const front = L.FRONT[t] + r.range(-0.2, 0.35), type = r.int(4);
+    // y abbassato di ~1.5 m: il labbro copre meglio la cresta dell'acqua
+    inst.push({ type, t, lz: lz + r.range(-0.3, 0.3), w, h, d, ry: -Math.PI / 2 + r.range(-0.14, 0.14), rz: L.TILT[t] + r.range(-0.02, 0.03), x: front + d / 2, y: L.Y[t] - 1.4 + r.range(-0.4, 0.5) });
+  }
   return inst;
 }
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _p = new THREE.Vector3(), _s = new THREE.Vector3();
@@ -181,7 +190,8 @@ export function buildCurtains(lips, seed = 5, o = {}) {
   for (const lp of ledges) {
     if (cards >= FERN_MAX_CARDS) break;
     if (r() > keep) continue;
-    if (avoid.some((f) => Math.abs(lp.z - f.z) < f.half && lp.y < f.y0 + 1.5)) continue;
+    // evita solo la colonna d'acqua (sotto il labbro); le felci sul labbro restano e mascherano la cresta
+    if (avoid.some((f) => Math.abs(lp.z - f.z) < f.half && lp.y < (f.y0 - 1.2) && lp.y > (f.yMin ?? 3))) continue;
     const n = r.chance(0.45) ? 3 : 2, gap = r.range(0.9, 1.35);
     for (let i = 0; i < n && cards < FERN_MAX_CARDS; i++) {
       const L = (r.chance(0.6) ? r.range(5.0, 7.2) : r.range(2.5, 5.0)) * (lp.t ? 1.08 : 1);

@@ -119,35 +119,68 @@ export function buildFalls(faceX, specs, seed = 7) {
     let y0 = Math.min(s.y0, 46); const far = 40;
     while (y0 > 4 && faceX(y0, z, half) > far) y0 -= 0.5;
     if (y0 <= 4) continue;
+    // v5s37: cerca uno sbalzo sopra (faccia piu' avanti in alto) e parti 0.2 m sotto — niente bordo piatto a mezz'aria
+    let lipY = y0, lipX = faceX(y0, z, half);
+    for (let y = y0; y < Math.min(y0 + 10, 48); y += 0.4) {
+      const xu = faceX(y + 0.4, z, half), xd = faceX(y, z, half);
+      if (xu < far && xd < far && xu < xd - 0.25) { lipY = y - 0.15; lipX = xu; }   // sbalzo: la roccia sopra sporge di piu' (x minore)
+    }
+    // usa lo sbalzo trovato: parti 0.45 m DENTRO il volume dello sbalzo (il bordo alto resta sepolto nella roccia)
+    y0 = Math.max(5, Math.min(46, lipY + 0.45));
     // percorso: cade quasi a piombo, torna verso la parete al massimo 0.45 m per m, e scivola sulle cenge che sporgono
-    const step = s.kind === 'trickle' ? 1.3 : 1.0, rows = [];
-    let x = faceX(y0, z, half) - 0.3, free = 0, foam = 0;
+    // in cima: acqua TUCKATA DENTRO la roccia (x maggiore) cosi' il bordo alto resta nascosto dallo sbalzo
+    const step = s.kind === 'trickle' ? 1.3 : 1.0, rows = [], CREST = 3.8;
+    let x = Math.max(faceX(y0, z, half), lipX) + 1.15, free = 0, foam = 0;   // +1.15 = ben dentro la cengia
     for (let y = y0, i = 0; y > 0.05; y -= step, i++) {
-      const f = faceX(y, z, half) - 0.25, out = i < 3 ? -0.18 * i : 0;   // appena oltre il bordo l'acqua sporge un po'
-      let nx = Math.min(x + 0.45 * step, f) + (i < 3 ? out : 0);
-      const contact = f <= x + 0.45 * step + 1e-3;
+      const f = faceX(y, z, half) - 0.25;
+      const crest = Math.max(0, 1 - (y0 - y) / CREST);   // 1 in cima -> 0 dopo CREST m
+      const tuck = crest * 1.35;                          // ancora dentro la roccia vicino alla cresta
+      const out = (i >= 4 && crest < 0.12) ? -0.14 * Math.min(3, i - 3) : 0;   // sporge solo dopo essere uscita dallo sbalzo
+      let nx = Math.min(x + 0.45 * step, f + tuck) + out;
+      if (crest > 0.4) nx = Math.max(nx, faceX(y, z, half) + 0.55);   // primi metri: mai davanti alla faccia
+      const contact = f + tuck <= x + 0.45 * step + 1e-3;
       if (contact && free > 1.4) foam = 1; free = contact ? 0 : free + step;
       if (y < 3.4 && nx < 5.7) nx = 5.7;   // mai dentro la via sotto i 3 m
-      rows.push({ x: nx, y, foam, contact }); foam *= 0.55; x = nx;
+      rows.push({ x: nx, y, foam, contact, crest }); foam *= 0.55; x = nx;
     }
-    rows.push({ x: Math.max(x, 5.7), y: 0.02, foam: 1, contact: true });
-    for (let k = 0; k < 2; k++) for (let i = 1; i < rows.length - 1; i++) rows[i].x = Math.min(rows[i].x, (rows[i - 1].x + 2 * rows[i].x + rows[i + 1].x) / 4 + 0.3);   // morbido, sempre davanti alla roccia
+    rows.push({ x: Math.max(x, 5.7), y: 0.02, foam: 1, contact: true, crest: 0 });
+    for (let k = 0; k < 2; k++) for (let i = 1; i < rows.length - 1; i++) {
+      if (rows[i].crest > 0.4) continue;   // non smussare la cresta tuckata
+      rows[i].x = Math.min(rows[i].x, (rows[i - 1].x + 2 * rows[i].x + rows[i + 1].x) / 4 + 0.3);
+    }
     const len = (y0 - 0.02);
     for (const L of K.layers) {
       const wl = s.w * (L === 2 ? 1.9 : L === 1 ? 0.75 : 1.0), dx = L === 2 ? 0.14 : L === 1 ? -0.1 : 0, zo = L === 1 ? r.range(-0.15, 0.15) * s.w : 0;
       let v = 0;
       for (let i = 0; i < rows.length - 1; i++) {
-        const A = rows[i], B = rows[i + 1], va = v; v += Math.hypot(A.x - B.x, A.y - B.y); const vb = v;
-        const fa = Math.min(1, (y0 - A.y) / 0.8) * Math.min(1, A.y / 0.4 + 0.3), fb = Math.min(1, (y0 - B.y) / 0.8) * Math.min(1, B.y / 0.4 + 0.3);
-        const spa = 1 + (A.contact ? 0.22 : 0) + 0.12 * (1 - A.y / len), spb = 1 + (B.contact ? 0.22 : 0) + 0.12 * (1 - B.y / len);   // si allarga sulle cenge e in basso
-        const SG = L === 2 ? Math.min(2, K.segs) : L === 1 ? Math.max(2, K.segs - 1) : K.segs;   // roccia bagnata e filamenti con meno spicchi
+        const A = rows[i], B = rows[i + 1];
+        // roccia bagnata: salta la cresta (niente rettangolo scuro che "parte" a mezz'aria)
+        if (L === 2 && (y0 - A.y) < CREST * 0.7) { v += Math.hypot(A.x - B.x, A.y - B.y); continue; }
+        const va = v; v += Math.hypot(A.x - B.x, A.y - B.y); const vb = v;
+        // dissolvenza lunga e morbida in cima (niente rettangolo bianco): ~3.8 m, curva piu' lenta all'inizio
+        const fa = Math.pow(Math.min(1, (y0 - A.y) / CREST), 1.8) * Math.min(1, A.y / 0.4 + 0.3);
+        const fb = Math.pow(Math.min(1, (y0 - B.y) / CREST), 1.8) * Math.min(1, B.y / 0.4 + 0.3);
+        const spa = 1 + (A.contact ? 0.22 : 0) + 0.12 * (1 - A.y / len), spb = 1 + (B.contact ? 0.22 : 0) + 0.12 * (1 - B.y / len);
+        const SG = L === 2 ? Math.min(2, K.segs) : L === 1 ? Math.max(2, K.segs - 1) : K.segs;
         for (let j = 0; j < SG; j++) {
           const u0 = j / SG, u1 = (j + 1) / SG;
-          const P = (R, u, sp, va_, fd) => { const c = u * 2 - 1, bul = 0.16 * wl * (1 - c * c);   // sezione curva (convessa verso la via)
-            return [R.x + dx - bul, R.y, z + zo + c * wl * sp / 2, u, va_, L, L === 2 ? 0 : R.foam, fd, wl]; };
+          const P = (R, u, sp, va_, fd) => { const c = u * 2 - 1, bul = 0.16 * wl * (1 - c * c);
+            const crestN = Math.max(0, 1 - (y0 - R.y) / CREST), slim = 1 - 0.55 * crestN;
+            return [R.x + dx - bul * slim, R.y, z + zo + c * wl * sp * slim / 2, u, va_, L, L === 2 ? 0 : R.foam, fd, wl * slim]; };
           quadW(P(A, u0, spa, va, fa), P(A, u1, spa, va, fa), P(B, u1, spb, vb, fb), P(B, u0, spb, vb, fb));
         }
       }
+    }
+    // ripiano di sorgente sotto lo sbalzo: schiuma + velo che mascherano l'attacco (niente bordo piatto leggibile)
+    if (s.kind !== 'trickle') {
+      const sx = rows[0].x, sy = y0 - 0.12, sw = s.w * 0.7 + 0.5, sd0 = r.range(0, 50);
+      quadF([[sx - 0.2, sy, z - sw], [sx + 0.9, sy, z - sw], [sx + 0.9, sy, z + sw], [sx - 0.2, sy, z + sw]], [1, sd0, 0.85, 0]);
+      // velo corto appena sotto il labbro (dissolve nella cascata)
+      const hh = 1.1 + 0.5 * (s.kind === 'main' ? 1 : 0.6);
+      quadW([sx + 0.2, sy, z - sw * 0.7, 0, 0, 0, 0.6, 0.55, s.w],
+            [sx + 0.2, sy, z + sw * 0.7, 1, 0, 0, 0.6, 0.55, s.w],
+            [sx - 0.15, sy - hh, z + sw * 0.55, 1, hh, 0, 0.2, 0.9, s.w],
+            [sx - 0.15, sy - hh, z - sw * 0.55, 0, hh, 0, 0.2, 0.9, s.w]);
     }
     // al piede
     const bx = rows[rows.length - 1].x, big = s.kind === 'main' ? 1 : s.kind === 'mid' ? 0.6 : 0.25, sd = r.range(0, 50);

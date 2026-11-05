@@ -259,7 +259,15 @@ export class Env {
     const one = (w, h, x, y, col) => k.add(G.box(w, h, 1), col, { x, y, z: -0.5 });
     if (g.curb) for (const s of [-1, 1]) one(0.22, 0.26, s * (ROAD_W / 2 + 0.05), 0.13, '#9a8e80');
     if (g.terrain) {
-      if (g.left !== 'drop' && !g.mirrorWater) one(80, 0.1, -(9.0 + 40), (g.terrainY ?? -0.06) - 0.05, g.terrain);   // con la valle a sinistra niente terreno piano
+      if (g.left !== 'drop' && !g.mirrorWater) {
+        one(80, 0.1, -(9.0 + 40), (g.terrainY ?? -0.06) - 0.05, g.terrain);   // con la valle a sinistra niente terreno piano
+        // v5s37: ciglio rialzato sul bordo lontano del terreno paese — nasconde il cielo sotto la mappa (buco a ~28 m)
+        if (bid === 'village') {
+          one(3.2, 2.8, -(9.0 + 80 - 1.6), 1.3, '#5f6a40');
+          one(4.5, 4.5, -(9.0 + 80 + 2.0), 2.0, '#6e7a3e');
+          one(6.0, 7.0, -(9.0 + 80 + 6.5), 3.2, '#5a6640');
+        }
+      }
       if (!g.right || g.mirrorWater) one(80, 0.1, 9.0 + 40, (g.terrainY ?? -0.06) - 0.05, g.terrain);
     }
     if (g.right === 'water') one(80, 0.1, (6.2 + 40) * (g.mirrorWater ? -1 : 1), -3.2, '#0e6e58');   // v5s28: fiume a sinistra (Sa Stiddiosa)
@@ -366,8 +374,29 @@ export class Env {
       if (maxLen < 0.5) { sd.cur = Wb + 0.001; continue; }
       // vuoti (piazza della chiesa, piazzale del portale)
       const gaps = (i.b.gaps && i.b.gaps[sd.s < 0 ? 'left' : 'right']) || [];
-      let skip = 0;
-      for (const [a, z] of gaps) if (i.local >= a - 0.01 && i.local < z) skip = z - i.local;
+      let skip = 0, gapA = null, gapZ = null;
+      for (const [a, z] of gaps) if (i.local >= a - 0.01 && i.local < z) { skip = z - i.local; gapA = a; gapZ = z; }
+      // v5s37: piazzetta della chiesa a sinistra — non lasciare il vuoto nudo (si vedeva il cielo a ~28 m).
+      // Riempie con un versante chiuso in fondo; la chiesa (vista) resta davanti, aperta sulla via.
+      if (skip > 0 && i.b.id === 'village' && sd.s < 0 && gapA != null && gapA < 80) {
+        const w = Math.min(skip, Math.max(4, Math.min(10, maxLen)));
+        // versante chiuso in fondo alla piazzetta (la chiesa/vista resta aperta sulla via)
+        const own = (make, ww) => {
+          const lod = W - this.lastPW > LOD_D;
+          Kit.lodMin = lod ? LOD_MIN : 0; let geom; try { geom = make(); } finally { Kit.lodMin = 0; }
+          this.stats.built++;
+          if (lod) { const pp = { W0: W, W1: W + ww, w: ww, mesh: null, geom, owned: true, lamps: [], make, lod }; this.batchAdd(sd, pp); return pp; }
+          const mesh = new THREE.Mesh(geom, this.mats2); mesh.position.set(sd.s * FACADE, 0, -W); mesh.scale.x = sd.s < 0 ? 1 : -1; this.scene.add(mesh);
+          return { W0: W, W1: W + ww, w: ww, mesh, owned: true, lamps: [], make, lod };
+        };
+        const piece = own(() => N.slopePiece(W, w, {
+          Hs: 16, dist: 32, trees: 0.18, wall: false, rocks: 0.12, ferns: 0.04,
+          seed: 77 + Math.floor(W), flowers: 0.15,
+          ground: ['#7d8a4e', '#6e7a3e', '#8a9a56', '#5f6a40', '#9a8f6a'],
+          skirt: -55,
+        }), w);
+        sd.list.push(piece); sd.cur = W + piece.w; continue;
+      }
       if (skip > 0) { sd.cur = W + skip; continue; }
       let lim = maxLen;
       for (const [a] of gaps) if (a > i.local) lim = Math.min(lim, a - i.local);
@@ -784,7 +813,9 @@ export class Env {
       { const fl = STIDDIOSA_FALLS.map(([lz]) => lz), cm = cliffModels(); let lips = [], cliffMeshes = [];
         if (cm) { const ci = buildCliffInstances(cm, this.mats2[0], fl); for (const im of ci.meshes) { root.add(im); own.push({ dispose: () => im.dispose() }); } lips = ci.lips; cliffMeshes = ci.meshes; }
         else { const P = N.stiddiosaProfile(28, fl.map((lz) => W + lz)); for (let lz = -10; lz < 262; lz += 1.25) for (let y = N.STIDDIOSA_CLIFF.BH; y < 42; y += N.STIDDIOSA_CLIFF.BH) { const Wa = W + lz; if (y > P.Hf(Wa) - 1 || P.wet(Wa) > 0.3) continue; lips.push({ x: FACADE - P.X(Wa, y - 0.6), y: y - 0.6, z: -lz, t: 0 }); } }
-        const FS = stiddiosaFallSpecs(fl), avoid = FS.map((f) => ({ z: -f.lz, half: f.w * 0.5 + (f.kind === 'trickle' ? 1.2 : 2.2), y0: f.y0 }));
+        const FS = stiddiosaFallSpecs(fl);
+        // v5s37: lascia le felci SUL labbro sopra la cascata (nascondono la cresta); libera solo la colonna d'acqua sotto
+        const avoid = FS.map((f) => ({ z: -f.lz, half: f.w * 0.45 + (f.kind === 'trickle' ? 0.9 : 1.6), y0: Math.min(f.y0, f.kind === 'main' ? 38 : 28), yMin: 4 }));
         for (const g of buildCurtains(lips, 5 + lap, { keep: cm ? 1 : 0.9, avoid })) mesh(g, fernMaterial());
         // v5s37: cascate vere (acqua curva a strati sulle cenge + pozza, schiuma, foschia): 2 draw call al posto delle 21 strisce piatte
         const P = N.stiddiosaProfile(28, fl.map((lz) => W + lz), cm ? 2.5 : 0), back = (lz, y) => (y > P.Hf(W + lz) ? 99 : FACADE - P.X(W + lz, y));
