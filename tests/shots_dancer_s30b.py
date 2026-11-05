@@ -24,7 +24,7 @@ async def main():
         if t0 is None: t0=i
         if i-t0 in (25,55,90):
           await pg.screenshot(path=f'{OUT}-dancer-ring-{shots}.png'); print('shot',shots,info,flush=True); shots+=1
-        if shots>=3: break
+        if shots>=2: break
       await asyncio.sleep(0.03)
     print('LOGS',logs[:10])
     await b.close()
