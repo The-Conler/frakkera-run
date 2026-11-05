@@ -35,6 +35,7 @@ import { buildShopRoom } from './shop3d.js';
 import { loadPinuGeometry } from './shop/pinu.js';
 import { MENU_MOOD, OVER_TINT, CYCLE } from './biomes/config.js';
 import { buildVista, VISTA } from './biomes/builders/church.js';
+import { buildNascimentu } from './nascimentu3d.js';
 import { SKINS, SHARDS, outcropGeometry } from './biomes/builders/skins.js';
 
 const U = 0.1;                    // 1 px del mondo 2D = 0.1 unita' 3D (1 m = 1 unita')
@@ -261,6 +262,8 @@ export class World {
     this.scene.add(this.far);
     // v5s12: campanile + chiesa rosa centrati in fondo alla via del paese (segue la camera come il fondale)
     this.vista = new THREE.Mesh(buildVista(1), this.mats2); this.scene.add(this.vista);
+    // v5s37: partenza di Natale - luci a raggiera dal campanile e capanna di Su Nascimentu (segue la vista)
+    if (!/[?&]xmas=0/.test(location.search)) { const n = buildNascimentu(this.tex); n.root.add(new THREE.Mesh(n.geo, this.mats2)); this.nasc = n; this.scene.add(n.root); }
   }
   buildLights() {
     this.hemi = new THREE.HemisphereLight('#ffe6c4', '#7a6658', 1.35);
@@ -1120,7 +1123,8 @@ export class World {
       this.vista.visible = ahead < 520 && ahead > -120 && this.light.tunnel < 0.5;
       const key = sim.mode === 'run' && sim.T * U > 3 ? at + '|' + sim.genOffset : null;   // v5s27: non fissarlo coi metri del menu   // in corsa: fissato una volta per giro e mai piu' spostato
       if (!key || this.vistaAt !== key) { this.vistaAt = key; this.vistaZ = -sim.T * U - ahead; }   // fissato una volta: poi mai piu' spostato
-      this.vista.position.set(VISTA.X, 0, this.vistaZ); }
+      this.vista.position.set(VISTA.X, 0, this.vistaZ);
+      if (this.nasc) { this.nasc.root.position.copy(this.vista.position); this.nasc.root.visible = this.vista.visible; if (this.vista.visible) this.nasc.update(performance.now() / 1000); } }
     // v5s28: spruzzi al piede delle cascatelle di Sa Stiddiosa (poche particelle, solo quelle vicine)
     if (this.env.falls && this.env.falls.length) { this._fallAcc = (this._fallAcc || 0) + dt;
       if (this._fallAcc > 0.06) { this._fallAcc = 0; const cz = this.camera.position.z;

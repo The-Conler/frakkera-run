@@ -383,12 +383,11 @@ export function buildVista(seed = 1) {
     kp.add(G.box(0.5, 0.1, 1.9), '#8a5a32', { x, y: 0.48, z, ry }); kp.add(G.box(0.1, 0.5, 1.9), '#8a5a32', { x: x - 0.25 * Math.cos(ry), y: 0.78, z: z + 0.25 * Math.sin(ry), ry });
     for (const d of [-0.75, 0.75]) kp.add(G.box(0.45, 0.45, 0.12), '#3a3a40', { x: x + d * Math.sin(ry), y: 0.23, z: z + d * Math.cos(ry), ry });
   };
-  bench(bx - 1.2, z1 + 3.2, 0); bench(bx - 1.2, z0 - 2.4, 0);
-  // fontanella di pietra con vasca tonda
-  { const fx = bx - 6, fz = z1 + 3.5;
+  bench(bx - 1.2, z0 - 2.4, 0);   // v5s37: davanti al campanile ora c'e' la capanna di Su Nascimentu (nascimentu3d.js): niente panchina ne' fontanella
+  if (0) { const fx = bx - 6, fz = z1 + 3.5;
     kp.add(G.cyl(1.25, 1.35, 0.6, 14), '#a89c8a', { x: fx, y: 0.3, z: fz }); kp.add(G.cyl(1.05, 1.05, 0.05, 14), '#4f8fa8', { x: fx, y: 0.58, z: fz });
     kp.add(G.cyl(0.18, 0.24, 1.4, 8), '#9a8e7c', { x: fx, y: 1.1, z: fz }); kp.add(G.sph(0.3, 8, 6), '#b3a793', { x: fx, y: 1.85, z: fz }); }
-  tree(kp, rp, bx - 4, 0, z0 - 3.5, 1.4); tree(kp, rp, bx - 11, 0, z1 + 5, 1.2);
+  tree(kp, rp, bx - 4, 0, z0 - 3.5, 1.4);   // v5s37: niente albero davanti al campanile (copriva torre e luci)
   for (const [vx, vz] of [[bx - 0.6, z1 + 0.8], [bx - 0.6, z0 - 0.6]]) { kp.add(G.cyl(0.42, 0.32, 0.7, 10), '#a8603a', { x: vx, y: 0.35, z: vz }); shrub(kp, rp, vx, 0.55, vz, 0.55, ['#4f6e2e', '#5f7f36'], 1); }
   // v5s37: chiude il vuoto a sinistra della piazzetta (a ~28 m si vedeva il cielo sotto la mappa).
   // Collina + case basse sul fondo (lontano dalla via), muretti ai lati: la chiesa resta aperta verso la strada.

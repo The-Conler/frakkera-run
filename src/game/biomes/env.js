@@ -700,7 +700,8 @@ export class Env {
       const step = r.range(28, 44);   // v5s36: festoni di scenario piu' radi (prima 18-30)
       const inSquare = this.mode !== 'attract' && i.b.id === 'village' && i.local > 128 && i.local < 200;
       const inFesta = i.b.id === 'village' && i.local >= 30 && i.local < 128;   // v5s36: in festa bastano i festoni di gioco
-      if (i.b.decor.banners && !inSquare && !inFesta && i.local < 176) {   // v5s23c: niente festoni sopra vicolo e cappella
+      const inXmas = i.b.id === 'village' && i.local < 30;   // v5s37: alla partenza bastano le luci a raggiera del campanile
+      if (i.b.decor.banners && !inSquare && !inFesta && !inXmas && i.local < 176) {   // v5s23c: niente festoni sopra vicolo e cappella
         const bulbs = i.b.decor.bulbs && r.chance(0.55);
         const pf = bulbs ? this.prefab('bulbs', r.int(4), () => ({ geom: buildBulbString(r.lastInt + 1), w: 0, lamps: [] })) : this.prefab('banner', r.int(4), () => ({ geom: M.buildBanner(r.lastInt + 1, FACADE), w: 0, lamps: [] }));
         const pool = this.pools.get(pf.key) || []; let m = pool.pop();
@@ -957,7 +958,8 @@ export class Env {
     for (const k of AMB_KEYS) A[k] = B.ambience[k] + (NB.ambience[k] - B.ambience[k]) * t;
     out.farVis = (B.id === 'village' ? 1 : 0) * (1 - t) + (NB.id === 'village' ? 1 : 0) * t;
     // sera dei giri successivi (non dentro la miniera)
-    const nk = night * (1 - L.tunnel);
+    let nk = night * (1 - L.tunnel);
+    if (B.nightStart && !(typeof location !== 'undefined' && /[?&]xmas=0/.test(location.search))) { const [a, z] = B.nightStart; const q = Math.max(0, Math.min(1, (z - i.local) / (z - a))); nk = Math.max(nk, 0.82 * q * q * (3 - 2 * q)); }   // v5s37
     if (nk > 0) {
       for (const k of MOOD_KEYS) if (NIGHT_MOOD[k]) out[k].lerp(_c.set(NIGHT_MOOD[k]), nk * 0.8);
       for (const k of ['hemiI', 'dirI', 'moon', 'sun']) out[k] += (NIGHT_MOOD[k] - out[k]) * nk * 0.8;
