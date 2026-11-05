@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { Kit, G, rng } from './kit.js';
 import { buildDancer } from './dance/dancers.js';
+import { statueFromModel, LITTER_TOP_Y } from './santaMartaModel.js';
 
 const cache = {};
 const once = (k, f) => cache[k] || (cache[k] = f());
@@ -79,7 +80,8 @@ export function animateWeaver(w, t, k) {     // k: 0 = tesse, 1 = lancia il tapp
   a[1].rotation.z = 0.15 + k * 2.4; a[1].rotation.x += k * 0.9;
 }
 
-// processione: portantina con la statua di Santa Marta (manto, aureola, fiori), 4 portatori e il prete davanti
+// processione: portantina + statua di Santa Marta (GLB v5s38, fallback Kit), 4 portatori e il prete davanti
+// statueGeom = fallback Kit (cono crema) se la GLB non e' pronta
 export function statueGeom() {
   return once('statue', () => {
     const k = new Kit(450);
@@ -99,9 +101,30 @@ export function statueGeom() {
     return k.build({ ao: 0.12 });
   });
 }
+// v5s38: portantina Kit (senza la figura a cono) — i piedi della GLB poggiano sul bordo dorato
+export function litterGeom() {
+  return once('litter38', () => {
+    const k = new Kit(451);
+    k.add(G.box(1.5, 0.18, 2.1), '#6b3a1e', { y: 1.35 });                        // portantina
+    k.add(G.box(1.6, 0.1, 2.2), '#d9b44a', { y: 1.47 });                         // bordo dorato
+    for (const z of [-1.5, 1.5]) for (const x of [-0.55, 0.55]) k.add(G.box(0.1, 0.1, 0.9), '#5a3220', { x, y: 1.35, z: z * 0.95 });   // stanghe
+    for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2; k.add(G.ico(0.14, 0), ['#ffffff', '#f2e65a', '#e8506a'][i % 3], { x: Math.cos(a) * 0.62, y: 1.62, z: Math.sin(a) * 0.82, flat: true }); }   // fiori
+    return k.build({ ao: 0.12 });
+  });
+}
 export function buildProcession(mats, v = 0) {
   const root = new THREE.Group(), figs = [];
-  const st = new THREE.Mesh(statueGeom(), mats); root.add(st);
+  // Group named `statue` so animateProcession can bob position.y / rotation.z
+  const statue = new THREE.Group(); statue.name = 'statue';
+  const glb = statueFromModel();
+  if (glb) {
+    statue.add(new THREE.Mesh(litterGeom(), mats));
+    glb.position.y = LITTER_TOP_Y;   // base GLB a y=0 → piedi sul bordo dorato
+    statue.add(glb);
+  } else {
+    statue.add(new THREE.Mesh(statueGeom(), mats));   // fallback Kit (cono + manto)
+  }
+  root.add(statue);
   for (const [x, z] of [[-0.75, -1.4], [0.75, -1.4], [-0.75, 1.4], [0.75, 1.4]]) {
     const d = buildDancer(mats, false, (figs.length + v) % 3); d.root.position.set(x, 0, z); d.root.rotation.y = Math.PI; d.ph = figs.length * 1.6;
     d.arms[0].rotation.x = d.arms[1].rotation.x = -2.6; root.add(d.root); figs.push(d);
@@ -115,7 +138,7 @@ export function buildProcession(mats, v = 0) {
     w.arms[1].rotation.x = -1.3;
   }
   root.scale.setScalar(1.25);
-  return { root, figs, statue: st };
+  return { root, figs, statue };
 }
 export function animateProcession(p, t) {
   for (const d of p.figs) { const s = Math.sin(t * 3.2 + (d.ph || 0)); d.legs[0].rotation.x = s * 0.35; d.legs[1].rotation.x = -s * 0.35; d.fig.position.y = Math.abs(s) * 0.04; }
