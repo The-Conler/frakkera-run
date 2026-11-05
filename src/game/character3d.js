@@ -33,7 +33,11 @@ const SHOULDER = {
   P: new THREE.Vector3(-0.27, 1.47, -0.07),            // asse del fascio sopra la spalla destra (punto d'appoggio)
   // diagonale "a fucile": la base davanti al fianco destro, la punta sale indietro lungo la schiena
   D_RUN: new THREE.Vector3(-0.14, 0.8, -0.6).normalize(),   // nella corsa (il busto e' piegato in avanti)
-  D_IDLE: new THREE.Vector3(-0.16, 0.86, -0.42).normalize(), // da fermo, nel ballo finito e nel game over
+  // v5s29c: da fermo (menu, costumi, game over) diagonale netta: base dietro il fianco sinistro, fiamma in alto a destra
+  D_IDLE: new THREE.Vector3(-0.66, 0.72, 0.2).normalize(),
+  IDLE_GRIP_R: [0.06, new THREE.Vector3(0.01, -0.03, 0.12)], IDLE_GRIP_L: [-0.55, new THREE.Vector3(0.06, 0, 0.02)],
+  IDLE_POLE_R: new THREE.Vector3(-0.7, 1.1, 0.1), IDLE_POLE_L: new THREE.Vector3(0.7, 1.15, -0.2),
+  GUN_L: new THREE.Vector3(0.52, 1.12, 0.22), GUN_POLE_L: new THREE.Vector3(0.8, 1.0, -0.3),   // v5s29c: pistola nella sinistra, visibile
   SLIDE: 0.05,
   GRIP_R: [-0.2, new THREE.Vector3(-0.03, 0, 0.09)],   // mano destra: [lungo l'asse dal punto d'appoggio, scostamento]
   GRIP_L: [-0.5, new THREE.Vector3(0.05, -0.02, 0.12)], // mano sinistra, piu' in basso davanti alla pancia
@@ -189,16 +193,19 @@ export class Character3D {
     sh.axC = tipM.clone().applyMatrix4(Mc.clone().invert()).normalize();
     sh.slide = S.SLIDE;
     // due pose della frakkera in spalla (corsa / ferma), ognuna con le prese delle mani nel riferimento del fascio
-    const pose = (D) => {
+    const pose = (D, GR, GL) => {
       const Mn = new THREE.Matrix4().compose(S.P, new THREE.Quaternion().setFromUnitVectors(A0, D).multiply(qc), sc), iMn = Mn.clone().invert();
       const o = { p: new THREE.Vector3(), q: new THREE.Quaternion() };
       iMs.clone().multiply(Mn).decompose(o.p, o.q, new THREE.Vector3());
       const g = (G) => S.P.clone().addScaledVector(D, G[0]).add(G[1]).applyMatrix4(iMn);
-      o.gripR = g(S.GRIP_R); o.gripL = g(S.GRIP_L);
+      o.gripR = g(GR); o.gripL = g(GL);
       return o;
     };
-    sh.run = pose(S.D_RUN); sh.idle = pose(S.D_IDLE);
-    sh.poleR = S.POLE_R.clone().applyMatrix4(iMs); sh.poleL = S.POLE_L.clone().applyMatrix4(iMs);
+    sh.run = pose(S.D_RUN, S.GRIP_R, S.GRIP_L); sh.idle = pose(S.D_IDLE, S.IDLE_GRIP_R, S.IDLE_GRIP_L);
+    const inS = (v) => v.clone().applyMatrix4(iMs);
+    sh.run.poleR = inS(S.POLE_R); sh.run.poleL = inS(S.POLE_L); sh.idle.poleR = inS(S.IDLE_POLE_R); sh.idle.poleL = inS(S.IDLE_POLE_L);
+    sh.gun = inS(S.GUN_L); sh.gunPole = inS(S.GUN_POLE_L); this.gunK = 0;
+    sh.poleR = new THREE.Vector3(); sh.poleL = new THREE.Vector3();
     sh.q = new THREE.Quaternion(); sh.p = new THREE.Vector3(); sh.gR = new THREE.Vector3(); sh.gL = new THREE.Vector3();
     const run = gltf.animations.find((c) => c.name === 'run'), tr = run && run.tracks.find((t) => t.name === 'carry.quaternion');
     if (tr) sh.qRef.fromArray(tr.values, 0); else sh.qRef.copy(carry.quaternion);
@@ -238,6 +245,7 @@ export class Character3D {
     _qa.copy(_qi.identity().slerp(_qa, k));
     S.q.copy(S.idle.q).slerp(S.run.q, k); S.p.lerpVectors(S.idle.p, S.run.p, k);
     S.gR.lerpVectors(S.idle.gripR, S.run.gripR, k); S.gL.lerpVectors(S.idle.gripL, S.run.gripL, k);
+    S.poleR.lerpVectors(S.idle.poleR, S.run.poleR, k); S.poleL.lerpVectors(S.idle.poleL, S.run.poleL, k);
     c.quaternion.copy(S.q).multiply(_qa); c.position.copy(S.p);
     f.position.copy(this.frkRest).addScaledVector(S.axC, S.slide);
     f.scale.setScalar(SHOULDER.FRK_K);
@@ -281,13 +289,15 @@ export class Character3D {
     if (!this.isMascot) return;
     const S = this.sh, c = this.bones.carry, M = this.spine3.matrixWorld;
     this.ik2(this.arm.r, S.gR.clone().applyMatrix4(c.matrixWorld), S.poleR.clone().applyMatrix4(M), 1);
-    this.ik2(this.arm.l, S.gL.clone().applyMatrix4(c.matrixWorld), S.poleL.clone().applyMatrix4(M), 1);
+    const tl = S.gL.clone().applyMatrix4(c.matrixWorld), pl = S.poleL.clone().applyMatrix4(M);
+    if (this.gunK > 0) { tl.lerp(S.gun.clone().applyMatrix4(M), this.gunK); pl.lerp(S.gunPole.clone().applyMatrix4(M), this.gunK); }
+    this.ik2(this.arm.l, tl, pl, 1);
   }
   // anteprima (scheda del personaggio): stessa posa del gioco per una clip ferma
   posePreview(clip, t) {
     if (!this.isMascot) return;
-    const st = this.state; this.state = clip === 'idle' ? 'idle' : 'run';
-    this.mascotPre(clip === 'idle' ? 0 : 1); this.mascotGround(t || 0); this.mascotIK(t || 0); this.root.updateMatrixWorld(true);
+    const st = this.state, still = clip === 'idle' || clip === 'gameover'; this.state = still ? (clip === 'idle' ? 'idle' : 'over') : 'run';
+    this.mascotPre(still ? 0 : 1); this.mascotGround(t || 0); this.mascotIK(t || 0); this.root.updateMatrixWorld(true);
     this.state = st;
   }
 
@@ -411,6 +421,7 @@ export class Character3D {
       bend('thigh_l', SEAT.thigh); bend('thigh_r', SEAT.thigh); bend('calf_l', SEAT.calf); bend('calf_r', SEAT.calf); bend('spine_01', SEAT.spine);
     }
     this.root.updateMatrixWorld(true);
+    this.gunK += ((this.isMascot && st.armed && this.state === 'run' ? 1 : 0) - (this.gunK || 0)) * Math.min(1, dt * 6);
     if (this.isMascot) { this.mascotGround(this.phase); this.mascotIK(this.phase); this.root.updateMatrixWorld(true); }
     this.bones.tip.getWorldPosition(this.tipW);
     // pistola nella mano destra (orientata sempre in avanti)
@@ -418,9 +429,10 @@ export class Character3D {
       const on = !!st.armed && this.state === 'run';
       this.pistol.visible = on && this.model.visible;
       if (this.bones.hand) {
-        this.bones.hand.getWorldPosition(this.pistol.position);
+        (this.isMascot ? this.arm.l[2] : this.bones.hand).getWorldPosition(this.pistol.position);
         this.pistol.position.y += 0.05;
         this.pistol.quaternion.copy(PISTOL_Q);
+        if (this.isMascot) { this.pistol.scale.setScalar(0.3); this.pistol.rotateX(-0.5); } else this.pistol.scale.setScalar(0.2);   // v5s29c: piu' grande e girata di fianco per vederla da dietro
         this.pistol.rotation.z += (st.recoil > 0 ? 0.35 : 0);
         this.pistol.updateMatrixWorld();
         this.muzzleW.copy(this.muzzleLocal).applyMatrix4(this.pistol.matrixWorld);
