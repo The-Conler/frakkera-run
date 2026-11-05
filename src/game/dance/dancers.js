@@ -7,6 +7,7 @@
 // Geometrie Kit a colori per vertice (materiali condivisi), braccia e gambe su perni per il passo.
 import * as THREE from 'three';
 import { Kit, G, rng } from '../kit.js';
+import { womanFromModel } from './dancerModel.js';
 
 const cache = new Map();
 const once = (k, f) => cache.get(k) || (cache.set(k, f()), cache.get(k));
@@ -105,7 +106,8 @@ function womanLeg() {
   return k.build();
 }
 function limb(geom, mats, x, y) { const p = new THREE.Group(); p.position.set(x, y, 0); p.add(new THREE.Mesh(geom, mats)); return p; }
-export function buildDancer(mats, woman, v = 0) {
+export function buildDancer(mats, woman, v = 0, q = 'hi') {
+  if (woman) { const d = womanFromModel(q); if (d) return d; }   // v5s30: GLB se caricato, altrimenti procedurale
   const g = once((woman ? 'w' : 'm') + (v % 3), () => woman
     ? { body: womanBody(200 + v), arm: womanArm(210 + v), leg: womanLeg() }
     : { body: manBody(300 + v), arm: manArm(310 + v), leg: manLeg() });

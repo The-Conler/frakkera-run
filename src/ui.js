@@ -172,7 +172,7 @@ export function initUI(game) {
   function play() {
     // v5s9: se il corridore 3D non e' ancora caricato si aspetta (max 10 s) invece di partire con la fiamma che vola da sola
     const c3 = game.world && game.world.char3d;
-    if (c3 && !c3.ready && !c3.failed && performance.now() - (play.t0 ??= performance.now()) < 10000) { $('#loading').classList.remove('hidden'); setTimeout(play, 120); return; }
+    if (((c3 && !c3.ready && !c3.failed) || game.world.dancersPending) && performance.now() - (play.t0 ??= performance.now()) < 10000) { $('#loading').classList.remove('hidden'); setTimeout(play, 120); return; }
     play.t0 = undefined; $('#loading').classList.add('hidden');
     if (state === 'over' && performance.now() - overShownAt < 350) return; // anti doppio input
     if (document.activeElement && document.activeElement.blur) document.activeElement.blur();

@@ -8,6 +8,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { WORLD, BIOME_OBST, FIRE, MINE, FESTA, WEATHER, ANIMALS } from '../config.js';
 import { laneX, isMoving, ROAD_HALF } from './sim.js';
 import { DanceRing } from './dance/dance3d.js';
+import { initDancerModels, loadWoman } from './dance/dancerModel.js';
 import { towerLookK, TOWER_LOOK } from './camRules.js';
 import { buildMaimoni, buildStramaione, buildGrastula, animateFigure, spindleGeom } from './masks/figures.js';
 import * as T3 from './tex3d.js';
@@ -139,6 +140,9 @@ export class World {
     this.buildFx();
     this.character = new Character(this.scene, 0.11);          // fallback (sprite v3) finche' il GLB non e' pronto
     this.char3d = new Character3D(this.scene, { pistolGeo: this.geo.pistol, pistolMat: this.mats2 });
+    // v5s30: ballerina GLB (1024 per cerchio/processione/tessitrice, 512 per folla e finestre); se manca resta la procedurale
+    initDancerModels(this.renderer); this.dancersPending = true;
+    Promise.all([loadWoman('hi'), loadWoman('lo')]).finally(() => { this.dancersPending = false; });
     this.flame3d = new Flame3D(this.scene);
     this.charShadow = this.blob(2.4, 1.3);
     this.scene.add(this.charShadow);

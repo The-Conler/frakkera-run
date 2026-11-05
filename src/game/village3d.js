@@ -128,6 +128,6 @@ export function sillGeom() {
 }
 export function buildWindowFan(mats, woman, v) {
   const root = new THREE.Group(); root.add(new THREE.Mesh(sillGeom(), mats));
-  const d = buildDancer(mats, woman, v); d.root.position.set(-0.15, -0.9, 0); d.root.rotation.y = -Math.PI / 2; d.root.scale.setScalar(1.25); root.add(d.root);
+  const d = buildDancer(mats, woman, v, 'lo'); d.root.position.set(-0.15, -0.9, 0); d.root.rotation.y = -Math.PI / 2; d.root.scale.setScalar(1.25); root.add(d.root);
   return { root, d };
 }

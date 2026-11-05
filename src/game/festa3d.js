@@ -50,7 +50,7 @@ export function festoonGeom(v = 0, w = 13.4, y0 = 10.2) {
 export function buildCrowd(mats, n = 4, v = 0) {
   const root = new THREE.Group(), figs = [], r = rng(240 + v);
   for (let i = 0; i < n; i++) {
-    const d = buildDancer(mats, (i + v) % 2 === 1, (v + i) % 3);
+    const d = buildDancer(mats, (i + v) % 2 === 1, (v + i) % 3, 'lo');
     d.root.position.set(r.range(-0.35, 0.35) + (i % 2) * 0.5, 0, -1.2 + i * (2.4 / Math.max(1, n - 1)) + r.range(-0.15, 0.15));
     d.root.scale.setScalar(1.45 + r.range(-0.08, 0.08));
     d.ph = r.range(0, 6.28);
