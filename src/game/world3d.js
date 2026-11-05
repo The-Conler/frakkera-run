@@ -1175,7 +1175,7 @@ export class World {
       if (dpos) { view.char.danceRy = dpos.ry; view.char.danceHop = dpos.hop; } else view.char.danceRy = null;
       view.char.cart = sim.cart ? 1 : 0;
       // v5s20: nel cerchio del ballu tundu si balla col vestito della festa (niente maschera di su Stramaioni tra i ballerini)
-      { const want = (sim.mode === 'dance' || this.dance.state === 'dance') ? 'base' : (this.skinId || 'base');
+      { const want = (sim.mode === 'dance' || this.dance.state === 'dance') ? (this.skinId === 'stramaioni' ? 'classico' : (this.skinId || 'base')) : (this.skinId || 'base');   // v5c: nel ballo vestito della festa (la mascotte o il portatore classico)
         if (want !== this.skinShown) { if (this.skinShown && this.skinId !== 'base') this.dustPuff(px, pz, 16); this.skinShown = want; c3.setSkin?.(want); } }
       c3.update(dt, view.char, dpos ? dpos.x : px, dpos ? dpos.z : pz);
       this.updateRideCart(sim, dt, px, pz, view);
@@ -1198,6 +1198,7 @@ export class World {
     const flick = Math.sin(this.clock * 17) * 0.06 + Math.sin(this.clock * 29) * 0.05;
     this.fireKick = Math.max(0, (this.fireKick || 0) - dt * 1.6);
     this.flame3d.update(dt, this.camera, this.tipW, Math.min(1.6, fuelF + this.fireKick * 0.6), use3d && lit, view.char.fuelLow, -(view.char.vx || 0) * 0.5);
+    this.flame3d.group.scale.setScalar(use3d && this.char3d.flameScale || 1);   // v5s29b: fiamma in proporzione alla frakkera della mascotte
     this.flameLight.position.copy(this.tipW); if (use3d) this.flameLight.position.y += 0.9;
     const L = this.light, dark = L.darkByFuel * (1 - fuelF);
     this.flameLight.distance = L.flameDist * (1 - dark * 0.45);
@@ -1263,7 +1264,8 @@ export class World {
     sc.add(c3.root); sc.add(this.flame3d.group);
     c3.root.position.set(0, 0, 0);
     const cam = new THREE.PerspectiveCamera(30, w / h, 0.1, 100);
-    const views = kind === 'run'
+    const custom = typeof kind === 'object' ? kind : null;   // v5c: viste su misura {views:[{clip,t,rot}], cam:[x,y,z], look:[x,y,z]}
+    const views = custom ? custom.views : kind === 'run'
       ? [0, 1, 2, 3, 4, 5, 6, 7].map((i) => ({ clip: 'run', t: i / 8, rot: -Math.PI / 2 }))
       : [{ clip: 'idle', t: 0, rot: 0 }, { clip: 'idle', t: 0, rot: -Math.PI / 2 }, { clip: 'idle', t: 0, rot: Math.PI }, { clip: 'run', t: 0.25, rot: Math.PI * 0.8 }];
     const out = document.createElement('canvas'); out.width = w * views.length; out.height = h;
@@ -1275,12 +1277,13 @@ export class World {
     views.forEach((v, i) => {
       for (const k in acts) acts[k].setEffectiveWeight(0);
       const a = acts[v.clip]; a.setEffectiveWeight(1); a.time = v.t * a.getClip().duration;
-      c3.mixer.update(0);
+      if (c3.mix) c3.mix(0); else c3.mixer.update(0);
       c3.root.rotation.y = v.rot; c3.root.updateMatrixWorld(true);
+      c3.posePreview?.(v.clip, v.t);   // v5c: posa della mascotte (frakkera in spalla)
       c3.bones.tip.getWorldPosition(_v);
-      if (kind === 'closeup') { cam.position.set(0, 2.2, 7.4); cam.lookAt(0, 1.75, 0); } else if (kind === 'run') { cam.position.set(-1.5, 3.9, 17.5); cam.lookAt(-1.5, 3.7, 0); } else { cam.position.set(0, 3.6, 16.5); cam.lookAt(0, 3.3, 0); }
+      if (custom) { cam.position.fromArray(custom.cam); cam.lookAt(_v.fromArray(custom.look)); c3.bones.tip.getWorldPosition(_v); } else if (kind === 'closeup') { cam.position.set(0, 2.2, 7.4); cam.lookAt(0, 1.75, 0); } else if (kind === 'run') { cam.position.set(-1.5, 3.9, 17.5); cam.lookAt(-1.5, 3.7, 0); } else { cam.position.set(0, 3.6, 16.5); cam.lookAt(0, 3.3, 0); }
       cam.updateMatrixWorld();
-      this.flame3d.fade = 1; this.flame3d.update(0.016, cam, _v, 1, true, false, 0);
+      this.flame3d.fade = 1; this.flame3d.update(0.016, cam, _v, 1, true, false, 0); this.flame3d.group.scale.setScalar(c3.flameScale || 1);
       this.renderer.render(sc, cam);
       ctx.drawImage(this.renderer.domElement, i * w, 0);
     });

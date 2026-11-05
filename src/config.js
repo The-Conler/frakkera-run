@@ -271,8 +271,9 @@ export const COLLECT = {
   KINDS: { campanaccio: 'bell', facciola: 'sweet' },
 };
 export const SKINS = [
-  { id: 'base', name: 'IL PORTATORE', desc: 'Il portatore della frakkera, vestito della festa.', cost: { bell: 0, sweet: 0 }, speedK: 1 },
+  { id: 'base', name: 'IL PORTATORE', desc: 'La mascotte di Frakkera Run: berritta nera, gilet della festa e la frakkera in spalla.', cost: { bell: 0, sweet: 0 }, speedK: 1 },   // v5c: nuovo personaggio di default
   { id: 'stramaioni', name: 'SU STRAMAIONI', desc: 'Viso nero di fuliggine e mantello scuro di orbace. Corre piu veloce (+8%).', cost: { bell: 5, sweet: 5 }, speedK: 1.08 },
+  { id: 'classico', name: 'IL PORTATORE CLASSICO', desc: 'Il portatore di prima, vestito della festa.', cost: { bell: 0, sweet: 0 }, speedK: 1 },   // v5c: il personaggio di prima resta come costume (gratis)
 ];
 
 // v5s21: festa a Gadoni: tratto del paese in festa (bancarelle, festoni e luci, launeddas, folla che applaude)

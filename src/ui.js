@@ -508,7 +508,7 @@ export function initUI(game) {
       else if (can) btn = `<button class="btn btn-primary small" data-skin="${k.id}" data-op="buy">SBLOCCA</button>`;
       else { const mb = Math.max(0, k.cost.bell - c.bell), ms = Math.max(0, k.cost.sweet - c.sweet); btn = `<span class="skin-tag">MANCANO ${mb ? `${mb}${use('i-bell')}` : ''} ${ms ? `${ms}${use('i-sweet')}` : ''}</span>`; }   // v5s20: solo quello che manca
       const cost = owned ? '' : `<div class="skin-cost">${k.cost.bell}${use('i-bell')} ${k.cost.sweet}${use('i-sweet')}</div>`;
-      return `<div class="skin-card ${cur === k.id ? 'sel' : ''} ${owned ? '' : 'locked'}" data-id="${k.id}"><div class="skin-ico skin-${k.id}">${use(k.id === 'base' ? 'i-flame' : 'i-mask')}</div><div class="skin-txt"><b>${k.name}</b><p>${k.desc}</p>${cost}</div><div class="skin-act">${btn}</div></div>`;
+      return `<div class="skin-card ${cur === k.id ? 'sel' : ''} ${owned ? '' : 'locked'}" data-id="${k.id}"><div class="skin-ico skin-${k.id}">${use(k.id === 'base' || k.id === 'classico' ? 'i-flame' : 'i-mask')}</div><div class="skin-txt"><b>${k.name}</b><p>${k.desc}</p>${cost}</div><div class="skin-act">${btn}</div></div>`;
     }).join('');
   }
   $('#skin-list').addEventListener('click', (e) => {

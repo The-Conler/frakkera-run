@@ -14,6 +14,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { stramaHoodGeom, stramaCloakGeom } from './collect3d.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
+import { buildMascot, MASCOT } from './mascot3d.js';
 
 export const MODEL_URL = `${import.meta.env.BASE_URL}models/frakkera-man.glb`;
 export const CHAR_SCALE = 1.6;         // il mondo e' "cartoon": uomo ~2.8 u, frakkera ~5.4 u
@@ -26,6 +27,23 @@ const SEAT_Y = 0.05;
 const SEAT = { thigh: -1.35, calf: 1.45, spine: 0 };   // v5s22: posa seduta nel carrello (radianti, asse laterale)
 const DUCK_LEAN = 0.32, DUCK_TILT = -0.85;   // v5s6: piega del corpo e inclinazione della frakkera nell'abbassata
 const AX_FWD = new THREE.Vector3(0, 0, 1), AX_SIDE = new THREE.Vector3(1, 0, 0);
+// v5c: frakkera in spalla per la mascotte (spazio del modello a riposo, metri: y su, +z avanti, -x destra)
+const SHOULDER = {
+  FRK_K: 0.7, FLAME_K: 0.78,                                         // v5s29b: frakkera della mascotte piu' piccola del 30%
+  P: new THREE.Vector3(-0.27, 1.47, -0.07),            // asse del fascio sopra la spalla destra (punto d'appoggio)
+  // diagonale "a fucile": la base davanti al fianco destro, la punta sale indietro lungo la schiena
+  D_RUN: new THREE.Vector3(-0.14, 0.8, -0.6).normalize(),   // nella corsa (il busto e' piegato in avanti)
+  D_IDLE: new THREE.Vector3(-0.16, 0.86, -0.42).normalize(), // da fermo, nel ballo finito e nel game over
+  SLIDE: 0.05,
+  GRIP_R: [-0.2, new THREE.Vector3(-0.03, 0, 0.09)],   // mano destra: [lungo l'asse dal punto d'appoggio, scostamento]
+  GRIP_L: [-0.5, new THREE.Vector3(0.05, -0.02, 0.12)], // mano sinistra, piu' in basso davanti alla pancia
+  POLE_R: new THREE.Vector3(-0.65, 1.0, 0.15), POLE_L: new THREE.Vector3(0.55, 0.85, 0.35),
+  DUCK_TILT: 0.45,                                      // nell'abbassata il fascio si corica ancora un po' indietro
+  STRAIGHT_CALF: 0.55, STRAIGHT_THIGH: 0.85, SPINE_BACK: -0.14, BOB: 0.035,   // corsa piu' dritta e saltellante
+};
+const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _d = new THREE.Vector3(), _e = new THREE.Vector3(), _t = new THREE.Vector3(), _p = new THREE.Vector3();
+const _qa = new THREE.Quaternion(), _qb = new THREE.Quaternion(), _qi = new THREE.Quaternion();
+const sstep = (a, b, t) => { const x = Math.max(0, Math.min(1, (t - a) / (b - a))); return x * x * (3 - 2 * x); };
 const PISTOL_Q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2); // canna +x -> avanti (-z)
 
 export class Character3D {
@@ -79,6 +97,11 @@ export class Character3D {
     });
     this.model = m;
     this.root.add(m);
+    m.updateMatrixWorld(true);
+    { const J = {}, v = new THREE.Vector3(); m.traverse((o) => { if (o.isBone) { o.getWorldPosition(v); m.worldToLocal(v); J[o.name] = v.toArray(); } }); this.restJ = J; }
+    this.classicMeshes = []; m.traverse((o) => { if (o.isSkinnedMesh) this.classicMeshes.push(o); });
+    try { this.setupMascot(m, gltf); } catch (e) { console.warn('[frakkera] mascotte non costruita:', e); this.mascot = null; }
+    if (this.mascot) { const mt = this.mascot.mat; (this.bodyMats || (this.bodyMats = [])).push({ mt, col: mt.color.clone(), em: mt.emissive.clone() }); }
     this.bones = {
       carry: m.getObjectByName('carry') || m.getObjectByName('frakkera'),
       hand: m.getObjectByName('hand_r'),
@@ -92,7 +115,10 @@ export class Character3D {
       this.actions[c.name] = a;
     }
     let bones = 0; m.traverse((o) => { if (o.isBone) bones++; });
-    this.stats = { triangles: tris, meshes, bones, clips: gltf.animations.map((c) => c.name) };
+    this.stats = { triangles: tris, meshes, bones, clips: gltf.animations.map((c) => c.name), mascotTriangles: this.mascot ? this.mascot.triangles : 0 };
+    this.stats.classicTriangles = tris;
+    this.stats.frakkeraTriangles = (this.frkParts || []).reduce((n, o) => n + (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3, 0);
+    if (this.mascot) this.applyMascotVis();
     this.ready = !!(this.actions.idle && this.actions.run && this.bones.tip);
     if (this.ready) this.buildSkins();
     this.ready = !!(this.actions.idle && this.actions.run && this.bones.tip);
@@ -132,6 +158,137 @@ export class Character3D {
     }
     for (const o of this.skinParts || []) o.visible = st;
     this.model.traverse((o) => { if (o.isMesh && o.material && o.material.name === 'cap') o.visible = !st; });
+    this.applyMascotVis();
+  }
+  // v5c: la mascotte e' la skin 'base' (default); 'classico' e 'stramaioni' usano il modello umano di prima
+  applyMascotVis() {
+    const on = this.isMascot = !!this.mascot && (!this.skinId || this.skinId === 'base');
+    this.flameScale = on ? SHOULDER.FLAME_K : 1;
+    if (!this.mascot) return;
+    this.mascot.mesh.visible = on;
+    for (const o of this.classicMeshes) o.visible = !on && !(o.material.name === 'cap' && this.skinId === 'stramaioni');
+    if (!on) { this.model.position.y = 0; for (const b of this.legBones) b.scale.setScalar(1); this.frkBone.scale.setScalar(1); }
+    if (this.stats.classicTriangles) this.stats.triangles = on ? this.mascot.triangles + this.stats.frakkeraTriangles : this.stats.classicTriangles;   // v5s29b: triangoli del personaggio visibile
+  }
+
+  setupMascot(m, gltf) {
+    this.mascot = buildMascot(m, this.restJ);
+    this.legBones = [m.getObjectByName('thigh_l'), m.getObjectByName('thigh_r')];
+    const carry = m.getObjectByName('carry'), frk = m.getObjectByName('frakkera'), sp = m.getObjectByName('spine_03'), tip = m.getObjectByName('frakkera_tip');
+    this.frkBone = frk; this.frkRest = frk.position.clone(); this.spine3 = sp;
+    this.restQ = {}; for (const n of ['thigh_l', 'thigh_r', 'calf_l', 'calf_r']) this.restQ[n] = m.getObjectByName(n).quaternion.clone();
+    this.feet = ['foot_l', 'foot_r', 'ball_l', 'ball_r'].map((n) => m.getObjectByName(n));
+    this.footH = [this.restJ.foot_l[1], this.restJ.foot_r[1], this.restJ.ball_l[1], this.restJ.ball_r[1]].map((y) => y * MASCOT.LEG_K * CHAR_SCALE);
+    const inv = new THREE.Matrix4().copy(m.matrixWorld).invert();
+    const Mc = inv.clone().multiply(carry.matrixWorld), Ms = inv.clone().multiply(sp.matrixWorld);
+    const pc = new THREE.Vector3(), qc = new THREE.Quaternion(), sc = new THREE.Vector3(); Mc.decompose(pc, qc, sc);
+    const tipM = tip.getWorldPosition(new THREE.Vector3()).applyMatrix4(inv);
+    const A0 = tipM.clone().sub(pc).normalize();
+    const S = SHOULDER, iMs = Ms.clone().invert();
+    const sh = { qRef: new THREE.Quaternion() };
+    sh.axC = tipM.clone().applyMatrix4(Mc.clone().invert()).normalize();
+    sh.slide = S.SLIDE;
+    // due pose della frakkera in spalla (corsa / ferma), ognuna con le prese delle mani nel riferimento del fascio
+    const pose = (D) => {
+      const Mn = new THREE.Matrix4().compose(S.P, new THREE.Quaternion().setFromUnitVectors(A0, D).multiply(qc), sc), iMn = Mn.clone().invert();
+      const o = { p: new THREE.Vector3(), q: new THREE.Quaternion() };
+      iMs.clone().multiply(Mn).decompose(o.p, o.q, new THREE.Vector3());
+      const g = (G) => S.P.clone().addScaledVector(D, G[0]).add(G[1]).applyMatrix4(iMn);
+      o.gripR = g(S.GRIP_R); o.gripL = g(S.GRIP_L);
+      return o;
+    };
+    sh.run = pose(S.D_RUN); sh.idle = pose(S.D_IDLE);
+    sh.poleR = S.POLE_R.clone().applyMatrix4(iMs); sh.poleL = S.POLE_L.clone().applyMatrix4(iMs);
+    sh.q = new THREE.Quaternion(); sh.p = new THREE.Vector3(); sh.gR = new THREE.Vector3(); sh.gL = new THREE.Vector3();
+    const run = gltf.animations.find((c) => c.name === 'run'), tr = run && run.tracks.find((t) => t.name === 'carry.quaternion');
+    if (tr) sh.qRef.fromArray(tr.values, 0); else sh.qRef.copy(carry.quaternion);
+    this.sh = sh; this.runK = 0;
+    this.arm = {
+      r: ['upperarm_r', 'lowerarm_r', 'hand_r'].map((n) => m.getObjectByName(n)),
+      l: ['upperarm_l', 'lowerarm_l', 'hand_l'].map((n) => m.getObjectByName(n)),
+    };
+    this.isMascot = true;
+    for (const o of this.classicMeshes) o.visible = false;
+  }
+  // v5c: il mixer scrive un canale solo se il valore della clip cambia: prima di ogni update si rimettono
+  // le ossa ritoccate (frakkera in spalla, IK delle braccia, molla) al valore della clip, cosi' i ritocchi non si sommano
+  mix(dt) {
+    const T = this.touched || (this.touched = ['carry', 'frakkera', 'upperarm_l', 'lowerarm_l', 'upperarm_r', 'lowerarm_r', 'thigh_l', 'thigh_r', 'calf_l', 'calf_r', 'spine_01'].map((n) => this.model.getObjectByName(n)).filter(Boolean).map((b) => ({ b, p: b.position.clone(), q: b.quaternion.clone(), ok: false })));
+    for (const t of T) if (t.ok) { t.b.position.copy(t.p); t.b.quaternion.copy(t.q); }
+    this.mixer.update(dt);
+    for (const t of T) { t.p.copy(t.b.position); t.q.copy(t.b.quaternion); t.ok = true; }
+  }
+  // dopo il mixer: gambe corte, corpo abbassato, frakkera in diagonale sulla spalla (peso w)
+  // k: 1 = posa di corsa, 0 = posa da fermo (la frakkera resta SEMPRE in spalla)
+  mascotPre(k) {
+    if (!this.isMascot) return;
+    const S = this.sh, c = this.bones.carry, f = this.frkBone;
+    for (const b of this.legBones) b.scale.setScalar(MASCOT.LEG_K);
+    // corsa piu' dritta: ginocchia e anche meno piegate, busto un po' indietro (solo grafica)
+    const run = this.state === 'run' && !(this.cartK > 0.5);
+    if (run) {
+      for (const n of ['calf_l', 'calf_r']) { const b = this.model.getObjectByName(n); b.quaternion.slerp(this.restQ[n], 1 - SHOULDER.STRAIGHT_CALF); }
+      for (const n of ['thigh_l', 'thigh_r']) { const b = this.model.getObjectByName(n); b.quaternion.slerp(this.restQ[n], 1 - SHOULDER.STRAIGHT_THIGH); }
+      const sp1 = this.model.getObjectByName('spine_01');
+      sp1.parent.updateWorldMatrix(true, false); sp1.parent.getWorldQuaternion(_q2).invert(); this.model.getWorldQuaternion(_q);
+      _v.copy(AX_SIDE).applyQuaternion(_q).applyQuaternion(_q2); _q.setFromAxisAngle(_v, SHOULDER.SPINE_BACK); sp1.quaternion.premultiply(_q);
+    }
+    // frakkera in spalla: oscillazione della clip solo nella corsa
+    _qa.copy(S.qRef).invert().multiply(c.quaternion);
+    _qa.copy(_qi.identity().slerp(_qa, k));
+    S.q.copy(S.idle.q).slerp(S.run.q, k); S.p.lerpVectors(S.idle.p, S.run.p, k);
+    S.gR.lerpVectors(S.idle.gripR, S.run.gripR, k); S.gL.lerpVectors(S.idle.gripL, S.run.gripL, k);
+    c.quaternion.copy(S.q).multiply(_qa); c.position.copy(S.p);
+    f.position.copy(this.frkRest).addScaledVector(S.axC, S.slide);
+    f.scale.setScalar(SHOULDER.FRK_K);
+  }
+  // piedi a terra: il corpo (gambe corte, pose ritoccate) scende o sale finche' il piede piu' basso tocca il suolo
+  mascotGround(phase) {
+    const m = this.model;
+    if (this.cartK > 0.5) { m.position.y = -this.mascot.drop * CHAR_SCALE * (1 - this.cartK); return; }
+    m.position.y = 0; this.root.updateMatrixWorld(true);
+    let lo = Infinity;
+    this.feet.forEach((b, i) => { b.getWorldPosition(_t); this.root.worldToLocal(_t); lo = Math.min(lo, _t.y - this.footH[i]); });
+    const bob = this.state === 'run' ? SHOULDER.BOB * CHAR_SCALE * Math.abs(Math.sin(2 * Math.PI * phase)) : 0;
+    m.position.y = -lo + bob;
+    this.root.updateMatrixWorld(true);
+  }
+  // ruota l'osso (in coordinate mondo) perche' la direzione 'from' vada su 'to', con peso w
+  rotTo(bone, from, to, w) {
+    _qa.setFromUnitVectors(from.normalize(), to.normalize());
+    if (w < 1) _qa.copy(_qi.identity().slerp(_qa, w));
+    bone.getWorldQuaternion(_qb);
+    _qb.premultiply(_qa);
+    bone.parent.getWorldQuaternion(_q2);
+    bone.quaternion.copy(_q2.invert().multiply(_qb));
+    bone.updateMatrixWorld(true);
+  }
+  // IK a due ossa (spalla-gomito-polso) verso T, gomito verso il polo P
+  ik2(ch, T, P, w) {
+    const [up, lo, hd] = ch;
+    up.getWorldPosition(_a); lo.getWorldPosition(_b); hd.getWorldPosition(_c);
+    const a = _a.distanceTo(_b), b = _b.distanceTo(_c);
+    _d.subVectors(T, _a); const c = Math.max(Math.abs(a - b) + 1e-3, Math.min(a + b - 1e-3, _d.length())); _d.normalize();
+    const ca = (a * a + c * c - b * b) / (2 * a * c), sa = Math.sqrt(Math.max(0, 1 - ca * ca));
+    _e.subVectors(P, _a); _e.addScaledVector(_d, -_e.dot(_d)).normalize();
+    _p.copy(_a).addScaledVector(_d, a * ca).addScaledVector(_e, a * sa);      // gomito desiderato
+    this.rotTo(up, _t.subVectors(_b, _a), _p.sub(_a), w);
+    lo.getWorldPosition(_b); hd.getWorldPosition(_c);
+    _p.copy(_a).addScaledVector(_d, c);
+    this.rotTo(lo, _t.subVectors(_c, _b), _p.sub(_b), w);
+  }
+  mascotIK(phase) {
+    if (!this.isMascot) return;
+    const S = this.sh, c = this.bones.carry, M = this.spine3.matrixWorld;
+    this.ik2(this.arm.r, S.gR.clone().applyMatrix4(c.matrixWorld), S.poleR.clone().applyMatrix4(M), 1);
+    this.ik2(this.arm.l, S.gL.clone().applyMatrix4(c.matrixWorld), S.poleL.clone().applyMatrix4(M), 1);
+  }
+  // anteprima (scheda del personaggio): stessa posa del gioco per una clip ferma
+  posePreview(clip, t) {
+    if (!this.isMascot) return;
+    const st = this.state; this.state = clip === 'idle' ? 'idle' : 'run';
+    this.mascotPre(clip === 'idle' ? 0 : 1); this.mascotGround(t || 0); this.mascotIK(t || 0); this.root.updateMatrixWorld(true);
+    this.state = st;
   }
 
   stumble() {
@@ -197,8 +354,10 @@ export class Character3D {
     const run = this.actions.run;
     run.timeScale = st.raise ? 0.62 : ts;          // v5s11: nel ballo passo lento
     for (const k of ['left', 'right']) { const a = this.actions[k]; if (a) { a.timeScale = ts; a.time = run.time; } }
-    this.mixer.update(dt);
+    this.mix(dt);
     this.phase = run.time / run.getClip().duration;
+    this.runK += ((this.state === 'run' ? 1 : 0) - this.runK) * Math.min(1, dt * 4);
+    this.mascotPre(this.runK);
     this.frame = Math.floor(((this.phase + 0.75) % 1) * 4);
     // posizione e orientamento
     let fTarget = this.state === 'idle' ? -0.45 : this.state === 'over' ? (this.stateT > 1.0 ? Math.PI + 1.15 : Math.PI) : Math.PI;
@@ -242,7 +401,7 @@ export class Character3D {
       _v.copy(AX_FWD).applyQuaternion(this.root.quaternion).applyQuaternion(_q2);
       _q.setFromAxisAngle(_v, sg.a); c.quaternion.premultiply(_q);
       _v.copy(AX_SIDE).applyQuaternion(this.root.quaternion).applyQuaternion(_q2);
-      _q.setFromAxisAngle(_v, sg.p + DUCK_TILT * k + RAISE_TILT * this.raiseK); c.quaternion.premultiply(_q);   // v5s11: frakkera alzata nel ballo
+      _q.setFromAxisAngle(_v, sg.p + (this.isMascot ? SHOULDER.DUCK_TILT : DUCK_TILT) * k + RAISE_TILT * this.raiseK); c.quaternion.premultiply(_q);   // v5s11: frakkera alzata nel ballo
     }
     // v5s22: seduto nel carrello: cosce in avanti, ginocchia piegate, busto un po' indietro
     if (this.cartK > 1e-3) {
@@ -252,6 +411,7 @@ export class Character3D {
       bend('thigh_l', SEAT.thigh); bend('thigh_r', SEAT.thigh); bend('calf_l', SEAT.calf); bend('calf_r', SEAT.calf); bend('spine_01', SEAT.spine);
     }
     this.root.updateMatrixWorld(true);
+    if (this.isMascot) { this.mascotGround(this.phase); this.mascotIK(this.phase); this.root.updateMatrixWorld(true); }
     this.bones.tip.getWorldPosition(this.tipW);
     // pistola nella mano destra (orientata sempre in avanti)
     if (this.pistol) {

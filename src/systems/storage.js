@@ -117,6 +117,7 @@ export function getUnlocked() {
   let a = null; try { a = JSON.parse(get(K.skins) || 'null'); } catch { a = null; }
   const l = Array.isArray(a) ? a.filter((x) => typeof x === 'string') : [];
   if (!l.includes('base')) l.unshift('base');
+  if (!l.includes('classico')) l.push('classico');   // v5c: il portatore di prima e' sempre disponibile
   return l;
 }
 export function unlockSkin(id) { const l = getUnlocked(); if (!l.includes(id)) { l.push(id); set(K.skins, JSON.stringify(l)); } return l; }
