@@ -166,6 +166,7 @@ export function buildBanner(seed, L) {
       k.add(G.cone(0.55, 0.45, 3), c, { x, y: yAt(x) - 2.7, rx: Math.PI, sz: 0.08 });
     }
   }
+  for (const sx of [-1, 1]) { k.add(G.cyl(0.09, 0.12, 10.9, 6), '#5a4330', { x: sx * (L + 0.05), y: -5.2, flat: true }); k.add(G.box(0.2, 0.08, 0.2), '#3a2a1e', { x: sx * (L + 0.05), y: 0.3 }); }   // v5s27p: pali alle estremita'
   return k.build();
 }
 

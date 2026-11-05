@@ -12,7 +12,7 @@ import { Generator, SOLID, DESTRUCTIBLE, PICKUP_KINDS, BIOME_KINDS, MASK_KINDS, 
 import { randomSeed, makeRng } from '../systems/rng.js';
 export const DANCE_DIRS = ['left', 'down', 'up', 'right'];
 
-export const HALF_W = { muretto: 12, botte: 7, bottecoricata: 11, botti: 12, pozza: 9, narrow: 17, goat: 7, rollbarrel: 7, rollin: 7, sasso: 8, bagnato: 9, trave: 60, panni: 60, processione: 13, ramo: 60, acqua: 10, calamita: 11, finocchio: 11, scarponi: 11, maimoni: 8, fune: 26, fuso: 7, asfodelo: 10, ferula: 10, tappeto: 11, pistola: 11, pecora: 7, maialetto: 5, caprarupe: 8 };
+export const HALF_W = { muretto: 12, botte: 7, bottecoricata: 11, botti: 12, pozza: 9, narrow: 17, goat: 7, rollbarrel: 7, rollin: 7, sasso: 8, bagnato: 9, trave: 60, panni: 60, processione: 13, ramo: 60, acqua: 10, calamita: 11, finocchio: 11, scarponi: 11, maimoni: 8, fune: 40, fuso: 7, asfodelo: 10, ferula: 10, tappeto: 11, pistola: 11, pecora: 7, maialetto: 5, caprarupe: 8 };
 export const ATTRACT_SPEED = 34;
 const PLAYER_BACK = 3, PLAYER_FRONT = 5, PLAYER_HALF = 3;
 export const GUTTER = 4;
@@ -499,7 +499,7 @@ export class Sim {
     return pts;
   }
 
-  entX(e) { if (e.kind === 'falo') return e.side * FIRE.X; if (e.kind === 'folla' || e.kind === 'bancarella') return e.side * FESTA.X; if (e.kind === 'tessitrice') return e.side * VILLAGE.WEAVER_X; if (e.kind === 'minatore') return e.side * MINE.MINER_X; if (e.kind === 'lampada') return e.side * MINE.LAMP_X; if (e.kind === 'pastore') return e.side * ANIMALS.SHEPHERD_X; if (e.kind === 'cane' || e.kind === 'canepastore') return laneX(e.lane); if (e.kind === 'tappeto' && e.mx !== undefined) return e.mx; return isMoving(e.kind) ? e.x : e.kind === 'fune' ? laneX(e.lane) + WORLD.LANE_W / 2 : laneX(e.lane); }
+  entX(e) { if (e.kind === 'falo') return e.side * FIRE.X; if (e.kind === 'folla' || e.kind === 'bancarella') return e.side * FESTA.X; if (e.kind === 'tessitrice') return e.side * VILLAGE.WEAVER_X; if (e.kind === 'minatore') return e.side * MINE.MINER_X; if (e.kind === 'lampada') return e.side * MINE.LAMP_X; if (e.kind === 'pastore') return e.side * ANIMALS.SHEPHERD_X; if (e.kind === 'cane' || e.kind === 'canepastore') return laneX(e.lane); if (e.kind === 'tappeto' && e.mx !== undefined) return e.mx; return isMoving(e.kind) ? e.x : e.kind === 'fune' ? 0 : laneX(e.lane); }
 
   updateEntities(dt) {
     const T = this.T;
@@ -632,6 +632,9 @@ export class Sim {
         if (e.kind === 'bagnato') { this.hitWet(e); continue; }
         if (e.kind === 'fune') {
           if (this.duckT > 0) { e.hit = true; e.ducked = true; this.stats.ropes++; this.log('j', 0); this.fx('ducked', { e }); this.maskPass(e); continue; }
+          // v5s27p: la fune (bassa, ~0.9 m) si salta: superata se i piedi sono sopra la corda; in volo non si viene colpiti finche' non si riatterra
+          if (this.jumpH >= MASKS.FUNE_CLEAR_PX) { e.hit = true; e.jumped = true; this.stats.ropes++; this.stats.jumped++; this.log('jF', 0); this.fx('jumped', { e }); this.maskPass(e); continue; }
+          if (this.jumpT > 0) continue;
           if (this.invuln <= 0) { this.hitSolid(e); continue; }
         }
         if (e.kind === 'ramo') {        // v5s24: ramo caduto, ci si abbassa
@@ -810,13 +813,17 @@ export class Sim {
   updatePowers(dt) {
     if (this.magnetT > 0) {
       this.magnetT = Math.max(0, this.magnetT - dt);
-      const k = Math.min(1, POWER.MAGNET_PULL * dt);
-      for (const e of this.entities) {
+            for (const e of this.entities) {
         if (e.kind !== 'tappeto' || e.done) continue;
         const gap = e.d - this.T;
         if (gap > POWER.MAGNET_PX || gap < -PLAYER_BACK) continue;
-        if (e.mx === undefined) { e.mx = laneX(e.lane); this.stats.magnetPulls++; }
-        e.mx += (this.px - e.mx) * k;
+        if (e.mx === undefined) { e.mx = laneX(e.lane); e.mv = POWER.MAGNET_V0; e.g0 = Math.max(1, Math.hypot(gap, this.px - e.mx)); this.stats.magnetPulls++; }
+        // v5s27p: il tappeto vola dritto verso il personaggio (inseguimento, accelera), anche se cambia corsia
+        e.mv = Math.min(POWER.MAGNET_VMAX, e.mv + POWER.MAGNET_ACC * dt);
+        const dx = this.px - e.mx, dd = this.T + POWER.MAGNET_AIM - e.d, dist = Math.hypot(dx, dd), step = e.mv * dt;
+        if (dist <= Math.max(step, POWER.MAGNET_GRAB)) { this.collect(e); continue; }
+        e.mx += dx / dist * step; e.d += dd / dist * step;
+        e.my = Math.sin(Math.PI * Math.min(1, Math.max(0, 1 - dist / e.g0))) * POWER.MAGNET_ARC;   // leggero arco in volo
       }
       if (this.magnetT === 0) this.fx('powerEnd', { kind: 'calamita' });
     }

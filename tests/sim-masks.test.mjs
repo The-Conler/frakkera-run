@@ -30,7 +30,7 @@ const run = (sim, n, f) => { for (let i = 0; i < n; i++) { sim.fuel = 100; if (f
   let d = false; run(b.sim, 300, () => { if (!d && f2.d - b.sim.T < b.sim.currentSpeed * 0.25) d = b.sim.duck(); });
   ok('fune: abbassato = passa (j)', f2.ducked && b.sim.stats.hits === 0 && b.sim.events.some((e) => e[1] === 'j'));
   const c = base(); put(c.sim, { kind: 'fune', lane: 1, len: DUCK.BEAM_LEN, group: 2 }, 120); c.sim.targetLane = 0; run(c.sim, 300);
-  ok('fune: la corsia fuori dalla fune e\' libera', c.sim.stats.hits === 0);
+  ok('fune: centrata, copre anche le corsie laterali (v5s27p)', c.sim.stats.hits === 1);
 }
 // 3) Grastula: segno a terra ~1 s prima del fuso, lancio registrato (J)
 {

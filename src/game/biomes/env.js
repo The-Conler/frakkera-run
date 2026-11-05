@@ -890,6 +890,14 @@ export class Env {
 }
 
 // filo di lampadine attraverso la strada (come nel riferimento del paese in festa)
+// v5s27p: pali di legno alle due estremita' dei fili (il filo non finisce mai nel vuoto). Origine = quota del filo; il palo scende fino a terra.
+export function stringPoles(k, L, down = 11.2) {
+  for (const sx of [-1, 1]) {
+    k.add(G.cyl(0.09, 0.12, down + 0.5, 6), '#5a4330', { x: sx * (L + 0.05), y: -down / 2 + 0.25, flat: true });
+    k.add(G.box(0.5, 0.07, 0.07), '#3a2a1e', { x: sx * (L - 0.15), y: 0.02 });   // braccetto
+    k.add(G.box(0.2, 0.08, 0.2), '#3a2a1e', { x: sx * (L + 0.05), y: 0.52 });    // cappello
+  }
+}
 export function buildBulbString(seed) {
   const r = rng(seed * 13 + 1); const k = new Kit(seed + 50);
   const L = FACADE - 0.1, sag = r.range(0.6, 1.1);
@@ -902,5 +910,6 @@ export function buildBulbString(seed) {
     k.add(G.box(0.03, 0.12, 0.03), '#2a2624', { x, y: yAt(x) - 0.06 });
     k.add(G.box(0.13, 0.17, 0.13), r.chance(0.2) ? '#ffd27a' : '#fff1c8', { x, y: yAt(x) - 0.2, unlit: true });
   }
+  stringPoles(k, L);   // v5s27p: ogni filo ancorato a un palo su entrambi i lati
   return k.build();
 }

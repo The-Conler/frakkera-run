@@ -222,6 +222,7 @@ export const MASKS = {
   FUSO_THROW_S: 0.95,      // il fuso arriva a terra X s prima del passaggio (~1 s dopo il segno)
   BELL_AHEAD: 140,         // px oltre MOVE_AHEAD a cui si sentono i campanacci
   BONUS: 200,              // corteo intero passato senza urti
+  FUNE_CLEAR_PX: 7,        // v5s27p: altezza dei piedi (px) per saltare la fune (corda a ~0.9 m, salto 1.5 m)
   HIT_MAIMONI: 24, HIT_FUNE: 16, HIT_FUSO: 14,  // carburante perso
 };
 
@@ -308,7 +309,7 @@ export const POWER = {
   FROM_M: 140,             // non prima di X metri
   GAP_ROWS: [110, 190],    // file tra un potenziamento e l'altro (~330-570 m)
   KINDS: [['calamita', 0.38], ['finocchio', 0.34], ['scarponi', 0.28]],
-  MAGNET_S: 10, MAGNET_PX: 320, MAGNET_PULL: 9,     // calamita: tira i tappeti da tutte le corsie
+  MAGNET_S: 10, MAGNET_PX: 320, MAGNET_PULL: 9, MAGNET_V0: 120, MAGNET_ACC: 1400, MAGNET_VMAX: 1600, MAGNET_GRAB: 10, MAGNET_AIM: 4, MAGNET_ARC: 12,   // v5s27p: volo verso il personaggio (px/s)     // calamita: tira i tappeti da tutte le corsie
   FENNEL_S: 5,             // scudo di finocchio intrecciato: para UN urto entro 5 s
   BOOTS_S: 4, BOOTS_K: 1.28, BOOTS_PTS: 8, BOOTS_TICK_S: 0.5,   // scarponi del calzolaio
   BRANCH_BIOMES: ['rock', 'river'], BRANCH_FROM_M: 60, BRANCH_GAP_ROWS: [26, 60], BRANCH_P: 0.09, BRANCH_LEN: 10,

@@ -40,6 +40,30 @@ const ROAD_W = 11.0;
 const WALK_W = 1.45;
 const FACADE = ROAD_W / 2 + WALK_W;
 const FAR_Z = 185;
+// v5s27p: crinali lontani
+const RIDGE_VS = `attribute vec2 aK; varying vec2 vK; void main(){ vK = aK; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
+const RIDGE_FS = `uniform vec3 uTop; uniform vec3 uMid; uniform vec3 uHor; uniform vec3 uFog; varying vec2 vK;
+void main(){ vec3 rock = mix(uMid, uTop, 0.35) * 0.72 + uFog * 0.08;            // crinale vicino: piu' scuro e saturo
+  float layer = vK.x;                                                                   // 0 lontano .. 1 vicino
+  vec3 c = mix(mix(uHor, uFog, 0.4), rock, 0.4 + 0.45 * layer);
+  c = mix(c, uHor, (1.0 - vK.y) * 0.45 * (1.0 - 0.5 * layer));                          // foschia alla base
+  gl_FragColor = vec4(c, 1.0); }`;
+function buildRidges() {
+  const pos = [], k = [];
+  const L = [[470, 150, 1.3, 0.0], [435, 115, 2.1, 0.5], [400, 80, 3.4, 1.0]];   // raggio, altezza, frequenza, strato
+  for (const [R, H, F, layer] of L) {
+    const N = 150, top = [];
+    for (let i = 0; i <= N; i++) { const a = i / N * Math.PI * 2;
+      let h = 0.55 + 0.25 * Math.sin(a * F * 2 + layer * 5) + 0.15 * Math.sin(a * F * 5.3 + 1.7 + layer) + 0.08 * Math.sin(a * F * 11.7 + layer * 3);
+      h += 0.06 * (((i * 7919 + layer * 131) % 17) / 17 - 0.5);   // spigoli
+      top.push([Math.cos(a) * R, Math.max(0.12, h) * H - 6, Math.sin(a) * R]); }
+    for (let i = 0; i < N; i++) { const a = top[i], b = top[i + 1], a0 = [a[0], -40, a[2]], b0 = [b[0], -40, b[2]];
+      pos.push(...a0, ...b0, ...a, ...b0, ...b, ...a);
+      k.push(layer, 0, layer, 0, layer, 1, layer, 0, layer, 1, layer, 1); }
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('aK', new THREE.Float32BufferAttribute(k, 2));
+  return g;
+}
 
 // v5: luce e nebbia arrivano dagli ambienti (biomes/config.js); qui solo menu e game over
 const MOODS = { menu: MENU_MOOD, over: OVER_TINT.mood };
@@ -197,6 +221,13 @@ export class World {
     const sky = new THREE.Mesh(new THREE.SphereGeometry(480, 24, 12), new THREE.ShaderMaterial({ vertexShader: SKY_VS, fragmentShader: SKY_FS, uniforms: this.skyU, side: THREE.BackSide, depthWrite: false, fog: false }));
     sky.renderOrder = -10;
     this.sky = sky; this.scene.add(sky);
+    // v5s27p: catene di monti tutt'intorno (stile Gennargentu), 3 crinali sfumati nella foschia; seguono la camera come il cielo.
+    // Low-poly, senza ombre, colore dal cielo del momento (giorno, tramonto, notte), quindi valgono per ogni mappa.
+    this.ridges = new THREE.Mesh(buildRidges(), new THREE.ShaderMaterial({ uniforms: this.skyU, side: THREE.DoubleSide, depthWrite: true, fog: false, vertexShader: RIDGE_VS, fragmentShader: RIDGE_FS }));
+    this.ridges.renderOrder = -9; this.ridges.frustumCulled = false; this.scene.add(this.ridges);
+    // v5s27p: fondo sotto la mappa: un grande piano nella nebbia sotto ogni bordo di terreno, cosi' non si vede mai il vuoto sotto la mappa
+    this.under = new THREE.Mesh(new THREE.CircleGeometry(520, 24).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ color: '#3f4a30' }));
+    this.under.position.y = -75; this.under.frustumCulled = false; this.scene.add(this.under);
     this.moon = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.tex.moon, transparent: true, fog: false, depthWrite: false, toneMapped: false }));
     this.moon.scale.set(26, 26, 1); this.scene.add(this.moon);
     this.sunGlow = this.glowSprite('#ffd38a', 120, 0.55); this.scene.add(this.sunGlow);
@@ -357,14 +388,14 @@ export class World {
       v.fig = buildMaimoni(this.mats2); v.body = v.fig.root; v.fig.root.scale.setScalar(1.12); v.shadow = this.blob(1.6, 1.3);
     } else if (kind === 'fune') {
       v.body = new THREE.Group();
-      const HX = WORLD.LANE_W * U - 0.15;
+      const HX = WORLD.LANE_W * U * 1.5 + 0.5;   // v5s27p: fune centrata, i due Stramaionis ai bordi della via
       v.figs = [0, 1].map((i) => { const f = buildStramaione(this.mats2, (e.id + i) % 4); f.holdRope = true; f.root.position.x = i ? HX : -HX; if (i) f.root.scale.x = -1; v.body.add(f.root); return f; });
       for (const f of v.figs) { f.arms[1].rotation.z = 0.75; f.arms[1].rotation.x = -0.25; f.root.scale.y = f.root.scale.z = 1.12; f.root.scale.x *= 1.12; }
       const pts = []; const X0 = HX - 1.0;
-      for (let i = 0; i <= 12; i++) { const q = i / 12; pts.push(new THREE.Vector3(-X0 + 2 * X0 * q, 1.32 - Math.sin(q * Math.PI) * 0.16, 0.2)); }
+      for (let i = 0; i <= 12; i++) { const q = i / 12; pts.push(new THREE.Vector3(-X0 + 2 * X0 * q, 1.0 - Math.sin(q * Math.PI) * 0.12, 0.2)); }
       v.rope = new THREE.Mesh(this.geo.ropeG || (this.geo.ropeG = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 24, 0.065, 6)), this.mat.rope || (this.mat.rope = new THREE.MeshLambertMaterial({ color: '#c9b088' })));
       v.body.add(v.rope);
-      v.shadow = this.blob(9.2, 1.0);
+      v.shadow = this.blob(12.5, 1.0);
     } else if (kind === 'fuso') {
       v.body = new THREE.Group();
       v.fig = buildGrastula(this.mats2); v.fig.fig.scale.setScalar(1.12); v.body.add(v.fig.root);
@@ -543,7 +574,7 @@ export class World {
     const zc = -(e.d + e.len / 2) * U;
     if (v.kind === 'narrow') { v.root.position.set(v.root.userData.x, 0, -e.d * U); return; }
     const x = (e.kind === 'scambio' || e.kind === 'festone' ? 0 : e.kind === 'bancarella' || e.kind === 'folla' ? e.side * FESTA.X : e.kind === 'tessitrice' ? e.side * VILLAGE.WEAVER_X : e.kind === 'falo' ? e.side * FIRE.X : e.kind === 'minatore' ? e.side * MINE.MINER_X : e.kind === 'lampada' ? e.side * MINE.LAMP_X : e.kind === 'pastore' ? e.side * ANIMALS.SHEPHERD_X : isMoving(e.kind) ? e.x : e.kind === 'ramo' ? 0 : e.kind === 'tappeto' && e.mx !== undefined ? e.mx : laneX(e.lane)) * U;
-    v.root.position.set(x, 0, zc);
+    v.root.position.set(x, e.my ? e.my * U : 0, zc);
   }
   // v5s24: cane randagio che corre al tuo fianco e cane pastore che ti insegue
   animateCompanions(sim, dt) {
@@ -1063,6 +1094,8 @@ export class World {
     const camZ = this.camera.position.z;
     // cielo, lontananze
     this.sky.position.copy(this.camera.position);
+    this.ridges.position.set(this.camera.position.x, 0, this.camera.position.z);
+    this.under.position.x = this.camera.position.x; this.under.position.z = this.camera.position.z;
     this.stars.position.copy(this.camera.position);
     this.far.visible = this.farVis > 0.01;
     this.far.position.set(0, -70 * (1 - this.farVis), camZ - FAR_Z);

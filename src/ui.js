@@ -19,6 +19,7 @@ export function initUI(game) {
   const screens = ['menu', 'skins', 'settings', 'howto', 'info', 'board', 'pause', 'over', 'shop'];
   let state = 'menu';
   let backTo = 'menu';
+  let pausedAt = -1e9;
   let lastRun = null;
   let savedThisRun = false;
   let highlightId = null;
@@ -188,7 +189,7 @@ export function initUI(game) {
   function pause() {
     if (state !== 'play' || game.mode !== 'run') return;
     game.pause();
-    state = 'pause';
+    state = 'pause'; pausedAt = performance.now();   // v5s27p: lo stesso Esc che mette in pausa non deve anche riprendere
     show('pause');
   }
   function cancelCountdown() {
@@ -560,7 +561,7 @@ export function initUI(game) {
       else if (state === 'over') { e.preventDefault(); if (performance.now() - overShownAt > 350) play(); }
       else if (state === 'pause') { e.preventDefault(); resume(); }
     } else if (e.code === 'Escape' || e.code === 'KeyP') {
-      if (state === 'pause') resume();
+      if (state === 'pause') { if (performance.now() - pausedAt > 250) resume(); }
       else if (['howto', 'info', 'board', 'settings', 'skins'].includes(state)) back();
     } else if (e.code === 'KeyR' && state === 'over') {
       if (performance.now() - overShownAt > 350) play();

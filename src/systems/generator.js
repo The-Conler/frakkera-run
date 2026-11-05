@@ -451,7 +451,7 @@ export class Generator {
         const left = this.path === 0 ? 1 : this.path === L - 1 ? 0 : (rng() < 0.5 ? 0 : 1);  // il sentiero resta libero se si puo'
         for (let l = 0; l < L; l++) { used[l] = true; this.laneCool[l] = Math.max(this.laneCool[l], r + 1); }
         this.nextBeamAt = Math.max(this.nextBeamAt, r + 8);
-        emit({ kind: 'fune', lane: left, d: D + 10, len: DUCK.BEAM_LEN, group: pa.g });
+        emit({ kind: 'fune', lane: 1, d: D + 10, len: DUCK.BEAM_LEN, group: pa.g });
         pa.stage = 2; pa.next = r + 1 + MK.FUSO_GAP_ROWS;
         this.carpetRow(r, D, diff, used, emit);
         return;
