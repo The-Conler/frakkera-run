@@ -18,6 +18,7 @@ import { buildMascot, MASCOT } from './mascot3d.js';
 
 export const MODEL_URL = `${import.meta.env.BASE_URL}models/frakkera-man.glb`;
 export const CHAR_SCALE = 1.6;         // il mondo e' "cartoon": uomo ~2.8 u, frakkera ~5.4 u
+export const DANCE_SCALE = (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('test') && +new URLSearchParams(window.location.search).get('dscale')) || 0.72;   // v5s30c: scala del corridore nel ballu tundu
 const RAISE_TILT = 0.3;
 export const CLIP_NAMES = ['idle', 'run', 'left', 'right', 'stumble', 'gameover'];
 const FADE = { idle: 0.35, run: 0.25, left: 0.09, right: 0.09, stumble: 0.08, gameover: 0.3 };
@@ -394,7 +395,12 @@ export class Character3D {
     let jy = 1, jx = 1;
     if (jh > 0) { jy = 1 + 0.12 * (1 - jh); jx = 1 - 0.05 * (1 - jh); }
     else if (this.landT > 0) { const q = Math.sin(Math.PI * (this.landT / 0.2)); jy = 1 - 0.16 * q; jx = 1 + 0.08 * q; }
-    this.root.scale.set((1 + 0.08 * k) * jx, (1 - 0.34 * k) * jy, (1 + 0.08 * k) * jx);
+    // v5s30c: nel ballu tundu il corridore e' piu' piccolo (alla misura dei ballerini GLB) e senza frakkera
+    this.danceK = (this.danceK || 0) + ((st.dancing ? 1 : 0) - (this.danceK || 0)) * Math.min(1, dt * 5);
+    if (this.danceK < 1e-3) this.danceK = 0; else if (this.danceK > 0.999) this.danceK = 1;
+    const ds = 1 + (DANCE_SCALE - 1) * this.danceK;
+    this.root.scale.set((1 + 0.08 * k) * jx * ds, (1 - 0.34 * k) * jy * ds, (1 + 0.08 * k) * jx * ds);
+    { const hide = !!st.dancing; if (hide !== this.frkHidden) { this.frkHidden = hide; for (const o of this.frkParts || []) o.visible = !hide; } }
     this.model.rotation.x = DUCK_LEAN * k;
     R.duck = Math.max(R.duck || 0, k);
     // molla sull'osso della presa: la frakkera arriva in ritardo nei cambi di corsia

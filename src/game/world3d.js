@@ -1178,6 +1178,7 @@ export class World {
     } else if (use3d && c3.setFuel) c3.setFuel(view.cam === 'menu' ? 1 : fuelF0, dt);
     if (use3d) {
       if (dpos) { view.char.danceRy = dpos.ry; view.char.danceHop = dpos.hop; } else view.char.danceRy = null;
+      view.char.dancing = sim.mode === 'dance' || this.dance.state === 'dance';   // v5s30c: frakkera nascosta e corridore rimpicciolito nel ballo
       view.char.cart = sim.cart ? 1 : 0;
       // v5s20: nel cerchio del ballu tundu si balla col vestito della festa (niente maschera di su Stramaioni tra i ballerini)
       { const want = (sim.mode === 'dance' || this.dance.state === 'dance') ? (this.skinId === 'stramaioni' ? 'classico' : (this.skinId || 'base')) : (this.skinId || 'base');   // v5c: nel ballo vestito della festa (la mascotte o il portatore classico)
@@ -1199,7 +1200,7 @@ export class World {
       ch.worldOf(this.muzzleW, base, _right, _up, ch.muzzle.x, ch.muzzle.y);
     }
     const fuelF = this.burnT >= 0 && burnLit ? Math.max(0.35, 1 - this.burnT) : view.fuelF;
-    const lit = view.char.flameOn || burnLit;
+    const lit = (view.char.flameOn && !(use3d && view.char.dancing)) || burnLit;   // v5s30c: senza frakkera niente fiamma nel ballo
     const flick = Math.sin(this.clock * 17) * 0.06 + Math.sin(this.clock * 29) * 0.05;
     this.fireKick = Math.max(0, (this.fireKick || 0) - dt * 1.6);
     this.flame3d.update(dt, this.camera, this.tipW, Math.min(1.6, fuelF + this.fireKick * 0.6), use3d && lit, view.char.fuelLow, -(view.char.vx || 0) * 0.5);
