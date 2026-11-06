@@ -176,6 +176,7 @@ export class Env {
     this.mats();
     this.ground = []; this.gW = -40;
     this.sides = [-1, 1].map((s) => ({ s, list: [], cur: -40, r: rng(s > 0 ? 71 : 37) }));
+    this.houseFeet = []; this._footId = 0;   // v5s39: impronte case per escludere alberi/cespugli
     this.center = []; this.cW = -40;
     this.decor = []; this.dW = -30; this.dR = rng(55);
     this.marks = new Map();
@@ -322,7 +323,7 @@ export class Env {
     this.cW = this.center.length ? this.center[this.center.length - 1].W1 : W - 40;
     this.dW = dropFrom(this.decor, (p) => this.freePiece(p));
     for (const [key] of this.marks) this.freeMark(key);
-    if (full) { this.fade = 0; for (const sd of this.sides) sd.cur = W - 40; this.gW = W - 40; this.cW = W - 40; this.dW = W - 30; }
+    if (full) { this.fade = 0; this.houseFeet = []; for (const sd of this.sides) sd.cur = W - 40; this.gW = W - 40; this.cW = W - 40; this.dW = W - 30; }
   }
 
   // ------------------------------------------------------------ terreno
@@ -368,6 +369,17 @@ export class Env {
   freeSeg(s) { for (const m of s.meshes) { m.visible = false; const k = m.userData.key; if (!this.pools.has(k)) this.pools.set(k, []); m.scale.x = 1; m.position.x = 0; this.pools.get(k).push(m); } }
 
   // ------------------------------------------------------------ pezzi ai lati
+  // v5s39: registro impronte case (W lungo la via, x locale pezzo: 0 = facciata, negativo = entroterra)
+  addHouseFoot(s, W0, w, margin = 1.25) {
+    const foot = { s, minW: W0 - margin, maxW: W0 + w + margin, minX: -8.2 - margin * 0.25, maxX: 1.0 + margin * 0.25, id: ++this._footId };
+    this.houseFeet.push(foot); return foot;
+  }
+  dropHouseFoot(foot) { if (!foot) return; const i = this.houseFeet.indexOf(foot); if (i >= 0) this.houseFeet.splice(i, 1); }
+  feetFor(s, W0, len, pad = 5) {
+    const a = W0 - pad, b = W0 + len + pad;
+    return this.houseFeet.filter((f) => f.s === s && f.maxW >= a && f.minW <= b)
+      .map((f) => ({ minW: f.minW, maxW: f.maxW, minX: f.minX, maxX: f.maxX }));
+  }
   fillSide(sd, front) {
     let guard = 0;
     while (sd.cur < front && guard++ < 60 && !this.over(sd.cur)) {
@@ -392,11 +404,15 @@ export class Env {
           const mesh = new THREE.Mesh(geom, this.mats2); mesh.position.set(sd.s * FACADE, 0, -W); mesh.scale.x = sd.s < 0 ? 1 : -1; this.scene.add(mesh);
           return { W0: W, W1: W + ww, w: ww, mesh, owned: true, lamps: [], make, lod };
         };
+        // v5s39: escludi impronte case gia' piazzate + fantasma ai bordi del vuoto (dove riprendono le case)
+        const feet = this.feetFor(sd.s, W, w, 8);
+        if (gapA != null) feet.push({ minW: gapA - 14, maxW: gapA + 3.5, minX: -8.5, maxX: 1.2 });
+        if (gapZ != null) feet.push({ minW: gapZ - 3.5, maxW: gapZ + 14, minX: -8.5, maxX: 1.2 });
         const piece = own(() => N.slopePiece(W, w, {
           Hs: 22, dist: 70, trees: 0.22, wall: false, rocks: 0.1, ferns: 0.03,
           seed: 77 + Math.floor(W), flowers: 0.1,
           ground: ['#7d8a4e', '#6e7a3e', '#8a9a56', '#5f6a40', '#9a8f6a'],
-          skirt: -70,
+          skirt: -70, footprints: feet,
         }), w);
         sd.list.push(piece); sd.cur = W + piece.w; continue;
       }
@@ -425,10 +441,11 @@ export class Env {
         const nearEnd = loc > len - 32 && Number.isFinite(lim);
         if (nearEnd || lim < 5.1) {   // fine del paese: orti, muretti, alberi
           const w = fit(5, 9);
-          return own(() => N.slopePiece(W, w, { Hs: 3, dist: 16, trees: 0.25, wall: true, wallH: 1.1, rocks: 0.1, ferns: 0, seed: 40 + i.lap, flowers: 0.3, ground: ['#7d8a4e', '#6e7a3e', '#8a9a56'] }), w);
+          const feet = this.feetFor(s, W, w, 6);
+          return own(() => N.slopePiece(W, w, { Hs: 3, dist: 16, trees: 0.25, wall: true, wallH: 1.1, rocks: 0.1, ferns: 0, seed: 40 + i.lap, flowers: 0.3, ground: ['#7d8a4e', '#6e7a3e', '#8a9a56'], footprints: feet }), w);
         }
         const pf = r.chance(0.14) ? this.prefab('garden', r.int(5), () => M.buildGarden(r.lastInt + 1)) : this.prefab('house', r.int(26), () => M.buildHouse(r.lastInt + 1));
-        if (pf.w > lim) { const w = Math.min(lim, 6); return own(() => N.slopePiece(W, w, { Hs: 2, dist: 12, trees: 0.2, wall: true, wallH: 1.1, ferns: 0, rocks: 0.1 }), w); }
+        if (pf.w > lim) { const w = Math.min(lim, 6); const feet = this.feetFor(s, W, w, 6); return own(() => N.slopePiece(W, w, { Hs: 2, dist: 12, trees: 0.2, wall: true, wallH: 1.1, ferns: 0, rocks: 0.1, footprints: feet }), w); }
         return this.placePrefab(sd, W, pf);
       }
       case 'mountain': {        // parete di roccia a destra, muretto e strapiombo sulla valle a sinistra
@@ -557,7 +574,10 @@ export class Env {
     mesh.visible = true; mesh.position.set(sd.s * FACADE, 0, -W); mesh.scale.x = sd.s < 0 ? 1 : -1; mesh.rotation.set(0, 0, 0);
     const lamps = [];
     for (const l of pf.lamps) lamps.push(this.lamp(sd.s * FACADE - sd.s * l.x, l.y, -W + l.z, '#ffb85a', 2.6));
-    return { W0: W, W1: W + pf.w, w: pf.w, mesh, key: pf.key, lamps };
+    const out = { W0: W, W1: W + pf.w, w: pf.w, mesh, key: pf.key, lamps };
+    // v5s39: solo le case (non i giardini) bloccano alberi/cespugli
+    if (pf.key && pf.key.startsWith('house')) out.foot = this.addHouseFoot(sd.s, W, pf.w);
+    return out;
   }
   // tutte le luci decorative (lanterne, lampadine, lampade di miniera) in UN solo draw call:
   // ogni "lamp" e' un handle leggero; ogni frame gli handle visibili vengono scritti in un THREE.Points
@@ -647,6 +667,7 @@ export class Env {
     }
   }
   freePiece(p) {
+    if (p.foot) this.dropHouseFoot(p.foot);
     if (p.batch) this.batchRemove(p);
     if (p.mesh) {
       if (p.owned) { this.scene.remove(p.mesh); p.mesh.geometry.dispose(); this.stats.disposed++; }

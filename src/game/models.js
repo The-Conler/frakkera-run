@@ -129,11 +129,14 @@ export function buildGarden(seed) {
   for (let z = -0.6; z > -w + 0.3; z -= 0.7) k.add(G.dode(0.32), r.pick(PAL.stone), { x: 0.1, y: 0.78, z, sy: 0.75, flat: true, vary: 0.25 });
   const tz = -w / 2;
   k.add(G.cyl(0.2, 0.32, 3.4, 7), '#6b4a2f', { x: -1.6, y: 1.7, z: tz, flat: true });
-  const big = r.pick([2.1, 2.4, 2.7]);
-  for (let i = 0; i < 6; i++) k.add(G.ico(big * r.range(0.55, 0.85), 1), r.pick(PAL.leaf), { x: -1.6 + r.range(-1, 1.1), y: 3.8 + r.range(-0.4, 1.4), z: tz + r.range(-1.2, 1.2), flat: true, vary: 0.22 });
-  if (r.chance(0.5)) for (let i = 0; i < 6; i++) k.add(G.ico(0.18), r.pick(['#ff9a2a', '#ffcf3a']), { x: -1.6 + r.range(-1.4, 1.4), y: 3.6 + r.range(0, 1.6), z: tz + r.range(-1.5, 1.5), flat: true });
-  bush(k, -0.5, 1.0, -0.6, 1.0, r, 0.8);
-  bush(k, -0.5, 1.0, -w + 0.6, 1.0, r, 0.6);
+  // v5s39: chioma dentro l'impronta del giardino, fuori dal margine delle case vicine (~1.25 m)
+  const zPad = 1.35, zSpan = Math.max(0.2, w / 2 - zPad);
+  const xSpan = 0.7;
+  const big = r.pick([1.5, 1.7, 1.85]);
+  for (let i = 0; i < 6; i++) k.add(G.ico(big * r.range(0.45, 0.65), 1), r.pick(PAL.leaf), { x: -1.6 + r.range(-xSpan, xSpan), y: 3.7 + r.range(-0.3, 1.0), z: tz + r.range(-zSpan, zSpan), flat: true, vary: 0.22 });
+  if (r.chance(0.5)) for (let i = 0; i < 5; i++) k.add(G.ico(0.16), r.pick(['#ff9a2a', '#ffcf3a']), { x: -1.6 + r.range(-xSpan, xSpan), y: 3.5 + r.range(0, 1.2), z: tz + r.range(-zSpan, zSpan), flat: true });
+  bush(k, -0.5, 1.0, Math.min(-0.55, -zPad + 0.2), 0.7, r, 0.7);
+  bush(k, -0.5, 1.0, Math.max(-w + 0.55, -w + zPad - 0.2), 0.7, r, 0.5);
   return { geom: k.build({ ao: 0.25 }), w, h: 6, lamps: [] };
 }
 

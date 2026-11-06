@@ -92,15 +92,42 @@ export function slopePiece(W0, len, o = {}) {
     wall((u, v) => { const W = W0 + u * len, x = 0.6 - D, h = hAt(x, W); return [x - (h - B) * 1.6 * v, h + (B - h) * v, -u * len]; });   // v5s29: scarpata piu' dolce, prende piu' luce
     for (const e of [0, 1]) wall((u, v) => { const W = W0 + e * len, x = 0.6 - Math.pow(u, 1.25) * D, h = hAt(x, W) - 0.05, dy = (h - B) * v * Math.min(1, u * 6); return [x, h - dy, -e * len + (e ? -1 : 1) * dy * 0.9]; }, [e === 1]);
   }
+  // v5s39: esclusione impronte case (footprints: {minW,maxW,minX,maxX} in W assoluti / x locale pezzo)
+  const fps = o.footprints || [];
+  const hitsFoot = (x, zl, rad) => {
+    if (!fps.length) return false;
+    const W = W0 - zl;
+    for (const f of fps) {
+      if (W + rad < f.minW || W - rad > f.maxW) continue;
+      if (x + rad < f.minX || x - rad > f.maxX) continue;
+      return true;
+    }
+    return false;
+  };
   const dens = o.trees ?? 0.25;
   for (let i = 0; i < Math.round(len * dens); i++) {
-    const zl = -r() * len, x = -r.range(3.5, D * 0.95), W = W0 - zl, y = hAt(x, W);
-    if (o.conifers && r.chance(0.25)) cypress(k, r, x, y, zl, r.range(0.8, 1.1));
-    else tree(k, r, x, y - 0.2, zl, r.range(1.1, 1.8), r.chance(0.5) ? (o.leaf || LEAF.holm) : LEAF.fresh);
+    let zl, x, W, y, placed = false;
+    for (let t = 0; t < 10 && !placed; t++) {
+      zl = -r() * len; x = -r.range(3.5, D * 0.95); W = W0 - zl; y = hAt(x, W);
+      const sGuess = 1.5;
+      if (hitsFoot(x, zl, sGuess * 1.85)) continue;
+      if (o.conifers && r.chance(0.25)) cypress(k, r, x, y, zl, r.range(0.8, 1.1));
+      else tree(k, r, x, y - 0.2, zl, r.range(1.1, 1.8), r.chance(0.5) ? (o.leaf || LEAF.holm) : LEAF.fresh);
+      placed = true;
+    }
   }
-  for (let i = 0; i < Math.round(len * (o.ferns ?? 0.3)); i++) { const zl = -r() * len, x = -r.range(0.5, 6), y = hAt(x, W0 - zl); fern(k, r, x, y, zl, r.range(0.7, 1.2)); }
+  for (let i = 0; i < Math.round(len * (o.ferns ?? 0.3)); i++) { const zl = -r() * len, x = -r.range(0.5, 6), y = hAt(x, W0 - zl); if (hitsFoot(x, zl, 0.9)) continue; fern(k, r, x, y, zl, r.range(0.7, 1.2)); }
   for (let i = 0; i < Math.round(len * (o.rocks ?? 0.25)); i++) { const zl = -r() * len, x = -r.range(0.4, 9), y = hAt(x, W0 - zl); addRock(k, r, x, y + 0.1, zl, r.range(0.3, 1.1), o.rockPal || ROCK.granite, { squash: 0.7 }); }
-  for (let i = 0; i < Math.round(len * 0.4); i++) { const zl = -r() * len, x = -r.range(0, 4), y = hAt(x, W0 - zl); shrub(k, r, x, y, zl, r.range(0.5, 0.9), o.leaf || LEAF.holm, o.flowers || 0); }
+  for (let i = 0; i < Math.round(len * 0.4); i++) {
+    let zl, x, y, placed = false;
+    for (let t = 0; t < 8 && !placed; t++) {
+      zl = -r() * len; x = -r.range(0, 4); y = hAt(x, W0 - zl);
+      const s = r.range(0.5, 0.9);
+      if (hitsFoot(x, zl, s * 1.7)) continue;
+      shrub(k, r, x, y, zl, s, o.leaf || LEAF.holm, o.flowers || 0);
+      placed = true;
+    }
+  }
   // grandi alberi che si chinano sul sentiero (ombra in alto a sinistra, target2-fiume)
   if (o.canopy) for (let z = -r.range(0, 4); z > -len; z -= r.range(6, 9.5)) {
     const bx = -r.range(3.5, 5.5), by = hAt(bx, W0 - z) - 0.2, cx = r.range(-0.5, 1.8), cy = r.range(8.5, 11.5), dx = cx - bx, dy = cy - by;
