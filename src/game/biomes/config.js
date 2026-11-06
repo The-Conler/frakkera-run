@@ -20,6 +20,7 @@ export const BIOMES = [
     decor: { banners: true, bulbs: true, lanterns: true },
     // tramonto dorato-rosa (target2-villaggio); nebbia piu' lontana perche' il campanile si veda dal fondo della via
     mood: { top: '#6a78c4', mid: '#f7a070', hor: '#ffc870', fog: '#f8c590', hemiS: '#ffd8a0', hemiG: '#7a5c48', hemiI: 1.4, dirC: '#ffb860', dirI: 2.6, moon: 0, sun: 1.2, far: '#ffe2c8', fogNear: 60, fogFar: 240 },
+    nightStart: [75, 135],      // v5s37: sera di Natale alla partenza (campanile con le luci e Su Nascimentu), poi torna il tramonto
     moodEnd: { top: '#5257a8', mid: '#ee8c70', hor: '#ffb874', fog: '#f1ae88', hemiI: 1.22, dirI: 2.0 }, // verso sera a fine paese
     light: { flameDist: 11, flameK: 1, mineral: 0, lamp: 0, darkByFuel: 0, tunnel: 0, exposure: 1.05, camLook: 1.0, camFov: 4 },
     ambience: { wind: 0.06, water: 0, drips: 0, birds: 0.3, bells: 1, cave: 0 },

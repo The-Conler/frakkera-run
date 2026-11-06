@@ -40,8 +40,9 @@ export function festoonGeom(v = 0, w = 13.4, y0 = 10.2) {
     const t0 = i / N, t1 = (i + 1) / N, x0 = -w / 2 + w * t0, x1 = -w / 2 + w * t1, ya = yAt(t0), yb = yAt(t1);
     const len = Math.hypot(x1 - x0, yb - ya);
     k.add(G.box(len, 0.035, 0.035), '#3a2a1a', { x: (x0 + x1) / 2, y: (ya + yb) / 2, rz: Math.atan2(yb - ya, x1 - x0) });
-    k.add(G.cone(0.2, 0.5, 3), PAL[i % PAL.length], { x: (x0 + x1) / 2, y: (ya + yb) / 2 - 0.27, rx: Math.PI, sz: 0.15 });   // bandierina
-    if (i % 2 === 0) k.add(G.sph(0.08, 6, 5), '#ffe2a0', { x: x0, y: ya - 0.06, unlit: true });                            // lampadina
+    // v5s37b: niente bandierine, solo lampadine (luci di Natale)
+    k.add(G.sph(0.08, 6, 5), '#ffe2a0', { x: (x0 + x1) / 2, y: (ya + yb) / 2 - 0.06, unlit: true });
+    k.add(G.sph(0.08, 6, 5), '#ffe2a0', { x: x0, y: ya - 0.06, unlit: true });                            // lampadina
   }
   for (const sx of [-1, 1]) { k.add(G.cyl(0.09, 0.12, y0 + 0.4, 6), '#5a4330', { x: sx * (w / 2 + 0.05), y: (y0 + 0.4) / 2, flat: true }); k.add(G.box(0.2, 0.08, 0.2), '#3a2a1e', { x: sx * (w / 2 + 0.05), y: y0 + 0.42 }); }   // v5s27p: pali alle due estremita'
   return (cache[key] = k.build());
