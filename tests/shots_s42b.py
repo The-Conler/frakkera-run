@@ -17,6 +17,10 @@ async def main():
     await pg.evaluate("window.__frk.game.sim.jump()"); await asyncio.sleep(0.25); await shot(pg,'jump')
     await asyncio.sleep(0.8); await pg.evaluate("window.__frk.game.sim.move(-1)"); await asyncio.sleep(0.08); await shot(pg,'lane')
     await asyncio.sleep(0.8); await pg.evaluate("window.__frk.game.sim.duck()"); await asyncio.sleep(0.2); await shot(pg,'slide')
+    o=f'{D}/v5s42b-{TAG}-flame-closeup.png'; await pg.evaluate("window.__noinv=1;window.__frk.game.sim.invuln=0"); await asyncio.sleep(0.6); await pg.screenshot(path=o, clip={'x':95,'y':380,'width':200,'height':400}); print(o); await pg.evaluate('window.__noinv=0')
+    for sk in ['classico','stramaioni']:
+      await pg.evaluate(f"window.__frk.game.world.setSkin('{sk}')"); await asyncio.sleep(0.8); await shot(pg, 'skin-'+sk)
+    await pg.evaluate("window.__frk.game.world.setSkin('base')")
     await asyncio.sleep(1); await pg.evaluate("window.__frk.game.sim.startDance(0)"); await asyncio.sleep(2.5); await shot(pg,'dance')
     await ctx.close()
     ctx = await b.new_context(viewport={'width':390,'height':844}, device_scale_factor=1, has_touch=True, is_mobile=True)

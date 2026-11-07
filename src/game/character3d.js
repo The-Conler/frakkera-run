@@ -431,7 +431,8 @@ export class Character3D {
     if (this.isMascot) { this.mascotGround(this.phase); this.mascotIK(this.phase); this.root.updateMatrixWorld(true); }
     this.bones.tip.getWorldPosition(this.tipW);
     // v5s42b: asse della frakkera in coordinate mondo (per incollare e inclinare la fiamma sulla punta)
-    if (this.tipRest && this.bones.tip.parent) this.tipAxisW.copy(this.tipRest.ax).transformDirection(this.bones.tip.parent.matrixWorld); else this.tipAxisW.set(0, 1, 0);
+    if (this.newFrk) { const n = this.newFrk; n.r.updateWorldMatrix(true, true); (n.tip || n.r).getWorldPosition(this.tipW); this.tipAxisW.set(0, 1, 0).transformDirection(n.r.matrixWorld); }
+    else if (this.tipRest && this.bones.tip.parent) this.tipAxisW.copy(this.tipRest.ax).transformDirection(this.bones.tip.parent.matrixWorld); else this.tipAxisW.set(0, 1, 0);
     // pistola nella mano destra (orientata sempre in avanti)
     if (this.pistol) {
       const on = !!st.armed && this.state === 'run';
@@ -462,7 +463,7 @@ export class Character3D {
       const base = c.clone().addScaledVector(ax, mn), len = Math.max(0.01, tipL.clone().sub(base).dot(ax));
       const u = { uBase: { value: base }, uAxis: { value: ax }, uLen: { value: len }, uKeep: { value: 1.5 }, uEmber: { value: 1 } };
       this.burnU.push(u);
-      if (this.bones.tip.parent === o) this.tipRest = { base, ax, len: tipL.clone().sub(base).dot(ax), off: tipL.clone().sub(base.clone().addScaledVector(ax, tipL.clone().sub(base).dot(ax))) };
+      if (this.bones.tip.parent === o) this.tipRest = { o, base, ax, len: tipL.clone().sub(base).dot(ax), off: tipL.clone().sub(base.clone().addScaledVector(ax, tipL.clone().sub(base).dot(ax))) };
       const mt = o.material;
       const prev = mt.onBeforeCompile;
       mt.onBeforeCompile = (sh, r) => {
@@ -477,6 +478,33 @@ export class Character3D {
       mt.needsUpdate = true;
     }
     this.tipNode = this.bones.tip;
+    this.loadNewFrk();
+  }
+  // v5s42b: nuova frakkera (GLB di New Bot, radice 'Fracchera', asse +Y, 3.4 u, origine sulla punta a terra, Tip_Burn in cima).
+  // Prende la posa della frakkera vecchia (gia' tarata: in spalla, inclinata all'indietro, -30% nella mascotte): base e asse
+  // coincidono, scala uniforme = lunghezza vecchia / 3.4. La fiamma statica e' nascosta (resta la fiamma animata sulla punta).
+  // Se il caricamento fallisce resta la frakkera vecchia.
+  loadNewFrk() {
+    if (this.newFrk || !this.frkParts?.length || !this.burnU?.length) return;
+    // posa della frakkera vecchia nel riferimento del suo mesh (stessi valori del taglio di consumo)
+    const u0 = this.burnU[0], t = { o: this.frkParts[0], base: u0.uBase.value.clone(), ax: u0.uAxis.value.clone(), len: u0.uLen.value };
+    const ld = new GLTFLoader(); ld.setMeshoptDecoder(MeshoptDecoder);
+    const B = import.meta.env.BASE_URL;
+    const use = (g) => {
+      const r = g.scene.getObjectByName('Fracchera') || g.scene;
+      const fl = r.getObjectByName('Fracchera_Flame_Static'); if (fl) fl.visible = false;
+      const mats = [];
+      r.traverse((o) => { if (!o.isMesh) return; o.frustumCulled = false; o.castShadow = false;
+        const mt = o.material = o.material.clone(); mt.transparent = true; mt.envMapIntensity = 0; mats.push(mt); });
+      const S = t.len / 3.4;
+      r.position.copy(t.base); r.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), t.ax); r.scale.setScalar(S);
+      t.o.add(r);
+      for (const o of this.frkParts) o.material.visible = false;   // vecchi fusti nascosti (i figli restano visibili)
+      this.newFrk = { r, S, mats, tip: r.getObjectByName('Tip_Burn') }; this.applyKeep(this.keep ?? 1);
+    };
+    ld.loadAsync(`${B}models/fracchera_main.meshopt.glb`).then(use)
+      .catch(() => ld.loadAsync(`${B}models/fracchera_low.glb`).then(use))
+      .catch((e) => console.warn('[frakkera] nuova frakkera non caricata, resta la vecchia:', e));
   }
   // quota di frakkera rimasta (1 = intera). Il carburante 0..1 la accorcia fino al 38%.
   applyKeep(k) {
@@ -484,6 +512,7 @@ export class Character3D {
     for (const u of this.burnU || []) u.uKeep.value = k >= 0.999 ? 1.5 : k;
     const t = this.tipRest;
     if (t) this.tipNode.position.copy(t.base).addScaledVector(t.ax, t.len * Math.min(1, k + 0.012)).add(t.off);
+    if (this.newFrk) this.newFrk.r.scale.set(this.newFrk.S, this.newFrk.S * Math.min(1, k + 0.012), this.newFrk.S);   // v5s42b: si accorcia col carburante
   }
   setFuel(f, dt) {
     if (!this.ready) return;
@@ -507,6 +536,7 @@ export class Character3D {
     if (!this.frkMat) return;
     this.occ = (this.occ ?? 1) + (target - (this.occ ?? 1)) * Math.min(1, dt * 8);
     for (const o of this.frkParts || [this.frkMat && { material: this.frkMat }]) { o.material.opacity = this.occ; o.material.depthWrite = this.occ > 0.95; }
+    for (const mt of this.newFrk?.mats || []) { mt.opacity = this.occ; mt.depthWrite = this.occ > 0.95; }
   }
   // impulso alla molla (urti)
   kick(a, p) { this.spring.v += a; this.spring.pv += p; }
