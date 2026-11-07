@@ -95,10 +95,10 @@ export function buildNascimentu(tex) {
   // ---------------------------------------------------- fili di luci
   const wires = [], bulbs = [], tw = TOWER.W * 1.05 / 2;
   const toLocal = (wx) => wx - VISTA.X;   // x mondo -> x locale (il gruppo e' traslato di VISTA.X)
-  const strand = (a, b, sag, every = 0.75) => {
+  const strand = (a, b, sag, every = 0.75, skip = 0) => {
     const L = a.distanceTo(b), n = Math.max(6, Math.round(L / 2.2));
     for (let i = 0; i < n; i++) { const p0 = cat(a, b, sag, i / n), p1 = cat(a, b, sag, (i + 1) / n); wires.push(p0.x, p0.y, p0.z, p1.x, p1.y, p1.z); }
-    const nb = Math.floor(L / every); for (let i = 1; i < nb; i++) { const p = cat(a, b, sag, i / nb); bulbs.push(p.x, p.y - 0.06, p.z); }
+    const nb = Math.floor(L / every); for (let i = 1; i < nb; i++) { if (i / nb < skip) continue; const p = cat(a, b, sag, i / nb); bulbs.push(p.x, p.y - 0.06, p.z); }
   };
   const ry = VISTA.RY, rot = (x, z) => [x * Math.cos(ry) + z * Math.sin(ry), -x * Math.sin(ry) + z * Math.cos(ry)];
   // v5s37b (foto di riferimento): tutti i fili partono da UN punto sul campanile, alla base della cella campanaria,
@@ -107,8 +107,8 @@ export function buildNascimentu(tex) {
   const [hx, hz] = rot(tw * 0.55, tw + 0.15), HUB = new THREE.Vector3(hx, NASC.SKIRT_Y + 0.6, hz);
   const XR = toLocal(6.75), XL = toLocal(-6.75), poles = [];
   const RZ = [66, 54, 43, 33, 24, 15, 6, -4, -15, -27], LZ = [66, 56, 47];
-  for (const z of RZ) { poles.push([XR, z, 13.6]); strand(HUB, new THREE.Vector3(XR, 13.4, z), 0.5, 0.62); strand(HUB, new THREE.Vector3(XR, 12.2, z + 1.2), 0.7, 0.62); }
-  for (const z of LZ) { poles.push([XL, z, 13.6]); strand(HUB, new THREE.Vector3(XL, 13.4, z), 0.5, 0.62); strand(HUB, new THREE.Vector3(XL, 12.2, z - 1.2), 0.7, 0.62); }
+  for (const z of RZ) { poles.push([XR, z, 13.6]); strand(HUB, new THREE.Vector3(XR, 13.4, z), 0.5, 0.62, 0.3); strand(HUB, new THREE.Vector3(XR, 12.2, z + 1.2), 0.7, 0.62, 0.3); }
+  for (const z of LZ) { poles.push([XL, z, 13.6]); strand(HUB, new THREE.Vector3(XL, 13.4, z), 0.5, 0.62, 0.3); strand(HUB, new THREE.Vector3(XL, 12.2, z - 1.2), 0.7, 0.62, 0.3); }
   // gonna di luci attorno al punto di partenza (il cono luminoso della foto)
   for (let i = 0; i < 34; i++) { const ang = (i / 34) * Math.PI * 2, [x0, z0] = rot(Math.cos(ang) * tw * 1.04, Math.sin(ang) * tw * 1.04);
     const R = 4.6 + Math.sin(i * 1.7) * 0.35; strand(new THREE.Vector3(x0, HUB.y + 0.2, z0), new THREE.Vector3(Math.cos(ang) * R, HUB.y - 3.0, Math.sin(ang) * R), 0.2, 0.36); }
@@ -132,7 +132,7 @@ export function buildNascimentu(tex) {
   const halos = [];
   for (let h = 0; h < 2; h++) { const p = []; for (let i = h * 3; i < bulbs.length; i += 6) p.push(bulbs[i], bulbs[i + 1], bulbs[i + 2]);
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
-    const m = new THREE.PointsMaterial({ color: '#ffcf6a', size: 1.5, sizeAttenuation: true, map: tex.glow, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
+    const m = new THREE.PointsMaterial({ color: '#ffcf6a', size: 0.62, sizeAttenuation: true, map: tex.glow, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
     const pts = new THREE.Points(g, m); pts.renderOrder = 14; root.add(pts); halos.push(m); }
   // bagliore azzurro delle nicchie e caldo della capanna (sprite additivi, niente luci vere)
   const glows = [];
@@ -140,13 +140,13 @@ export function buildNascimentu(tex) {
     const sp = new THREE.Sprite(m); sp.scale.set(s, s, 1); const v = new THREE.Vector3(lx, ly, lz).applyMatrix4(hutM); sp.position.copy(v); sp.renderOrder = 15; root.add(sp); glows.push(m); };
   // fari caldi alla base del campanile (come nella foto): due aloni grandi e tenui sulle facce verso chi arriva e verso la via
   { const fl = (lx, lz, s, o) => { const m = new THREE.SpriteMaterial({ map: tex.glow, color: '#ffb860', transparent: true, opacity: o, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }); const sp = new THREE.Sprite(m); sp.scale.set(s, s * 1.6, 1); const [x, z] = rot(lx, lz); sp.position.set(x, 8, z); sp.renderOrder = 13; root.add(sp); };
-    fl(0, tw + 0.6, 9, 0.22); fl(tw + 0.6, 0, 8, 0.16); }
-  addGlow(0, 1.4, -0.6, '#4f7dff', 5.5, 0.55); addGlow(-2.45, 1.0, -0.7, '#3d6cff', 3.2, 0.45); addGlow(2.45, 1.0, -0.7, '#3d6cff', 3.2, 0.45); addGlow(0, 1.0, -0.4, '#fff0d0', 1.6, 0.6);
+    fl(0, tw + 0.6, 4, 0.1); fl(tw + 0.6, 0, 3.4, 0.07); }
+  addGlow(0, 1.4, -0.6, '#4f7dff', 2.6, 0.26); addGlow(-2.45, 1.0, -0.7, '#3d6cff', 1.6, 0.2); addGlow(2.45, 1.0, -0.7, '#3d6cff', 1.6, 0.2); addGlow(0, 1.0, -0.4, '#fff0d0', 1.0, 0.3);
   // cartello "SU NASCIMENTU"
   const sign = new THREE.Mesh(new THREE.BoxGeometry(3.3, 0.72, 0.14), [0, 1, 2, 3].map(() => new THREE.MeshLambertMaterial({ color: '#6e4426' })).concat([new THREE.MeshLambertMaterial({ map: signTexture(), emissive: '#ffffff', emissiveIntensity: 0.0 }), new THREE.MeshLambertMaterial({ color: '#6e4426' })]));
   sign.material[4].emissiveMap = sign.material[4].map; sign.material[4].emissiveIntensity = 0.35;
   sign.position.set(0, 1.25, 3.4 / 2 + 2.68).applyMatrix4(hutM); sign.rotation.y = NASC.HUT.ry; root.add(sign);
-  out.update = (t) => { halos[0].opacity = 0.42 + 0.18 * Math.sin(t * 2.3); halos[1].opacity = 0.42 + 0.18 * Math.sin(t * 2.3 + 2.4); glows[0].opacity = 0.5 + 0.08 * Math.sin(t * 1.3); };
+  out.update = (t) => { halos[0].opacity = 0.2 + 0.07 * Math.sin(t * 2.3); halos[1].opacity = 0.2 + 0.07 * Math.sin(t * 2.3 + 2.4); glows[0].opacity = 0.28 + 0.06 * Math.sin(t * 1.3); };
   out.nBulbs = bulbs.length / 3;
   return out;
 }

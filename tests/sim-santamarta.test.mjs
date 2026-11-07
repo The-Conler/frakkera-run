@@ -15,7 +15,7 @@ for (const seed of [3, 17, 99]) {
   const inNave = a.filter((e) => santaMartaAt(e.d / PX_PER_METER, SANTAMARTA.LEAD_M - 2, 0));
   const bad = inNave.filter((e) => !MASK_KINDS[e.kind] && SOLID[e.kind] || e.kind === 'falo' || e.kind === 'pozza' || e.kind === 'trave');
   ok('navata libera, salvo il corteo delle maschere (seed ' + seed + ')', bad.length === 0, bad.map((e) => e.kind).join(','));
-  ok('tappeti sulla passatoia (seed ' + seed + ')', inNave.some((e) => e.kind === 'tappeto'), inNave.length);
+  ok('niente pickup ne maschere nella navata (seed ' + seed + ')', !inNave.some((e) => e.kind === 'tappeto' || e.pickup || MASK_KINDS[e.kind]), inNave.map((e) => e.kind).join(','));
 }
 const g = buildSantaMarta(1); g.computeBoundingBox(); const bb = g.boundingBox;
 ok('la navata contiene la strada', SM.HW >= 6 && bb.min.x < -6 && bb.max.x > 6 && bb.min.z <= -SANTAMARTA.LEN_M + 0.5);

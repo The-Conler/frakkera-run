@@ -8,13 +8,13 @@ import { statueFromModel, LITTER_TOP_Y } from './santaMartaModel.js';
 
 const cache = {};
 const once = (k, f) => cache[k] || (cache[k] = f());
-const LINE_Y = 2.25, HALF = 6.3;          // come la trave (biomes/builders/skins.js): stessa altezza per abbassarsi
+const LINE_Y = 4.2, HALF = 6.3;           // v5s43: il filo sta in alto (l'urto resta quello della trave, non il disegno)
 
 // filo da balcone a balcone con lenzuola, tovaglie e camicie; la nonna affacciata a sinistra
 export function laundryGeom(v = 0) {
-  return once('laundry36_' + v, () => {   // v5s36: nuovo cache key (palette + lit)
+  return once('laundry43_' + v, () => {   // v5s43: filo alto, pali chiari
     const k = new Kit(410 + v), r = rng(410 + v);
-    const N = 20, yAt = (t) => LINE_Y + 1.25 - Math.sin(t * Math.PI) * 0.35;
+    const N = 20, yAt = (t) => LINE_Y - Math.sin(t * Math.PI) * 0.28;
     for (let i = 0; i < N; i++) {
       const t0 = i / N, t1 = (i + 1) / N, x0 = -HALF - 0.5 + (HALF * 2 + 1) * t0, x1 = -HALF - 0.5 + (HALF * 2 + 1) * t1, ya = yAt(t0), yb = yAt(t1);
       k.add(G.box(Math.hypot(x1 - x0, yb - ya), 0.04, 0.04), '#e8e2d4', { x: (x0 + x1) / 2, y: (ya + yb) / 2, rz: Math.atan2(yb - ya, x1 - x0) });
@@ -23,8 +23,8 @@ export function laundryGeom(v = 0) {
     let x = -HALF + 0.3;
     while (x < HALF - 0.6) {
       const t = (x + HALF + 0.5) / (HALF * 2 + 1), y = yAt(t), kind = r.int(0, 3);
-      if (kind <= 1) {             // lenzuolo / tovaglia: lungo fino quasi all'altezza della trave
-        const w = r.range(1.1, 1.7), h = y - LINE_Y + 0.05, col = r.pick(PAL);
+      if (kind <= 1) {             // lenzuolo / tovaglia: pendono dal filo alto, non una barra grigia in basso
+        const w = r.range(1.1, 1.7), h = Math.min(1.35, y - 2.7), col = r.pick(PAL);
         k.add(G.box(w, h, 0.05), col, { x: x + w / 2, y: y - h / 2, rz: r.range(-0.03, 0.03) });   // v5s36: lit (unlit faceva lenzuola bianche al neon)
         if (kind === 1) for (let j = 0; j < 3; j++) k.add(G.box(w, 0.08, 0.07), '#c8283a', { x: x + w / 2, y: y - 0.25 - j * 0.3 });   // tovaglia a righe rosse
         k.add(G.box(0.05, 0.12, 0.08), '#8a6a3a', { x: x + 0.1, y: y + 0.02 }); k.add(G.box(0.05, 0.12, 0.08), '#8a6a3a', { x: x + w - 0.1, y: y + 0.02 });   // mollette
@@ -43,7 +43,13 @@ export function laundryGeom(v = 0) {
     k.add(G.cone(0.3, 0.45, 8), '#2a2628', { x: nx + 0.1, y: LINE_Y + 2.05 });
     k.add(G.box(0.12, 0.55, 0.12), '#1e1c1e', { x: nx + 0.45, y: LINE_Y + 1.55, rz: -1.0 });     // braccio verso il filo
     k.add(G.cyl(0.3, 0.22, 0.28, 8), '#a8743a', { x: nx - 0.35, y: LINE_Y + 0.8 });               // cesto dei panni
-    for (const s of [-1, 1]) k.add(G.box(0.12, 0.12, 0.12), '#2a2d31', { x: s * (HALF + 0.5), y: LINE_Y + 1.25 });   // ganci al muro
+    for (const s of [-1, 1]) {
+      const x = s * 6.35;
+      k.add(G.cyl(0.22, 0.26, LINE_Y + 0.35, 8), '#e2c49a', { x, y: (LINE_Y + 0.35) / 2 });
+      k.add(G.box(1.15, 0.36, 1.15), '#8a6240', { x, y: -0.04 });
+      k.add(G.box(0.85, 0.14, 0.16), '#f3efe4', { x: s * 6.55, y: LINE_Y + 0.02 });
+      k.add(G.box(0.12, 0.12, 0.12), '#f3efe4', { x: s * (HALF + 0.5), y: LINE_Y });
+    }
     return k.build({ ao: 0.12 });
   });
 }

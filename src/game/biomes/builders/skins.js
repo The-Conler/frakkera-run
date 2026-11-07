@@ -112,9 +112,12 @@ function beamTimber(seed) {           // miniera: trave squadrata su due montant
   const k = new Kit(seed); const r = rng(seed);
   const wood = ['#7a5a36', '#6b4a2e', '#8a6a42'];
   k.add(G.box(HALF * 2 + 0.6, 0.62, 0.62), r.pick(wood), { y: BEAM_Y + 0.31, vary: 0.1 });
+  // montanti fuori dalle corsie (bordo corsia ~5.1 m), basi affondate, brace che tocca la trave. Il filo della trave resta a BEAM_Y.
+  const px = 5.65;
   for (const s of [-1, 1]) {
-    k.add(G.box(0.6, BEAM_Y + 0.62, 0.6), r.pick(wood), { x: s * HALF, y: (BEAM_Y + 0.62) / 2, vary: 0.1 });
-    k.add(G.box(0.9, 0.18, 0.5), '#4a3420', { x: s * (HALF - 0.6), y: BEAM_Y - 0.05, rz: s * 0.6 });
+    k.add(G.box(1.05, 3.5, 1.05), '#c49a62', { x: s * px, y: 1.2, vary: 0.06 });
+    k.add(G.box(1.9, 0.46, 1.55), '#2e2218', { x: s * px, y: -0.06 });
+    k.add(G.box(0.32, 0.32, 1.35), '#c49a62', { x: s * 5.15, y: 2.2, rz: s * 0.48 });
   }
   for (let i = 0; i < 4; i++) k.add(G.box(0.05, 0.5, 0.64), '#3a2a1a', { x: -4.5 + i * 3, y: BEAM_Y + 0.31 });
   k.add(G.box(0.3, 0.4, 0.3), '#ffcf6a', { x: 0, y: BEAM_Y - 0.25, unlit: true });
@@ -134,8 +137,9 @@ function beamVillage(seed) {          // paese: arco/balcone di legno basso con 
     for (let j = 0; j < 4; j++) k.add(G.ico(0.16, 0), r.pick(['#e8506a', '#ff8fa0', '#f2e65a', '#ffffff', '#d03050']), { x: x + r.range(-0.25, 0.25), y: BEAM_Y + 1.05, z: 0.2 + r.range(-0.12, 0.12), flat: true });
   }
   for (const s of [-1, 1]) {
-    k.add(G.box(0.55, BEAM_Y + 0.5, 0.55), '#d8c4a0', { x: s * HALF, y: (BEAM_Y + 0.5) / 2, vary: 0.05 });
-    k.add(G.box(0.4, 0.5, 0.9), r.pick(wood), { x: s * (HALF - 0.45), y: BEAM_Y - 0.15, rz: s * 0.7 });
+    k.add(G.box(0.92, 3.25, 0.92), r.pick(wood), { x: s * HALF, y: 1.125, vary: 0.05 });
+    k.add(G.box(1.85, 0.46, 1.7), '#3a2818', { x: s * HALF, y: -0.1 });
+    k.add(G.box(0.34, 0.34, 1.35), r.pick(wood), { x: s * 5.45, y: 2.15, rz: s * 0.55 });
   }
   for (let i = 0; i < 13; i++) { const x = -HALF + 0.5 + i * ((HALF * 2 - 1) / 12); const sag = Math.sin((i / 12) * Math.PI) * 0.35; k.add(G.ico(0.09, 0), i % 2 ? '#ffe9a0' : '#ffd36a', { x, y: BEAM_Y - 0.08 - sag, z: -0.75, unlit: true }); }
   return k.build({ ao: 0.2 });
@@ -147,9 +151,11 @@ function beamTrunk(seed, moss) {      // roccia / fiume / viadotto: tronco cadut
   for (const s of [-1, 1]) k.add(G.cyl(0.4, 0.5, 0.05, 10), '#c8a06a', { x: s * (HALF + 0.62), y: BEAM_Y + 0.42, rz: Math.PI / 2 });
   for (let i = 0; i < 5; i++) k.add(G.cyl(0.06, 0.12, r.range(0.8, 1.5), 5), bark[0], { x: r.range(-5, 5), y: BEAM_Y + 0.85, z: r.range(-0.3, 0.3), rz: r.range(-0.9, 0.9), rx: r.range(-0.6, 0.6) });
   for (let i = 0; i < 8; i++) k.add(G.ico(r.range(0.2, 0.36), 0), r.pick(moss ? ['#5f9a30', '#6faa3a', '#86b84a'] : LEAF.holm), { x: r.range(-5.5, 5.5), y: BEAM_Y + r.range(0.7, 1.1), z: r.range(-0.4, 0.4), flat: true });
+  const px = 5.65;
   for (const s of [-1, 1]) {
-    k.add(rockGeom(r, 1.1, { detail: 1, squash: 1.3, rough: 0.3 }), r.pick(moss ? ROCK.limestone : ROCK.granite), { x: s * HALF, y: 1.0, sy: 1.5, vary: 0.15 });
-    k.add(rockGeom(r, 0.7, { detail: 0, squash: 0.8 }), r.pick(moss ? ROCK.limestone : ROCK.granite), { x: s * (HALF + 0.6), y: 0.4, z: 0.6, vary: 0.15 });
+    k.add(G.cyl(0.74, 0.86, 3.4, 8), '#b8895a', { x: s * px, y: 1.22 });
+    k.add(G.box(1.75, 0.42, 1.5), '#2a2218', { x: s * px, y: -0.06 });
+    k.add(rockGeom(r, 1.05, { detail: 1, squash: 0.5, rough: 0.25 }), r.pick(moss ? ROCK.limestone : ROCK.granite), { x: s * px, y: 0.22, vary: 0.08 });
   }
   return k.build({ ao: 0.2 });
 }

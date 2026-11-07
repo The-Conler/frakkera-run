@@ -151,7 +151,27 @@ export class Generator {
     this.vrng = makeRng(((seed >>> 0) ^ 0x7a11a9) >>> 0);
     this.weaverNext = 0; this.weavers = 0; this.procLap = -1; this.procs = 0; this.laundry = 0;
     this.nextMinerRow = 0; this.nextLampRow = 0; this.minerSide = 1; this.lampSide = -1; this.miners = 0; this.lamps = 0;
+    this.rockHold = [[], [], []];
   }
+
+  // v5s43: pietre, strettoie rocciose, gruppi e detriti condividono una prenotazione di corsia.
+  // Almeno 2 corsie su 3 restano libere, contando anche gli ostacoli gia' attivi e il volo del masso.
+  rockBlocked(a, b) {
+    if (!this.rockHold) this.rockHold = [[], [], []];
+    const out = new Set(), keep = this.row - 16;
+    for (let lane = 0; lane < WORLD.LANES; lane++) {
+      if (this.blockedUntil[lane] >= a) out.add(lane);
+      const list = this.rockHold[lane];
+      for (let i = list.length - 1; i >= 0; i--) {
+        const iv = list[i];
+        if (iv[1] < keep) list.splice(i, 1);
+        else if (iv[0] < b && iv[1] >= a) out.add(lane);
+      }
+    }
+    return out;
+  }
+  rockOk(lane, a, b) { const s = this.rockBlocked(a, b); s.add(lane); return WORLD.LANES - s.size >= 2; }
+  rockTake(lane, a, b) { if (!this.rockHold) this.rockHold = [[], [], []]; this.rockHold[lane].push([a, b]); }
 
   // v5s18: file del giro in carrello: niente ostacoli normali, scambi con binari interrotti
   cartRow(r, D, diff, used, emit) {
@@ -370,6 +390,18 @@ export class Generator {
 
   rowDist(r) { return WORLD.LEAD_IN + r * WORLD.ROW; }
 
+  // v5s43: intervallo in metri locali [from, to) su qualunque giro. Ritorna il giro, o -1.
+  inSpan(d, len, from, to) {
+    let a = (d || 0) / PX_PER_METER + this.offM, b = ((d || 0) + (len || 0)) / PX_PER_METER + this.offM;
+    if (a > b) { const t = a; a = b; b = t; }
+    const lap0 = Math.floor(a / CYCLE) - 1, lap1 = Math.floor(b / CYCLE) + 1;
+    for (let lap = lap0; lap <= lap1; lap++) {
+      if (a < lap * CYCLE + to && b > lap * CYCLE + from) return lap;
+    }
+    return -1;
+  }
+  inClear(d, len) { return this.inSpan(d, len, 230, 285) >= 0; }
+
   // v5s34: zona 3: file minime tra due azioni obbligate (0 = fuori zona, nessun vincolo)
   z3Rows(D) {
     if (!inZone3(D / PX_PER_METER + this.offM)) return 0;
@@ -377,9 +409,32 @@ export class Generator {
   }
 
   fillUntil(maxDist, emit) {
-    // v5 stage 24: nessun ostacolo (anche mobile, nato nelle file prima) dentro la navata di Santa Marta
-    const em = emit; emit = (e) => { if ((e.kind === 'trave' || e.kind === 'panni' || e.kind === 'processione') && (santaMartaAt(e.d / PX_PER_METER + this.offM, SANTAMARTA.NO_SPAN_M, 2) || santaMartaAt((e.d + (e.len || 0)) / PX_PER_METER + this.offM, SANTAMARTA.NO_SPAN_M, 2))) return;   // v5s27q: nessuna trave/balcone di traverso davanti alla chiesa (su ogni giro)
-    if (!MASK_KINDS[e.kind] && (SOLID[e.kind] || e.kind === 'pozza' || e.kind === 'trave' || e.kind === 'panni' || e.kind === 'processione' || e.kind === 'acqua') && (santaMartaAt((e.d) / PX_PER_METER + this.offM, SANTAMARTA.LEAD_M, 2) || santaMartaAt((e.d + (e.len || 0)) / PX_PER_METER + this.offM, SANTAMARTA.LEAD_M, 2))) return; em(e); };
+    // v5s43: navata di Santa Marta (230-285 m locali, ogni giro): niente ostacoli, pickup, poteri o maschere.
+    // Il test e' sull'intervallo intero [d, d+len], non solo sugli estremi.
+    const em = emit;
+    const clearFrom = 230, clearTo = 285;
+    emit = (e) => {
+      const lap = this.inSpan(e.d, e.len, clearFrom, clearTo);
+      if (lap >= 0) {
+        // un pezzo di corteo non si butta (il gruppo resterebbe monco): esce appena dopo la navata
+        if (e.group) {
+          const after = (lap * CYCLE + clearTo + 0.6 - this.offM) * PX_PER_METER;
+          const placed = { ...e, d: after, idle: e.kind === 'fuso' ? true : e.idle };
+          (this._maskHold || (this._maskHold = [])).push(placed);
+          em(placed);
+        }
+        return;
+      }
+      if (e.pickup && this._maskHold) {
+        for (const m of this._maskHold) {
+          if (m.lane === e.lane && e.d < m.d + (m.len || 0) + 6 && e.d + (e.len || 0) > m.d - 6) return;
+        }
+      }
+      // v5s43: dal vicolo fino alla navata (paese, 150-230 m) niente ostacoli solidi (la botte davanti all'arco)
+      const approach = this.inSpan(e.d, e.len, 150, clearFrom);
+      if (approach >= 0 && SOLID[e.kind] && !e.pickup && !e.group && biomeIdAt(e.d, this.offM) === 'village') return;
+      em(e);
+    };
     while (this.rowDist(this.row) < maxDist) {
       this._used = null;
       this.genRow(this.row, emit);
@@ -428,10 +483,14 @@ export class Generator {
         this.calmUntil = r + 6;
         this.nextMovingAt = Math.max(this.nextMovingAt, r + 14);
         this.nextParadeAt = r + MK.MIN_GAP_ROWS + rng.int(0, 10);
-        this.parade = { g, stage: 1, next: r + 7 + MK.FUNE_GAP_ROWS, tries: 0 };
+        const funeR = r + 7 + MK.FUNE_GAP_ROWS, fusoR = funeR + 1 + MK.FUSO_GAP_ROWS;
+        // se un pezzo cadrebbe nella navata, il corteo non si emette (niente gruppo monco) ma lo stato resta uguale
+        let silent = this.inClear(D + 3 * ROW + 4, 12) || this.inClear(this.rowDist(funeR) + 10, DUCK.BEAM_LEN);
+        for (let k = 0; k <= 24 && !silent; k++) silent = this.inClear(this.rowDist(fusoR + k) + 8, 12);
+        this.parade = { g, stage: 1, next: funeR, tries: 0, silent };
         z3mark(r + 3);
         const dir = rng() < 0.5 ? 1 : -1;
-        emit({ kind: 'maimoni', lane: dir > 0 ? 0 : L - 1, d: D + 3 * ROW + 4, len: 12, dir,
+        if (!silent) emit({ kind: 'maimoni', lane: dir > 0 ? 0 : L - 1, d: D + 3 * ROW + 4, len: 12, dir,
           vx: lerp(MK.MAIMONI_VX[0], MK.MAIMONI_VX[1], diff), group: g });
         return;
       }
@@ -444,7 +503,12 @@ export class Generator {
       const kind = rng() < (nature ? 1 - NT.ROLL_LOG_SHARE : 0.55) ? 'goat' : 'rollbarrel';
       z3mark(r + 3);
       const dir = rng() < 0.5 ? 1 : -1;
-      emit({
+      // v5s43: capra e botte che rotola attraversano: prenotano tutte le corsie, cosi' non finiscono fra le casse
+      const travel = 8;
+      let cross = true;
+      for (let l = 0; l < L; l++) if (!this.rockOk(l, r, r + travel)) cross = false;
+      if (cross) for (let l = 0; l < L; l++) this.rockTake(l, r, r + travel);
+      if (cross) emit({
         kind, lane: dir > 0 ? 0 : L - 1, d: D + 3 * ROW + 4, len: 12,
         dir, vx: kind === 'goat' ? lerp(22, 38, diff) : lerp(40, 66, diff), freeLane: this.path,   // v5s40: la capra si ferma fuori dal sentiero sicuro
       });
@@ -479,7 +543,7 @@ export class Generator {
         const left = this.path === 0 ? 1 : this.path === L - 1 ? 0 : (rng() < 0.5 ? 0 : 1);  // il sentiero resta libero se si puo'
         for (let l = 0; l < L; l++) { used[l] = true; this.laneCool[l] = Math.max(this.laneCool[l], r + 1); }
         this.nextBeamAt = Math.max(this.nextBeamAt, r + 8);
-        emit({ kind: 'fune', lane: 1, d: D + 10, len: DUCK.BEAM_LEN, group: pa.g });
+        if (!pa.silent) emit({ kind: 'fune', lane: 1, d: D + 10, len: DUCK.BEAM_LEN, group: pa.g });
         pa.stage = 2; pa.next = r + 1 + MK.FUSO_GAP_ROWS;
         this.carpetRow(r, D, diff, used, emit);
         return;
@@ -491,7 +555,7 @@ export class Generator {
         const side = l === 0 ? -1 : l === L - 1 ? 1 : (rng() < 0.5 ? -1 : 1);
         if (free.length) { used[l] = true; this.laneCool[l] = Math.max(this.laneCool[l], r + 1); }
         // senza corsia libera sa Grastula resta a guardare (idle: niente lancio, non ferma)
-        emit({ kind: 'fuso', lane: l, d: D + 8, len: 12, side, group: pa.g, last: true, idle: !free.length });
+        if (!pa.silent) emit({ kind: 'fuso', lane: l, d: D + 8, len: 12, side, group: pa.g, last: true, idle: !free.length });
         this.nextBeamAt = Math.max(this.nextBeamAt, r + 4);
         this.parade = null;
       }
@@ -544,7 +608,12 @@ export class Generator {
       const free = [];
       for (let l = 0; l < L; l++) if (!required[l] && !used[l] && this.blockedUntil[l] < r && this.laneCool[l] < r && z3can(l)) free.push(l);
       if (kind && free.length) {
+        const span = kind === 'rollin' ? BO.ROLL_ROWS + 1 : kind === 'sasso' ? Math.ceil((speedAt(D) * BO.ROCK_LEAD_S + 40) / ROW) + 2 : 3;
+        const a0 = kind === 'sasso' ? r - span : r, end = r + (kind === 'sasso' ? 2 : span);
+        // stessa estrazione di prima: la prenotazione toglie solo l'oggetto, non il consumo di rng ne' il blocco di corsia
         const l = rng.pick(free);
+        const place = this.rockOk(l, a0, end);
+        this.rockTake(l, a0, end);
         this.nextBiomeAt = r + Math.round((BO.MIN_GAP_ROWS + rng.int(0, 6)) * (z3 ? Z3.BIOME_GAP_K : 1));
         used[l] = true;
         if (z3) { z3hit = true; if (kind === 'rollin') z3mark(r + BO.ROLL_ROWS - 2); }
@@ -552,10 +621,10 @@ export class Generator {
           // rotola verso il giocatore: la corsia resta riservata per le file che attraversa
           this.blockedUntil[l] = r + BO.ROLL_ROWS; this.laneCool[l] = r + BO.ROLL_ROWS + 1;
           const sweep = Math.ceil(336 * BO.ROLL_K / (1 + BO.ROLL_K)) + 12;
-          emit({ kind, lane: l, d: D + BO.ROLL_ROWS * ROW, len: 14, sweep });
+          if (place) emit({ kind, lane: l, d: D + BO.ROLL_ROWS * ROW, len: 14, sweep });
         } else {
           this.laneCool[l] = r + 1;
-          emit({ kind, lane: l, d: D + 8, len: 14 });
+          if (place) emit({ kind, lane: l, d: D + 8, len: 14 });
         }
       }
     }
@@ -573,7 +642,9 @@ export class Generator {
         this.blockedUntil[l] = r + rows - 1;
         this.laneCool[l] = r + rows;
         used[l] = true; z3hit = true;
-        emit({ kind: 'narrow', lane: l, d: D + 2, len: rows * ROW - 6 });
+        const place = this.rockOk(l, r, r + rows);
+        this.rockTake(l, r, r + rows);
+        if (place) emit({ kind: 'narrow', lane: l, d: D + 2, len: rows * ROW - 6 });
       }
     }
     if (diff >= DF.GROUP_FROM && rng() < (0.04 + 0.06 * diff) * longK) {
@@ -582,7 +653,9 @@ export class Generator {
         this.blockedUntil[l] = r + 1;
         this.laneCool[l] = r + 2;
         used[l] = true; z3hit = true; z3mark(r + 1);
-        emit({ kind: 'botti', lane: l, d: D + 4, len: 2 * ROW - 10 });
+        const place = this.rockOk(l, r, r + 2);
+        this.rockTake(l, r, r + 2);
+        if (place) emit({ kind: 'botti', lane: l, d: D + 4, len: 2 * ROW - 10 });
       }
     }
 
@@ -604,7 +677,9 @@ export class Generator {
       const len = SHORT_LEN[kind];
       used[l] = true; z3hit = true;
       this.laneCool[l] = r + 1;
-      emit({ kind, lane: l, d: D + Math.floor((ROW - len) / 2), len });
+      const place = kind === 'pozza' || this.rockOk(l, r, r + 1);
+      if (kind !== 'pozza') this.rockTake(l, r, r + 1);
+      if (place) emit({ kind, lane: l, d: D + Math.floor((ROW - len) / 2), len });
     }
     if (z3hit) z3mark(r);
 

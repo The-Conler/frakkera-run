@@ -263,9 +263,17 @@ export class Character3D {
     const m = this.model;
     if (this.cartK > 0.5) { m.position.y = -this.mascot.drop * CHAR_SCALE * (1 - this.cartK); return; }
     m.position.y = 0; this.root.updateMatrixWorld(true);
+    const bob = this.state === 'run' ? SHOULDER.BOB * CHAR_SCALE * Math.abs(Math.sin(2 * Math.PI * phase)) : 0;
+    // v5s43: sui binari, a piedi, la suola sta sul letto delle traverse (niente corpo sospeso)
+    if (this.railBed != null && this.cartK < 0.35) {
+      const box = this._sole || (this._sole = new THREE.Box3());
+      box.setFromObject(m);
+      m.position.y += this.railBed - box.min.y + bob * 0.25;
+      this.root.updateMatrixWorld(true);
+      return;
+    }
     let lo = Infinity;
     this.feet.forEach((b, i) => { b.getWorldPosition(_t); this.root.worldToLocal(_t); lo = Math.min(lo, _t.y - this.footH[i]); });
-    const bob = this.state === 'run' ? SHOULDER.BOB * CHAR_SCALE * Math.abs(Math.sin(2 * Math.PI * phase)) : 0;
     m.position.y = -lo + bob;
     this.root.updateMatrixWorld(true);
   }

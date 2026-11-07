@@ -408,15 +408,39 @@ export class Env {
         const feet = this.feetFor(sd.s, W, w, 8);
         if (gapA != null) feet.push({ minW: gapA - 14, maxW: gapA + 3.5, minX: -8.5, maxX: 1.2 });
         if (gapZ != null) feet.push({ minW: gapZ - 3.5, maxW: gapZ + 14, minX: -8.5, maxX: 1.2 });
-        const piece = own(() => N.slopePiece(W, w, {
+        const piazza = i.local < 36;
+        const piece = own(() => N.slopePiece(W, w, piazza ? {
+          Hs: 1.1, dist: 18, trees: 0.03, wall: false, rocks: 0.05, ferns: 0.04,
+          seed: 77 + Math.floor(W), flowers: 0.62,
+          ground: ['#cbbba4', '#d8c8b0', '#b7a88e', '#8a9a56', '#7d8a4e'],
+          skirt: -60, footprints: feet,
+        } : {
           Hs: 22, dist: 70, trees: 0.22, wall: false, rocks: 0.1, ferns: 0.03,
           seed: 77 + Math.floor(W), flowers: 0.1,
           ground: ['#7d8a4e', '#6e7a3e', '#8a9a56', '#5f6a40', '#9a8f6a'],
           skirt: -70, footprints: feet,
         }), w);
+        if (piazza) piece.foot = this.addHouseFoot(sd.s, W, w, 1.8);
         sd.list.push(piece); sd.cur = W + piece.w; continue;
       }
-      if (skip > 0) { sd.cur = W + skip; continue; }
+      if (skip > 0) {
+        const w = Math.min(skip, Math.max(6, Math.min(12, maxLen)));
+        const feet = this.feetFor(sd.s, W, w, 6);
+        const lod = W - this.lastPW > LOD_D;
+        Kit.lodMin = lod ? LOD_MIN : 0;
+        const make = () => N.slopePiece(W, w, {
+          Hs: 7, dist: 46, trees: 0.1, wall: true, wallH: 6.5, rocks: 0.12, ferns: 0.05,
+          seed: 91 + (Math.floor(W) % 997), flowers: 0.08,
+          ground: ['#6a6248', '#5f6a40', '#7d8a4e', '#4e4638'], skirt: -90, footprints: feet,
+        });
+        let geom; try { geom = make(); } finally { Kit.lodMin = 0; }
+        this.stats.built++;
+        let piece;
+        if (lod) { piece = { W0: W, W1: W + w, w, mesh: null, geom, owned: true, lamps: [], make, lod }; this.batchAdd(sd, piece); }
+        else { const mesh = new THREE.Mesh(geom, this.mats2); mesh.position.set(sd.s * FACADE, 0, -W); mesh.scale.x = sd.s < 0 ? 1 : -1; this.scene.add(mesh); piece = { W0: W, W1: W + w, w, mesh, owned: true, lamps: [], make, lod }; }
+        piece.foot = this.addHouseFoot(sd.s, W, w, 1.4);
+        sd.list.push(piece); sd.cur = W + piece.w; continue;
+      }
       let lim = maxLen;
       for (const [a] of gaps) if (a > i.local) lim = Math.min(lim, a - i.local);
       const p = this.sidePiece(sd, W, i, lim);
@@ -608,6 +632,24 @@ export class Env {
   }
   flushGlow() {
     if (!this.glowPts) return;
+    if (!this.fillL) {
+      this.fillL = [];
+      for (let i = 0; i < 3; i++) { const L = new THREE.PointLight('#ffd2a0', 0, 18, 2); this.scene.add(L); this.fillL.push(L); }
+    }
+    const camP = this.world.camera.position, tun = this.world.light?.tunnel || 0, picks = [];
+    if (tun > 0.15) for (const g of this.glows) {
+      if (!g.visible || !g.userData.fill) continue;
+      const dx = g.position.x - camP.x, dy = g.position.y - camP.y, dz = g.position.z - camP.z, d2 = dx * dx + dy * dy + dz * dz;
+      if (d2 < 42 * 42) picks.push({ g, d2 });
+    }
+    picks.sort((a, b) => a.d2 - b.d2);
+    for (let i = 0; i < this.fillL.length; i++) {
+      const L = this.fillL[i], p = picks[i];
+      if (!p) { L.intensity = 0; continue; }
+      L.position.copy(p.g.position); L.color.copy(p.g.material.color);
+      const near = 1 - Math.min(1, Math.sqrt(p.d2) / 30);
+      L.distance = 18; L.decay = 2; L.intensity = (2.1 + near * 1.6) * Math.min(1, tun * 1.35);
+    }
     const w = this.world, cam = w.camera;
     const h = w.renderer.domElement.height;
     this.glowPts.material.uniforms.uScale.value = h / (2 * Math.tan((cam.fov * Math.PI) / 360));
@@ -710,7 +752,10 @@ export class Env {
         dm.position.set(-5.4, 0, -(W + len * 0.5)); dm.rotation.y = 0.05; this.scene.add(dm); extra.push(dm);
       }
       const lamps = [];
-      for (const [lw, lx, ly] of lampsNear) if (lw >= W && lw < W + len) lamps.push(this.lamp(lx * 0.97, ly, -lw, type === 'blue' ? '#ffb45a' : '#ffd49a', type === 'blue' ? 4.2 : 2.4, type === 'blue' ? 0.95 : 0.8));
+      for (const [lw, lx, ly] of lampsNear) if (lw >= W && lw < W + len) {
+        const g = this.lamp(lx * 0.97, ly, -lw, type === 'blue' ? '#ffc078' : '#ffe0b0', type === 'blue' ? 7.5 : 6.4, type === 'blue' ? 1.05 : 1);
+        g.userData.fill = 1; lamps.push(g);
+      }
       this.center.push({ W0: W, W1: W + len, mesh, owned: true, extra, lamps });
       this.stats.built++;
       this.cW = W + len;
@@ -825,8 +870,8 @@ export class Env {
       // v5s24: la navata e' al coperto: niente neve per terra (passatoia gialla e cotto restano visibili nei giri di neve)
       if (!this.mats2NoSnow) this.mats2NoSnow = this.mats2.map((m) => m.clone());
       { const g = this.markGeom('santamarta', () => buildSantaMarta(1)); m_gpu.push(g); mesh(g, this.mats2NoSnow, true); }
-      for (const [x, y, z, s] of santaMartaLamps()) lamps.push(this.lamp(x, y, z - W, '#ffc070', 3.2 * s, 0.9));
-      for (const [x, y, z, s] of santaMartaAisleLamps()) lamps.push(this.lamp(x, y, z - W, '#ffc878', 3.0 * s, 0.9));
+      for (const [x, y, z, s] of santaMartaLamps()) lamps.push(this.lamp(x, y, z - W, '#e8b080', 1.15 * s, 0.32));
+      for (const [x, y, z, s] of santaMartaAisleLamps()) lamps.push(this.lamp(x, y, z - W, '#e8b080', 1.05 * s, 0.28));
       if (!this.burra) this.burra = burraRunner();
       mesh(this.burra.geo, this.burra.mat, true);   // v5s26: tappeto sa burra lungo la navata
       if (!this.fresc) this.fresc = frescoes();
@@ -844,7 +889,7 @@ export class Env {
         else { const P = N.stiddiosaProfile(28, fl.map((lz) => W + lz)); for (let lz = -10; lz < 262; lz += 1.25) for (let y = N.STIDDIOSA_CLIFF.BH; y < 42; y += N.STIDDIOSA_CLIFF.BH) { const Wa = W + lz; if (y > P.Hf(Wa) - 1 || P.wet(Wa) > 0.3) continue; lips.push({ x: FACADE - P.X(Wa, y - 0.6), y: y - 0.6, z: -lz, t: 0 }); } }
         const FS = stiddiosaFallSpecs(fl);
         // v5s37: lascia le felci SUL labbro sopra la cascata (nascondono la cresta); libera solo la colonna d'acqua sotto
-        const avoid = FS.map((f) => ({ z: -f.lz, half: f.w * 0.45 + (f.kind === 'trickle' ? 0.9 : 1.6), y0: Math.min(f.y0, f.kind === 'main' ? 38 : 28), yMin: 4 }));
+        const avoid = FS.map((f) => ({ z: -f.lz, half: f.w * 0.7 + (f.kind === 'trickle' ? 1.2 : 2.4), y0: Math.min(f.y0, f.kind === 'main' ? 42 : 32), yMin: 0 }));
         for (const g of buildCurtains(lips, 5 + lap, { keep: cm ? 1 : 0.9, avoid })) mesh(g, fernMaterial());
         // v5s37: cascate vere (acqua curva a strati sulle cenge + pozza, schiuma, foschia): 2 draw call al posto delle 21 strisce piatte
         const P = N.stiddiosaProfile(28, fl.map((lz) => W + lz), cm ? 2.5 : 0), back = (lz, y) => (y > P.Hf(W + lz) ? 99 : FACADE - P.X(W + lz, y));
@@ -871,7 +916,7 @@ export class Env {
       sign.position.set(9.6, 11.6, 1.9); sign.rotation.set(0, -0.12, 0.04); root.add(sign); own.push(sign.geometry);
       const net = new THREE.Mesh(new THREE.PlaneGeometry(70, 26), this.netMat || (this.netMat = new THREE.MeshBasicMaterial({ map: (() => { const t = BT.netTexture(); t.repeat.set(18, 7); return t; })(), transparent: true, depthWrite: false, opacity: 0.55 })));
       net.position.set(0, 27, -0.5); net.rotation.x = -0.18; root.add(net); own.push(net.geometry);
-      lamps.push(this.lamp(0, 7.5, -W - 2, '#ffcf8a', 2.2, 0.7));
+      lamps.push(this.lamp(0, 6.2, -W - 1.2, '#ffb060', 1.05, 0.22));   // v5s43: bocca del portale, alone piccolo come Su Nascimentu
     } else if (id === 'mineExit') {
       mesh(this.prefab('exit', 0, () => ({ geom: S.buildMineExit(8), w: 0, lamps: [] })).geom, this.mats2, true);
     }
