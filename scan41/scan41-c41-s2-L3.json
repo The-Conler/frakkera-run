@@ -1,0 +1,18 @@
+{
+ "house": [],
+ "mark": [
+  {
+   "key": "church@3",
+   "name": "",
+   "at": "L3 village:88",
+   "n": 4,
+   "minX": -5.32,
+   "maxX": -4.95,
+   "z": -87.7,
+   "z2": -87.5
+  }
+ ],
+ "logs": [],
+ "animals": [],
+ "frames": 162
+}
