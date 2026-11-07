@@ -15,10 +15,16 @@ for (let i = 1; i <= 26; i++) {
 }
 // (i giardini sono bassi e aperti: alberi e siepi possono sporgere, non sono edifici)
 // 2) la chiesa col campanile (all'inizio del paese, a sinistra) sta tutta in un vuoto del lato sinistro: niente case dentro
-const vg = buildVista(1), vb = vg.boundingBox;
-const W0 = VISTA.AT_M - vb.max.z, W1 = VISTA.AT_M - vb.min.z;
+// v5s41: test aggiornato. Dalla v5s37 il bounding box della vista comprende anche il lastricato a terra (y ~0.03) che si
+// allarga oltre il vuoto: il vecchio controllo sul box (con 5 m di margine) falliva senza una compenetrazione reale.
+// Ora: nessuna parte SOPRA terra (y > 0.2 m) della chiesa/piazzetta nella striscia delle case (x > -16.5 m) fuori dal vuoto
+// sinistro che la contiene (tolti 0.5 m di gronda delle case vicine).
+const vg = buildVista(1), P = vg.attributes.position, X = VISTA.X;
 assert.ok(VISTA.AT_M < 80, 'chiesa col campanile all\'inizio del paese');
-assert.ok(V.gaps.left.some(([a, z]) => a <= W0 - 5 && z >= W1 + 5), `vuoto a sinistra che contiene la chiesa [${W0.toFixed(1)}, ${W1.toFixed(1)}]`);
+const gap = V.gaps.left.find(([a, z]) => a <= VISTA.AT_M && z >= VISTA.AT_M);
+assert.ok(gap, 'vuoto a sinistra alla chiesa');
+let out = 0; for (let i = 0; i < P.count; i++) { const W = VISTA.AT_M - P.getZ(i); if (P.getY(i) > 0.2 && P.getX(i) + X > -16.5 && (W < gap[0] + 0.5 || W > gap[1] - 0.5)) out++; }
+assert.ok(out === 0, `chiesa/piazzetta fuori dal vuoto [${gap}] nella striscia delle case: ${out} vertici`);
 // 3) i vuoti di uno stesso lato non si sovrappongono e sono ordinati
 for (const side of ['left', 'right']) { const gs = V.gaps[side]; for (let i = 1; i < gs.length; i++) assert.ok(gs[i][0] >= gs[i - 1][1], `vuoti ${side} sovrapposti`); }
 console.log('village-overlap-s27 ok');

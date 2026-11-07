@@ -56,7 +56,7 @@ export const BIOMES = [
     ground: { road: 'trail', shoulder: 'drystone', curb: false, terrain: '#6b6a3c', terrainY: -0.06, right: 'river' },
     sides: 'valley',
     landmarks: ['viaduct', 'valleyRiver'],
-    skins: { botte: 'crate', botti: 'crates', bottecoricata: 'log', rollbarrel: 'log', muretto: 'wall', goat: 'goat', pozza: 'puddle', narrow: 'outcrop', trave: 'beamTrunk' },
+    skins: { botte: 'crate', botti: 'crates', bottecoricata: 'barrelLying', rollbarrel: 'barrel', muretto: 'wall', goat: 'goat', pozza: 'puddle', narrow: 'outcrop', trave: 'beamTimber' },   // v5s41: sul viadotto niente tronchi caduti (botte coricata, botte che rotola, trave di cantiere)
     decor: { banners: false, bulbs: false, lanterns: false },
     mood: { top: '#3d5fae', mid: '#f0956a', hor: '#ffc66e', fog: '#e7a982', hemiS: '#ffdcae', hemiG: '#5e4c3a', hemiI: 1.25, dirC: '#ffbf78', dirI: 2.3, moon: 0, sun: 1.25, far: '#ffd9b8', fogNear: 70, fogFar: 340 },
     light: { flameDist: 12, flameK: 1, mineral: 0, lamp: 0, darkByFuel: 0, tunnel: 0, exposure: 1.05, camLook: 1.2, camFov: 6 },

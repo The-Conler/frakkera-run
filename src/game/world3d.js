@@ -633,6 +633,8 @@ export class World {
       if ((ahead + (e.len || 0)) * U < -1.5 && this.moodName !== 'over') v.root.visible = false;
       if (farCull && ahead * U > farCull && !(e.kind === 'processione' || e.kind === 'trave' || e.kind === 'panni')) v.root.visible = false;
       if (e.offroad) v.root.visible = false;   // v5s40: animale/tronco uscito dalla carreggiata
+      // v5s41: le pecore in coda al gregge che aspettano lontano dalla via non si vedono dentro roccia/acqua/case
+      if (isMoving(e.kind) && e.kind !== 'maimoni' && Math.abs(e.x) * U > ROAD_HALF * U + 3.2) v.root.visible = false;
       if (e.done && !v.dead && (e.pickup || e.destroyed)) { v.dead = true; v.body.visible = false; if (v.glow) v.glow.visible = false; if (v.warn) v.warn.visible = false; if (v.shadow) v.shadow.visible = !e.pickup && !e.destroyed; }
       if (v.dead) continue;
       v.t += dt;
