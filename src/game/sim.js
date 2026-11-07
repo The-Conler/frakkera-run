@@ -309,7 +309,7 @@ export class Sim {
         this.addBonus(pts, false);
         this.fuel = Math.min(FUEL.MAX, this.fuel + DANCE.FUEL_WIN);
         if (carpets) { this.stats.carpets += carpets; for (let i = 0; i < carpets; i++) this.carpetTotal = this.addCarpets(1); }
-        this.fx('popup', { text: `BALLU TUNDU +${pts}`, style: 'gold' });
+        this.fx('popup', { text: `SA DANZA +${pts}`, style: 'gold' });
         if (carpets) this.fx('popup', { text: `+${carpets} TAPPET${carpets > 1 ? 'I' : 'O'}`, style: 'small' });
         this.fx('sound', 'bravu');
       } else {
@@ -390,7 +390,7 @@ export class Sim {
         const sp = speedAt(rd, this.mapOffsetM);
         if (!this.danceCue && toGo > 0 && toGo <= sp * DANCE.CUE_S) {
           this.danceCue = { lap: bi.lap, d0: toGo }; this.log('A', bi.lap);
-          this.fx('danceCue', { lap: bi.lap }); this.fx('popup', { text: 'BALLU TUNDU!', style: 'gold' }); this.fx('sound', 'danceCue');
+          this.fx('danceCue', { lap: bi.lap }); this.fx('popup', { text: 'SA DANZA!', style: 'gold' }); this.fx('sound', 'danceCue');
         }
         if (this.danceCue && toGo <= 0) { this.danceLap = bi.lap; this.danceCue = null; this.startDance(bi.lap); return; }
       } }
@@ -507,7 +507,28 @@ export class Sim {
     const px = this.px;
     for (const e of this.entities) {
       if (isMoving(e.kind)) {
-        if (e.d - T < MOVE_AHEAD) { e.x += e.vx * e.dir * dt; e.moving = true; }
+        if ((e.kind === 'pecora' || e.kind === 'goat') && e.freeLane != null && !e.scared && !e.hit) {
+          // v5s40: capre e pecore non spazzano piu' le corsie davanti al giocatore: si fermano (a ANIMALS.STOP_S)
+          // lasciando sempre libera la corsia del sentiero sicuro; ripartono quando il giocatore e' passato
+          const v = Math.max(30, this.currentSpeed || 0), stopD = v * ANIMALS.STOP_S + 30;
+          if (e.d - T < Math.max(MOVE_AHEAD, stopD + v * 2.4)) {   // partono ~2.4 s prima della sosta: passo tranquillo
+            if (e.stopX == null) {
+              const tS = Math.max(0.35, (e.d - T - stopD) / v);
+              let tx;
+              if (e.kind === 'pecora') tx = laneX(e.freeLane) + e.dir * ((e.gapC || 0) - (e.xoff || 0));
+              else { const pred = e.x + e.vx * e.dir * tS; let best = null; for (let l = 0; l < WORLD.LANES; l++) if (l !== e.freeLane && (best == null || Math.abs(laneX(l) - pred) < Math.abs(laneX(best) - pred))) best = l; tx = laneX(best); }
+              e.stopX = tx; const dist = e.dir * (tx - e.x);
+              e.vx = dist > 0 ? Math.max(8, Math.min(70, dist / tS)) : 0;
+            }
+            if (e.d < T - 30) { e.stopX = Infinity * e.dir; if (!e.vx) e.vx = 24; }
+            const nx = e.x + e.vx * e.dir * dt;
+            if (e.dir * (nx - e.stopX) >= 0) { e.x = e.dir * (e.x - e.stopX) >= 0 ? e.x : e.stopX; e.moving = false; e.stopped = true; e.vx = 0; }
+            else { e.x = nx; e.moving = e.vx > 0; }
+          }
+        } else if (e.d - T < MOVE_AHEAD) { e.x += e.vx * e.dir * dt; e.moving = true; }
+        // v5s40: chi ha finito di attraversare esce di scena a bordo via (prima tronchi che rotolano, capre e maialetti
+        // proseguivano per sempre dentro case, rocce e acqua: "tronchi caduti in posti a caso")
+        if (e.kind !== 'maimoni' && !e.offroad && e.dir * e.x > ROAD_HALF + 8) { e.offroad = true; e.moving = false; e.done = true; e.vx = 0; this.fx('offroad', { e }); }
         if (e.kind === 'maimoni') {
           // v5s10: su Maimoni carica a zig-zag: rimbalza tra la prima e l'ultima corsia
           if (!e.bell && e.d - T < MOVE_AHEAD + MASKS.BELL_AHEAD) { e.bell = true; this.fx('sound', 'cowbell'); this.fx('maskBell', { e }); }
@@ -583,6 +604,7 @@ export class Sim {
       if (e.kind === 'caprarupe' && !e.landed && e.d - T < (this.currentSpeed || 0) * ANIMALS.ROCKGOAT_LEAD_S + 40) {
         e.landed = true; this.stats.rockGoats++; this.log('aG', e.lane); this.fx('rockGoatJump', { e }); this.fx('sound', 'goat');
       }
+      if (e.kind === 'caprarupe' && !e.landed) continue;   // v5s40: la capra colpisce solo quando e' scesa sulla corsia (si vede)
       if (e.kind === 'bancarella' || e.kind === 'festone') { if (e.d + e.len < pBack) e.done = true; continue; }   // v5s21: scena della festa
       if (e.kind === 'folla') {       // v5s21: passando vicino alla folla (corsia laterale) si sente l'applauso
         if (!e.cheered && overlapD && Math.abs(px - laneX(e.lane)) <= FESTA.BRUSH_PX) {
@@ -934,7 +956,7 @@ export class Sim {
     this.chain = 0;
     this.invuln = WORLD.HIT_INVULN_S;
     this.slowT = 0;
-    if (e.kind === 'goat') e.vx *= 2.5;
+    if (e.kind === 'goat') e.vx = Math.max(e.vx, 24) * 2.5;
     this.fx('hit', { e });
   }
 

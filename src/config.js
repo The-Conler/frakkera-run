@@ -329,7 +329,9 @@ export const ANIMALS = {
   PIG_BIOMES: ['rock', 'river'], PIG_VX: [70, 92],
   DOG_BIOMES: ['village', 'rock', 'river'], DOG_S: 9, DOG_BARK_S: 1.0, DOG_X: 22,
   CHASE_S: 6, CHASE_SLOW_K: 0.8, NIP_FUEL: 6, CHASE_ROWS: 7,
-  ROCKGOAT_BIOMES: ['rock'], ROCKGOAT_LEAD_S: 1.1, ROCKGOAT_N: [1, 2],
+  ROCKGOAT_BIOMES: ['rock'], ROCKGOAT_LEAD_S: 1.45,   // v5s40: prima 1.1 s
+  STOP_S: 1.7,                    // v5s40: capre/pecore ferme a 1.7 s dal giocatore (corsia libera garantita)
+  ROCKGOAT_N: [1, 2],
   SHEPHERD_X: 62,
 };
 

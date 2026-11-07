@@ -571,7 +571,11 @@ export class Env {
   placePrefab(sd, W, pf) {
     const pool = this.pools.get(pf.key) || []; let mesh = pool.pop();
     if (!mesh) { mesh = new THREE.Mesh(pf.geom, this.mats2); this.scene.add(mesh); }
-    mesh.visible = true; mesh.position.set(sd.s * FACADE, 0, -W); mesh.scale.x = sd.s < 0 ? 1 : -1; mesh.rotation.set(0, 0, 0);
+    // v5s40: sicurezza finale: nessuna parte bassa (< 2.6 m) del prefab oltre il bordo della carreggiata;
+    // se sporgesse, la casa si sposta verso l'esterno (prima un prefab piu' largo entrava nelle 3 corsie)
+    if (pf.inner == null) { let m = -Infinity; const P = pf.geom.attributes.position; for (let j = 0; j < P.count; j++) if (P.getY(j) < 2.6) m = Math.max(m, P.getX(j)); pf.inner = m; }
+    const push = Math.max(0, pf.inner - WALK_W);
+    mesh.visible = true; mesh.position.set(sd.s * (FACADE + push), 0, -W); mesh.scale.set(sd.s < 0 ? 1 : -1, 1, 1); mesh.rotation.set(0, 0, 0);
     const lamps = [];
     for (const l of pf.lamps) lamps.push(this.lamp(sd.s * FACADE - sd.s * l.x, l.y, -W + l.z, '#ffb85a', 2.6));
     const out = { W0: W, W1: W + pf.w, w: pf.w, mesh, key: pf.key, lamps };

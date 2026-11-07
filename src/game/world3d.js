@@ -39,6 +39,7 @@ import { buildVista, VISTA } from './biomes/builders/church.js';
 import { buildNascimentu } from './nascimentu3d.js';
 import { SKINS, SHARDS, outcropGeometry } from './biomes/builders/skins.js';
 
+const RESET_POSE = { goat: 1, caprarupe: 1, pecora: 1, maialetto: 1, trave: 1, ramo: 1, bottecoricata: 1, rollbarrel: 1, sasso: 1, botte: 1, botti: 1, muretto: 1 };   // v5s40
 const U = 0.1;                    // 1 px del mondo 2D = 0.1 unita' 3D (1 m = 1 unita')
 const ROAD_W = 11.0;
 const WALK_W = 1.45;
@@ -505,8 +506,10 @@ export class World {
       v.glow = this.glowSprite(kind === 'calamita' ? '#ff6a5a' : kind === 'finocchio' ? '#c8ff7a' : '#ffc070', 4.4, 0.8);
       v.shadow = this.blob(1.8, 1.8);
     } else if (kind === 'ramo') {      // v5s24: ramo caduto (ci si abbassa)
-      const key = 'ramo' + ((e.variant || 0) % 2);
-      v.body = new THREE.Mesh(this.geo[key] || (this.geo[key] = branchGeom((e.variant || 0) % 2)), this.mats2); v.shadow = this.blob(12.8, 1.3);
+      // v5s40: il leccio da cui cade il ramo sta SEMPRE a destra (lato roccia): a sinistra c'e' lo strapiombo (roccia)
+      // o l'acqua (fiume) e l'albero sembrava un tronco caduto sospeso nel vuoto / in mezzo all'acqua
+      const key = 'ramo0';
+      v.body = new THREE.Mesh(this.geo[key] || (this.geo[key] = branchGeom(0)), this.mats2); v.shadow = this.blob(12.8, 1.3);
     } else if (kind === 'tappeto') {
       v.body = new THREE.Mesh(this.geo.carpet, this.mat.carpet[(e.variant || 0) % 4]);
       v.glow = this.glowSprite('#ff7a5a', 2.6, 0.32);
@@ -555,6 +558,9 @@ export class World {
     if (v.glow) v.glow.visible = true;
     v.t = Math.random() * 6;
     v.dead = false; v.hitT = 0; v.fallT = 0; v.landFx = false; v.flyT = 0;
+    // v5s40: le viste riciclate dal pool tenevano posa/rotazione della vita precedente (capra in fuga, tronco
+    // scosso dall'urto, masso a meta' caduta): si riparte sempre dalla posa a riposo
+    if (RESET_POSE[e.kind]) { v.body.position.set(0, 0, 0); v.body.rotation.set(0, 0, 0); v.fleeT = 0; v.scT = 0; if (v.shadow) v.shadow.visible = true; }
     if (e.kind === 'deadend') v.deadM.forEach((m, i) => { m.visible = i === (e.variant || 0); });
     if (e.kind === 'scambio') { v.sig.forEach((g, l) => { g.visible = (e.open || []).includes(l); g.position.set(laneX(l) * U, 3.4, 0); }); v.stop.forEach((g, l) => { g.visible = !(e.open || []).includes(l); g.position.set(laneX(l) * U, 3.4, 0); }); }
     if (e.kind === 'minatore') {
@@ -626,6 +632,7 @@ export class World {
       // v5s29 (QA M4/M5/M6): passato il corridore, l'ostacolo sparisce (travi, panni, ringhiere non coprono piu' la camera)
       if ((ahead + (e.len || 0)) * U < -1.5 && this.moodName !== 'over') v.root.visible = false;
       if (farCull && ahead * U > farCull && !(e.kind === 'processione' || e.kind === 'trave' || e.kind === 'panni')) v.root.visible = false;
+      if (e.offroad) v.root.visible = false;   // v5s40: animale/tronco uscito dalla carreggiata
       if (e.done && !v.dead && (e.pickup || e.destroyed)) { v.dead = true; v.body.visible = false; if (v.glow) v.glow.visible = false; if (v.warn) v.warn.visible = false; if (v.shadow) v.shadow.visible = !e.pickup && !e.destroyed; }
       if (v.dead) continue;
       v.t += dt;
@@ -730,7 +737,11 @@ export class World {
         v.body.rotation.y = -Math.PI / 2; v.body.position.y = Math.abs(Math.sin(t * 5)) * 0.08;
       } else if (e.kind === 'caprarupe') {
         // v5s24: la capra aspetta sulla roccia a lato, poi salta giu' sulla corsia (ombra di avviso)
-        const sx = (e.side || 1) * 4.5;
+        // v5s40: il masso e la capra stanno SEMPRE fuori dalla carreggiata (prima: 4.5 m dal centro della corsia,
+        // per la corsia centrale il masso finiva sulla corsia accanto); posizione rifatta a ogni frame (le viste
+        // riciclate dal pool tenevano il lato della capra precedente)
+        const sx = (e.side || 1) * (ROAD_HALF * U + 1.9) - laneX(e.lane) * U;
+        if (v.perch) v.perch.position.set(sx, 0, 0);
         if (e.scared) {   // v5s26: colpita: balzo fuori strada verso il lato (niente sangue)
           v.fleeT = (v.fleeT || 0) + dt; const q = Math.min(1, v.fleeT / 0.7);
           v.body.position.set((e.side || 1) * 9 * q, Math.sin(q * Math.PI) * 2.6, -q * 2); this.goatLegs(v, 'tuck', t); v.body.rotation.y = e.side > 0 ? 0 : Math.PI; v.body.rotation.z = (e.side || 1) * -0.4 * Math.sin(q * Math.PI);

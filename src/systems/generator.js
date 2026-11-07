@@ -350,7 +350,7 @@ export class Generator {
       emit({ kind: 'pastore', lane: dir > 0 ? 0 : L - 1, side: -dir, d: d0 + 10, len: 12, animal: id, n });
       for (let i = 0; i < n; i++) {
         if (i === gapAt) off += A.FLOCK_GAP;
-        emit({ kind: 'pecora', lane: dir > 0 ? 0 : L - 1, d: d0 + ar.int(-3, 3), len: 12, dir, vx, xoff: off, flock: id, variant: ar.int(0, 2) });
+        emit({ kind: 'pecora', lane: dir > 0 ? 0 : L - 1, d: d0 + ar.int(-3, 3), len: 12, dir, vx, xoff: off, flock: id, variant: ar.int(0, 2), freeLane: this.path, gapC: (gapAt - 1) * A.FLOCK_STEP + (A.FLOCK_STEP + A.FLOCK_GAP) / 2 });   // v5s40: il gregge si ferma col varco sulla corsia libera
         off += A.FLOCK_STEP;
       }
       emit({ kind: 'canepastore', lane: 1, d: d0 + A.CHASE_ROWS * ROW, len: 8, animal: id });
@@ -446,7 +446,7 @@ export class Generator {
       const dir = rng() < 0.5 ? 1 : -1;
       emit({
         kind, lane: dir > 0 ? 0 : L - 1, d: D + 3 * ROW + 4, len: 12,
-        dir, vx: kind === 'goat' ? lerp(22, 38, diff) : lerp(40, 66, diff),
+        dir, vx: kind === 'goat' ? lerp(22, 38, diff) : lerp(40, 66, diff), freeLane: this.path,   // v5s40: la capra si ferma fuori dal sentiero sicuro
       });
       return;
     }
@@ -566,7 +566,10 @@ export class Generator {
     if (diff >= DF.NARROW_FROM && rng() < (0.035 + 0.05 * diff) * longK) {
       const l = rng() < 0.5 ? 0 : L - 1;
       const rows = 3 + rng.int(0, Math.round(1 + 2 * diff));
-      if (canLong(l) && !this.sideBlocks.some((b) => b.edge === l && b.until >= r)) {
+      // v5s40: nel paese la strettoia era una casa sporgente dentro la corsia esterna (sembrava una casa fuori posto,
+      // sempre piu' frequente dai giri successivi con la difficolta'): nel paese niente strettoie, le case restano a bordo via
+      const inVillage = biomeIdAt(D, this.offM) === 'village' || biomeIdAt(D + rows * ROW, this.offM) === 'village';
+      if (!inVillage && canLong(l) && !this.sideBlocks.some((b) => b.edge === l && b.until >= r)) {
         this.blockedUntil[l] = r + rows - 1;
         this.laneCool[l] = r + rows;
         used[l] = true; z3hit = true;
