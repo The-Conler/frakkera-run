@@ -229,8 +229,11 @@ export class Character3D {
   // dopo il mixer: gambe corte, corpo abbassato, frakkera in diagonale sulla spalla (peso w)
   // k: 1 = posa di corsa, 0 = posa da fermo (la frakkera resta SEMPRE in spalla)
   mascotPre(k) {
-    if (!this.isMascot) return;
+    // v5s42c: anche i costumi (portatore classico, su Stramaioni) portano la frakkera in spalla, inclinata all'indietro come la mascotte
+    const alt = !this.isMascot && !!this.sh;
+    if (!this.isMascot && !alt) return;
     const S = this.sh, c = this.bones.carry, f = this.frkBone;
+    if (alt) { this.carryPose(k, c, f); for (const b of this.legBones) b.scale.setScalar(1); return; }
     for (const b of this.legBones) b.scale.setScalar(MASCOT.LEG_K);
     // corsa piu' dritta: ginocchia e anche meno piegate, busto un po' indietro (solo grafica)
     const run = this.state === 'run' && !(this.cartK > 0.5);
@@ -241,6 +244,10 @@ export class Character3D {
       sp1.parent.updateWorldMatrix(true, false); sp1.parent.getWorldQuaternion(_q2).invert(); this.model.getWorldQuaternion(_q);
       _v.copy(AX_SIDE).applyQuaternion(_q).applyQuaternion(_q2); _q.setFromAxisAngle(_v, SHOULDER.SPINE_BACK); sp1.quaternion.premultiply(_q);
     }
+    this.carryPose(k, c, f);
+  }
+  carryPose(k, c, f) {
+    const S = this.sh;
     // frakkera in spalla: oscillazione della clip solo nella corsa
     _qa.copy(S.qRef).invert().multiply(c.quaternion);
     _qa.copy(_qi.identity().slerp(_qa, k));
@@ -287,7 +294,7 @@ export class Character3D {
     this.rotTo(lo, _t.subVectors(_c, _b), _p.sub(_b), w);
   }
   mascotIK(phase) {
-    if (!this.isMascot) return;
+    if (!this.isMascot && !this.sh) return;
     const S = this.sh, c = this.bones.carry, M = this.spine3.matrixWorld;
     this.ik2(this.arm.r, S.gR.clone().applyMatrix4(c.matrixWorld), S.poleR.clone().applyMatrix4(M), 1);
     const tl = S.gL.clone().applyMatrix4(c.matrixWorld), pl = S.poleL.clone().applyMatrix4(M);
@@ -371,7 +378,7 @@ export class Character3D {
     this.mascotPre(this.runK);
     this.frame = Math.floor(((this.phase + 0.75) % 1) * 4);
     // posizione e orientamento
-    let fTarget = this.state === 'idle' ? -0.45 : this.state === 'over' ? (this.stateT > 1.0 ? Math.PI + 1.15 : Math.PI) : Math.PI;
+    let fTarget = this.state === 'idle' ? -0.45 : this.state === 'over' ? Math.PI + 0.3 : Math.PI;   /* v5s42c: prima PI+1.15 dopo 1 s: di taglio la frakkera in spalla sembrava piantata dritta */
     fTarget += Math.PI * 2 * Math.round((this.facing - fTarget) / (Math.PI * 2));
     this.facing += (fTarget - this.facing) * Math.min(1, dt * (this.state === 'run' ? 7 : this.state === 'over' ? 1.6 : 2.5));
     this.root.position.set(px, 0, pz);
@@ -428,7 +435,7 @@ export class Character3D {
     }
     this.root.updateMatrixWorld(true);
     this.gunK += ((this.isMascot && st.armed && this.state === 'run' ? 1 : 0) - (this.gunK || 0)) * Math.min(1, dt * 6);
-    if (this.isMascot) { this.mascotGround(this.phase); this.mascotIK(this.phase); this.root.updateMatrixWorld(true); }
+    if (this.isMascot) { this.mascotGround(this.phase); this.mascotIK(this.phase); this.root.updateMatrixWorld(true); } else if (this.sh) { this.mascotIK(this.phase); this.root.updateMatrixWorld(true); }
     this.bones.tip.getWorldPosition(this.tipW);
     // v5s42b: asse della frakkera in coordinate mondo (per incollare e inclinare la fiamma sulla punta)
     if (this.newFrk) { const n = this.newFrk; n.r.updateWorldMatrix(true, true); (n.tip || n.r).getWorldPosition(this.tipW); this.tipAxisW.set(0, 1, 0).transformDirection(n.r.matrixWorld); }
