@@ -39,6 +39,7 @@ import { buildVista, VISTA } from './biomes/builders/church.js';
 import { buildNascimentu } from './nascimentu3d.js';
 import { SKINS, SHARDS, outcropGeometry } from './biomes/builders/skins.js';
 
+const FLAME_FIT = 0.7;   // v5s42: la fiamma (alta ~3.4 m) era sproporzionata e sembrava staccata dalla frakkera
 const RESET_POSE = { goat: 1, caprarupe: 1, pecora: 1, maialetto: 1, trave: 1, ramo: 1, bottecoricata: 1, rollbarrel: 1, sasso: 1, botte: 1, botti: 1, muretto: 1 };   // v5s40
 const U = 0.1;                    // 1 px del mondo 2D = 0.1 unita' 3D (1 m = 1 unita')
 const ROAD_W = 11.0;
@@ -634,7 +635,7 @@ export class World {
       if (farCull && ahead * U > farCull && !(e.kind === 'processione' || e.kind === 'trave' || e.kind === 'panni')) v.root.visible = false;
       if (e.offroad) v.root.visible = false;   // v5s40: animale/tronco uscito dalla carreggiata
       // v5s41: le pecore in coda al gregge che aspettano lontano dalla via non si vedono dentro roccia/acqua/case
-      if (isMoving(e.kind) && e.kind !== 'maimoni' && Math.abs(e.x) * U > ROAD_HALF * U + 3.2) v.root.visible = false;
+      if (isMoving(e.kind) && e.kind !== 'maimoni' && Math.abs(e.x) * U > ROAD_HALF * U + 2.0) v.root.visible = false;   // v5s41b: entro ~0.5 m oltre il marciapiede (prima 3.2: pecora dentro la roccia)
       if (e.done && !v.dead && (e.pickup || e.destroyed)) { v.dead = true; v.body.visible = false; if (v.glow) v.glow.visible = false; if (v.warn) v.warn.visible = false; if (v.shadow) v.shadow.visible = !e.pickup && !e.destroyed; }
       if (v.dead) continue;
       v.t += dt;
@@ -1025,7 +1026,7 @@ export class World {
       this.fogK += (fogAt(env.cur.bDist) * out - this.fogK) * Math.min(1, dt * 1.5);
       const rk = this.rainK * 0.7, fk = this.fogK;
       if (rk > 0.001) { for (const key of ['top', 'mid', 'hor', 'fog', 'hemiS', 'dirC', 'far']) { const c = tgt[key]; if (c && c.isColor) c.lerp(_c.set(key === 'fog' || key === 'hor' ? '#3a4458' : '#262c3c'), rk); }
-        tgt.hemiI *= 1 - rk * 0.25; tgt.dirI *= 1 - rk * 0.6; tgt.sun *= 1 - rk; tgt.moon *= 1 - rk; tgt.fogFar *= 1 - rk * 0.45; }
+        tgt.hemiI *= 1 - rk * 0.1; tgt.dirI *= 1 - rk * 0.4;   /* v5s42: prima 0.25 / 0.6 (troppo buio sotto la pioggia) */ tgt.sun *= 1 - rk; tgt.moon *= 1 - rk; tgt.fogFar *= 1 - rk * 0.45; }
       if (fk > 0.001) { for (const key of ['fog', 'hor', 'far']) { const c = tgt[key]; if (c && c.isColor) c.lerp(_c.set('#c9d0d6'), fk * 0.85); }
         tgt.fogNear *= 1 - fk * 0.85; tgt.fogFar = tgt.fogFar * (1 - fk) + Math.min(tgt.fogFar, 260) * WEATHER.FOG_FAR * fk; } }
     const k = 1 - Math.exp(-dt * 1.8);
@@ -1042,6 +1043,12 @@ export class World {
     this.skyU.uTop.value.copy(m.top); this.skyU.uMid.value.copy(m.mid); this.skyU.uHor.value.copy(m.hor); this.skyU.uFog.value.copy(m.fog); this.skyU.uSun.value = m.sun;
     this.scene.fog.color.copy(m.fog); this.scene.fog.near = m.fogNear * (1 - dark * 0.4); this.scene.fog.far = m.fogFar * (1 - dark * 0.55);
     this.hemi.color.copy(m.hemiS); this.hemi.groundColor.copy(m.hemiG); this.hemi.intensity = m.hemiI * (1 - dark * 0.5);   // v5s9: il buio cresce col fuoco che cala, ma non scende sotto la meta'
+    // v5s42: luminosita' minima all'aperto (notte, pioggia, giri successivi): il telefono resta leggibile senza slavare.
+    // Luce dal cielo efficace >= 0.62 e terreno mai nero (bordo strada e piloni del viadotto); in galleria resta il buio voluto.
+    { const out = 1 - Math.min(1, L.tunnel || 0), lum = (c) => c.r * 0.3 + c.g * 0.55 + c.b * 0.15;
+      const ls = Math.max(0.05, lum(this.hemi.color)), minE = 0.62 * out;
+      if (this.hemi.intensity * ls < minE) this.hemi.intensity = minE / ls;
+      const lg = lum(this.hemi.groundColor); if (lg < 0.16 * out) this.hemi.groundColor.lerp(this.hemi.color, Math.min(0.5, (0.16 * out - lg) * 3)); }
     this.dir.color.copy(m.dirC); this.dir.intensity = m.dirI;
     this.far.material.color.copy(m.far);
     this.moon.material.opacity = m.moon; this.moon.visible = m.moon > 0.02 && L.tunnel < 0.98;
@@ -1223,7 +1230,7 @@ export class World {
     const flick = Math.sin(this.clock * 17) * 0.06 + Math.sin(this.clock * 29) * 0.05;
     this.fireKick = Math.max(0, (this.fireKick || 0) - dt * 1.6);
     this.flame3d.update(dt, this.camera, this.tipW, Math.min(1.6, fuelF + this.fireKick * 0.6), use3d && lit, view.char.fuelLow, -(view.char.vx || 0) * 0.5);
-    this.flame3d.group.scale.setScalar(use3d && this.char3d.flameScale || 1);   // v5s29b: fiamma in proporzione alla frakkera della mascotte
+    this.flame3d.group.scale.setScalar((use3d && this.char3d.flameScale || 1) * FLAME_FIT);   // v5s42: piu' piccola, base sulla punta | v5s29b: fiamma in proporzione alla frakkera della mascotte
     this.flameLight.position.copy(this.tipW); if (use3d) this.flameLight.position.y += 0.9;
     const L = this.light, dark = L.darkByFuel * (1 - fuelF);
     this.flameLight.distance = L.flameDist * (1 - dark * 0.45);

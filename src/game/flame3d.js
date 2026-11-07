@@ -32,11 +32,12 @@ void main(){
 }`;
 
 // strato esterno con blending normale (si legge anche contro il cielo chiaro), interni additivi
+// v5s42: basi abbassate: la parte visibile della fiamma (il fondo dello shader e' trasparente) parte sulla punta della frakkera
 const LAYERS = [
-  { w: 2.5, h: 4.4, a: '#8a1a08', b: '#d8400e', c: '#ff8a22', i: 0.95, y: -0.35, normal: true },
-  { w: 1.8, h: 3.4, a: '#c2300a', b: '#ff7a18', c: '#ffc04a', i: 1.0, y: -0.3 },
-  { w: 1.2, h: 2.3, a: '#ff6a12', b: '#ffc23a', c: '#fff2c8', i: 1.1, y: -0.25 },
-  { w: 0.6, h: 1.1, a: '#ffb02a', b: '#fff0b0', c: '#ffffff', i: 1.0, y: -0.2 },
+  { w: 2.5, h: 4.4, a: '#8a1a08', b: '#d8400e', c: '#ff8a22', i: 0.95, y: -0.75, normal: true },
+  { w: 1.8, h: 3.4, a: '#c2300a', b: '#ff7a18', c: '#ffc04a', i: 1.0, y: -0.62 },
+  { w: 1.2, h: 2.3, a: '#ff6a12', b: '#ffc23a', c: '#fff2c8', i: 1.1, y: -0.45 },
+  { w: 0.6, h: 1.1, a: '#ffb02a', b: '#fff0b0', c: '#ffffff', i: 1.0, y: -0.28 },
 ];
 
 export class Flame3D {

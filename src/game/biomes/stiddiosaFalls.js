@@ -94,6 +94,7 @@ export function makeFaceX(meshes, backX) {
   };
 }
 // tipi: main (dalla cima), mid (da una cengia a meta'), trickle (rivolo sottile)
+const FALL_MIN_X = 7.9;   // v5s42: bordo esterno del marciapiede (6.95 m) + ~1 m
 const KIND = { main: { w: 4, layers: [2, 0, 1], segs: 4, half: 3.8 }, mid: { w: 2.5, layers: [2, 0, 1], segs: 3, half: 2.6 }, trickle: { w: 0.5, layers: [2, 1], segs: 2, half: 0.5 } };
 export function stiddiosaFallSpecs(fallsLz, seed = 41) {
   const r = rng(seed), S = [];
@@ -136,14 +137,16 @@ export function buildFalls(faceX, specs, seed = 7) {
       const crest = Math.max(0, 1 - (y0 - y) / CREST);   // 1 in cima -> 0 dopo CREST m
       const tuck = crest * 1.35;                          // ancora dentro la roccia vicino alla cresta
       const out = (i >= 4 && crest < 0.12) ? -0.14 * Math.min(3, i - 3) : 0;   // sporge solo dopo essere uscita dallo sbalzo
-      let nx = Math.min(x + 0.45 * step, f + tuck) + out;
+      // v5s42: l'acqua resta attaccata alla parete (al massimo 0.5 m davanti alla roccia): prima lo scarto 'out' si sommava
+      // fila dopo fila e i fili d'acqua si staccavano, sospesi verso la via
+      let nx = Math.max(Math.min(x + 0.45 * step, f + tuck) + out, f - 0.5);
       if (crest > 0.4) nx = Math.max(nx, faceX(y, z, half) + 0.55);   // primi metri: mai davanti alla faccia
       const contact = f + tuck <= x + 0.45 * step + 1e-3;
       if (contact && free > 1.4) foam = 1; free = contact ? 0 : free + step;
-      if (y < 3.4 && nx < 5.7) nx = 5.7;   // mai dentro la via sotto i 3 m
+      if (nx < FALL_MIN_X) nx = FALL_MIN_X;   // v5s42: mai sopra la via/marciapiede (prima 5.7 m sotto i 3 m: la cascata copriva la corsia)
       rows.push({ x: nx, y, foam, contact, crest }); foam *= 0.55; x = nx;
     }
-    rows.push({ x: Math.max(x, 5.7), y: 0.02, foam: 1, contact: true, crest: 0 });
+    rows.push({ x: Math.max(x, FALL_MIN_X), y: 0.02, foam: 1, contact: true, crest: 0 });
     for (let k = 0; k < 2; k++) for (let i = 1; i < rows.length - 1; i++) {
       if (rows[i].crest > 0.4) continue;   // non smussare la cresta tuckata
       rows[i].x = Math.min(rows[i].x, (rows[i - 1].x + 2 * rows[i].x + rows[i + 1].x) / 4 + 0.3);

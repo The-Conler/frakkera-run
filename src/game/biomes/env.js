@@ -150,7 +150,7 @@ const LANDMARKS = {
   // reveal: il viadotto e la sua valle restano nascosti finche' si e' alla piscina naturale (luogo a se') e
   // compaiono in dissolvenza solo nel passaggio (metri relativi all'inizio del bioma indicato)
   viaduct: { at: 150, exist: [-200, 130], reveal: { biome: 'viaduct', from: -45, to: -10 } },
-  valleyRiver: { at: 0, exist: [-70, 290], reveal: { biome: 'viaduct', from: -45, to: -10 } },
+  valleyRiver: { at: 0, exist: [-160, 290], reveal: { biome: 'viaduct', from: -150, to: -115 } },   // v5s42: prima da -45 m: a Sa Stiddiosa (fine del fiume) a sinistra si vedeva il vuoto grigio
   minePortal: { at: 150, exist: [-200, 30] },
   mineExit: { at: 250, exist: [-80, 9] },   // v5s29 (QA L7): sparisce subito dopo l'uscita (restava come sagoma scura sopra il paese)
   farVillage: null,
@@ -798,7 +798,7 @@ export class Env {
       mesh(sq.geom, this.mats2, true);
       root.scale.x = -1;                                   // piazza costruita a sinistra, specchiata a destra della via
       // v5s10: stendardo di cuoio dell'Ass. Culturale Maimoni e Grastula (testa di capra), a bordo via
-      const ban = buildBanner(this.mats2); ban.scale.x = -1; ban.position.set(6.0, 0, 52); ban.rotation.y = 0.4; root.add(ban);
+      const ban = buildBanner(this.mats2); ban.scale.x = -1; ban.position.set(6.7, 0, 52);   /* v5s41b: prima 6.0, la base sporgeva ~0.4 m nella corsia sinistra */ ban.rotation.y = 0.4; root.add(ban);
       for (const [x, y, z, s] of sq.lamps) lamps.push(this.lamp(-x, y, z - W, '#ffd27a', s * 1.4, 0.8));
       let chainZ = 0;
       for (const h of sq.houses) {
