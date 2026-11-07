@@ -10,6 +10,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { Kit, G } from '../../kit.js';
 import { SANTAMARTA } from '../../../config.js';
+import { CARPET_ASPECT, loadCarpetTexture } from '../../tex3d.js';
 
 const C = { schist: '#7d7a72', schistL: '#9a978e', schistD: '#5f5d58', schistB: '#8f7a62', brick: '#985238', brickD: '#7a3f2c',
   stone: '#5e5a52', stoneL: '#736c60', plaster: '#ece6da', floor: '#b5603f', floorL: '#c8724c', runner: '#e8b52c', runnerD: '#c28d18',
@@ -104,7 +105,7 @@ export function buildSantaMarta(seed = 1) {
   for (const s of [-1, 1]) { k.add(G.box(0.7, H - 5.0, L), C.stone, { x: s * PX, y: 5.0 + (H - 5.0) / 2, z: zc });
     stonesX(k, zb + 0.3, -0.3, 6.6, H - 1.6, s * (PX - 0.35), -s, inPal); }
   // finestrelle alte sopra il tetto delle navatelle (luce)
-  for (const s of [-1, 1]) for (let i = 0; i < 5; i++) k.add(G.box(0.12, 1.2, 0.8), '#ffe8b0', { x: s * (PX + 0.38), y: AH + 3.0, z: -i * bay - bay / 2, unlit: true });
+  for (const s of [-1, 1]) for (let i = 0; i < 5; i++) k.add(G.box(0.12, 1.2, 0.8), '#c4a070', { x: s * (PX + 0.38), y: AH + 3.0, z: -i * bay - bay / 2, unlit: true });
   // ---- archi trasversali in mattoni sopra la navata e volta a botte intonacata bianca
   for (let i = 1; i < 5; i++) { const z = -i * bay;
     k.add(tor(PX - 0.5, 0.42, 6, 18, Math.PI), C.brick, { y: H - PX + 0.2, z, vary: 0.04, sz: 1.4 });
@@ -164,7 +165,7 @@ export function buildSantaMarta(seed = 1) {
       if (front) {
         stones(k, s > 0 ? OW + 0.1 : -AW - WALL, s > 0 ? AW + WALL : -OW - 0.1, 0, AH - 0.2, zf, dir, facePal, (x, y) => Math.abs(x - wx) < 0.9 && y > 3.2 && y < 5.6);
         k.add(G.box(1.2, 1.8, 0.1), '#2a2420', { x: wx, y: 4.3, z: zf + 0.06 }); k.add(tor(0.75, 0.16, 4, 10, Math.PI), C.brick, { x: wx, y: 5.2, z: zf + 0.08 });
-        k.add(G.box(0.9, 1.5, 0.12), '#ffd890', { x: wx, y: 4.2, z: zf + 0.07, unlit: true });
+        k.add(G.box(0.9, 1.5, 0.12), '#c4a070', { x: wx, y: 4.2, z: zf + 0.07, unlit: true });
       } }
     // portale: doppia ghiera di mattoni sull'arco e sugli stipiti
     k.add(tor(DR + 0.25, 0.32, 5, 20, Math.PI), C.brick, { y: DOOR_H - DR, z: zf + dir * 0.05 });
@@ -214,33 +215,12 @@ export function santaMartaAisleLamps() { const L = SANTAMARTA.LEN_M; return [[-(
 // v5s26: la passatoia della navata e' un unico grande tappeto "sa burra" (lana color crema con motivi a rilievo
 // a rombi, fasce e figurine stilizzate in rosso, nero, ocra e verde). Texture su tela: 2 triangoli in tutto.
 export function burraRunner() {
-  const L = SANTAMARTA.LEN_M - 1.4, Wd = 7.6;
-  const c = typeof document !== 'undefined' ? document.createElement('canvas') : null;
-  let tex = null;
-  if (c) {
-    const W = 256, Hh = 1024; c.width = W; c.height = Hh; const x = c.getContext('2d');
-    const CR = '#efe3c6', CR2 = '#e2d3b0', RED = '#b3283a', BLK = '#26161a', OCH = '#d9a63a', GRN = '#4f6a3a', BLU = '#2f5a8a';
-    x.fillStyle = CR; x.fillRect(0, 0, W, Hh);
-    for (let y = 0; y < Hh; y += 3) { x.fillStyle = (y / 3) % 2 ? CR : CR2; x.fillRect(0, y, W, 1); }   // trama
-    // bordi laterali: fascia nera con denti rossi
-    for (const bx of [0, W - 22]) { x.fillStyle = BLK; x.fillRect(bx, 0, 22, Hh); x.fillStyle = RED; for (let y = 0; y < Hh; y += 16) { x.beginPath(); x.moveTo(bx + 11, y); x.lineTo(bx + 19, y + 8); x.lineTo(bx + 11, y + 16); x.lineTo(bx + 3, y + 8); x.fill(); } }
-    const rh = (cx, cy, r, col) => { x.fillStyle = col; x.beginPath(); x.moveTo(cx, cy - r); x.lineTo(cx + r, cy); x.lineTo(cx, cy + r); x.lineTo(cx - r, cy); x.fill(); };
-    const pib = (cx, cy, col) => { x.fillStyle = col; for (let dy = -6; dy <= 6; dy += 6) for (let dx = -6; dx <= 6; dx += 6) if (Math.abs(dx) + Math.abs(dy) <= 6) x.fillRect(cx + dx - 2, cy + dy - 2, 4, 4); };
-    const fig = (cx, cy, col) => { x.fillStyle = col; x.fillRect(cx - 3, cy - 14, 6, 6); x.fillRect(cx - 5, cy - 7, 10, 12); x.fillRect(cx - 13, cy - 6, 8, 3); x.fillRect(cx + 5, cy - 6, 8, 3); x.fillRect(cx - 5, cy + 5, 3, 9); x.fillRect(cx + 2, cy + 5, 3, 9); };
-    for (let k = 0; k < 4; k++) {   // 4 moduli ripetuti lungo il tappeto
-      const y0 = k * 256;
-      x.fillStyle = RED; x.fillRect(22, y0, W - 44, 14); x.fillStyle = BLK; x.fillRect(22, y0 + 14, W - 44, 6);
-      for (let i = 0; i < 9; i++) rh(34 + i * 24, y0 + 30, 9, i % 2 ? OCH : RED);
-      rh(W / 2, y0 + 120, 62, RED); rh(W / 2, y0 + 120, 46, CR); rh(W / 2, y0 + 120, 34, BLK); rh(W / 2, y0 + 120, 20, OCH); pib(W / 2, y0 + 120, RED);
-      for (const sx of [56, W - 56]) { fig(sx, y0 + 86, k % 2 ? BLU : BLK); fig(sx, y0 + 156, GRN); rh(sx, y0 + 121, 12, RED); }
-      for (let i = 0; i < 9; i++) rh(34 + i * 24, y0 + 214, 9, i % 2 ? GRN : RED);
-      x.fillStyle = BLK; x.fillRect(22, y0 + 232, W - 44, 6); x.fillStyle = RED; x.fillRect(22, y0 + 238, W - 44, 14);
-      for (let i = 0; i < 26; i++) pib(30 + i * 8 + (i % 2) * 2, y0 + 245, CR);
-    }
-    tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(1, 2); tex.anisotropy = 8;
-  }
-  const geo = new THREE.PlaneGeometry(Wd, L).rotateX(-Math.PI / 2); geo.translate(0, 0.11, -SANTAMARTA.LEN_M / 2);
-  const mat = new THREE.MeshLambertMaterial({ map: tex, color: tex ? 0xffffff : 0xe8dcc0 });
+  // un solo tappeto Sa Burra (foto 860x557): ogni ripetizione lungo la navata tiene il rapporto, senza stirare
+  const Wd = 7.2, tile = Wd / CARPET_ASPECT, n = Math.max(1, Math.round((SANTAMARTA.LEN_M - 1.2) / tile)), L = n * tile;
+  const tex = loadCarpetTexture(0, 4);
+  tex.wrapS = THREE.ClampToEdgeWrapping; tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(1, n); tex.anisotropy = 4;
+  const geo = new THREE.PlaneGeometry(Wd, L).rotateX(-Math.PI / 2); geo.translate(0, 0.12, -SANTAMARTA.LEN_M / 2);
+  const mat = new THREE.MeshLambertMaterial({ map: tex, color: 0xffffff });
   return { geo, mat };
 }
 

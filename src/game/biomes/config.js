@@ -14,7 +14,7 @@ export const BIOMES = [
     id: 'village', name: 'Gadoni - paese e piazza della chiesa', from: 0, to: 250,
     ground: { road: 'cobble', shoulder: 'walk', curb: true, terrain: '#7d8a4e', terrainY: -0.06 },
     sides: 'houses',            // architettura ai lati (env.js -> sidePiece, case da models.js)
-    gaps: { right: [[140, 252]], left: [[22, 68], [150, 176], [186, 252]] },   // v5s37: piazzetta sinistra riempita da versante (fillSide), non piu' vuoto nudo
+    gaps: { right: [[140, 252]], left: [[0, 78], [150, 176], [186, 252]] },   // v5s43: il vuoto sinistro parte da 0 m, cosi' la casa a ~13-18 m non copre Santa Marta all'uscita della miniera
     landmarks: ['church', 'vicolo', 'cappella', 'farVillage', 'santamarta'],   // v5 stage 24: Santa Marta attraversata dopo la cappella
     skins: { botte: 'barrel', botti: 'barrels', bottecoricata: 'barrelLying', rollbarrel: 'barrel', muretto: 'wall', goat: 'goat', pozza: 'puddle', narrow: 'house', rollin: 'rollBarrel', trave: 'beamVillage' },
     decor: { banners: true, bulbs: true, lanterns: true },
@@ -82,7 +82,7 @@ export const BIOMES = [
     sides: 'tunnel', tunnel: 'rock',
     landmarks: [],
     skins: { botte: 'cart', botti: 'oreCart', bottecoricata: 'timbers', rollbarrel: 'drum', muretto: 'rubble', goat: 'trolley', pozza: 'darkPuddle', narrow: 'tunnelRock', rollin: 'cart', trave: 'beamTimber' },
-    decor: { banners: false, bulbs: false, lanterns: false, mineLamps: 22 },
+    decor: { banners: false, bulbs: false, lanterns: false, mineLamps: 12 },
     // luce ambientale quasi nulla: illumina la frakkera; il buio cresce quando la frakkera si consuma
     mood: { top: '#05060a', mid: '#05060a', hor: '#0a0c10', fog: '#0a1012', hemiS: '#c8c0b0', hemiG: '#3a2c20', hemiI: 1.05, dirC: '#ffb070', dirI: 0.35, moon: 0, sun: 0, far: '#000000', fogNear: 12, fogFar: 115 },   // v5s9: fondo di visibilita' piu' alto, riempimento caldo
     light: { flameDist: 26, flameK: 2.0, mineral: 0, lamp: 1.4, darkByFuel: 0.8, tunnel: 1, exposure: 1.32, camLook: 0, camFov: 0 },
@@ -95,7 +95,7 @@ export const BIOMES = [
     sides: 'tunnel', tunnel: 'blue',
     landmarks: ['mineExit'],
     skins: { botte: 'barrel', botti: 'oreCart', bottecoricata: 'timbers', rollbarrel: 'barrel', muretto: 'rubbleBlue', goat: 'trolley', pozza: 'bluePuddle', narrow: 'tunnelBlue', rollin: 'oreCart', trave: 'beamTimber' },
-    decor: { banners: false, bulbs: false, lanterns: false, mineLamps: 18, motes: true },
+    decor: { banners: false, bulbs: false, lanterns: false, mineLamps: 12, motes: true },
     // le pareti minerali hanno luce propria (non dipende dalla frakkera)
     // riempimento blu forte (luce di contorno blu su personaggio e frakkera), nebbia blu in profondita'
     mood: { top: '#05060a', mid: '#05060a', hor: '#0a0c18', fog: '#030820', hemiS: '#5a80ff', hemiG: '#2a2440', hemiI: 0.95, dirC: '#7a9cff', dirI: 0.9, moon: 0, sun: 0, far: '#000000', fogNear: 16, fogFar: 135 },   // v5s9: piu' leggibile

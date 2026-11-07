@@ -131,7 +131,7 @@ export class World {
     this.env = new Env(this);           // v5: ambienti di Gadoni a tratti (terreno, lati, galleria, monumenti)
     // v5s23: neve sui materiali (tetti, strada, alberi, rocce) e fiocchi
     for (const m of [this.mat.lit, this.bannerMat, this.env.lit]) addSnow(m);   // v5s29: botti senza neve (QA L4)
-    for (const k in this.env.roadMat) addSnow(this.env.roadMat[k], { road: true, cap: 0.85 });
+    for (const k in this.env.roadMat) addSnow(this.env.roadMat[k], { road: true, cap: 0.98 });
     for (const k in this.env.shoulderMat) addSnow(this.env.shoulderMat[k]);
     { const mob = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
       this.flakes = buildFlakes(mob ? SNOW_CFG.FLAKES_MOBILE : SNOW_CFG.FLAKES_DESKTOP, this.tex.glow); this.scene.add(this.flakes); }
@@ -172,7 +172,7 @@ export class World {
       lid: new THREE.MeshLambertMaterial({ map: this.tex.lid }),
       iron: new THREE.MeshLambertMaterial({ color: '#3a3432' }),
       chock: new THREE.MeshLambertMaterial({ color: '#6b4426' }),
-      puddle: new THREE.MeshPhongMaterial({ color: '#8fb9d8', specular: '#ffffff', shininess: 90, transparent: true, opacity: 0.86, depthWrite: false }),
+      puddle: addSnow(new THREE.MeshPhongMaterial({ color: '#8fb9d8', specular: '#ffffff', shininess: 40, transparent: true, opacity: 0.86, depthWrite: false }), { cap: 1, fade: true }),
       puddleRim: new THREE.MeshLambertMaterial({ color: '#7d756b', transparent: true, opacity: 0.6, depthWrite: false }),
       carpet: this.tex.carpets.map((t) => new THREE.MeshLambertMaterial({ map: t, alphaTest: 0.35, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })),
       blob: new THREE.MeshBasicMaterial({ map: this.tex.blob, transparent: true, depthWrite: false, toneMapped: false }),
@@ -1039,17 +1039,18 @@ export class World {
     for (const key in tgt.amb) this.amb[key] = (this.amb[key] ?? 0) + (tgt.amb[key] - (this.amb[key] ?? 0)) * k;
     const m = this.mood, L = this.light;
     // in miniera il buio cresce quando la frakkera si consuma
-    const dark = L.darkByFuel * (1 - fuelF);
+    const dark = Math.min(0.4, L.darkByFuel * (1 - fuelF));
     this.skyU.uTop.value.copy(m.top); this.skyU.uMid.value.copy(m.mid); this.skyU.uHor.value.copy(m.hor); this.skyU.uFog.value.copy(m.fog); this.skyU.uSun.value = m.sun;
     this.scene.fog.color.copy(m.fog); this.scene.fog.near = m.fogNear * (1 - dark * 0.4); this.scene.fog.far = m.fogFar * (1 - dark * 0.55);
     this.hemi.color.copy(m.hemiS); this.hemi.groundColor.copy(m.hemiG); this.hemi.intensity = m.hemiI * (1 - dark * 0.5);   // v5s9: il buio cresce col fuoco che cala, ma non scende sotto la meta'
     // v5s42: luminosita' minima all'aperto (notte, pioggia, giri successivi): il telefono resta leggibile senza slavare.
     // Luce dal cielo efficace >= 0.62 e terreno mai nero (bordo strada e piloni del viadotto); in galleria resta il buio voluto.
-    { const out = 1 - Math.min(1, L.tunnel || 0), lum = (c) => c.r * 0.3 + c.g * 0.55 + c.b * 0.15;
-      const ls = Math.max(0.05, lum(this.hemi.color)), minE = 0.62 * out;
+    { const tun = Math.min(1, L.tunnel || 0), out = 1 - tun, lum = (c) => c.r * 0.3 + c.g * 0.55 + c.b * 0.15;
+      const ls = Math.max(0.05, lum(this.hemi.color)), minE = 0.62 * out + 0.5 * tun;
       if (this.hemi.intensity * ls < minE) this.hemi.intensity = minE / ls;
-      const lg = lum(this.hemi.groundColor); if (lg < 0.16 * out) this.hemi.groundColor.lerp(this.hemi.color, Math.min(0.5, (0.16 * out - lg) * 3)); }
-    this.dir.color.copy(m.dirC); this.dir.intensity = m.dirI;
+      const lg = lum(this.hemi.groundColor), gnd = 0.16 * out + 0.22 * tun;
+      if (lg < gnd) this.hemi.groundColor.lerp(this.hemi.color, Math.min(0.55, (gnd - lg) * 3)); }
+    this.dir.color.copy(m.dirC); this.dir.intensity = Math.max(m.dirI, (L.tunnel || 0) * 0.62);
     this.far.material.color.copy(m.far);
     this.moon.material.opacity = m.moon; this.moon.visible = m.moon > 0.02 && L.tunnel < 0.98;
     this.stars.material.opacity = m.moon * 0.9;
@@ -1109,6 +1110,14 @@ export class World {
       // v5s22: nel carrello camera piu' alta e piu' indietro: si vedono due scambi
       this.cartCamK = (this.cartCamK || 0) + ((sim.cart ? 1 : 0) - (this.cartCamK || 0)) * Math.min(1, dt * 1.8);
       const ck = this.cartCamK; if (ck > 1e-3) { cp.y += 1.5 * ck; cp.z += 1.8 * ck; cl.z -= 8 * ck; cl.y += 0.3 * ck; }   // v5s6: solo la piscina guarda un po' verso l'acqua a destra
+      // v5s43: in galleria la camera si abbassa e guarda avanti (solo mine-int e mine-blue)
+      { const id = this.env?.cur?.b?.id || '', want = id === 'mine-int' || id === 'mine-blue' ? 1 : 0;
+        this.mineCamK = (this.mineCamK || 0) + (want - (this.mineCamK || 0)) * (1 - Math.exp(-dt * 3));
+        const mk = this.mineCamK || 0;
+        if (mk > 1e-3) {
+          const cv = ck || 0, ty = 4.2 + cv * 0.4, tz = pz + 9.4 + cv * 1.1, ly = 4.5 - cv * 0.2, lz = pz - 26 - cv * 4, fv = 68;
+          cp.y += (ty - cp.y) * mk; cp.z += (tz - cp.z) * mk; cl.y += (ly - cl.y) * mk; cl.z += (lz - cl.z) * mk; fov += (fv - fov) * mk;
+        } }
     }
     const k = 1 - Math.exp(-dt * (view.cam === 'run' ? 7 : 2.6));
     this.camPos.lerp(cp, k);
@@ -1133,6 +1142,8 @@ export class World {
     this.sky.position.copy(this.camera.position);
     this.ridges.position.set(this.camera.position.x, 0, this.camera.position.z);
     this.under.position.x = this.camera.position.x; this.under.position.z = this.camera.position.z;
+    if (!this._sideFill) this._sideFill = [1, -1].map((s) => { const m = new THREE.Mesh(new THREE.BoxGeometry(1.6, 24, 120), new THREE.MeshLambertMaterial({ color: '#6a6248' })); m.position.set(s * 42, 8, 0); m.frustumCulled = false; this.scene.add(m); return m; });
+    for (const m of this._sideFill) { m.position.z = this.camera.position.z - 16; m.material.color.copy(this.scene.fog.color); }
     this.stars.position.copy(this.camera.position);
     this.far.visible = this.farVis > 0.01;
     this.far.position.set(0, -70 * (1 - this.farVis), camZ - FAR_Z);
@@ -1206,6 +1217,7 @@ export class World {
       if (dpos) { view.char.danceRy = dpos.ry; view.char.danceHop = dpos.hop; } else view.char.danceRy = null;
       view.char.dancing = sim.mode === 'dance' || this.dance.state === 'dance';   // v5s30c: frakkera nascosta e corridore rimpicciolito nel ballo
       view.char.cart = sim.cart ? 1 : 0;
+      c3.railBed = this.env?.cur?.b?.ground?.rails && !sim.cart ? 0.07 : null;   // v5s43: piedi sul letto del binario
       // v5s20: nel cerchio del ballu tundu si balla col vestito della festa (niente maschera di su Stramaioni tra i ballerini)
       { const want = (sim.mode === 'dance' || this.dance.state === 'dance') ? (this.skinId === 'stramaioni' ? 'classico' : (this.skinId || 'base')) : (this.skinId || 'base');   // v5c: nel ballo vestito della festa (la mascotte o il portatore classico)
         if (want !== this.skinShown) { if (this.skinShown && this.skinId !== 'base') this.dustPuff(px, pz, 16); this.skinShown = want; c3.setSkin?.(want); } }

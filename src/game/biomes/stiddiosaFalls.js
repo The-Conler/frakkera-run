@@ -131,29 +131,27 @@ export function buildFalls(faceX, specs, seed = 7) {
     // percorso: cade quasi a piombo, torna verso la parete al massimo 0.45 m per m, e scivola sulle cenge che sporgono
     // in cima: acqua TUCKATA DENTRO la roccia (x maggiore) cosi' il bordo alto resta nascosto dallo sbalzo
     const step = s.kind === 'trickle' ? 1.3 : 1.0, rows = [], CREST = 3.8;
-    let x = Math.max(faceX(y0, z, half), lipX) + 1.15, free = 0, foam = 0;   // +1.15 = ben dentro la cengia
-    for (let y = y0, i = 0; y > 0.05; y -= step, i++) {
-      const f = faceX(y, z, half) - 0.25;
-      const crest = Math.max(0, 1 - (y0 - y) / CREST);   // 1 in cima -> 0 dopo CREST m
-      const tuck = crest * 1.35;                          // ancora dentro la roccia vicino alla cresta
-      const out = (i >= 4 && crest < 0.12) ? -0.14 * Math.min(3, i - 3) : 0;   // sporge solo dopo essere uscita dallo sbalzo
-      // v5s42: l'acqua resta attaccata alla parete (al massimo 0.5 m davanti alla roccia): prima lo scarto 'out' si sommava
-      // fila dopo fila e i fili d'acqua si staccavano, sospesi verso la via
-      let nx = Math.max(Math.min(x + 0.45 * step, f + tuck) + out, f - 0.5);
-      if (crest > 0.4) nx = Math.max(nx, faceX(y, z, half) + 0.55);   // primi metri: mai davanti alla faccia
-      const contact = f + tuck <= x + 0.45 * step + 1e-3;
+    // v5s43: il velo sta sulla roccia (non una carta davanti a felci e parete) e finisce nella pozza
+    let x = faceX(y0, z, half) + 0.45, free = 0, foam = 0;
+    for (let y = y0, i = 0; y > 0.12; y -= step, i++) {
+      const face = faceX(y, z, half);
+      const crest = Math.max(0, 1 - (y0 - y) / CREST);
+      let nx = face + (crest > 0.35 ? 0.7 : 0.15);
+      if (nx < FALL_MIN_X) nx = FALL_MIN_X;
+      const contact = nx >= face - 0.05;
       if (contact && free > 1.4) foam = 1; free = contact ? 0 : free + step;
-      if (nx < FALL_MIN_X) nx = FALL_MIN_X;   // v5s42: mai sopra la via/marciapiede (prima 5.7 m sotto i 3 m: la cascata copriva la corsia)
       rows.push({ x: nx, y, foam, contact, crest }); foam *= 0.55; x = nx;
     }
-    rows.push({ x: Math.max(x, FALL_MIN_X), y: 0.02, foam: 1, contact: true, crest: 0 });
+    const poolX = Math.max(faceX(0.2, z, half) + 0.2, FALL_MIN_X);
+    rows.push({ x: poolX, y: 0.05, foam: 1, contact: true, crest: 0 });
     for (let k = 0; k < 2; k++) for (let i = 1; i < rows.length - 1; i++) {
       if (rows[i].crest > 0.4) continue;   // non smussare la cresta tuckata
       rows[i].x = Math.min(rows[i].x, (rows[i - 1].x + 2 * rows[i].x + rows[i + 1].x) / 4 + 0.3);
     }
     const len = (y0 - 0.02);
     for (const L of K.layers) {
-      const wl = s.w * (L === 2 ? 1.9 : L === 1 ? 0.75 : 1.0), dx = L === 2 ? 0.14 : L === 1 ? -0.1 : 0, zo = L === 1 ? r.range(-0.15, 0.15) * s.w : 0;
+      if (L === 2) continue;   // v5s43: niente lastra di roccia bagnata sopra felci e parete
+      const wl = s.w * (L === 1 ? 0.55 : 0.85), dx = L === 1 ? -0.05 : 0.05, zo = L === 1 ? r.range(-0.08, 0.08) * s.w : 0;
       let v = 0;
       for (let i = 0; i < rows.length - 1; i++) {
         const A = rows[i], B = rows[i + 1];
@@ -176,14 +174,8 @@ export function buildFalls(faceX, specs, seed = 7) {
     }
     // ripiano di sorgente sotto lo sbalzo: schiuma + velo che mascherano l'attacco (niente bordo piatto leggibile)
     if (s.kind !== 'trickle') {
-      const sx = rows[0].x, sy = y0 - 0.12, sw = s.w * 0.7 + 0.5, sd0 = r.range(0, 50);
-      quadF([[sx - 0.2, sy, z - sw], [sx + 0.9, sy, z - sw], [sx + 0.9, sy, z + sw], [sx - 0.2, sy, z + sw]], [1, sd0, 0.85, 0]);
-      // velo corto appena sotto il labbro (dissolve nella cascata)
-      const hh = 1.1 + 0.5 * (s.kind === 'main' ? 1 : 0.6);
-      quadW([sx + 0.2, sy, z - sw * 0.7, 0, 0, 0, 0.6, 0.55, s.w],
-            [sx + 0.2, sy, z + sw * 0.7, 1, 0, 0, 0.6, 0.55, s.w],
-            [sx - 0.15, sy - hh, z + sw * 0.55, 1, hh, 0, 0.2, 0.9, s.w],
-            [sx - 0.15, sy - hh, z - sw * 0.55, 0, hh, 0, 0.2, 0.9, s.w]);
+      const sx = rows[0].x, sy = y0 - 0.08, sw = s.w * 0.35 + 0.25, sd0 = r.range(0, 50);
+      quadF([[sx, sy, z - sw], [sx + 0.35, sy, z - sw], [sx + 0.35, sy, z + sw], [sx, sy, z + sw]], [1, sd0, 0.45, 0]);
     }
     // al piede
     const bx = rows[rows.length - 1].x, big = s.kind === 'main' ? 1 : s.kind === 'mid' ? 0.6 : 0.25, sd = r.range(0, 50);
@@ -191,20 +183,11 @@ export function buildFalls(faceX, specs, seed = 7) {
       const hx = Math.max(0.5, Math.min(2.2 * big, (bx + 1.4 - 5.6) / 2)), hz = s.w * 1.3 + 0.8;   // pozza: non entra nella via (x >= 5.6)
       const cx = bx + 1.4 - hx;
       quadF([[cx - hx, 0.05, z - hz], [cx + hx, 0.05, z - hz], [cx + hx, 0.05, z + hz], [cx - hx, 0.05, z + hz]], [2, sd, 1, 0]);
-      const fz = s.w * 0.9 + 0.4, fx = Math.min(hx, 1.2 * big + 0.4);
-      const fl = Math.max(5.6, bx - fx * 0.3);
-      quadF([[fl, 0.09, z - fz], [bx + fx, 0.09, z - fz], [bx + fx, 0.09, z + fz], [fl, 0.09, z + fz]], [1, sd, 0.95, 0]);
-      for (const ry of [-0.55, 0.55]) {   // foschia: due carte incrociate al piede
-        const mw = 2.2 + 2.6 * big, mh = 1.6 + 2.6 * big, c = Math.cos(ry), sn = Math.sin(ry), mx = Math.max(bx - 0.6, 5.6 + Math.abs(sn) * mw / 2);
-        quadF([[mx - sn * mw / 2, 0, z - c * mw / 2], [mx + sn * mw / 2, 0, z + c * mw / 2], [mx + sn * mw / 2, mh, z + c * mw / 2], [mx - sn * mw / 2, mh, z - c * mw / 2]], [0, sd + ry, 0.55 * (0.5 + big * 0.5), 0]);
-      }
+      const fz = s.w * 0.55, fx = Math.min(hx, 0.8);
+      quadF([[bx - 0.2, 0.06, z - fz], [bx + fx, 0.06, z - fz], [bx + fx, 0.06, z + fz], [bx - 0.2, 0.06, z + fz]], [1, sd, 0.55, 0]);
       bases.push({ x: bx, z, big });
     }
-    // foschia leggera dove l'acqua colpisce una cengia (solo le cascate grandi)
-    if (s.kind !== 'trickle') for (const R of rows) if (R.foam > 0.99 && R.y > 3) {
-      const mw = 1.4 + 1.2 * big, mh = 1.2 + big;
-      quadF([[R.x - 0.4, R.y - mh * 0.45, z - mw / 2], [R.x - 0.4, R.y - mh * 0.45, z + mw / 2], [R.x - 0.4, R.y + mh * 0.55, z + mw / 2], [R.x - 0.4, R.y + mh * 0.55, z - mw / 2]], [0, sd + R.y, 0.4, 0]);
-    }
+    // v5s43: niente carte di foschia in piedi sulla parete (l'acqua finisce nella pozza)
   }
   const geo = (P, U, I) => { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('aUV', new THREE.Float32BufferAttribute(U, 2)); g.setAttribute('aInfo', new THREE.Float32BufferAttribute(I, 4)); g.computeBoundingSphere(); return g; };
   return { water: geo(WP, WU, WI), fx: geo(FP, FU, FI), bases };
