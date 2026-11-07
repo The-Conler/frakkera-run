@@ -356,7 +356,7 @@ export function buildChurchSquare(seed = 1) {
 // chiesa con la facciata a capanna verso +z, a SINISTRA (a destra la coprirebbe la fiamma). world3d lo tiene davanti alla camera.
 // v5s23b: oggetto FISSO nel mondo, a sinistra della strada, facciate rivolte verso la via (non la attraversa): campanile a sinistra, chiesa a destra
 // v5s27: chiesa col campanile all'INIZIO del paese (vuoto a sinistra in config.js, gaps.left [22,68])
-export const VISTA = { S: 1.05, AT_M: 40, EDGE: -6.9, RY: 0.42, CS: 0.9, X: 0, FZ: 7, FX: -15.2, FY: -0.42 };   // v5s43: facciata piu' grande e rivolta a chi arriva, tenuta a sinistra del campanile (non entra in strada)
+export const VISTA = { S: 1.05, AT_M: 40, EDGE: -6.9, RY: 0.42, CS: 0.5, X: 0 };   // v5s27b: piu' vicina alla via (campanile ~13 m, facciata ~8 m), piu' rivolta a chi arriva
 export function buildVista(seed = 1) {
   const r = rng(seed * 131 + 7);
   const kt = new Kit(seed + 501);
@@ -365,15 +365,6 @@ export function buildVista(seed = 1) {
   const mT = new THREE.Matrix4().makeScale(VISTA.S, VISTA.S, VISTA.S);
   for (const g of kt.lit) { g.applyMatrix4(mT); k.lit.push(g); }
   for (const g of kt.unlit || []) { g.applyMatrix4(mT); k.unlit.push(g); }
-  // il campanile, non la chiesa, decide quanto la vista si sposta verso la via
-  const towerMaxX = (() => {
-    const g = new Kit(9);
-    g.lit = k.lit.map((e) => e.clone());
-    g.unlit = (k.unlit || []).map((e) => e.clone());
-    const m = g.build({ ao: 0 });
-    m.rotateY(VISTA.RY); m.computeBoundingBox();
-    return m.boundingBox.max.x;
-  })();
   const kc = new Kit(seed + 503);
   buildChurch(kc, r);
   const gs = [...kc.lit];
@@ -382,28 +373,17 @@ export function buildVista(seed = 1) {
   for (const g of gs) { g.applyMatrix4(rot); g.computeBoundingBox(); bb.union(g.boundingBox); }
   // facciata (max z) poco dietro la faccia del campanile, lato sinistro attaccato al campanile
   const tw = TOWER.W * VISTA.S / 2;
-  const mv = new THREE.Matrix4().makeTranslation((tw - 0.3) / VISTA.CS - bb.min.x + (VISTA.FX || 0), 0, 1.5 - bb.max.z + (VISTA.FZ || 0));
+  const mv = new THREE.Matrix4().makeTranslation((tw - 0.3) / VISTA.CS - bb.min.x, 0, 1.5 - bb.max.z);
   const sc = new THREE.Matrix4().makeScale(VISTA.CS, VISTA.CS, VISTA.CS);
-  for (const g of gs) { g.applyMatrix4(mv); g.applyMatrix4(sc); }
-  for (const g of kc.unlit || []) { g.applyMatrix4(rot); g.applyMatrix4(mv); g.applyMatrix4(sc); }
-  const fy = VISTA.FY || 0;
-  if (fy) {
-    const cb = new THREE.Box3();
-    for (const g of gs) { g.computeBoundingBox(); cb.union(g.boundingBox); }
-    const cx = (cb.min.x + cb.max.x) / 2, cz = (cb.min.z + cb.max.z) / 2;
-    const face = new THREE.Matrix4().makeTranslation(cx, 0, cz).multiply(new THREE.Matrix4().makeRotationY(fy)).multiply(new THREE.Matrix4().makeTranslation(-cx, 0, -cz));
-    for (const g of gs) g.applyMatrix4(face);
-    for (const g of kc.unlit || []) g.applyMatrix4(face);
-  }
-  for (const g of gs) k.lit.push(g);
-  for (const g of kc.unlit || []) k.unlit.push(g);
+  for (const g of gs) { g.applyMatrix4(mv); g.applyMatrix4(sc); k.lit.push(g); }
+  for (const g of kc.unlit || []) { g.applyMatrix4(rot); g.applyMatrix4(mv); g.applyMatrix4(sc); k.unlit.push(g); }
   // basamento e case basse ai piedi (chiude il fondo della via)
-  k.add(G.box(7, 0.4, 9), '#9a8e80', { x: -1.2, y: 0.2, z: -4 });   // v5s43: il basamento non sporge oltre il campanile verso la via
+  k.add(G.box(7, 0.4, 9), '#9a8e80', { x: 2, y: 0.2, z: -4 });   // v5s27: basamento piu' raccolto (la chiesa sta piu' vicina alla via)
   const out = k.build({ ao: 0.2 });
   // ruotato di sbieco (facciate verso chi arriva e verso la via): campanile a sinistra, chiesa a destra, a lato della strada
   out.rotateY(VISTA.RY); out.computeBoundingBox();
   const bx = out.boundingBox.max.x, z0 = out.boundingBox.min.z, z1 = out.boundingBox.max.z;
-  VISTA.X = VISTA.EDGE - towerMaxX;
+  VISTA.X = VISTA.EDGE - bx;
   // v5s27: la piazzetta intorno alla chiesa col campanile non e' piu' vuota: lastricato, panchine, fontanella, alberi
   const kp = new Kit(seed + 504), rp = rng(seed * 17 + 3);
   for (let z = z1 + 6; z > z0 - 6; z -= 1.6) for (let x = bx - 0.2; x > bx - 14; x -= 1.6) {
