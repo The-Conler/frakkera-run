@@ -65,7 +65,7 @@ export class Character3D {
     this.spring = { a: 0, v: 0, p: 0, pv: 0 };
     this.frame = 0; this.phase = 0; this.leanSig = 0;
     this.rec = { lean: 0, stumble: 0, over: 0, idle: 0, run: 0, states: ['idle'], stumbles: 0 };
-    this.tipW = new THREE.Vector3(0, 5, 0); this.muzzleW = new THREE.Vector3(0, 2, 0);
+    this.tipW = new THREE.Vector3(0, 5, 0); this.tipAxisW = new THREE.Vector3(0, 1, 0); this.muzzleW = new THREE.Vector3(0, 2, 0);
     this.stats = { triangles: 0, meshes: 0, bones: 0, clips: [] };
     this.pistol = null;
     if (opts.pistolGeo) {
@@ -430,6 +430,8 @@ export class Character3D {
     this.gunK += ((this.isMascot && st.armed && this.state === 'run' ? 1 : 0) - (this.gunK || 0)) * Math.min(1, dt * 6);
     if (this.isMascot) { this.mascotGround(this.phase); this.mascotIK(this.phase); this.root.updateMatrixWorld(true); }
     this.bones.tip.getWorldPosition(this.tipW);
+    // v5s42b: asse della frakkera in coordinate mondo (per incollare e inclinare la fiamma sulla punta)
+    if (this.tipRest && this.bones.tip.parent) this.tipAxisW.copy(this.tipRest.ax).transformDirection(this.bones.tip.parent.matrixWorld); else this.tipAxisW.set(0, 1, 0);
     // pistola nella mano destra (orientata sempre in avanti)
     if (this.pistol) {
       const on = !!st.armed && this.state === 'run';
@@ -509,6 +511,7 @@ export class Character3D {
   // impulso alla molla (urti)
   kick(a, p) { this.spring.v += a; this.spring.pv += p; }
   tipWorld(out) { return out.copy(this.tipW); }
+  tipAxis(out) { return out.copy(this.tipAxisW); }
   muzzleWorld(out) { return out.copy(this.muzzleW); }
   resetRec() { this.rec = { lean: 0, stumble: 0, over: 0, idle: 0, run: 0, states: [this.state], stumbles: 0 }; }
   debug() {

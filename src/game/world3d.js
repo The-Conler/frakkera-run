@@ -1211,7 +1211,7 @@ export class World {
         if (want !== this.skinShown) { if (this.skinShown && this.skinId !== 'base') this.dustPuff(px, pz, 16); this.skinShown = want; c3.setSkin?.(want); } }
       c3.update(dt, view.char, dpos ? dpos.x : px, dpos ? dpos.z : pz);
       this.updateRideCart(sim, dt, px, pz, view);
-      c3.tipWorld(this.tipW);
+      c3.tipWorld(this.tipW); c3.tipAxis?.(this.tipAxW || (this.tipAxW = new THREE.Vector3()));
       if (view.char.armed) c3.muzzleWorld(this.muzzleW);
       else this.muzzleW.set(px - 0.5, 2.0, pz - 0.8);
       this.charShadow.position.set(dpos ? dpos.x : px, 0.03, (dpos ? dpos.z : pz) - 0.2);
@@ -1229,7 +1229,7 @@ export class World {
     const lit = (view.char.flameOn && !(use3d && view.char.dancing)) || burnLit;   // v5s30c: senza frakkera niente fiamma nel ballo
     const flick = Math.sin(this.clock * 17) * 0.06 + Math.sin(this.clock * 29) * 0.05;
     this.fireKick = Math.max(0, (this.fireKick || 0) - dt * 1.6);
-    this.flame3d.update(dt, this.camera, this.tipW, Math.min(1.6, fuelF + this.fireKick * 0.6), use3d && lit, view.char.fuelLow, -(view.char.vx || 0) * 0.5);
+    this.flame3d.update(dt, this.camera, this.tipW, Math.min(1.6, fuelF + this.fireKick * 0.6), use3d && lit, view.char.fuelLow, -(view.char.vx || 0) * 0.5, use3d ? this.tipAxW : null);
     this.flame3d.group.scale.setScalar((use3d && this.char3d.flameScale || 1) * FLAME_FIT);   // v5s42: piu' piccola, base sulla punta | v5s29b: fiamma in proporzione alla frakkera della mascotte
     this.flameLight.position.copy(this.tipW); if (use3d) this.flameLight.position.y += 0.9;
     const L = this.light, dark = L.darkByFuel * (1 - fuelF);

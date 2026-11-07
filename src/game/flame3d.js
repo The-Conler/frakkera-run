@@ -5,6 +5,7 @@
 // =====================================================================
 import * as THREE from 'three';
 
+const _u = new THREE.Vector3(), _x = new THREE.Vector3(), _z = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0), _m = new THREE.Matrix4();
 const VS = `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
 const FS = `
 uniform float uTime; uniform float uSeed; uniform float uI; uniform float uLean; uniform float uNormal;
@@ -60,13 +61,21 @@ export class Flame3D {
     this.t = 0; this.fade = 0;
   }
   // pos: base della fiamma (punta della frakkera); size 0..1 (carburante); on: accesa
-  update(dt, camera, pos, size, on, flickerLow, lean) {
+  update(dt, camera, pos, size, on, flickerLow, lean, axis) {
     this.fade += ((on ? 1 : 0) - this.fade) * Math.min(1, dt * (on ? 6 : 2.2));
     this.group.visible = this.fade > 0.02;
     if (!this.group.visible) return;
     this.t += dt;
     this.group.position.copy(pos);
-    this.group.quaternion.copy(camera.quaternion);
+    if (axis) {
+      // v5s42b: base incollata alla punta, la fiamma segue in parte l'inclinazione della frakkera ma brucia verso l'alto;
+      // billboard cilindrico attorno al proprio asse (la base non scivola via quando la camera guarda dall'alto)
+      _u.copy(axis); if (_u.y < 0) _u.negate(); _u.multiplyScalar(0.5).add(_up).normalize();
+      _z.copy(camera.position).sub(pos); _z.addScaledVector(_u, -_z.dot(_u));
+      if (_z.lengthSq() < 1e-6) _z.set(0, 0, 1); _z.normalize();
+      _x.crossVectors(_u, _z).normalize(); _z.crossVectors(_x, _u);
+      _m.makeBasis(_x, _u, _z); this.group.quaternion.setFromRotationMatrix(_m);
+    } else this.group.quaternion.copy(camera.quaternion);
     const s = (0.6 + 0.55 * size) * (0.75 + 0.25 * this.fade);
     const fl = flickerLow ? (Math.sin(this.t * 23) > -0.3 ? 1 : 0.55) : 1;
     for (const { m, mat, L } of this.layers) {
