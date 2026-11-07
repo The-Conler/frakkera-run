@@ -156,7 +156,7 @@ export function parapetPiece(W0, len, o = {}) {
     if (r.chance(0.35)) grassTuft(k, r, 1.3, 0, z, 1);
   }
   if (o.drop) { // scarpata che scende verso la valle
-    const g = gridSurface(Math.max(2, Math.ceil(len / 2)), 4, (u, v) => { const W = W0 + u * len; return [0.3 - v * 9, -v * v * (o.drop) + fbm(W / 7, v * 3, 2, 2) * 1.2 * v, -u * len]; },
+    const g = gridSurface(Math.max(2, Math.ceil(len / 1.15)), 16, (u, v) => { const W = W0 + u * len; return [0.3 - v * 9, -v * v * (o.drop) + fbm(W / 7, v * 3, 2, 2) * 1.2 * v, -u * len]; },
       (x, y, z) => pickN(o.dropCol || ['#6b7a3e', '#7a8a4a', '#8a7a5a', '#5f6e36'], noise3((W0 - z) / 4, x / 3, 1) * 0.5 + 0.5));
     addColored(k, g);
   }
@@ -251,7 +251,7 @@ export function riverDropPiece(W0, len, o = {}) {
   const k = new Kit(Math.floor(W0) + 31);
   const depth = o.depth ?? 4;
   dryWall(k, r, 0.75, 0, len, 0.9, ROCK.granite, 0.75);
-  const g = gridSurface(Math.max(2, Math.ceil(len / 1.5)), 6, (u, v) => { const W = W0 + u * len; return [0.3 - v * 7, -Math.pow(v, 0.8) * (depth + 0.6) + noise3(W / 3, v * 4, 3) * 0.5 * v, -u * len]; },
+  const g = gridSurface(Math.max(2, Math.ceil(len / 1.15)), 14, (u, v) => { const W = W0 + u * len; return [0.3 - v * 7, -Math.pow(v, 0.8) * (depth + 0.6) + noise3(W / 3, v * 4, 3) * 0.5 * v, -u * len]; },
     (x, y, z) => pickN(['#8f877a', '#a39a8a', '#7a7468', '#6b7a3e', '#b2a893'], noise3((W0 - z) / 2.5, x / 2, 6) * 0.5 + 0.5));
   addColored(k, g);
   for (let z = -r() * 2; z > -len; z -= r.range(1.2, 2.6)) addRock(k, r, r.range(-8, -3), -depth + r.range(-0.2, 0.8), z, r.range(0.6, 1.8), ROCK.granite, { squash: 0.6 });
@@ -279,7 +279,17 @@ export function valleyTerrain(W0, len, o = {}) {
     return y;
   };
   const xs = []; for (let i = 0; i <= 34; i++) xs.push(x0 + Math.pow(i / 34, 1.6) * (X1 - x0));
-  const nv = Math.ceil(len / 6);
+  // v5s43: solo la linea dove il terreno incontra l'acqua e' piu' fitta (il resto del versante resta rado)
+  if (o.rise) {
+    const waterY = o.rise[2], mid = (o.rise[0] + o.rise[1]) * 0.5, extra = [];
+    for (let i = 0; i < xs.length - 1; i++) {
+      const yA = prof(xs[i], mid), yB = prof(xs[i + 1], mid);
+      if ((yA - waterY) * (yB - waterY) > 0 && Math.abs(yA - waterY) > 2.2 && Math.abs(yB - waterY) > 2.2) continue;
+      for (let k = 1; k < 7; k++) extra.push(xs[i] + (xs[i + 1] - xs[i]) * k / 7);
+    }
+    xs.push(...extra); xs.sort((a, b) => a - b);
+  }
+  const nv = Math.ceil(len / (o.rise ? 1.15 : 1.5));
   const g = gridSurface(xs.length - 1, nv, (u, v) => { const x = xs[Math.round(u * (xs.length - 1))], W = W0 + v * len; return [s * x, prof(x, W), -W]; },
     (x, y, z) => {
       const W = -z, n = fbm(W / 18, x / 14, sd + 5, 2) * 0.5 + 0.5;
@@ -430,7 +440,7 @@ export function stiddiosaBankPiece(W0, len, o = {}) {
   dryWall(k, r, 0.95, 0, len, 0.62, ['#8a8478', '#9a9486', '#7a766a', '#a8a292', '#878f74'], 0.6);
   for (let z = -r() * 3; z > -len; z -= r.range(2.5, 5)) k.add(G.box(0.7, 0.08, r.range(0.4, 0.9)), r.pick(['#5f7a30', '#6f8a3a', '#4f6a2a']), { x: 0.95, y: 0.72, z, vary: 0.2 });   // muschio sul colmo
   // sponda: dal piede del muretto giu' nell'acqua
-  addColored(k, gridSurface(Math.max(2, Math.ceil(len / 1.5)), 3, (u, v) => { const W = W0 + u * len; return [0.66 - v * 1.4 + noise3(W / 2.3, v * 3, 5) * 0.25 * v, 0.02 - v * 1.5, -u * len]; },
+  addColored(k, gridSurface(Math.max(2, Math.ceil(len / 1.15)), 12, (u, v) => { const W = W0 + u * len; return [0.66 - v * 1.4 + noise3(W / 2.3, v * 3, 5) * 0.25 * v, 0.02 - v * 1.5, -u * len]; },
     (x, y, z) => pickN(['#6e6a5c', '#7c776a', '#5f6a3e', '#8a857a'], noise3((W0 - z) / 1.7, y * 2, 3) * 0.5 + 0.5)));
   // letto del fiume (si vede sotto l'acqua bassa vicino alla riva)
   addColored(k, gridSurface(Math.max(2, Math.ceil(len / 3)), 6, (u, v) => { const W = W0 + u * len; return [-0.6 + v * (CL + 0.6), -1.3 - Math.pow(v, 0.6) * 1.6 + noise3(W / 4, v * 5, 9) * 0.15, -u * len]; },
@@ -443,7 +453,7 @@ export function stiddiosaBankPiece(W0, len, o = {}) {
   // grande albero sulla riva vicina (ogni tanto), radici sul masso
   if (o.bigTree ?? r.chance(0.34)) { const z = -r.range(1, len - 1); addRock(k, r, -1.6, -0.6, z, 1.3, rc, { squash: 0.6, rough: 0.2, detail: 1 }); tree(k, r, -1.7, 0.1, z, r.range(2.2, 2.7), LEAF.fresh); }
   // riva lontana: bassa, boscosa (alberi tondi), qualche masso
-  addColored(k, gridSurface(Math.max(2, Math.ceil(len / 2)), 4, (u, v) => { const W = W0 + u * len; return [CL - v * 8 - (v > 0.7 ? 6 : 0), -1.5 + v * (3.2 + 2.5 * (fbm(W / 30, 3, 1, 2) + 0.5)), -u * len]; },
+  addColored(k, gridSurface(Math.max(2, Math.ceil(len / 1.2)), 14, (u, v) => { const W = W0 + u * len; return [CL - v * 8 - (v > 0.7 ? 6 : 0), -1.5 + v * (3.2 + 2.5 * (fbm(W / 30, 3, 1, 2) + 0.5)), -u * len]; },
     (x, y, z) => pickN(['#4f6a2a', '#5f7a30', '#6a7a3a', '#7a7a5a', '#8a8470'], noise3((W0 - z) / 3, y / 2, 4) * 0.5 + 0.5)));
   for (let z = -r() * 4; z > -len; z -= r.range(5, 8)) { const W = W0 - z; lowTree(k, r, CL - r.range(5, 12), 1.7 + 2.5 * (fbm(W / 30, 3, 1, 2) + 0.5), z, r.range(1.4, 2.1), LEAF.fresh); }
   return k.build({ ao: 0.15 });

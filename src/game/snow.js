@@ -44,6 +44,7 @@ export function addSnow(m, o = {}) {
         vec2 sq = floor(vSnW.xz * 1.7);
         float sn = fract(sin(dot(sq, vec2(12.9898, 78.233))) * 43758.5453) * 0.6 + fract(sin(dot(floor(vSnW.xz * 0.35), vec2(39.3, 11.1))) * 9631.7) * 0.4;
         float up = smoothstep(0.3, 0.75, vSnUp);
+        ${o.road ? 'sn = mix(sn, 0.08, 0.82);' : ''}
         float s = smoothstep(sn - 0.12, sn + 0.12, uSnow * 1.15) * up * ${cap};
         ${o.road ? `float ax = abs(vSnW.x);
         float lane = min(abs(ax - 3.4), ax);
@@ -51,11 +52,12 @@ export function addSnow(m, o = {}) {
         float edge = smoothstep(3.8, 5.4, ax);
         s *= mix(0.78, 1.0, edge) * (1.0 - track * 0.55 * (1.0 - edge));` : ''}
         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.9, 0.93, 0.98), s);
+        ${o.fade ? 'diffuseColor.a = mix(diffuseColor.a, 0.0, s);' : ''}
       }
       #include <emissivemap_fragment>`);
   };
   const key = m.customProgramCacheKey && m.customProgramCacheKey !== THREE.Material.prototype.customProgramCacheKey ? m.customProgramCacheKey.bind(m) : null;
-  m.customProgramCacheKey = () => (key ? key() : '') + 'snow' + (o.road ? 'r' : '') + cap;
+  m.customProgramCacheKey = () => (key ? key() : '') + 'snow' + (o.road ? 'r' : '') + (o.fade ? 'f' : '') + cap;
   return m;
 }
 

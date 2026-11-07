@@ -3,7 +3,7 @@ import asyncio, sys, os, json
 from playwright.async_api import async_playwright
 URL = os.environ.get('URL', 'http://127.0.0.1:4820/')
 TAG = sys.argv[1] if len(sys.argv) > 1 else 'before'
-LAPS = int(os.environ.get('LAPS', '5')); SEED = int(os.environ.get('SEED', '1')); TURBO = float(os.environ.get('TURBO', '0.06'))
+LAPS = int(os.environ.get('LAPS', '5')); SEED = int(os.environ.get('SEED', '1')); START = int(os.environ.get('START', '0')); TURBO = float(os.environ.get('TURBO', '0.06'))
 SCAN = open('tests/scan_s40.js').read()
 KEEP = """(()=>{ if (window.__keep) return; const g=window.__frk.game; window.__keep = setInterval(()=>{ const s=g.sim; s.fuel=100; s.invuln=1;
   if(s.mode==='dance'&&s.skipDance) s.skipDance(); if(s.mode==='shop'&&s.exitShop) s.exitShop(); if(s.mode==='run') g.accum += %s; }, 40); })()""" % TURBO
@@ -15,16 +15,18 @@ async def main():
     ctx = await b.new_context(viewport={'width':390,'height':844}, device_scale_factor=1, has_touch=True, is_mobile=True)
     pg = await ctx.new_page()
     await pg.add_init_script(f"(()=>{{const o=crypto.getRandomValues.bind(crypto); crypto.getRandomValues=(a)=>{{ if(a instanceof Uint32Array&&a.length===1&&!window.__sd){{window.__sd=1;a[0]={SEED};return a;}} return o(a);}};}})()")
-    await pg.goto(f'{URL}?test=1')
+    await pg.goto(f'{URL}?test=1&lap={START}')
     await pg.wait_for_function('window.__frk && document.querySelector("#loading").classList.contains("hidden")', timeout=180000)
     await asyncio.sleep(1.0); await pg.click('[data-act=play]'); await pg.evaluate(KEEP)
     last = None
     while True:
       await pg.evaluate(SCAN); st = await pg.evaluate(ST)
       if st[0] != last: print('lap', st, flush=True); last = st[0]
+      n = locals().get('n', 0) + 1
+      if n % 15 == 0: json.dump(await pg.evaluate(DUMP), open(f'/tmp/scan41-{TAG}-s{SEED}-L{START}.json','w'))   # checkpoint
       if st[0] >= LAPS or st[3] in ('over',): break
       await asyncio.sleep(1.2)
     r = await pg.evaluate(DUMP); await b.close()
-  json.dump(r, open(f'/tmp/scan41-{TAG}-s{SEED}.json','w'), indent=1)
+  json.dump(r, open(f'/tmp/scan41-{TAG}-s{SEED}-L{START}.json','w'), indent=1)
   print('seed', SEED, 'house', len(r['house']), 'mark', len(r['mark']), 'logs', len(r['logs']), 'animals', len(r['animals']))
 asyncio.run(main())
