@@ -1101,8 +1101,8 @@ export class World {
       // v5s27: come alla piscina (camYaw), mentre la chiesa col campanile entra in vista la camera si sposta a destra e guarda un po' verso la chiesa (a sinistra)
       const va = this.vistaAhead ?? 999, vk = va < -6 || va > 140 ? 0 : Math.min(1, (140 - va) / 40, (va + 6) / 14);
       this.vistaCamK = (this.vistaCamK || 0) + (vk - (this.vistaCamK || 0)) * Math.min(1, dt * 2);
-      // v5s27: idem per la cappella tonda (a sinistra, poco prima di Santa Marta): la camera la cerca da ~200 m
-      const ec = this.env.cur, cl0 = ec.b.id === 'village' ? ec.local : -1, chk = cl0 < 186 || cl0 > 228 ? 0 : Math.min(1, (cl0 - 186) / 10, (228 - cl0) / 6);
+      // v5s44e: sguardo a sinistra da ~170 m (monumento + cappella), fino a 228
+      const ec = this.env.cur, cl0 = ec.b.id === 'village' ? ec.local : -1, chk = cl0 < 170 || cl0 > 228 ? 0 : Math.min(1, (cl0 - 170) / 12, (228 - cl0) / 6);
       this.chapelCamK = (this.chapelCamK || 0) + (chk - (this.chapelCamK || 0)) * Math.min(1, dt * 2);
       // v5s27j: la torre di roccia (a sinistra, sentiero della roccia): leggero sguardo in alto perche' si veda la cima spaccata
       // v5s29 (QA H2): solo al primo giro, e meno marcato: il corridore resta a ~75% dello schermo, mai dietro SPARA

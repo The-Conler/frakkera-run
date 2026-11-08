@@ -15,7 +15,7 @@ for (let i = 0; i < p.count; i++) {
   }
 }
 assert.ok(bronze > 30, `gruppo bronzeo presente (${bronze} vertici)`);
-assert.ok(statueTop >= 6.0 && statueTop <= 7.3, `cima della statua ${statueTop.toFixed(2)} (atteso ~6-7 m)`);
+assert.ok(statueTop >= 6.6 && statueTop <= 7.6, `cima della statua ${statueTop.toFixed(2)} (atteso ~7 m)`);
 assert.ok(p.count < 14000, `geometria leggera (${p.count} vertici)`);
 
 const HALF = 5.5;
@@ -25,7 +25,7 @@ let bad = 0, leftHi = 0;
 for (let i = 0; i < vp.count; i++) {
   const x = vp.getX(i), y = vp.getY(i), z = vp.getZ(i);
   if (Math.abs(x) < HALF && y > 0.2) bad++;
-  if (x < -6.5 && y > 5.8 && z < -16 && z > -26) leftHi++;
+  if (x < -6.0 && y > 5.8 && z < -14 && z > -28) leftHi++;
 }
 assert.strictEqual(bad, 0, 'vicolo+caduti: niente sopra le corsie');
 assert.ok(leftHi > 10, `statua a sinistra nel vicolo vicino a z=-21 (${leftHi} vertici alti)`);

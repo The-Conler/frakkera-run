@@ -864,7 +864,7 @@ export class Env {
       }
     } else if (id === 'vicolo') {
       cached('vicolo', () => buildVicolo(32));
-      // v5s44d: impronta del Monumento ai Caduti (lato sinistro, z locale -21 → W+21)
+      // v5s44e: impronta del Monumento ai Caduti (lato sinistro, z locale -21 → W+21, ora di sbieco)
       feet.push(this.addHouseFoot(-1, W + 17.5, 9, 1.6));
     } else if (id === 'cappella') {
       // specchiata: la cappella a SINISTRA della via (a destra la coprirebbe la fiamma), case bianche a destra

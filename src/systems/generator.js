@@ -398,9 +398,10 @@ export class Generator {
     if (vb.b.id !== VL.BIOME || vb.lap === this.procLap) return;
     if (vb.local < VL.PROC_FROM_M || vb.local >= VL.PROC_TO_M) return;
     if (this.nearDance(D, 80, 40)) return;
-    const pl = [0, 1, 2].filter((l) => l !== this.path && l !== this.prevPath && l !== this.lastPath && !(this.carpetRows > 0 && this.carpetLane === l) && this.blockedUntil[l] < r - 2);
-    if (!pl.length || !this.paceOk('lane', D + 24, pl[0])) return;
-    const vr = this.vrng, lane = pl[vr.int(0, pl.length - 1)];
+    // v5s44e: sempre sulla corsia destra — non e' un ostacolo solido, e a sinistra coprirebbe il monumento
+    const lane = 2;
+    if (!this.paceOk('lane', D + 24, lane)) return;
+    const vr = this.vrng;
     this.procLap = vb.lap; this.procs++;
     const rows = Math.ceil((VL.PROC_LEN + 24) / WORLD.ROW) + 1;
     this.blockedUntil[lane] = Math.max(this.blockedUntil[lane], r + rows);

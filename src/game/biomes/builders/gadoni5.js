@@ -53,7 +53,7 @@ export function buildVicolo(len = 26) {
   for (let z0 = 0; z0 > -len; z0 -= 3.25) {
     const c = r.pick(['#b9a183', '#c4ab88', '#ad9677', '#c9b394']);
     const zc = z0 - 1.6, rec = zc > -26 && zc < -3 ? 4 : 0;          // slargo davanti al portone verde
-    if (zc < -17) continue;                                           // v5s44d: spazio per il monumento; v5s27: la cappella tonda si vede da lontano
+    if (zc < -10) continue;                                           // v5s44e: slargo prima del monumento, si vede da lontano; v5s27: la cappella tonda si vede da lontano
     k.add(G.box(6, 9.5 + r.range(-0.4, 0.4), 3.3), c, { x: L * (E + 3 + rec), y: 4.75, z: zc, vary: 0.12 });
   }
   // v5s27: in fondo solo un muretto basso con un orto (al posto delle case alte che coprivano la cappella)
@@ -85,8 +85,8 @@ export function buildVicolo(len = 26) {
   }
   for (const [za, zb] of [[0, -8], [-20, -len]]) { k.add(G.box(0.25, 0.7, za - zb), '#6d655a', { x: R * (E + 0.05), y: 0.35, z: (za + zb) / 2, vary: 0.2 }); k.add(G.box(0.35, 0.25, za - zb), '#8a7e6c', { x: R * (E + 0.05), y: 9.9, z: (za + zb) / 2 }); }
   const bz = -21;
-  // v5s44d: Monumento ai Caduti al posto della casa con porta azzurra (unica, non un prefab ripetuto)
-  caduti(k, rng(5401), -9.6, bz);
+  // v5s44e: monumento di sbieco verso chi arriva, piu' vicino al marciapiede (fuori dalle corsie)
+  caduti(k, rng(5401), -8.8, bz, -0.72);
   windowFace(k, R * E, 6.4, -6, -R, '#2f8cf0', true); windowFace(k, R * E, 3.6, -3, -R, '#6b5a44');
   // lampada a braccio sul muro destro
   k.add(G.box(0.9, 0.06, 0.06), '#2a2d31', { x: R * (E - 0.45), y: 6.2, z: -23 });
@@ -153,32 +153,44 @@ export function buildCappellaLeft() {
 }
 
 // =====================================================================
-// v5s44d: Monumento ai Caduti di Gadoni (basso-poligonale, un draw call via Kit).
+// v5s44e: Monumento ai Caduti di Gadoni (basso-poligonale, un draw call via Kit).
 // Piazzetta rialzata, muretto + ringhiera, basamento a due piani con lapidi,
 // roccia, gruppo bronzeo (soldato con elmetto che sorregge un compagno ferito),
 // due pennoni (tricolore e Quattro Mori), alberi dietro, rose davanti, cannone.
-// Altezza totale ~6.5 m. Tutto a x negativo (sinistra della via), |x| > 6.9.
+// Di sbieco verso chi arriva (come la vecchia casa), vicino al marciapiede, cima ~7 m.
+// Tutto a sinistra della via, fuori dalle corsie (|x| > 5.5).
 // =====================================================================
-function caduti(k, r, cx, cz) {
+function placedKit(k, cx, cz, yaw) {
+  const c = Math.cos(yaw), s = Math.sin(yaw);
+  return {
+    add(geo, col, o = {}) {
+      const lx = o.x || 0, lz = o.z || 0;
+      return k.add(geo, col, { ...o, x: cx + lx * c + lz * s, z: cz - lx * s + lz * c, ry: (o.ry || 0) + yaw });
+    }
+  };
+}
+function caduti(k, r, cx, cz, yaw = -0.72) {
+  k = placedKit(k, cx, cz, yaw);
+  cx = 0; cz = 0;
   const STONE = '#8c887e', PALE = '#c6c2b8', PALE2 = '#d2cec4';
   const IRON = '#1a1a1c';
   const COBB = ['#8a8680', '#7c7870', '#969288', '#6e6a64'];
-  // piazzetta rialzata lastricata (fuori dalle corsie: fronte a x ~= cx+2.3 ~ -7.3)
-  k.add(G.box(4.2, 0.2, 5.6), '#7a766c', { x: cx, y: 0.1, z: cz, vary: 0.12 });
+  // piazzetta rialzata lastricata (locale: +x verso la via; yaw la gira verso chi arriva)
+  k.add(G.box(4.0, 0.2, 4.4), '#7a766c', { x: cx, y: 0.1, z: cz, vary: 0.12 });
   for (let i = 0; i < 18; i++) {
     k.add(G.box(r.range(0.35, 0.6), 0.05, r.range(0.28, 0.5)), r.pick(COBB), {
-      x: cx + r.range(-1.8, 1.9), y: 0.22, z: cz + r.range(-2.5, 2.5), ry: r.range(-0.4, 0.4), vary: 0.15
+      x: cx + r.range(-1.7, 1.8), y: 0.22, z: cz + r.range(-1.9, 1.9), ry: r.range(-0.4, 0.4), vary: 0.15
     });
   }
   // muretto basso (~0.6 m) con ringhiera di ferro nera sul fronte e sui lati
-  const fx = cx + 2.28, half = 2.75, wh = 0.6;
-  k.add(G.box(0.32, wh, 5.55), STONE, { x: fx, y: 0.2 + wh / 2, z: cz, vary: 0.14 });
-  for (const s of [-1, 1]) k.add(G.box(3.6, wh, 0.32), STONE, { x: cx + 0.4, y: 0.2 + wh / 2, z: cz + s * half, vary: 0.14 });
-  k.add(G.box(0.05, 0.05, 5.5), IRON, { x: fx + 0.12, y: 1.12, z: cz });
-  for (let i = 0; i <= 12; i++) k.add(G.box(0.035, 0.5, 0.035), IRON, { x: fx + 0.12, y: 0.87, z: cz - 2.7 + i * 0.45 });
+  const fx = cx + 2.15, half = 2.15, wh = 0.6;
+  k.add(G.box(0.32, wh, 4.4), STONE, { x: fx, y: 0.2 + wh / 2, z: cz, vary: 0.14 });
+  for (const s of [-1, 1]) k.add(G.box(3.4, wh, 0.32), STONE, { x: cx + 0.4, y: 0.2 + wh / 2, z: cz + s * half, vary: 0.14 });
+  k.add(G.box(0.05, 0.05, 4.35), IRON, { x: fx + 0.12, y: 1.12, z: cz });
+  for (let i = 0; i <= 10; i++) k.add(G.box(0.035, 0.5, 0.035), IRON, { x: fx + 0.12, y: 0.87, z: cz - 2.1 + i * 0.42 });
   for (const s of [-1, 1]) {
-    k.add(G.box(3.5, 0.05, 0.05), IRON, { x: cx + 0.45, y: 1.12, z: cz + s * half });
-    for (let i = 0; i <= 6; i++) k.add(G.box(0.035, 0.5, 0.035), IRON, { x: cx - 1.2 + i * 0.55, y: 0.87, z: cz + s * half });
+    k.add(G.box(3.3, 0.05, 0.05), IRON, { x: cx + 0.45, y: 1.12, z: cz + s * half });
+    for (let i = 0; i <= 6; i++) k.add(G.box(0.035, 0.5, 0.035), IRON, { x: cx - 1.15 + i * 0.52, y: 0.87, z: cz + s * half });
   }
   // basamento a due piani, pietra chiara
   k.add(G.box(1.75, 0.52, 2.2), PALE, { x: cx + 0.15, y: 0.48, z: cz, vary: 0.06 });
@@ -207,33 +219,32 @@ function caduti(k, r, cx, cz) {
     [0, 0.5, 0, 0.82], [0.38, 0.32, 0.22, 0.52], [-0.32, 0.38, -0.18, 0.58],
     [0.18, 0.95, -0.14, 0.48], [-0.12, 1.28, 0.1, 0.46], [0.06, 1.78, 0.04, 0.4],
     [0.28, 1.08, 0.28, 0.36], [-0.24, 0.78, 0.26, 0.38], [0.12, 1.5, -0.2, 0.32],
-    [0.02, 2.22, 0.02, 0.38], [0.1, 2.58, -0.06, 0.3]
+    [0.02, 2.22, 0.02, 0.38], [0.1, 2.58, -0.06, 0.3], [0.06, 2.95, 0.04, 0.28]
   ]) {
     k.add(G.ico(s, 0), r.pick(RS), { x: cx + 0.12 + dx, y: 1.55 + dy, z: cz + dz, flat: true, vary: 0.22, sy: 0.82 });
   }
   for (const [dx, dy, dz, s] of [[0.22, 0.48, 0.28, 0.2], [-0.26, 0.72, -0.14, 0.17], [0.04, 1.42, 0.18, 0.15], [0.18, 1.1, -0.22, 0.14]]) {
     k.add(G.ico(s, 0), r.pick(MS), { x: cx + 0.12 + dx, y: 1.55 + dy, z: cz + dz, flat: true, vary: 0.18 });
   }
-  // gruppo bronzeo: soldato con elmetto (in ginocchio/in piedi) che sorregge un compagno ferito
-  // piedi sulla roccia ~ y 3.55; elmetto ~ y 6.4. Affacciato verso la via (+x), leggermente verso chi arriva.
-  figurePair(k, cx + 0.18, 4.32, cz, -0.55);
+  // gruppo bronzeo: cima ~7 m. Il kit e' gia' ruotato verso chi arriva; le figure guardano +x locale.
+  figurePair(k, cx + 0.45, 4.90, cz, 0);
   // due pennoni bianchi: tricolore italiano e bandiera dei Quattro Mori
-  flagPole(k, cx + 1.05, cz - 2.15, 'ita');
-  flagPole(k, cx + 1.05, cz + 2.15, 'mori');
+  flagPole(k, cx + 1.0, cz - 1.65, 'ita');
+  flagPole(k, cx + 1.0, cz + 1.65, 'mori');
   // fondale chiuso (niente cielo tra le case) + due alberi alle spalle
   k.add(G.box(1.3, 8.4, 7.0), '#cbb89a', { x: cx - 3.7, y: 4.2, z: cz, vary: 0.08 });
   k.add(G.box(1.7, 0.28, 7.4), '#b3593c', { x: cx - 3.7, y: 8.5, z: cz });
-  tree(k, r, cx - 2.55, 0, cz - 1.55, 1.55, LEAF.holm);
-  tree(k, r, cx - 2.35, 0, cz + 1.65, 1.7, LEAF.holm);
+  tree(k, r, cx - 2.45, 0, cz - 1.25, 1.55, LEAF.holm);
+  tree(k, r, cx - 2.25, 0, cz + 1.3, 1.7, LEAF.holm);
   // rose rosse davanti al muretto
-  for (const tz of [-1.9, -0.65, 0.65, 1.9]) {
+  for (const tz of [-1.5, -0.5, 0.5, 1.5]) {
     shrub(k, r, cx + 2.15, 0.2, cz + tz, 0.48, ['#3a6a28', '#4a7a30', '#2f5a22'], 0);
     for (let i = 0; i < 4; i++) k.add(G.ico(0.08, 0), r.pick(['#c8283a', '#e04050', '#a01828']), {
       x: cx + 2.15 + r.range(-0.18, 0.18), y: 0.55 + r.range(0, 0.32), z: cz + tz + r.range(-0.18, 0.18), flat: true
     });
   }
   // vecchio cannone da campagna, un lato
-  cannon(k, cx - 0.15, 0.2, cz + 3.05);
+  cannon(k, cx - 0.25, 0.2, cz + 2.4);
 }
 
 function figurePair(k, ox, oy, oz, faceRy) {
@@ -270,7 +281,7 @@ function figurePair(k, ox, oy, oz, faceRy) {
 }
 
 function flagPole(k, x, z, kind) {
-  const H = 6.95;
+  const H = 7.55;
   k.add(G.cyl(0.065, 0.08, H, 6), '#f2eee6', { x, y: H / 2, z });
   k.add(G.cyl(0.14, 0.16, 0.12, 6), '#d8d4cc', { x, y: 0.08, z });
   k.add(G.sph(0.07, 6, 5), '#e8e4dc', { x, y: H + 0.04, z });
