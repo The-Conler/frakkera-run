@@ -27,7 +27,7 @@ import { cartGeoms } from './cart3d.js';
 import { bellGeom, sweetGeom } from './collect3d.js';
 import { magnetGeom, fennelGeom, bootsGeom, branchGeom } from './power3d.js';
 import { stallGeom, festoonGeom, buildCrowd, animateCrowd } from './festa3d.js';
-import { laundryGeom, buildWeaver, animateWeaver, buildProcession, animateProcession, buildWindowFan } from './village3d.js';
+import { laundryGeom, buildWeaver, animateWeaver, buildProcession, animateProcession, buildWindowFan, buildBurraTree } from './village3d.js';
 import { VILLAGE } from '../config.js';
 import { rng } from './kit.js';
 import { sheepGeom, pigGeom, dogGeom, shepherdGeom } from './animals3d.js';
@@ -265,6 +265,11 @@ export class World {
     this.scene.add(this.far);
     // v5s12: campanile + chiesa rosa centrati in fondo alla via del paese (segue la camera come il fondale)
     this.vista = new THREE.Mesh(buildVista(1), this.mats2); this.scene.add(this.vista);
+    if (!/[?&]xmas=0/.test(typeof location !== 'undefined' ? location.search : '')) {
+      const tree = buildBurraTree(this.tex.carpets[0]);
+      tree.frustumCulled = false;
+      this.scene.add(tree); this.burraTree = tree;
+    }
     // v5s37: partenza di Natale - luci a raggiera dal campanile e capanna di Su Nascimentu (segue la vista)
     if (!/[?&]xmas=0/.test(location.search)) { const n = buildNascimentu(this.tex); n.root.add(new THREE.Mesh(n.geo, this.mats2)); this.nasc = n; this.scene.add(n.root); }
   }
@@ -407,9 +412,9 @@ export class World {
       v.body = new THREE.Group();
       const HX = WORLD.LANE_W * U * 1.5 + 0.5;   // v5s27p: fune centrata, i due Stramaionis ai bordi della via
       v.figs = [0, 1].map((i) => { const f = buildStramaione(this.mats2, (e.id + i) % 4); f.holdRope = true; f.root.position.x = i ? HX : -HX; if (i) f.root.scale.x = -1; v.body.add(f.root); return f; });
-      for (const f of v.figs) { f.arms[1].rotation.z = 0.75; f.arms[1].rotation.x = -0.25; f.root.scale.y = f.root.scale.z = 1.12; f.root.scale.x *= 1.12; }
+      for (const f of v.figs) { f.arms[1].rotation.z = 0.35; f.arms[1].rotation.x = 0.15; f.root.scale.y = f.root.scale.z = 1.12; f.root.scale.x *= 1.12; }
       const pts = []; const X0 = HX - 1.0;
-      for (let i = 0; i <= 12; i++) { const q = i / 12; pts.push(new THREE.Vector3(-X0 + 2 * X0 * q, 1.0 - Math.sin(q * Math.PI) * 0.12, 0.2)); }
+      for (let i = 0; i <= 12; i++) { const q = i / 12; pts.push(new THREE.Vector3(-X0 + 2 * X0 * q, 0.52 - Math.sin(q * Math.PI) * 0.08, 0.2)); }
       v.rope = new THREE.Mesh(this.geo.ropeG || (this.geo.ropeG = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 24, 0.065, 6)), this.mat.rope || (this.mat.rope = new THREE.MeshLambertMaterial({ color: '#c9b088' })));
       v.body.add(v.rope);
       v.shadow = this.blob(12.5, 1.0);
@@ -1080,6 +1085,7 @@ export class World {
     this.clock += dt;
     const pz = -sim.T * U, px = sim.px * U;
     this.updateMood(dt, view.fuelF);
+    this.dance.preview(sim);
     const dpos = this.dance.update(dt, sim);
     // camera: preset per modalita' + inseguimento morbido
     const aspect = this.camera.aspect;
@@ -1156,7 +1162,8 @@ export class World {
       const key = sim.mode === 'run' && sim.T * U > 3 ? at + '|' + sim.genOffset : null;   // v5s27: non fissarlo coi metri del menu   // in corsa: fissato una volta per giro e mai piu' spostato
       if (!key || this.vistaAt !== key) { this.vistaAt = key; this.vistaZ = -sim.T * U - ahead; }   // fissato una volta: poi mai piu' spostato
       this.vista.position.set(VISTA.X, 0, this.vistaZ);
-      if (this.nasc) { this.nasc.root.position.copy(this.vista.position); this.nasc.root.visible = this.vista.visible; if (this.vista.visible) this.nasc.update(performance.now() / 1000); } }
+      if (this.nasc) { this.nasc.root.position.copy(this.vista.position); this.nasc.root.visible = this.vista.visible; if (this.vista.visible) this.nasc.update(performance.now() / 1000); }
+      if (this.burraTree) { this.burraTree.position.set(-7.6, 0, this.vistaZ + 8); this.burraTree.visible = this.vista.visible; } }
     // v5s28: spruzzi al piede delle cascatelle di Sa Stiddiosa (poche particelle, solo quelle vicine)
     if (this.env.falls && this.env.falls.length) { this._fallAcc = (this._fallAcc || 0) + dt;
       if (this._fallAcc > 0.06) { this._fallAcc = 0; const cz = this.camera.position.z;

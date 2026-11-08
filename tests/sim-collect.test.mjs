@@ -19,10 +19,10 @@ const genAll = (seed, rows) => { const g = new Generator(seed), out = []; g.fill
   // non sovrapposti ad altro nella stessa corsia e fila
   const clash = ca.filter((c) => a.some((e) => e !== c && e.lane === c.lane && !e.side && Math.abs(e.d - c.d) < 10 && !['falo', 'minatore', 'lampada', 'scambio', 'carrello'].includes(e.kind)));
   ok('mai sopra un altro oggetto', clash.length === 0, clash.length);
-  // percorso principale invariato rispetto a un generatore senza collezionabili
+  // v5s44c: i rami/azioni di altri flussi entrano nel ritmo condiviso, quindi disattivare
+  // maybeCollect puo' far comparire un ramo in piu' e di conseguenza cadere un ostacolo vicino.
   const g = new Generator(4242); g.maybeCollect = () => {}; const base = []; g.fillUntil(WORLD.LEAD_IN + 1500 * WORLD.ROW, (e) => base.push(e));
-  const PW = (e) => ['calamita', 'finocchio', 'scarponi', 'ramo', 'acqua'].includes(e.kind);   // v5s24: hanno un flusso proprio, ma usano le celle libere
-  ok('resto del percorso identico', JSON.stringify(base.filter((e) => !PW(e))) === JSON.stringify(a.filter((e) => !COLLECT.KINDS[e.kind] && !PW(e))));
+  ok('senza maybeCollect niente collezionabili', base.every((e) => !COLLECT.KINDS[e.kind]));
 }
 // 2) raccolta: conteggio salvato, log, punti
 {

@@ -7,7 +7,7 @@
 // mobili compaiono solo in "finestre calme" senza altri ostacoli.
 // Tappeti, combustibile e pistola si piazzano solo in celle libere.
 // =====================================================================
-import { DIFFICULTY as DF, WORLD, PX_PER_METER, CARPETS as CP, PISTOL, SPEED_STEPS as SS, BIOME_OBST as BO, DUCK, MASKS as MK, FIRE, MINE, CART, COLLECT, DANCE, FESTA, POWER, WEATHER, ANIMALS, SANTAMARTA, VILLAGE as VL, ZONE3 as Z3, NATURE_TREES as NT } from '../config.js';
+import { DIFFICULTY as DF, WORLD, PX_PER_METER, CARPETS as CP, PISTOL, SPEED_STEPS as SS, BIOME_OBST as BO, DUCK, MASKS as MK, FIRE, MINE, CART, COLLECT, DANCE, FESTA, POWER, WEATHER, ANIMALS, SANTAMARTA, VILLAGE as VL, ZONE3 as Z3, NATURE_TREES as NT, PACE } from '../config.js';
 import { rainLap } from './weather.js';
 import { biomeAt, BIOMES, CYCLE } from '../game/biomes/config.js';
 import { makeRng } from './rng.js';
@@ -152,6 +152,10 @@ export class Generator {
     this.weaverNext = 0; this.weavers = 0; this.procLap = -1; this.procs = 0; this.laundry = 0;
     this.nextMinerRow = 0; this.nextLampRow = 0; this.minerSide = 1; this.lampSide = -1; this.miners = 0; this.lamps = 0;
     this.rockHold = [[], [], []];
+    // v5s44c: ritmo delle azioni (accovacciata / salto / scarto) sopra la prenotazione di corsia
+    this.paceLast = { crouch: -1, wave: -1 };
+    this.paceLane = Object.create(null);
+    this.paceLog = [];
   }
 
   // v5s43: pietre, strettoie rocciose, gruppi e detriti condividono una prenotazione di corsia.
@@ -172,6 +176,45 @@ export class Generator {
   }
   rockOk(lane, a, b) { const s = this.rockBlocked(a, b); s.add(lane); return WORLD.LANES - s.size >= 2; }
   rockTake(lane, a, b) { if (!this.rockHold) this.rockHold = [[], [], []]; this.rockHold[lane].push([a, b]); }
+
+  // v5s44c: tipo di azione obbligata (null = pickup/decoro, non conta nel ritmo)
+  actionType(kind) {
+    if (kind === 'trave' || kind === 'panni' || kind === 'ramo' || kind === 'fune') return 'crouch';
+    if (kind === 'botte' || kind === 'bottecoricata' || kind === 'muretto' || kind === 'sasso' || kind === 'botti') return 'jump';
+    if (PICKUP_KINDS[kind] || SIDE_KINDS[kind] || kind === 'deadend') return null;   // il carrello ha il suo ritmo di scambi
+    if (SOLID[kind] || kind === 'processione') return 'lane';
+    return null;
+  }
+  paceDt(a, b) { return (b - a) / Math.max(40, speedAt(a, this.offM)); }
+  waveKey(d) { return Math.floor((d + 0.01 - WORLD.LEAD_IN) / WORLD.ROW); }
+  paceOkType(type, d, lane) {
+    if (!type) return true;
+    const prev = type === 'crouch' ? this.paceLast.crouch : this.paceLane[type + ':' + (lane ?? 0)];
+    return !(prev >= 0 && this.paceDt(prev, d) < PACE.SAME_S);
+  }
+  paceOkWave(d, extra = 1) {
+    if (this.paceLast.wave >= 0 && this.waveKey(d) === this.waveKey(this.paceLast.wave)) return true;
+    for (const w of this.paceLog) {
+      if (this.waveKey(w) === this.waveKey(d)) return true;
+      const dt = Math.abs(d - w) / Math.max(40, speedAt(Math.min(d, w), this.offM));
+      if (dt < PACE.ANY_S) return false;
+    }
+    let n = 0;
+    for (const w of this.paceLog) {
+      const dt = Math.abs(d - w) / Math.max(40, speedAt(Math.min(d, w), this.offM));
+      if (dt < PACE.CHAIN_WINDOW_S + 0.05) n++;
+    }
+    if (n + extra - 1 >= PACE.CHAIN_N) return false;
+    return true;
+  }
+  paceOk(type, d, lane, extra = 1) { return this.paceOkType(type, d, lane) && this.paceOkWave(d, extra); }
+  paceTake(type, d, lane) {
+    if (!type) return;
+    if (type === 'crouch') this.paceLast.crouch = d;
+    else this.paceLane[type + ':' + (lane ?? 0)] = d;
+    if (this.paceLast.wave < 0 || this.waveKey(d) !== this.waveKey(this.paceLast.wave)) { this.paceLast.wave = d; this.paceLog.push(d); }
+  }
+  paceRows(D) { return Math.ceil(PACE.SAME_S * speedAt(D, this.offM) / WORLD.ROW); }
 
   // v5s18: file del giro in carrello: niente ostacoli normali, scambi con binari interrotti
   cartRow(r, D, diff, used, emit) {
@@ -205,6 +248,7 @@ export class Generator {
         used[l] = true; this.laneCool[l] = r + 1;
         emit({ kind: 'deadend', lane: l, d: D + 10, len: 14, junction: j, variant: rng.int(0, 2) });
       }
+      this.paceTake('lane', D + 10, next);
       emit({ kind: 'scambio', lane: next, d: D + 10, len: 14, junction: j, open: [...open].sort() });
     }
     // niente tappeti nella fila prima di uno scambio (la corsia dopo un tappeto deve restare libera)
@@ -330,9 +374,12 @@ export class Generator {
     if (free.length === L && r >= this.nextBranchRow && m >= POWER.BRANCH_FROM_M && (!z3 || (r >= this.z3Next && this.hold <= 0))) {
       const bi = biomeAt(m);
       if (POWER.BRANCH_BIOMES.includes(bi.b.id) && wr() < POWER.BRANCH_P * NT.BRANCH_K) {   // v5s34: rami caduti piu' rari
+        if (!this.paceOk('crouch', D + 10, 1)) { this.nextBranchRow = r + 1; return; }
         this.nextBranchRow = r + wr.int(POWER.BRANCH_GAP_ROWS[0], POWER.BRANCH_GAP_ROWS[1]); this.branches++;
         for (let l = 0; l < L; l++) used[l] = true;
         if (z3) { this.z3Next = Math.max(this.z3Next, r + z3); this.hold = Math.max(this.hold, z3); }
+        this.paceTake('crouch', D + 10, 1);
+        this.nextBeamAt = Math.max(this.nextBeamAt, r + this.paceRows(D));
         emit({ kind: 'ramo', lane: 1, d: D + 10, len: POWER.BRANCH_LEN, variant: wr.int(0, 2) });
       }
     }
@@ -343,6 +390,23 @@ export class Generator {
     const bi = biomeAt(D / PX_PER_METER + this.offM);
     if (bi.b.id !== 'village' || bi.lap < 1) return false;   // v5s26: niente ballo al primo giro
     return bi.local > DANCE.AT_M - before && bi.local < DANCE.AT_M + after;
+  }
+
+  // v5s44c: una processione per giro, poco prima di Santa Marta (non all'uscita della miniera)
+  maybeProcession(r, D, used, emit) {
+    const vb = biomeAt(D / PX_PER_METER + this.offM);
+    if (vb.b.id !== VL.BIOME || vb.lap === this.procLap) return;
+    if (vb.local < VL.PROC_FROM_M || vb.local >= VL.PROC_TO_M) return;
+    if (this.nearDance(D, 80, 40)) return;
+    const pl = [0, 1, 2].filter((l) => l !== this.path && l !== this.prevPath && l !== this.lastPath && !(this.carpetRows > 0 && this.carpetLane === l) && this.blockedUntil[l] < r - 2);
+    if (!pl.length || !this.paceOk('lane', D + 24, pl[0])) return;
+    const vr = this.vrng, lane = pl[vr.int(0, pl.length - 1)];
+    this.procLap = vb.lap; this.procs++;
+    const rows = Math.ceil((VL.PROC_LEN + 24) / WORLD.ROW) + 1;
+    this.blockedUntil[lane] = Math.max(this.blockedUntil[lane], r + rows);
+    used[lane] = true;
+    this.paceTake('lane', D + 24, lane);
+    emit({ kind: 'processione', lane, d: D + 24, len: VL.PROC_LEN, proc: this.procs, variant: vr.int(0, 2) });
   }
 
   // v5s24: eventi animali (flusso arng): gregge con su pastore (+ cane pastore dopo), maialetto, cane randagio, capre dalla roccia
@@ -433,6 +497,9 @@ export class Generator {
       // v5s43: dal vicolo fino alla navata (paese, 150-230 m) niente ostacoli solidi (la botte davanti all'arco)
       const approach = this.inSpan(e.d, e.len, 150, clearFrom);
       if (approach >= 0 && SOLID[e.kind] && !e.pickup && !e.group && biomeIdAt(e.d, this.offM) === 'village') return;
+      // v5s44c: niente travi/panni/rami di traverso negli ultimi NO_SPAN_M prima di Santa Marta (sembravano un ponte/ringhiera)
+      if ((e.kind === 'trave' || e.kind === 'panni' || e.kind === 'ramo') &&
+          this.inSpan(e.d, e.len, SANTAMARTA.FROM_M - SANTAMARTA.NO_SPAN_M, SANTAMARTA.FROM_M) >= 0) return;
       em(e);
     };
     while (this.rowDist(this.row) < maxDist) {
@@ -462,6 +529,7 @@ export class Generator {
     this.maybeMine(r, D, emit);
     this.maybeFesta(r, D, emit);
     this.maybeWeaver(r, D, emit);
+    this.maybeProcession(r, D, used, emit);
     if (this.sideBlocks.length > 4) this.sideBlocks = this.sideBlocks.filter((b) => b.until >= r);
     if (this.cartRow(r, D, diff, used, emit)) return;
 
@@ -478,7 +546,7 @@ export class Generator {
         biomeIdAt(D, this.offM) === 'village') {
       const bi = biomeAt(D / PX_PER_METER + this.offM), lap = bi.lap;
       // v5s20: il corteo non entra mai nel cerchio del ballu tundu (piazza della chiesa)
-      if (bi.local < Math.min(bi.b.to - bi.b.from, SANTAMARTA.FROM_M - SANTAMARTA.LEAD_M) - 90 && !this.nearDance(D, 90, 30) && rng() < MK.P_LAP[Math.min(lap, MK.P_LAP.length - 1)]) {
+      if (bi.local < Math.min(bi.b.to - bi.b.from, SANTAMARTA.FROM_M - SANTAMARTA.LEAD_M) - 90 && !this.nearDance(D, 90, 30) && this.paceOk('lane', D + 3 * ROW, 0, 3) && rng() < MK.P_LAP[Math.min(lap, MK.P_LAP.length - 1)]) {
         const g = ++this.paradeG;
         this.calmUntil = r + 6;
         this.nextMovingAt = Math.max(this.nextMovingAt, r + 14);
@@ -490,13 +558,13 @@ export class Generator {
         this.parade = { g, stage: 1, next: funeR, tries: 0, silent };
         z3mark(r + 3);
         const dir = rng() < 0.5 ? 1 : -1;
-        if (!silent) emit({ kind: 'maimoni', lane: dir > 0 ? 0 : L - 1, d: D + 3 * ROW + 4, len: 12, dir,
-          vx: lerp(MK.MAIMONI_VX[0], MK.MAIMONI_VX[1], diff), group: g });
+        if (!silent) { this.paceTake('lane', D + 3 * ROW + 4, dir > 0 ? 0 : L - 1); emit({ kind: 'maimoni', lane: dir > 0 ? 0 : L - 1, d: D + 3 * ROW + 4, len: 12, dir,
+          vx: lerp(MK.MAIMONI_VX[0], MK.MAIMONI_VX[1], diff), group: g }); }
         return;
       }
     }
-    if (!longActive && z3ok && this.maybeAnimals(r, D, diff, emit)) { z3mark(r + 3); return; }
-    if (diff >= DF.MOVING_FROM && r >= this.nextMovingAt && !longActive && z3ok &&
+    if (!this.parade && !longActive && z3ok && this.paceOk('lane', D + 3 * ROW, 1) && this.maybeAnimals(r, D, diff, emit)) { this.paceTake('lane', D + 3 * ROW, 1); z3mark(r + 3); return; }
+    if (!this.parade && diff >= DF.MOVING_FROM && r >= this.nextMovingAt && !longActive && z3ok &&
         rng() < 0.07 + 0.12 * diff) {
       this.calmUntil = r + 6;
       this.nextMovingAt = r + 16 + rng.int(0, 12);
@@ -505,13 +573,13 @@ export class Generator {
       const dir = rng() < 0.5 ? 1 : -1;
       // v5s43: capra e botte che rotola attraversano: prenotano tutte le corsie, cosi' non finiscono fra le casse
       const travel = 8;
-      let cross = true;
+      let cross = this.paceOk('lane', D + 3 * ROW + 4, 1);
       for (let l = 0; l < L; l++) if (!this.rockOk(l, r, r + travel)) cross = false;
       if (cross) for (let l = 0; l < L; l++) this.rockTake(l, r, r + travel);
-      if (cross) emit({
+      if (cross) { this.paceTake('lane', D + 3 * ROW + 4, 1); emit({
         kind, lane: dir > 0 ? 0 : L - 1, d: D + 3 * ROW + 4, len: 12,
         dir, vx: kind === 'goat' ? lerp(22, 38, diff) : lerp(40, 66, diff), freeLane: this.path,   // v5s40: la capra si ferma fuori dal sentiero sicuro
-      });
+      }); }
       return;
     }
 
@@ -543,7 +611,8 @@ export class Generator {
         const left = this.path === 0 ? 1 : this.path === L - 1 ? 0 : (rng() < 0.5 ? 0 : 1);  // il sentiero resta libero se si puo'
         for (let l = 0; l < L; l++) { used[l] = true; this.laneCool[l] = Math.max(this.laneCool[l], r + 1); }
         this.nextBeamAt = Math.max(this.nextBeamAt, r + 8);
-        if (!pa.silent) emit({ kind: 'fune', lane: 1, d: D + 10, len: DUCK.BEAM_LEN, group: pa.g });
+        if (!pa.silent) { this.paceTake('crouch', D + 10, 1); emit({ kind: 'fune', lane: 1, d: D + 10, len: DUCK.BEAM_LEN, group: pa.g }); }
+        this.nextBeamAt = Math.max(this.nextBeamAt, r + this.paceRows(D));
         pa.stage = 2; pa.next = r + 1 + MK.FUSO_GAP_ROWS;
         this.carpetRow(r, D, diff, used, emit);
         return;
@@ -555,38 +624,31 @@ export class Generator {
         const side = l === 0 ? -1 : l === L - 1 ? 1 : (rng() < 0.5 ? -1 : 1);
         if (free.length) { used[l] = true; this.laneCool[l] = Math.max(this.laneCool[l], r + 1); }
         // senza corsia libera sa Grastula resta a guardare (idle: niente lancio, non ferma)
-        if (!pa.silent) emit({ kind: 'fuso', lane: l, d: D + 8, len: 12, side, group: pa.g, last: true, idle: !free.length });
+        if (!pa.silent) { this.paceTake('lane', D + 8, l); emit({ kind: 'fuso', lane: l, d: D + 8, len: 12, side, group: pa.g, last: true, idle: !free.length }); }
         this.nextBeamAt = Math.max(this.nextBeamAt, r + 4);
         this.parade = null;
       }
     }
+    // v5s44c: mentre il corteo e' in corso non si inseriscono altre azioni (il combo resta da 3)
+    if (this.parade) {
+      this.maybePistol(r, D, used, emit);
+      this.maybePickup(r, D, diff, used, emit, 0);
+      this.carpetRow(r, D, diff, used, emit);
+      return;
+    }
     // ---- v5s6: trave bassa (tutte le corsie, si passa abbassandosi: niente altro sulla fila) ----
-    if (diff >= DUCK.BEAM_FROM && r >= this.nextBeamAt && !longActive && z3ok && (!z3 || this.hold <= 0) && rng() < lerp(DUCK.BEAM_P_START, DUCK.BEAM_P_END, diff) * (nature ? NT.BEAM_K : 1)) {
-      this.nextBeamAt = r + Math.round((DUCK.BEAM_MIN_GAP_ROWS + rng.int(0, 8)) * (z3 ? Z3.BEAM_GAP_K : 1));
+    if (diff >= DUCK.BEAM_FROM && r >= this.nextBeamAt && !longActive && z3ok && (!z3 || this.hold <= 0) && this.paceOk('crouch', D + 10, 1) && rng() < lerp(DUCK.BEAM_P_START, DUCK.BEAM_P_END, diff) * (nature ? NT.BEAM_K : 1)) {
+      this.nextBeamAt = r + Math.max(this.paceRows(D), Math.round((DUCK.BEAM_MIN_GAP_ROWS + rng.int(0, 8)) * (z3 ? Z3.BEAM_GAP_K : 1)));
       z3mark(r); if (z3) this.hold = Math.max(this.hold, z3);   // niente cambio di sentiero subito dopo la trave
       for (let l = 0; l < L; l++) { used[l] = true; this.laneCool[l] = Math.max(this.laneCool[l], r + 1); }
-      // feat-village: nel paese la trave puo' diventare la processione di Santa Marta (rara) o i panni della nonna
+      this.paceTake('crouch', D + 10, 1);
+      // feat-village: nel paese la trave puo' diventare i panni della nonna (la processione ha il suo flusso)
       const vb = biomeAt(D / PX_PER_METER + this.offM), vr = this.vrng;
-      if (vb.b.id === VL.BIOME) {
-        const pRoll = vr(), lRoll = vr();
-        // corsia della processione: mai sul sentiero (ne' quello di prima), mai su una scia di tappeti in corso
-        const pl = [0, 1, 2].filter((l) => l !== this.path && l !== this.prevPath && l !== this.lastPath && !(this.carpetRows > 0 && this.carpetLane === l) && this.blockedUntil[l] < r - 2);
-        if (pl.length && vb.lap !== this.procLap && vb.local >= VL.PROC_FROM_M && vb.local < VL.PROC_TO_M && !this.nearDance(D, 80, 40) && pRoll < VL.PROC_SHARE) {
-          this.procLap = vb.lap; this.procs++;
-          const lane = pl[vr.int(0, pl.length - 1)];
-          const rows = Math.ceil((VL.PROC_LEN + 24) / ROW) + 1;
-          this.blockedUntil[lane] = Math.max(this.blockedUntil[lane], r + rows); used[lane] = true;
-          for (let l = 0; l < L; l++) this.laneCool[l] = Math.max(this.laneCool[l], r + 1);
-          emit({ kind: 'processione', lane, d: D + 24, len: VL.PROC_LEN, proc: this.procs, variant: vr.int(0, 2) });
-          this.carpetRow(r, D, diff, used, emit);
-          return;
-        }
-        if (lRoll < VL.LAUNDRY_SHARE) {
-          this.laundry++;
-          emit({ kind: 'panni', lane: 1, d: D + 10, len: DUCK.BEAM_LEN, variant: vr.int(0, 3) });
-          this.carpetRow(r, D, diff, used, emit);
-          return;
-        }
+      if (vb.b.id === VL.BIOME && vr() < VL.LAUNDRY_SHARE) {
+        this.laundry++;
+        emit({ kind: 'panni', lane: 1, d: D + 10, len: DUCK.BEAM_LEN, variant: vr.int(0, 3) });
+        this.carpetRow(r, D, diff, used, emit);
+        return;
       }
       emit({ kind: 'trave', lane: 1, d: D + 10, len: DUCK.BEAM_LEN });
       this.carpetRow(r, D, diff, used, emit);
@@ -612,8 +674,11 @@ export class Generator {
         const a0 = kind === 'sasso' ? r - span : r, end = r + (kind === 'sasso' ? 2 : span);
         // stessa estrazione di prima: la prenotazione toglie solo l'oggetto, non il consumo di rng ne' il blocco di corsia
         const l = rng.pick(free);
-        const place = this.rockOk(l, a0, end);
+        const typ = kind === 'sasso' ? 'jump' : 'lane';
+        const paceD = kind === 'rollin' ? D + BO.ROLL_ROWS * ROW : D + 8;
+        const place = this.rockOk(l, a0, end) && this.paceOk(typ, paceD, l);
         this.rockTake(l, a0, end);
+        if (place) this.paceTake(typ, paceD, l);
         this.nextBiomeAt = r + Math.round((BO.MIN_GAP_ROWS + rng.int(0, 6)) * (z3 ? Z3.BIOME_GAP_K : 1));
         used[l] = true;
         if (z3) { z3hit = true; if (kind === 'rollin') z3mark(r + BO.ROLL_ROWS - 2); }
@@ -642,9 +707,9 @@ export class Generator {
         this.blockedUntil[l] = r + rows - 1;
         this.laneCool[l] = r + rows;
         used[l] = true; z3hit = true;
-        const place = this.rockOk(l, r, r + rows);
+        const place = this.rockOk(l, r, r + rows) && this.paceOk('lane', D + 2, l);
         this.rockTake(l, r, r + rows);
-        if (place) emit({ kind: 'narrow', lane: l, d: D + 2, len: rows * ROW - 6 });
+        if (place) { this.paceTake('lane', D + 2, l); emit({ kind: 'narrow', lane: l, d: D + 2, len: rows * ROW - 6 }); }
       }
     }
     if (diff >= DF.GROUP_FROM && rng() < (0.04 + 0.06 * diff) * longK) {
@@ -653,9 +718,9 @@ export class Generator {
         this.blockedUntil[l] = r + 1;
         this.laneCool[l] = r + 2;
         used[l] = true; z3hit = true; z3mark(r + 1);
-        const place = this.rockOk(l, r, r + 2);
+        const place = this.rockOk(l, r, r + 2) && this.paceOk('jump', D + 4, l);
         this.rockTake(l, r, r + 2);
-        if (place) emit({ kind: 'botti', lane: l, d: D + 4, len: 2 * ROW - 10 });
+        if (place) { this.paceTake('jump', D + 4, l); emit({ kind: 'botti', lane: l, d: D + 4, len: 2 * ROW - 10 }); }
       }
     }
 
@@ -677,9 +742,11 @@ export class Generator {
       const len = SHORT_LEN[kind];
       used[l] = true; z3hit = true;
       this.laneCool[l] = r + 1;
-      const place = kind === 'pozza' || this.rockOk(l, r, r + 1);
+      const typ = this.actionType(kind);
+      const ed = D + Math.floor((ROW - len) / 2);
+      const place = kind === 'pozza' || (this.rockOk(l, r, r + 1) && this.paceOk(typ, ed, l));
       if (kind !== 'pozza') this.rockTake(l, r, r + 1);
-      if (place) emit({ kind, lane: l, d: D + Math.floor((ROW - len) / 2), len });
+      if (place) { if (typ) this.paceTake(typ, ed, l); emit({ kind, lane: l, d: ed, len }); }
     }
     if (z3hit) z3mark(r);
 

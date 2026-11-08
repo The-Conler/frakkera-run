@@ -250,13 +250,14 @@ export const MASKS = {
   FUSO_THROW_S: 0.95,      // il fuso arriva a terra X s prima del passaggio (~1 s dopo il segno)
   BELL_AHEAD: 140,         // px oltre MOVE_AHEAD a cui si sentono i campanacci
   BONUS: 200,              // corteo intero passato senza urti
-  FUNE_CLEAR_PX: 7,        // v5s27p: altezza dei piedi (px) per saltare la fune (corda a ~0.9 m, salto 1.5 m)
+  FUNE_CLEAR_PX: 4,        // v5s44c: corda bassa (~0.5 m); un salto normale (1.5 m) la supera a ogni velocita'
   HIT_MAIMONI: 24, HIT_FUNE: 16, HIT_FUSO: 14,  // carburante perso
 };
 
 // ---- v5s11: ballu tundu nella piazza della chiesa (una volta per giro, facoltativo: SALTA) ----
 export const DANCE = {
   AT_M: 150,               // metri dentro il paese (piazza della chiesa) a cui parte il ballo
+  VIS_M: 110,              // v5s44c: il cerchio si vede da lontano (solo grafica; il cue/gameplay resta CUE_S)
   CUE_S: 1.9,              // distanza del cue = X s a piena velocita' (rallentando diventano ~2.5-3 s)
   CUE_SLOW: 0.45,          // velocita' minima mentre ci si avvicina al cerchio
   INTRO_S: 2.0,            // entrata nel cerchio + battute di attacco
@@ -348,6 +349,15 @@ export const POWER = {
 
 // ---- v5s25: salto (swipe su / freccia su / W) sopra gli ostacoli bassi ----
 // Il generatore continua a garantire un percorso SENZA saltare (il salto e' solo una scorciatoia).
+// v5s44c: ritmo degli ostacoli (tempo a velocita' corrente, tutte le zone e i giri)
+export const PACE = {
+  SAME_S: 1.35,            // minimo tra due ostacoli della stessa azione (accovacciata globale, salto stessa corsia)
+  ANY_S: 0.7,              // minimo tra due ondate di azioni obbligate (come zona 3, ora ovunque)
+  CHAIN_N: 3,              // al massimo N azioni in CHAIN_WINDOW_S, poi un respiro
+  CHAIN_WINDOW_S: 3.5,
+  BREATHER_S: 1.8,
+};
+
 export const JUMP = {
   TIME_S: 0.62, COOLDOWN_S: 0.1, H_PX: 15, CLEAR_PX: 6, PTS: 5,
   KINDS: { botte: true, bottecoricata: true, muretto: true, sasso: true, pozza: true, bagnato: true, acqua: true },   // NON travi, rami, funi
@@ -388,7 +398,7 @@ export const VILLAGE = {
   WEAVER_BRUSH_PX: 14,
   WEAVER_PTS: 15,
   PROC_SHARE: 0.5,         // quota di travi nel paese che diventano processione (se non gia' fatta in questo giro)
-  PROC_FROM_M: 8, PROC_TO_M: 70,   // v5s24: fuori dai blocchi in mezzo alla via e da Santa Marta
+  PROC_FROM_M: 200, PROC_TO_M: 220,   // v5s44c: poco prima di Santa Marta (arrivo ~20-40 m prima dell'arco), non all'uscita della miniera
   PROC_LEN: 52,             // px di profondita' del corteo (statua + portatori)
   PROC_HALF: 13,
   PROC_FUEL: 12,            // urto: costa fuoco (mai sotto 1)

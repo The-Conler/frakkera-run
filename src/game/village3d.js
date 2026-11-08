@@ -56,27 +56,49 @@ export function laundryGeom(v = 0) {
 
 // telaio verticale a bordo strada con l'ordito colorato e un tappeto a meta'; soglia scura dietro
 export function loomGeom(v = 0) {
-  return once('loom' + v, () => {
-    const k = new Kit(430 + v), wood = '#6b4429';
-    k.add(G.box(0.25, 3.4, 2.8), '#2a2220', { x: 0.9, y: 1.7 });                 // vano della porta
-    k.add(G.box(0.3, 0.3, 3.3), '#c2b6a2', { x: 0.85, y: 3.5 });                 // architrave chiaro
-    for (const z of [-0.9, 0.9]) k.add(G.box(0.14, 2.2, 0.14), wood, { x: 0, y: 1.1, z });
-    for (const y of [0.35, 2.1]) k.add(G.cyl(0.07, 0.07, 1.95, 6), '#8a5a34', { y, rx: Math.PI / 2 });
+  // v5s44c: telaio orizzontale sardo (foto di Gadoni): telaio a terra in legno miele scuro
+  return once('loom44c_' + v, () => {
+    const k = new Kit(430 + v);
+    const wood = '#7a5230', woodD = '#5a3a20', woodL = '#9a6a3c';
+    const W = 1.12, L = 2.15, H = 2.02;
+    for (const x of [-W / 2, W / 2]) for (const z of [-L / 2, L / 2]) k.add(G.box(0.11, H, 0.11), wood, { x, y: H / 2, z });
+    k.add(G.box(W + 0.14, 0.09, 0.1), woodD, { y: H, z: L / 2 });
+    k.add(G.box(W + 0.14, 0.09, 0.1), woodD, { y: H, z: -L / 2 });
+    k.add(G.box(0.1, 0.09, L + 0.14), woodD, { x: -W / 2, y: H });
+    k.add(G.box(0.1, 0.09, L + 0.14), woodD, { x: W / 2, y: H });
+    k.add(G.box(W + 0.18, 0.1, 0.11), wood, { y: H + 0.04, z: 0.12 });   // trave delle licci
+    for (const x of [-0.22, 0.22]) {
+      k.add(G.cyl(0.05, 0.05, 0.07, 8), woodD, { x, y: H - 0.04, z: 0.12, rx: Math.PI / 2 });
+      k.add(G.box(0.02, 0.42, 0.02), '#3a3028', { x, y: H - 0.32, z: 0.12 });
+      k.add(G.box(0.32, 0.26, 0.05), '#d8cfc0', { x, y: H - 0.58, z: 0.12 });
+    }
+    k.add(G.cyl(0.065, 0.065, W + 0.12, 8), woodL, { y: 0.86, z: L / 2 - 0.16, rz: Math.PI / 2 });   // petto
+    k.add(G.cyl(0.075, 0.075, W + 0.12, 8), woodL, { y: 0.86, z: -L / 2 + 0.16, rz: Math.PI / 2 });  // subbio
+    for (let i = 0; i < 11; i++) k.add(G.box(0.012, 0.012, L - 0.42), '#f4eee4', { x: -0.42 + i * 0.084, y: 0.88, z: 0 });
     const PAT = [['#c8283a', '#f0b030', '#2a2a2a'], ['#2f6fb0', '#f3ead6', '#c8283a'], ['#2f8a4a', '#e0a52a', '#c8283a']][v % 3];
-    for (let i = 0; i < 12; i++) k.add(G.box(0.03, 1.6, 0.08), '#efe6d2', { x: -0.02, y: 1.25, z: -0.75 + i * 0.136 });   // ordito
-    for (let j = 0; j < 6; j++) k.add(G.box(0.05, 0.14, 1.65), PAT[j % 3], { x: -0.04, y: 0.5 + j * 0.14 });   // tessuto fatto (righe)
-    for (let j = 0; j < 3; j++) k.add(G.box(0.06, 0.08, 0.3), PAT[(j + 1) % 3], { x: -0.06, y: 0.6 + j * 0.28, z: -0.2 + j * 0.2, rz: 0.0 });   // rombi
-    k.add(G.box(0.5, 0.45, 0.5), wood, { x: -0.6, y: 0.22, z: 0.2 });           // sgabello
-    // cesto di gomitoli
-    k.add(G.cyl(0.28, 0.22, 0.3, 8), '#a8743a', { x: -0.3, y: 0.15, z: 1.3 });
-    for (let i = 0; i < 4; i++) k.add(G.sph(0.11, 6, 5), PAT[i % 3], { x: -0.3 + (i % 2) * 0.12 - 0.06, y: 0.34, z: 1.3 + (i > 1 ? 0.1 : -0.1) });
-    return k.build({ ao: 0.12 });
+    k.add(G.box(0.72, 0.035, 0.42), PAT[0], { y: 0.83, z: L / 2 - 0.38 });
+    for (let j = 0; j < 3; j++) k.add(G.box(0.72, 0.03, 0.08), PAT[j % 3], { y: 0.86, z: L / 2 - 0.28 - j * 0.09 });
+    k.add(G.box(0.07, 0.07, 1.35), woodD, { x: W / 2, y: 1.05, z: 0.05, rx: 0.52 });   // saetta
+    k.add(G.box(W, 0.09, 0.11), wood, { y: 0.12, z: L / 2 });
+    k.add(G.box(W, 0.09, 0.11), wood, { y: 0.12, z: -L / 2 });
+    k.add(G.box(0.09, 0.09, L), wood, { x: -W / 2, y: 0.12 });
+    k.add(G.box(0.09, 0.09, L), wood, { x: W / 2, y: 0.12 });
+    const wx = -W / 2 - 0.07, wy = 0.55, wz = L / 2 - 0.16;
+    k.add(G.cyl(0.26, 0.26, 0.07, 10), woodD, { x: wx, y: wy, z: wz, rz: Math.PI / 2 });
+    for (let i = 0; i < 6; i++) k.add(G.box(0.035, 0.46, 0.035), woodL, { x: wx, y: wy, z: wz, rz: Math.PI / 2, rx: (i / 6) * Math.PI });
+    k.add(G.cyl(0.055, 0.055, 0.11, 8), woodL, { x: wx, y: wy, z: wz, rz: Math.PI / 2 });
+    k.add(G.box(0.48, 0.08, 0.52), wood, { x: 0, y: 0.42, z: L / 2 + 0.42 });   // panca
+    k.add(G.box(0.07, 0.38, 0.07), woodD, { x: -0.16, y: 0.19, z: L / 2 + 0.28 });
+    k.add(G.box(0.07, 0.38, 0.07), woodD, { x: 0.16, y: 0.19, z: L / 2 + 0.56 });
+    k.add(G.cyl(0.26, 0.2, 0.28, 8), '#a8743a', { x: -0.45, y: 0.16, z: L / 2 + 0.15 });
+    for (let i = 0; i < 4; i++) k.add(G.sph(0.1, 6, 5), PAT[i % 3], { x: -0.45 + (i % 2) * 0.1 - 0.05, y: 0.34, z: L / 2 + 0.15 + (i > 1 ? 0.08 : -0.08) });
+    return k.build({ ao: 0.14 });
   });
 }
 export function buildWeaver(mats, v = 0) {
   const root = new THREE.Group();
   root.add(new THREE.Mesh(loomGeom(v), mats));
-  const d = buildDancer(mats, true, v % 3); d.root.position.set(-0.6, 0.15, 0.2); d.root.rotation.y = Math.PI / 2; d.root.scale.setScalar(1.3);
+  const d = buildDancer(mats, true, v % 3); d.root.position.set(0, 0.42, 1.48); d.root.rotation.y = Math.PI; d.root.scale.setScalar(1.3);
   root.add(d.root);
   return { root, fig: d };
 }
@@ -159,4 +181,46 @@ export function buildWindowFan(mats, woman, v) {
   const root = new THREE.Group(); root.add(new THREE.Mesh(sillGeom(), mats));
   const d = buildDancer(mats, woman, v, 'lo'); d.root.position.set(-0.15, -0.9, 0); d.root.rotation.y = -Math.PI / 2; d.root.scale.setScalar(1.25); root.add(d.root);
   return { root, d };
+}
+
+// v5s44c: albero di Natale avvolto in Sa Burra (decoro, niente collisione), nella piazzetta a sinistra
+export function buildBurraTree(tex) {
+  const g = new THREE.Group(); g.name = 'burraTree';
+  const H = 9.2, R = 1.52;   // ~3 volte piu' alto che largo, 8-10 m
+  // fasce orizzontali di Sa Burra (colori del tessuto): sempre visibili, anche senza texture
+  const BANDS = ['#c8283a', '#e07030', '#f4eee0', '#2f8a4a', '#c8283a', '#e8a030', '#f4eee0', '#2f6fb0'];
+  for (let i = 0; i < BANDS.length; i++) {
+    const t0 = i / BANDS.length, t1 = (i + 1) / BANDS.length, y0 = 0.62 + t0 * H, y1 = 0.62 + t1 * H;
+    const cyl = new THREE.Mesh(new THREE.CylinderGeometry(R * (1 - t1), R * (1 - t0), y1 - y0, 14, 1, true),
+      new THREE.MeshLambertMaterial({ color: BANDS[i] }));
+    cyl.position.y = (y0 + y1) / 2; g.add(cyl);
+  }
+  if (tex && tex.image) {
+    const map = tex.clone();
+    map.wrapS = map.wrapT = THREE.RepeatWrapping;
+    map.repeat.set(2.2, 3.4);
+    map.colorSpace = THREE.SRGBColorSpace;
+    const overlay = new THREE.Mesh(new THREE.ConeGeometry(R * 1.01, H, 16, 1, true), new THREE.MeshLambertMaterial({ map, transparent: true, opacity: 0.35 }));
+    overlay.position.y = 0.62 + H / 2; g.add(overlay);
+  }
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 0.7, 8), new THREE.MeshLambertMaterial({ color: '#5a3a22' }));
+  pole.position.y = 0.35; g.add(pole);
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.72, 0.82, 0.28, 12), new THREE.MeshLambertMaterial({ color: '#9a958c' }));
+  base.position.y = 0.12; g.add(base);
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.55, 7), new THREE.MeshLambertMaterial({ color: '#c0c6ce', emissive: '#8890a0', emissiveIntensity: 0.25 }));
+  tip.position.y = 0.62 + H + 0.22; g.add(tip);
+  // fili di lucine a festoni (pochi punti emissivi, leggeri sul telefono)
+  const glow = new THREE.MeshBasicMaterial({ color: '#ffe9a0' });
+  const glowW = new THREE.MeshBasicMaterial({ color: '#fff6e0' });
+  const sph = new THREE.SphereGeometry(0.055, 5, 4);
+  for (let ring = 0; ring < 4; ring++) {
+    const y = 1.6 + ring * 1.7, rr = R * (1 - (y - 0.62) / H) * 1.02, n = 10 - ring;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + ring * 0.35, sag = Math.sin((i / n) * Math.PI * 2) * 0.12;
+      const m = new THREE.Mesh(sph, i % 2 ? glow : glowW);
+      m.position.set(Math.cos(a) * rr, y - sag, Math.sin(a) * rr);
+      g.add(m);
+    }
+  }
+  return g;
 }

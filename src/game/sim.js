@@ -654,7 +654,7 @@ export class Sim {
         if (e.kind === 'bagnato') { this.hitWet(e); continue; }
         if (e.kind === 'fune') {
           if (this.duckT > 0) { e.hit = true; e.ducked = true; this.stats.ropes++; this.log('j', 0); this.fx('ducked', { e }); this.maskPass(e); continue; }
-          // v5s27p: la fune (bassa, ~0.9 m) si salta: superata se i piedi sono sopra la corda; in volo non si viene colpiti finche' non si riatterra
+          // v5s44c: la fune (bassa, ~0.5 m) si salta: superata se i piedi sono sopra la corda; in volo non si viene colpiti finche' non si riatterra
           if (this.jumpH >= MASKS.FUNE_CLEAR_PX) { e.hit = true; e.jumped = true; this.stats.ropes++; this.stats.jumped++; this.log('jF', 0); this.fx('jumped', { e }); this.maskPass(e); continue; }
           if (this.jumpT > 0) continue;
           if (this.invuln <= 0) { this.hitSolid(e); continue; }

@@ -124,25 +124,25 @@ function beamTimber(seed) {           // miniera: trave squadrata su due montant
   for (const x of [-2.2, 2.2]) k.add(G.box(0.7, 0.08, 0.66), '#d8a040', { x, y: BEAM_Y + 0.05, unlit: true }); // fasce gialle di pericolo
   return k.build({ ao: 0.2 });
 }
-function beamVillage(seed) {          // paese: arco/balcone di legno basso con vasi di fiori e lucine
+function beamVillage(seed) {          // v5s44c: festoni/bandiere della festa tra due pali (non un ponte/balcone)
   const k = new Kit(seed); const r = rng(seed);
-  const wood = ['#6b4126', '#7a4a2a', '#5a3820'];
-  k.add(G.box(HALF * 2 + 0.6, 0.5, 1.4), r.pick(wood), { y: BEAM_Y + 0.25, vary: 0.08 });
-  k.add(G.box(HALF * 2 + 0.6, 0.12, 1.6), '#c0603a', { y: BEAM_Y + 0.56 });
-  for (let x = -HALF + 0.4; x <= HALF - 0.3; x += 0.55) k.add(G.box(0.08, 0.7, 0.08), '#3a2618', { x, y: BEAM_Y + 0.95, z: 0.7 });
-  k.add(G.box(HALF * 2 + 0.6, 0.1, 0.12), '#3a2618', { y: BEAM_Y + 1.32, z: 0.7 });
-  for (let i = 0; i < 6; i++) {
-    const x = -HALF + 1 + i * 2.1;
-    k.add(G.box(0.6, 0.35, 0.35), '#b8643a', { x, y: BEAM_Y + 0.8, z: 0.2 });
-    for (let j = 0; j < 4; j++) k.add(G.ico(0.16, 0), r.pick(['#e8506a', '#ff8fa0', '#f2e65a', '#ffffff', '#d03050']), { x: x + r.range(-0.25, 0.25), y: BEAM_Y + 1.05, z: 0.2 + r.range(-0.12, 0.12), flat: true });
-  }
+  const px = 6.35;
   for (const s of [-1, 1]) {
-    k.add(G.box(0.92, 3.25, 0.92), r.pick(wood), { x: s * HALF, y: 1.125, vary: 0.05 });
-    k.add(G.box(1.85, 0.46, 1.7), '#3a2818', { x: s * HALF, y: -0.1 });
-    k.add(G.box(0.34, 0.34, 1.35), r.pick(wood), { x: s * 5.45, y: 2.15, rz: s * 0.55 });
+    k.add(G.cyl(0.13, 0.16, 5.4, 8), r.pick(['#e2c49a', '#d4b888']), { x: s * px, y: 2.7 });
+    k.add(G.box(0.62, 0.2, 0.62), '#8a6240', { x: s * px, y: 0.08 });
   }
-  for (let i = 0; i < 13; i++) { const x = -HALF + 0.5 + i * ((HALF * 2 - 1) / 12); const sag = Math.sin((i / 12) * Math.PI) * 0.35; k.add(G.ico(0.09, 0), i % 2 ? '#ffe9a0' : '#ffd36a', { x, y: BEAM_Y - 0.08 - sag, z: -0.75, unlit: true }); }
-  return k.build({ ao: 0.2 });
+  k.add(G.box(px * 2 + 0.2, 0.045, 0.045), '#e8e2d4', { y: BEAM_Y + 1.15 });   // filo alto
+  const cols = ['#c8283a', '#2f6fb0', '#f0b030', '#2f8a4a', '#f3ead6', '#c8283a'];
+  for (let i = 0; i < 7; i++) {
+    const x = -5.1 + i * 1.52, w = 1.22, h = 1.12, sag = Math.sin((i / 6) * Math.PI) * 0.12;
+    k.add(G.box(w, h, 0.05), r.pick(cols), { x, y: BEAM_Y + h / 2 - sag });   // bandiere: il bordo basso e' a BEAM_Y (stesso urto)
+    k.add(G.box(w, 0.07, 0.06), r.pick(['#f3ead6', '#2a2a2a', '#c8283a']), { x, y: BEAM_Y + h * 0.72 - sag });
+  }
+  for (let i = 0; i < 11; i++) {
+    const q = i / 10, x = -HALF + q * HALF * 2, sag = Math.sin(q * Math.PI) * 0.3;
+    k.add(G.ico(0.08, 0), i % 2 ? '#ffe9a0' : '#ffd36a', { x, y: BEAM_Y - 0.04 - sag, z: 0.18, unlit: true });
+  }
+  return k.build({ ao: 0.15 });
 }
 function beamTrunk(seed, moss) {      // roccia / fiume / viadotto: tronco caduto appoggiato su due massi
   const k = new Kit(seed); const r = rng(seed);

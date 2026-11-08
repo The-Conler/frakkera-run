@@ -10,6 +10,7 @@ for (let s = 1; s <= 150; s++) { km += 4.8; new Generator(s * 7919).fillUntil(48
   if (e.kind === 'ramo') branches++;
 }); }
 const r = (x) => +(x / km).toFixed(2), res = { beams: r(beams), logs: r(logs), branches: r(branches), fires };
-const ok = fires === 0 && res.beams > 0.5 && res.beams < 2 && res.logs > 1 && res.logs < 4 && res.branches > 0.1 && res.branches < 0.7;
+// v5s44c: il ritmo piu' largo dirada un poco i tronchi; ne deve restare qualcuno
+const ok = fires === 0 && res.beams > 0.5 && res.beams < 2 && res.logs > 0.7 && res.logs < 4 && res.branches > 0.1 && res.branches < 0.7;
 console.log(JSON.stringify(res), ok ? 'OK: alberi caduti diradati, niente frakkere nella natura' : 'FALLITO');
 process.exit(ok ? 0 : 1);

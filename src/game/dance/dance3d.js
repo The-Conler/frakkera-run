@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { buildDancer, danceStep } from './dancers.js';
 import { DANCE } from '../../config.js';
+import { CYCLE } from '../biomes/config.js';
 
 const C_GOLD = new THREE.Color('#ffd060'), C_ORANGE = new THREE.Color('#ffa040');
 const U = 0.1, N = 10, R0 = 3.0, R_OPEN = 7.6;
@@ -15,7 +16,28 @@ export class DanceRing {
   build() {
     const g = new THREE.Group(); this.dancers = [];
     for (let i = 1; i < N; i++) { const d = buildDancer(this.w.mats2, i % 2 === 1, i); g.add(d.root); this.dancers.push({ ...d, slot: i }); }
+    this.ring = new THREE.Mesh(new THREE.TorusGeometry(R0 + 0.2, 0.14, 8, 40), new THREE.MeshBasicMaterial({ color: '#e8c060' }));
+    this.ring.rotation.x = -Math.PI / 2; this.ring.position.y = 0.06; g.add(this.ring);
+    this.floor = new THREE.Mesh(new THREE.CircleGeometry(R0 + 0.15, 28), new THREE.MeshBasicMaterial({ color: '#c44a2a', transparent: true, opacity: 0.42 }));
+    this.floor.rotation.x = -Math.PI / 2; this.floor.position.y = 0.02; g.add(this.floor);
     this.w.scene.add(g); this.group = g;
+  }
+  // v5s44c: mostra il cerchio da lontano (VIS_M), senza toccare cue/gameplay
+  preview(sim) {
+    if (this.state === 'dance' || this.state === 'cue' || this.state === 'open') return;
+    const m = (sim.runD || 0) / 10 + (sim.mapOffsetM || 0);
+    let danceM = Math.max(1, Math.floor(m / CYCLE)) * CYCLE + DANCE.AT_M;
+    if (danceM < CYCLE + DANCE.AT_M) danceM = CYCLE + DANCE.AT_M;
+    if (m > danceM + 25) danceM += CYCLE;
+    const ahead = danceM - m, vis = DANCE.VIS_M || 110;
+    if (ahead >= vis || ahead < -20) {
+      if (this.state === 'preview') { this.state = 'off'; if (this.group) this.group.visible = false; }
+      return;
+    }
+    if (!this.group) this.build();
+    this.C.set(0, 0, -sim.T * 0.1 - ahead - R0);
+    this.state = 'preview'; this.group.visible = true;
+    this.farLod = ahead > 48;
   }
   on(type, d, sim) {
     if (type === 'danceCue') {
@@ -52,13 +74,16 @@ export class DanceRing {
       const camZ = this.w.camera.position.z;
       if (this.C.z - R_OPEN > camZ + 2 || this.openT > 12) { this.state = 'off'; this.group.visible = false; return null; }
     }
+    if (this.ring) this.ring.position.set(this.C.x, 0.06, this.C.z);
+    if (this.floor) this.floor.position.set(this.C.x, 0.02, this.C.z);
     const bk = Math.exp(-Math.max(0, this.w.clock - this.beatT) * 7);
     const ph = (this.t / (bt * 2)) % 1;
     for (const d of this.dancers) {
       const a = this.theta + (d.slot / N) * Math.PI * 2;
       d.root.position.set(this.C.x + Math.sin(a) * this.R, 0, this.C.z + Math.cos(a) * this.R);
       d.root.rotation.y = a + Math.PI;                      // guardano il centro
-      danceStep(d, ph + d.slot * 0.5, bk);
+      if (this.state === 'preview' && this.farLod) { d.root.position.y = 0; }
+      else danceStep(d, ph + d.slot * 0.5, bk);
     }
     if (this.state === 'dance') {
       this.joinT += dt; const q = Math.min(1, this.joinT / 0.9), e = q * q * (3 - 2 * q);
