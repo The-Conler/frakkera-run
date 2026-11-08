@@ -285,6 +285,8 @@ export function initUI(game) {
   const hideOffer = () => { offerBtn.classList.add('hidden'); cancelAnimationFrame(offerRaf); };
   bus.on('shopOffer', (d) => {
     if (state !== 'play') return;
+    // v5s44: al rientro in paese PIÙ VELOCE! e l'offerta di Pinu stavano nello stesso punto
+    popLayer.querySelectorAll('.pop.speed').forEach((el) => el.remove());
     offerT0 = performance.now(); offerDur = d.s * 1000; offerBtn.classList.remove('hidden');
     const tick = () => { const st = game.debugState(); const k = Math.max(0, st.shopOffer / d.s); $('#shop-offer-bar').style.transform = `scaleX(${k})`; if (k > 0 && st.mode === 'run') offerRaf = requestAnimationFrame(tick); else hideOffer(); };
     tick();
