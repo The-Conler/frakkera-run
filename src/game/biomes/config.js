@@ -14,13 +14,13 @@ export const BIOMES = [
     id: 'village', name: 'Gadoni - paese e piazza della chiesa', from: 0, to: 250,
     ground: { road: 'cobble', shoulder: 'walk', curb: true, terrain: '#7d8a4e', terrainY: -0.06 },
     sides: 'houses',            // architettura ai lati (env.js -> sidePiece, case da models.js)
-    gaps: { right: [[140, 252]], left: [[0, 78], [150, 176], [186, 252]] },   // v5s43d: vuoto sinistro da 0 m (niente casa a ~13-18 m) fino a coprire chiesa+campanile uniti
+    gaps: { right: [[140, 252]], left: [[0, 90], [150, 176], [186, 252]] },   // v5s44b: vuoto allargato perche' la chiesa+campanile uniti stanno piu' avanti (AT_M 58)
     landmarks: ['church', 'vicolo', 'cappella', 'farVillage', 'santamarta'],   // v5 stage 24: Santa Marta attraversata dopo la cappella
     skins: { botte: 'barrel', botti: 'barrels', bottecoricata: 'barrelLying', rollbarrel: 'barrel', muretto: 'wall', goat: 'goat', pozza: 'puddle', narrow: 'house', rollin: 'rollBarrel', trave: 'beamVillage' },
     decor: { banners: true, bulbs: true, lanterns: true },
     // tramonto dorato-rosa (target2-villaggio); nebbia piu' lontana perche' il campanile si veda dal fondo della via
     mood: { top: '#6a78c4', mid: '#f7a070', hor: '#ffc870', fog: '#f8c590', hemiS: '#ffd8a0', hemiG: '#7a5c48', hemiI: 1.4, dirC: '#ffb860', dirI: 2.6, moon: 0, sun: 1.2, far: '#ffe2c8', fogNear: 60, fogFar: 240 },
-    nightStart: [75, 135],      // v5s37: sera di Natale alla partenza (campanile con le luci e Su Nascimentu), poi torna il tramonto
+    nightStart: [93, 153],      // v5s44b: sera di Natale fino a dopo la chiesa (AT_M 58), poi torna il tramonto
     moodEnd: { top: '#5257a8', mid: '#ee8c70', hor: '#ffb874', fog: '#f1ae88', hemiI: 1.22, dirI: 2.0 }, // verso sera a fine paese
     light: { flameDist: 11, flameK: 1, mineral: 0, lamp: 0, darkByFuel: 0, tunnel: 0, exposure: 1.05, camLook: 1.0, camFov: 4 },
     ambience: { wind: 0.06, water: 0, drips: 0, birds: 0.3, bells: 1, cave: 0 },

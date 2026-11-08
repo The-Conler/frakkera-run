@@ -17,7 +17,7 @@ import { loadTower, fitTower, towerModel } from './towerModel.js';
 import { loadCliffModels, cliffModels, buildCliffInstances, buildCurtains, fernMaterial, FERN_U } from './stiddiosa3d.js';
 import { buildFalls, makeFaceX, stiddiosaFallSpecs, waterMaterial, fxMaterial, WATER_U } from './stiddiosaFalls.js';
 import * as S from './builders/structures.js';
-import { buildChurchSquare } from './builders/church.js';
+import { buildChurchSquare, VISTA } from './builders/church.js';
 import { buildVicolo, buildCappella, buildCappellaLeft } from './builders/gadoni5.js';
 import { buildBanner } from '../masks/figures.js';
 import { Kit, G, rng, ROCK, LEAF } from './builders/common.js';
@@ -408,7 +408,7 @@ export class Env {
         const feet = this.feetFor(sd.s, W, w, 8);
         if (gapA != null) feet.push({ minW: gapA - 14, maxW: gapA + 3.5, minX: -8.5, maxX: 1.2 });
         if (gapZ != null) feet.push({ minW: gapZ - 3.5, maxW: gapZ + 14, minX: -8.5, maxX: 1.2 });
-        const piazza = i.local < 36;
+        const piazza = i.local < VISTA.AT_M - 8;   // v5s44b: piazzetta aperta fino a vicino alla chiesa (spostata piu' avanti)
         const piece = own(() => N.slopePiece(W, w, piazza ? {
           Hs: 1.1, dist: 18, trees: 0.03, wall: false, rocks: 0.05, ferns: 0.04,
           seed: 77 + Math.floor(W), flowers: 0.62,
@@ -428,10 +428,13 @@ export class Env {
         const feet = this.feetFor(sd.s, W, w, 6);
         const lod = W - this.lastPW > LOD_D;
         Kit.lodMin = lod ? LOD_MIN : 0;
+        // v5s44b: niente muro-schermo alto 6.5 m sul bordo strada (chiudeva il paese in un
+        // corridoio di pietra prima di Santa Marta). Muretto da giardino (~1 m), piu' verde
+        // e una collina piu' alta/lontana cosi' il vuoto resta nascosto e Santa Marta si vede.
         const make = () => N.slopePiece(W, w, {
-          Hs: 7, dist: 46, trees: 0.1, wall: true, wallH: 6.5, rocks: 0.12, ferns: 0.05,
-          seed: 91 + (Math.floor(W) % 997), flowers: 0.08,
-          ground: ['#6a6248', '#5f6a40', '#7d8a4e', '#4e4638'], skirt: -90, footprints: feet,
+          Hs: 14, dist: 52, trees: 0.28, wall: true, wallH: 0.95, rocks: 0.1, ferns: 0.16,
+          seed: 91 + (Math.floor(W) % 997), flowers: 0.36,
+          ground: ['#7d8a4e', '#6e7a3e', '#8a9a56', '#5f6a40', '#9a8f6a'], skirt: -90, footprints: feet,
         });
         let geom; try { geom = make(); } finally { Kit.lodMin = 0; }
         this.stats.built++;

@@ -15,9 +15,9 @@ import { VISTA, TOWER } from './biomes/builders/church.js';
 export const NASC = {
   HUB_Y: TOWER.H * 1.05 - 0.6,          // punto alto dei fili (sotto la cornice di coronamento)
   SKIRT_Y: 12.6 * 1.05,                 // attacco della gonna di luci (sotto la cella campanaria)
-  HUT: { x: 3.4, z: 9.2, ry: 0.42 },    // capanna davanti al campanile, rivolta a chi arriva e alla via
+  HUT: { x: 2.2, z: 9.2, ry: 0.42 },    // v5s44b: davanti all'edificio, tutta fuori dalla carreggiata (x mondo <= -5.55)
   ROAD_R: 7.4,                          // x mondo dei punti d'arrivo oltre la via (facciate di destra)
-  nightTo: [55, 115],                   // sera di Natale all'inizio del paese: piena fino a 55 m, sfuma a 115 m
+  nightTo: [73, 133],                   // v5s44b: piena fino a dopo la capanna/chiesa (AT_M 58), sfuma a 133 m
 };
 
 const WIRE = '#2a2420';
