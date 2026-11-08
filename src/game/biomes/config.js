@@ -14,7 +14,7 @@ export const BIOMES = [
     id: 'village', name: 'Gadoni - paese e piazza della chiesa', from: 0, to: 250,
     ground: { road: 'cobble', shoulder: 'walk', curb: true, terrain: '#7d8a4e', terrainY: -0.06 },
     sides: 'houses',            // architettura ai lati (env.js -> sidePiece, case da models.js)
-    gaps: { right: [[140, 252]], left: [[0, 98], [150, 176], [186, 252]] },   // v5s43: il vuoto sinistro parte da 0 m, cosi' la casa a ~13-18 m non copre Santa Marta all'uscita della miniera
+    gaps: { right: [[140, 252]], left: [[0, 78], [150, 176], [186, 252]] },   // v5s43d: vuoto sinistro da 0 m (niente casa a ~13-18 m) fino a coprire chiesa+campanile uniti
     landmarks: ['church', 'vicolo', 'cappella', 'farVillage', 'santamarta'],   // v5 stage 24: Santa Marta attraversata dopo la cappella
     skins: { botte: 'barrel', botti: 'barrels', bottecoricata: 'barrelLying', rollbarrel: 'barrel', muretto: 'wall', goat: 'goat', pozza: 'puddle', narrow: 'house', rollin: 'rollBarrel', trave: 'beamVillage' },
     decor: { banners: true, bulbs: true, lanterns: true },

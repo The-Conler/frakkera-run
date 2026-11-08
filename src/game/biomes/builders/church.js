@@ -354,9 +354,12 @@ export function buildChurchSquare(seed = 1) {
 // v5 stage 12 (target4-confronto-villaggio): "fondale" del paese - campanile grande e chiesa rosa centrati
 // in fondo alla via. Coordinate: campanile centrato in x=0, faccia con orologio verso +z (chi arriva),
 // chiesa con la facciata a capanna verso +z, a SINISTRA (a destra la coprirebbe la fiamma). world3d lo tiene davanti alla camera.
-// v5s23b: oggetto FISSO nel mondo, a sinistra della strada, facciate rivolte verso la via (non la attraversa): campanile a sinistra, chiesa a destra
-// v5s27: chiesa col campanile all'INIZIO del paese (vuoto a sinistra in config.js, gaps.left [22,68])
-export const VISTA = { S: 1.05, AT_M: 40, EDGE: -6.9, RY: 0.42, CS: 0.9, X: 0, FZ: -28.5, FX: 0.7, FY: -0.42 };   // v5s43: facciata piu' grande e rivolta a chi arriva, tenuta a sinistra del campanile (non entra in strada)
+// v5s23b: oggetto FISSO nel mondo, a sinistra della strada, facciate rivolte verso la via (non la attraversa)
+// v5s27: chiesa col campanile all'INIZIO del paese (vuoto a sinistra in config.js)
+// v5s43d: campanile e chiesa sono UN edificio (foto di Gadoni): la navata rosa e' attaccata
+// al fianco sinistro del campanile (muro condiviso, stesso orientamento), facciata a capanna
+// con finestra ad arco verso chi arriva. Il colmo sta circa alla fascia rosa bassa del campanile.
+export const VISTA = { S: 1.05, AT_M: 40, EDGE: -6.9, RY: 0.42, CS: 0.58, X: 0 };
 export function buildVista(seed = 1) {
   const r = rng(seed * 131 + 7);
   const kt = new Kit(seed + 501);
@@ -380,22 +383,15 @@ export function buildVista(seed = 1) {
   const bb = new THREE.Box3();
   const rot = new THREE.Matrix4().makeRotationY(-Math.PI / 2);
   for (const g of gs) { g.applyMatrix4(rot); g.computeBoundingBox(); bb.union(g.boundingBox); }
-  // facciata (max z) poco dietro la faccia del campanile, lato sinistro attaccato al campanile
+  // navata attaccata al fianco SINISTRO del campanile (muro condiviso, niente distacco ne' compenetrazione):
+  // dopo la rotazione -90° la facciata a capanna e' max.z (verso chi arriva) e il bordo destro (max.x)
+  // va contro il bordo sinistro del campanile. Stesso orientamento del campanile = un solo edificio.
   const tw = TOWER.W * VISTA.S / 2;
-  const mv = new THREE.Matrix4().makeTranslation((tw - 0.3) / VISTA.CS - bb.min.x + (VISTA.FX || 0), 0, 1.5 - bb.max.z + (VISTA.FZ || 0));
+  const share = 0.35;   // incastro nel muro del campanile, senza attraversarlo
+  const mv = new THREE.Matrix4().makeTranslation((-tw + share) / VISTA.CS - bb.max.x + (VISTA.FX || 0), 0, 1.5 - bb.max.z + (VISTA.FZ || 0));
   const sc = new THREE.Matrix4().makeScale(VISTA.CS, VISTA.CS, VISTA.CS);
   for (const g of gs) { g.applyMatrix4(mv); g.applyMatrix4(sc); }
   for (const g of kc.unlit || []) { g.applyMatrix4(rot); g.applyMatrix4(mv); g.applyMatrix4(sc); }
-  const fy = VISTA.FY || 0;
-  if (fy) {
-    const cb = new THREE.Box3();
-    for (const g of gs) { g.computeBoundingBox(); cb.union(g.boundingBox); }
-    const cx = (cb.min.x + cb.max.x) / 2, cz = (cb.min.z + cb.max.z) / 2;
-    const face = new THREE.Matrix4().makeTranslation(cx, 0, cz).multiply(new THREE.Matrix4().makeRotationY(fy)).multiply(new THREE.Matrix4().makeTranslation(-cx, 0, -cz));
-    for (const g of gs) g.applyMatrix4(face);
-    for (const g of kc.unlit || []) g.applyMatrix4(face);
-  }
-  { const cb2 = new THREE.Box3(); for (const g of gs) { g.computeBoundingBox(); cb2.union(g.boundingBox); } VISTA._cb = cb2; }
   for (const g of gs) k.lit.push(g);
   for (const g of kc.unlit || []) k.unlit.push(g);
   // basamento e case basse ai piedi (chiude il fondo della via)
