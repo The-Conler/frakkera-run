@@ -840,6 +840,7 @@ export class Env {
     const Bm = b.from + d.at;
     const cached = (name, make) => { const g = this.markGeom(name, make); m_gpu.push(g); return mesh(g, this.mats2, true); };
     const m_gpu = [];
+    const feet = [];
     const t0 = performance.now();
     if (id === 'church') {
       const sq = this.prefab('church', 0, () => { const s = buildChurchSquare(1); return { geom: s.geom, w: 0, lamps: s.lamps, houses: s.houses }; });
@@ -863,6 +864,8 @@ export class Env {
       }
     } else if (id === 'vicolo') {
       cached('vicolo', () => buildVicolo(32));
+      // v5s44d: impronta del Monumento ai Caduti (lato sinistro, z locale -21 → W+21)
+      feet.push(this.addHouseFoot(-1, W + 17.5, 9, 1.6));
     } else if (id === 'cappella') {
       // specchiata: la cappella a SINISTRA della via (a destra la coprirebbe la fiamma), case bianche a destra
       root.scale.x = -1;
@@ -924,11 +927,12 @@ export class Env {
       mesh(this.prefab('exit', 0, () => ({ geom: S.buildMineExit(8), w: 0, lamps: [] })).geom, this.mats2, true);
     }
     this.scene.add(root);
-    this.marks.set(key, { root, own, lamps, gpu: m_gpu, ms: performance.now() - t0 });
+    this.marks.set(key, { root, own, lamps, gpu: m_gpu, ms: performance.now() - t0, feet });
   }
   freeMark(key) {
     const m = this.marks.get(key); if (!m) return;
     this.scene.remove(m.root);
+    for (const f of m.feet || []) this.dropHouseFoot(f);
     for (const g of m.own) g.dispose();
     for (const g of m.gpu || []) g.dispose();          // solo buffer GPU; i dati CPU restano in cache
     for (const g of m.lamps) { g.visible = false; this.lampPool.push(g); }

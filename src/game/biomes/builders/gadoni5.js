@@ -1,7 +1,7 @@
 // =====================================================================
 // v5 stage 23c (target5-*): due luoghi veri di Gadoni alla fine del paese, attraversati dalla via.
 //  - vicolo: muri d'intonaco consumato ai due lati, portone verde a due ante sotto un arco di pietra con
-//    lunetta a raggiera; piu' avanti porta azzurra e balcone di ferro azzurro.
+//    lunetta a raggiera; piu' avanti il Monumento ai Caduti (al posto della casa con porta azzurra).
 //  - cappella tonda: piccolo edificio ocra arrotondato con gronda di coppi scuri, porta di legno marrone con
 //    architrave scuro, croce di ferro battuto sul muro; la via si divide attorno (ramo lastricato a destra),
 //    lampioni di ferro, case bianche con balconi dietro.
@@ -9,7 +9,7 @@
 // Tutto fuori dalle corsie (|x| > 6.9 m): le corsie restano libere e leggibili.
 // =====================================================================
 import * as THREE from 'three';
-import { Kit, G, rng } from './common.js';
+import { Kit, G, rng, tree, shrub, LEAF } from './common.js';
 
 const E = 6.95;            // filo delle facciate (FACADE)
 const arcGeo = (r, t, arc) => new THREE.TorusGeometry(r, t, 5, 12, arc);
@@ -53,7 +53,7 @@ export function buildVicolo(len = 26) {
   for (let z0 = 0; z0 > -len; z0 -= 3.25) {
     const c = r.pick(['#b9a183', '#c4ab88', '#ad9677', '#c9b394']);
     const zc = z0 - 1.6, rec = zc > -26 && zc < -3 ? 4 : 0;          // slargo davanti al portone verde
-    if (zc < -22) continue;                                           // v5s27: niente case in fondo: la cappella tonda si vede da lontano
+    if (zc < -17) continue;                                           // v5s44d: spazio per il monumento; v5s27: la cappella tonda si vede da lontano
     k.add(G.box(6, 9.5 + r.range(-0.4, 0.4), 3.3), c, { x: L * (E + 3 + rec), y: 4.75, z: zc, vary: 0.12 });
   }
   // v5s27: in fondo solo un muretto basso con un orto (al posto delle case alte che coprivano la cappella)
@@ -85,19 +85,8 @@ export function buildVicolo(len = 26) {
   }
   for (const [za, zb] of [[0, -8], [-20, -len]]) { k.add(G.box(0.25, 0.7, za - zb), '#6d655a', { x: R * (E + 0.05), y: 0.35, z: (za + zb) / 2, vary: 0.2 }); k.add(G.box(0.35, 0.25, za - zb), '#8a7e6c', { x: R * (E + 0.05), y: 9.9, z: (za + zb) / 2 }); }
   const bz = -21;
-  // casa con porta azzurra e balcone di ferro azzurro, di sbieco verso chi arriva
-  { const F = slanted(k, -9.0, bz, -1);   // a SINISTRA: a destra la coprirebbe la fiamma
-    F(-0.5, 0, 5, G.box(1.0, 10, 6.0), '#d4b49c', { vary: 0.08 });
-    F(0.03, 0, 1.6, G.box(0.1, 3.2, 2.5), '#e2ddd2');                                  // cornice chiara
-    for (const sd of [-1, 1]) { F(0.1, sd * 0.55, 1.45, G.box(0.1, 2.85, 1.05), '#2a7ad8', { unlit: true });
-      for (let j = 0; j < 4; j++) F(0.16, sd * 0.55, 0.5 + j * 0.65, G.box(0.04, 0.05, 0.9), '#1d60b0', { unlit: true }); }
-    F(0.03, 0, 3.75, G.box(0.1, 0.9, 1.6), '#3a3634');                               // sopraluce
-    F(0.5, 0, 4.6, G.box(1.0, 0.14, 3.0), '#9a948a');                                // soletta del balcone
-    F(1.0, 0, 5.55, G.box(0.06, 0.07, 3.0), '#2468d0', { unlit: true });
-    for (let i = 0; i <= 16; i++) F(1.0, -1.5 + i * 0.1875, 5.1, G.box(0.04, 0.9, 0.04), '#2468d0', { unlit: true });
-    for (const sd of [-1, 1]) F(0.5, sd * 1.5, 5.55, G.box(1.0, 0.06, 0.06), '#2468d0', { unlit: true });
-    for (const sd of [-1, 1]) F(0.12, sd * 0.42, 5.7, G.box(0.1, 2.1, 0.8), '#2a7ad8', { unlit: true });   // porta-finestra azzurra
-    F(0.05, 2.6, 4.75, G.cyl(0.05, 0.05, 9.5, 5), '#c97a6a'); }
+  // v5s44d: Monumento ai Caduti al posto della casa con porta azzurra (unica, non un prefab ripetuto)
+  caduti(k, rng(5401), -9.6, bz);
   windowFace(k, R * E, 6.4, -6, -R, '#2f8cf0', true); windowFace(k, R * E, 3.6, -3, -R, '#6b5a44');
   // lampada a braccio sul muro destro
   k.add(G.box(0.9, 0.06, 0.06), '#2a2d31', { x: R * (E - 0.45), y: 6.2, z: -23 });
@@ -161,4 +150,166 @@ export function buildCappellaLeft() {
     balcony(k, -E, 4.4, z, w * 0.5, 1, '#2a2d31');
   }
   return k.build({ ao: 0.22 });
+}
+
+// =====================================================================
+// v5s44d: Monumento ai Caduti di Gadoni (basso-poligonale, un draw call via Kit).
+// Piazzetta rialzata, muretto + ringhiera, basamento a due piani con lapidi,
+// roccia, gruppo bronzeo (soldato con elmetto che sorregge un compagno ferito),
+// due pennoni (tricolore e Quattro Mori), alberi dietro, rose davanti, cannone.
+// Altezza totale ~6.5 m. Tutto a x negativo (sinistra della via), |x| > 6.9.
+// =====================================================================
+function caduti(k, r, cx, cz) {
+  const STONE = '#8c887e', PALE = '#c6c2b8', PALE2 = '#d2cec4';
+  const IRON = '#1a1a1c';
+  const COBB = ['#8a8680', '#7c7870', '#969288', '#6e6a64'];
+  // piazzetta rialzata lastricata (fuori dalle corsie: fronte a x ~= cx+2.3 ~ -7.3)
+  k.add(G.box(4.2, 0.2, 5.6), '#7a766c', { x: cx, y: 0.1, z: cz, vary: 0.12 });
+  for (let i = 0; i < 18; i++) {
+    k.add(G.box(r.range(0.35, 0.6), 0.05, r.range(0.28, 0.5)), r.pick(COBB), {
+      x: cx + r.range(-1.8, 1.9), y: 0.22, z: cz + r.range(-2.5, 2.5), ry: r.range(-0.4, 0.4), vary: 0.15
+    });
+  }
+  // muretto basso (~0.6 m) con ringhiera di ferro nera sul fronte e sui lati
+  const fx = cx + 2.28, half = 2.75, wh = 0.6;
+  k.add(G.box(0.32, wh, 5.55), STONE, { x: fx, y: 0.2 + wh / 2, z: cz, vary: 0.14 });
+  for (const s of [-1, 1]) k.add(G.box(3.6, wh, 0.32), STONE, { x: cx + 0.4, y: 0.2 + wh / 2, z: cz + s * half, vary: 0.14 });
+  k.add(G.box(0.05, 0.05, 5.5), IRON, { x: fx + 0.12, y: 1.12, z: cz });
+  for (let i = 0; i <= 12; i++) k.add(G.box(0.035, 0.5, 0.035), IRON, { x: fx + 0.12, y: 0.87, z: cz - 2.7 + i * 0.45 });
+  for (const s of [-1, 1]) {
+    k.add(G.box(3.5, 0.05, 0.05), IRON, { x: cx + 0.45, y: 1.12, z: cz + s * half });
+    for (let i = 0; i <= 6; i++) k.add(G.box(0.035, 0.5, 0.035), IRON, { x: cx - 1.2 + i * 0.55, y: 0.87, z: cz + s * half });
+  }
+  // basamento a due piani, pietra chiara
+  k.add(G.box(1.75, 0.52, 2.2), PALE, { x: cx + 0.15, y: 0.48, z: cz, vary: 0.06 });
+  k.add(G.box(1.28, 0.7, 1.58), PALE2, { x: cx + 0.15, y: 1.09, z: cz, vary: 0.05 });
+  // lapidi: lastre chiare con righe scure (testo inciso)
+  const px = cx + 1.08;
+  for (const [tz, tw] of [[-0.48, 0.72], [0.48, 0.72]]) {
+    k.add(G.box(0.06, 0.38, tw), '#d8d4ca', { x: px, y: 0.52, z: cz + tz });
+    for (let i = 0; i < 5; i++) k.add(G.box(0.03, 0.022, tw * 0.78), '#2a2824', { x: px + 0.045, y: 0.66 - i * 0.055, z: cz + tz });
+  }
+  // due cornici-foto sul piano alto
+  for (const s of [-1, 1]) {
+    k.add(G.box(0.05, 0.26, 0.2), '#3a3028', { x: px - 0.15, y: 1.12, z: cz + s * 0.32 });
+    k.add(G.box(0.04, 0.18, 0.14), '#5c4a38', { x: px - 0.11, y: 1.12, z: cz + s * 0.32 });
+  }
+  // corona d'alloro tricolore sul fronte del basamento
+  k.add(G.torus(0.2, 0.055, 5, 10), '#2f6a38', { x: px + 0.08, y: 0.5, z: cz, ry: Math.PI / 2, rz: 0.15 });
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * Math.PI * 2, col = ['#c8283a', '#f4f0e6', '#2f8a4a'][i % 3];
+    k.add(G.ico(0.055, 0), col, { x: px + 0.1, y: 0.5 + Math.sin(a) * 0.2, z: cz + Math.cos(a) * 0.2, flat: true });
+  }
+  // mucchio di roccia scabra, grigia con chiazze di muschio
+  const RS = ['#8a8680', '#7a766e', '#949088', '#6e6a64', '#5f5b54'];
+  const MS = ['#4a6a32', '#3f5a2c', '#5a7a3a'];
+  for (const [dx, dy, dz, s] of [
+    [0, 0.5, 0, 0.82], [0.38, 0.32, 0.22, 0.52], [-0.32, 0.38, -0.18, 0.58],
+    [0.18, 0.95, -0.14, 0.48], [-0.12, 1.28, 0.1, 0.46], [0.06, 1.78, 0.04, 0.4],
+    [0.28, 1.08, 0.28, 0.36], [-0.24, 0.78, 0.26, 0.38], [0.12, 1.5, -0.2, 0.32],
+    [0.02, 2.22, 0.02, 0.38], [0.1, 2.58, -0.06, 0.3]
+  ]) {
+    k.add(G.ico(s, 0), r.pick(RS), { x: cx + 0.12 + dx, y: 1.55 + dy, z: cz + dz, flat: true, vary: 0.22, sy: 0.82 });
+  }
+  for (const [dx, dy, dz, s] of [[0.22, 0.48, 0.28, 0.2], [-0.26, 0.72, -0.14, 0.17], [0.04, 1.42, 0.18, 0.15], [0.18, 1.1, -0.22, 0.14]]) {
+    k.add(G.ico(s, 0), r.pick(MS), { x: cx + 0.12 + dx, y: 1.55 + dy, z: cz + dz, flat: true, vary: 0.18 });
+  }
+  // gruppo bronzeo: soldato con elmetto (in ginocchio/in piedi) che sorregge un compagno ferito
+  // piedi sulla roccia ~ y 3.55; elmetto ~ y 6.4. Affacciato verso la via (+x), leggermente verso chi arriva.
+  figurePair(k, cx + 0.18, 4.32, cz, -0.55);
+  // due pennoni bianchi: tricolore italiano e bandiera dei Quattro Mori
+  flagPole(k, cx + 1.05, cz - 2.15, 'ita');
+  flagPole(k, cx + 1.05, cz + 2.15, 'mori');
+  // fondale chiuso (niente cielo tra le case) + due alberi alle spalle
+  k.add(G.box(1.3, 8.4, 7.0), '#cbb89a', { x: cx - 3.7, y: 4.2, z: cz, vary: 0.08 });
+  k.add(G.box(1.7, 0.28, 7.4), '#b3593c', { x: cx - 3.7, y: 8.5, z: cz });
+  tree(k, r, cx - 2.55, 0, cz - 1.55, 1.55, LEAF.holm);
+  tree(k, r, cx - 2.35, 0, cz + 1.65, 1.7, LEAF.holm);
+  // rose rosse davanti al muretto
+  for (const tz of [-1.9, -0.65, 0.65, 1.9]) {
+    shrub(k, r, cx + 2.15, 0.2, cz + tz, 0.48, ['#3a6a28', '#4a7a30', '#2f5a22'], 0);
+    for (let i = 0; i < 4; i++) k.add(G.ico(0.08, 0), r.pick(['#c8283a', '#e04050', '#a01828']), {
+      x: cx + 2.15 + r.range(-0.18, 0.18), y: 0.55 + r.range(0, 0.32), z: cz + tz + r.range(-0.18, 0.18), flat: true
+    });
+  }
+  // vecchio cannone da campagna, un lato
+  cannon(k, cx - 0.15, 0.2, cz + 3.05);
+}
+
+function figurePair(k, ox, oy, oz, faceRy) {
+  const c = Math.cos(faceRy), s = Math.sin(faceRy);
+  const BR = '#8a6a3a', BR2 = '#6a5030', BR3 = '#c4a06a';
+  const P = (lx, ly, lz, geo, col, o = {}) => {
+    k.add(geo, col, {
+      x: ox + lx * c + lz * s, y: oy + ly, z: oz - lx * s + lz * c,
+      ry: (o.ry || 0) + faceRy, rx: o.rx, rz: o.rz, sx: o.sx, sy: o.sy, sz: o.sz,
+      vary: o.vary, flat: o.flat
+    });
+  };
+  // soldato che sorregge: in piedi sulla gamba sinistra, ginocchio destro avanzato
+  P(-0.02, 1.22, 0.08, G.box(0.4, 0.95, 0.26), BR);                 // busto
+  P(-0.02, 0.68, 0.06, G.box(0.36, 0.28, 0.24), BR2);               // fianchi
+  P(-0.12, 0.3, 0.04, G.box(0.15, 0.58, 0.15), BR);                 // gamba d'appoggio
+  P(-0.12, 0.05, 0.1, G.box(0.18, 0.08, 0.28), BR2);                // stivale
+  P(0.14, 0.42, 0.22, G.box(0.15, 0.2, 0.46), BR, { rx: 0.15 });    // coscia piegata
+  P(0.16, 0.2, 0.42, G.box(0.14, 0.38, 0.14), BR);                  // stinco
+  P(0.16, 0.05, 0.46, G.box(0.17, 0.08, 0.26), BR2);
+  P(-0.02, 1.78, 0.08, G.sph(0.17, 8, 6), BR3);                     // testa
+  P(-0.02, 1.9, 0.1, G.sph(0.2, 8, 6), BR2);                        // elmetto
+  P(-0.02, 1.78, 0.14, G.cyl(0.22, 0.22, 0.05, 8), BR2);            // tesa
+  P(-0.28, 1.28, 0.18, G.box(0.13, 0.13, 0.55), BR, { rx: 0.35 });  // braccio che abbraccia
+  P(0.26, 1.22, 0.02, G.box(0.13, 0.13, 0.5), BR, { rx: -0.25 });   // altro braccio
+  // compagno ferito, abbandonato in avanti contro il petto del primo
+  P(0.32, 1.05, -0.18, G.box(0.55, 0.32, 0.24), BR, { rz: 0.55 });  // busto reclinato
+  P(0.18, 0.72, -0.22, G.box(0.22, 0.45, 0.16), BR, { rz: 0.4 });   // bacino/coscia
+  P(0.55, 0.42, -0.2, G.box(0.14, 0.5, 0.13), BR, { rz: 0.9 });     // gamba distesa
+  P(0.78, 0.18, -0.18, G.box(0.16, 0.08, 0.22), BR2);
+  P(0.55, 1.38, -0.16, G.sph(0.15, 7, 6), BR3);                     // testa reclinata
+  P(0.58, 1.48, -0.14, G.sph(0.17, 7, 6), BR2);                     // elmetto inclinato
+  P(0.05, 1.15, -0.28, G.box(0.12, 0.12, 0.4), BR, { rx: -0.4 });   // braccio pendente
+}
+
+function flagPole(k, x, z, kind) {
+  const H = 6.95;
+  k.add(G.cyl(0.065, 0.08, H, 6), '#f2eee6', { x, y: H / 2, z });
+  k.add(G.cyl(0.14, 0.16, 0.12, 6), '#d8d4cc', { x, y: 0.08, z });
+  k.add(G.sph(0.07, 6, 5), '#e8e4dc', { x, y: H + 0.04, z });
+  const fy = H - 0.85, fw = 1.15, fh = 0.78, hoist = x + 0.04;
+  if (kind === 'ita') {
+    const cols = ['#008c45', '#f4f5f0', '#cd212a'];
+    for (let i = 0; i < 3; i++) {
+      const wave = Math.sin(i * 0.95) * 0.1;
+      k.add(G.box(fw / 3, fh, 0.035), cols[i], {
+        x: hoist + (i + 0.5) * (fw / 3), y: fy + wave * 0.25, z: z + wave, rz: wave * 0.35, ry: 0.12
+      });
+    }
+  } else {
+    k.add(G.box(fw, fh, 0.03), '#f4f0e6', { x: hoist + fw / 2, y: fy, z: z + 0.04, ry: 0.14, rz: 0.08 });
+    k.add(G.box(fw * 0.9, fh * 0.16, 0.035), '#c41e3a', { x: hoist + fw / 2, y: fy, z: z + 0.06, ry: 0.14, rz: 0.08 });
+    k.add(G.box(fw * 0.16, fh * 0.88, 0.035), '#c41e3a', { x: hoist + fw / 2, y: fy, z: z + 0.06, ry: 0.14, rz: 0.08 });
+    for (const [dx, dy] of [[-0.28, 0.2], [0.28, 0.2], [-0.28, -0.2], [0.28, -0.2]]) {
+      k.add(G.cyl(0.11, 0.11, 0.04, 7), '#1a1a1a', {
+        x: hoist + fw / 2 + dx * fw, y: fy + dy * fh, z: z + 0.08, rx: Math.PI / 2, ry: 0.14
+      });
+      k.add(G.box(0.18, 0.035, 0.03), '#f4f0e6', { x: hoist + fw / 2 + dx * fw, y: fy + dy * fh + 0.04, z: z + 0.09, ry: 0.14 });
+    }
+  }
+}
+
+function cannon(k, x, y, z) {
+  const GR = '#3a4a2c', IR = '#2a2a28', WD = '#4a3a28';
+  for (const s of [-1, 1]) {
+    k.add(G.cyl(0.4, 0.4, 0.11, 9), WD, { x, y: y + 0.4, z: z + s * 0.42, rx: Math.PI / 2 });
+    k.add(G.cyl(0.1, 0.1, 0.13, 6), IR, { x, y: y + 0.4, z: z + s * 0.42, rx: Math.PI / 2 });
+  }
+  k.add(G.cyl(0.055, 0.055, 0.9, 6), IR, { x, y: y + 0.4, z, rx: Math.PI / 2 });
+  k.add(G.box(1.05, 0.11, 0.2), WD, { x: x - 0.5, y: y + 0.22, z, rz: 0.18 });
+  k.add(G.cyl(0.11, 0.13, 1.45, 8), GR, { x: x + 0.4, y: y + 0.7, z, rz: Math.PI / 2 - 0.14 });
+  k.add(G.cyl(0.15, 0.15, 0.16, 8), IR, { x: x + 1.05, y: y + 0.8, z, rz: Math.PI / 2 - 0.14 });
+}
+
+export function buildCaduti() {
+  const k = new Kit(5401);
+  caduti(k, rng(5401), 0, 0);
+  return k.build({ ao: 0.2 });
 }
