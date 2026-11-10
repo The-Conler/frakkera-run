@@ -202,7 +202,7 @@ export function buildBurraTree(tex) {
   const cropTo = (img) => {   // ritaglio in una tela: la ripetizione avviene dentro il tessuto, senza frange
     const c = document.createElement('canvas'), sx = Math.round(img.width * CROP[0]), sw = Math.round(img.width * (CROP[1] - CROP[0]));
     c.width = sw; c.height = img.height; c.getContext('2d').drawImage(img, sx, 0, sw, img.height, 0, 0, sw, img.height);
-    map.image = c; map.needsUpdate = true;
+    map.dispose(); map.image = c; map.needsUpdate = true;   // dispose: la tela e' piu' stretta della foto, senza riallocare restava una striscia della vecchia immagine (frange grigie)
   };
   if (typeof document !== 'undefined') { const iv = setInterval(() => { if (map.userData.official && map.image && map.image.width) { clearInterval(iv); try { cropTo(map.image); } catch (e) { /* resta il tappeto intero */ } } }, 200); setTimeout(() => clearInterval(iv), 60000); }
   const fab = new THREE.MeshLambertMaterial({ map, side: THREE.DoubleSide, emissive: '#5a5048', emissiveMap: map });   // un po' di luce propria: i motivi si leggono anche di notte
