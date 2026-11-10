@@ -541,6 +541,11 @@ export class Sim {
         if (e.kind === 'pecora' && !e.bleat && e.d - T < MOVE_AHEAD - 10) { e.bleat = true; this.stats.sheep++; if (!e.xoff) this.fx('sound', 'sheep'); }
         if (e.kind === 'maialetto' && !e.bleat && e.d - T < MOVE_AHEAD - 10) { e.bleat = true; this.stats.piglets++; this.log('aP', e.dir); this.fx('sound', 'piglet'); this.fx('popup', { text: 'SU PORCHEDDU!', style: 'small' }); }
       }
+      if (e.kind === 'processione' && !e.done && e.d - T < MOVE_AHEAD) {
+        // v5s44f: il corteo avanza verso il giocatore (passo lento, corsa massima limitata)
+        if (e.d0 == null) e.d0 = e.d;
+        e.d = Math.max(e.d0 - VILLAGE.PROC_WALK_MAX_PX, e.d - VILLAGE.PROC_WALK_PX_S * dt);
+      }
       if (e.kind === 'rollin' && !e.done && e.d - T < MOVE_AHEAD) {
         // botte / carrello che rotola verso il giocatore lungo la corsia (velocita' proporzionale alla corsa)
         if (!e.moving) { e.moving = true; this.fx('sound', 'rumble'); }

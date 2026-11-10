@@ -398,9 +398,13 @@ export class Generator {
     if (vb.b.id !== VL.BIOME || vb.lap === this.procLap) return;
     if (vb.local < VL.PROC_FROM_M || vb.local >= VL.PROC_TO_M) return;
     if (this.nearDance(D, 80, 40)) return;
-    // v5s44e: sempre sulla corsia destra — non e' un ostacolo solido, e a sinistra coprirebbe il monumento
+    // v5s44e: sempre sulla corsia destra (a sinistra coprirebbe il monumento ai Caduti).
+    // v5s44f: il corteo cammina verso chi corre (fino a PROC_WALK_MAX_PX indietro): la corsia destra deve essere
+    // libera dal sentiero sicuro anche nelle file precedenti, altrimenti si riprova alla fila dopo (finestra 200-220 m)
+    const pl = [0, 1, 2].filter((l) => l !== this.path && l !== this.prevPath && l !== this.lastPath && !(this.carpetRows > 0 && this.carpetLane === l) && this.blockedUntil[l] < r - 2);
     const lane = 2;
-    if (!this.paceOk('lane', D + 24, lane)) return;
+    if (!pl.includes(lane)) return;
+    if (!this.paceOk('lane', D + 24, lane)) return;   // corteo non solido: costa solo fuoco; il passo indietro (<= 6 m) non cambia il ritmo
     const vr = this.vrng;
     this.procLap = vb.lap; this.procs++;
     const rows = Math.ceil((VL.PROC_LEN + 24) / WORLD.ROW) + 1;
@@ -446,6 +450,9 @@ export class Generator {
       return true;
     }
     // capre dalla roccia: 1-2 capre sulla stessa fila, mai sul sentiero sicuro (resta sempre un passaggio)
+    // v5s44f: le capre compaiono a D+9 (non D+3*ROW): il ritmo si controlla e si registra dove compaiono davvero
+    if (!this.paceOk('lane', D + 9, 1)) return false;
+    this._animPaceD = D + 9;
     const k = ar.int(A.ROCKGOAT_N[0], A.ROCKGOAT_N[1]), lanes = [0, 1, 2].filter((l) => l !== this.path && this.freeUntil[l] < r && !(this._used || [])[l]);
     for (let i = lanes.length - 1; i > 0; i--) { const j = ar.int(0, i); [lanes[i], lanes[j]] = [lanes[j], lanes[i]]; }
     lanes.length = Math.min(k, lanes.length);
@@ -564,7 +571,7 @@ export class Generator {
         return;
       }
     }
-    if (!this.parade && !longActive && z3ok && this.paceOk('lane', D + 3 * ROW, 1) && this.maybeAnimals(r, D, diff, emit)) { this.paceTake('lane', D + 3 * ROW, 1); z3mark(r + 3); return; }
+    if (!this.parade && !longActive && z3ok && this.paceOk('lane', D + 3 * ROW, 1) && (this._animPaceD = null, this.maybeAnimals(r, D, diff, emit))) { this.paceTake('lane', this._animPaceD ?? D + 3 * ROW, 1); z3mark(r + 3); return; }
     if (!this.parade && diff >= DF.MOVING_FROM && r >= this.nextMovingAt && !longActive && z3ok &&
         rng() < 0.07 + 0.12 * diff) {
       this.calmUntil = r + 6;

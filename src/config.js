@@ -400,6 +400,8 @@ export const VILLAGE = {
   PROC_SHARE: 0.5,         // quota di travi nel paese che diventano processione (se non gia' fatta in questo giro)
   PROC_FROM_M: 200, PROC_TO_M: 220,   // v5s44c: poco prima di Santa Marta (arrivo ~20-40 m prima dell'arco), non all'uscita della miniera
   PROC_LEN: 52,             // px di profondita' del corteo (statua + portatori)
+  PROC_WALK_PX_S: 13,       // v5s44f: il corteo cammina VERSO chi corre (~1.3 m/s, passo di processione)
+  PROC_WALK_MAX_PX: 60,     // v5s44f: al massimo ~6 m (2 file): resta dentro la corsia riservata dal generatore
   PROC_HALF: 13,
   PROC_FUEL: 12,            // urto: costa fuoco (mai sotto 1)
   PROC_PTS: 40,             // passata pulita
