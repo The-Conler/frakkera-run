@@ -433,7 +433,7 @@ export class Env {
         // corridoio di pietra prima di Santa Marta). Muretto da giardino (~1 m), piu' verde
         // e una collina piu' alta/lontana cosi' il vuoto resta nascosto e Santa Marta si vede.
         const make = () => N.slopePiece(W, w, {
-          Hs: 14, dist: 52, trees: 0.28, wall: true, wallH: 0.95, rocks: 0.1, ferns: 0.16,
+          Hs: 14, dist: 52, trees: sd.s < 0 && i.b.id === 'village' && i.local > 140 && i.local < 230 ? 0 : 0.28, wall: true, wallH: 0.95, rocks: 0.1, ferns: 0.16,   // v5s46b: niente alberi a sinistra davanti al Monumento ai Caduti
           seed: 91 + (Math.floor(W) % 997), flowers: 0.36,
           ground: ['#7d8a4e', '#6e7a3e', '#8a9a56', '#5f6a40', '#9a8f6a'], skirt: -90, footprints: feet,
         });
@@ -495,7 +495,13 @@ export class Env {
         const w = fit(8, 12); return own(() => N.riverDropPiece(W, w, { depth: 4 }), w);
       }
       case 'mineYard': {
-        if (s < 0) { const w = fit(8, 13); return own(() => N.cliffPiece(W, w, { H0: 17, Hamp: 7, lean: 0.12, pal: ['#7d7a74', '#8f8b83', '#6c6a65', '#9c978e'], moss: 0.2, mossCol: '#7a6a52', leaf: LEAF.dry, top: 'shrub', seed: 17 , solid: 22 }), w); }
+        if (s < 0) {
+          // v5s46b: il monte a sinistra non parte piu' con una lastra grigia verticale: prima continua il versante verde
+          // del viadotto, poi la roccia cresce piano (da ~5 m a 17 m) con colori caldi, muschio, lecci e cespugli
+          if (loc < 30) { const w = fit(8, 12); return own(() => N.slopePiece(W, w, { Hs: 16, dist: 30, trees: 0.22, rocks: 0.5, wall: true, wallH: 0.9, ferns: 0.05, seed: 13, ground: ['#7a7a44', '#6b7a3e', '#8a7a5a', '#9a8f6a', '#6e6a40'], conifers: true, skirt: -50 }), w); }
+          const w = fit(8, 13), ramp = Math.min(1, (loc - 30) / 30);
+          return own(() => N.cliffPiece(W, w, { H0: 5 + 12 * ramp, Hamp: 2 + 5 * ramp, lean: 0.12 + 0.25 * (1 - ramp), pal: ['#8f877a', '#9a8c74', '#7d7a6a', '#a39a8a', '#868070'], moss: 0.7, mossCol: '#5f7a36', ochre: true, leaf: LEAF.holm, shrubs: 0.8, top: 'trees', seed: 17, solid: 22 }), w);
+        }
         const w = fit(8, 12); return own(() => N.slopePiece(W, w, { Hs: 18, dist: 26, trees: 0.06, rocks: 0.6, wall: true, wallH: 1.4, leaf: LEAF.dry, ground: ['#8a857c', '#7a766e', '#9a958c', '#7a7a56'], rockPal: ['#7d7a74', '#8f8b83', '#6c6a65'], seed: 19, ferns: 0 , skirt: -50 }), w);
       }
       case 'tunnel': default:
@@ -780,12 +786,10 @@ export class Env {
       const inXmas = i.b.id === 'village' && i.local < 30;   // v5s37: alla partenza bastano le luci a raggiera del campanile
       if (i.b.decor.banners && !inSquare && !inFesta && !inXmas && i.local < 176) {   // v5s23c: niente festoni sopra vicolo e cappella
         const bulbs = i.b.decor.bulbs && r.chance(0.55);
-        const pf = bulbs ? this.prefab('bulbs', r.int(4), () => ({ geom: buildBulbString(r.lastInt + 1), w: 0, lamps: [] })) : this.prefab('banner', r.int(4), () => ({ geom: M.buildBanner(r.lastInt + 1, FACADE), w: 0, lamps: [] }));
-        const pool = this.pools.get(pf.key) || []; let m = pool.pop();
-        if (!m) { m = new THREE.Mesh(pf.geom, bulbs ? this.mats2 : [this.world.bannerMat, this.world.mat.unlit]); this.scene.add(m); }
-        m.visible = true; m.position.set(0, bulbs ? r.range(10.2, 10.9) : r.range(9.3, 10.0), -W); m.rotation.set(0, r.range(-0.12, 0.12), 0);
-        m.userData.sway = !bulbs;
-        this.decor.push({ W0: W, W1: W + step, mesh: m, key: pf.key, lamps: [] });
+        // v5s46b: niente piu' festoni di bandierine ne' fili di lampadine sopra la via, in nessun giro (richiesta utente).
+        // Si consumano gli stessi numeri casuali di prima, cosi' il resto del paese resta identico.
+        r.int(4); r.range(0, 1); r.range(0, 1); void bulbs;
+        this.decor.push({ W0: W, W1: W + step, mesh: null, lamps: [] });
       } else this.decor.push({ W0: W, W1: W + step, mesh: null, lamps: [] });
       this.dW = W + step;
     }
@@ -935,7 +939,7 @@ export class Env {
       const sign = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 1.65), this.signMat || (this.signMat = new THREE.MeshLambertMaterial({ map: BT.mineSignTexture() })));
       sign.position.set(9.6, 11.6, 1.9); sign.rotation.set(0, -0.12, 0.04); root.add(sign); own.push(sign.geometry);
       const net = new THREE.Mesh(new THREE.PlaneGeometry(70, 26), this.netMat || (this.netMat = new THREE.MeshBasicMaterial({ map: (() => { const t = BT.netTexture(); t.repeat.set(18, 7); return t; })(), transparent: true, depthWrite: false, opacity: 0.55 })));
-      net.position.set(0, 27, -0.5); net.rotation.x = -0.18; root.add(net); own.push(net.geometry);
+      net.position.set(0, 27, -0.5); net.rotation.x = -0.18; own.push(net.geometry);   // v5s46b: rete paramassi tolta (col versante piu' basso restava sospesa nel cielo)
       lamps.push(this.lamp(0, 6.2, -W - 1.2, '#ffb060', 1.05, 0.22));   // v5s43: bocca del portale, alone piccolo come Su Nascimentu
     } else if (id === 'mineExit') {
       mesh(this.prefab('exit', 0, () => ({ geom: S.buildMineExit(8), w: 0, lamps: [] })).geom, this.mats2, true);

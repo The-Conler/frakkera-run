@@ -108,8 +108,11 @@ export function buildNascimentu(tex) {
   const XR = toLocal(6.75), XL = toLocal(-6.75), poles = [];
   // v5s45 (20): niente fili oltre la torre (z <= 6, cioe' da ~52 m in poi): passavano davanti e sopra il cerchio del ballu tundu
   const RZ = [66, 54, 43, 33, 24, 15], LZ = [66, 56, 47];
-  for (const z of RZ) { poles.push([XR, z, 13.6]); strand(HUB, new THREE.Vector3(XR, 13.4, z), 0.5, 0.62, 0.3); strand(HUB, new THREE.Vector3(XR, 12.2, z + 1.2), 0.7, 0.62, 0.3); }
-  for (const z of LZ) { poles.push([XL, z, 13.6]); strand(HUB, new THREE.Vector3(XL, 13.4, z), 0.5, 0.62, 0.3); strand(HUB, new THREE.Vector3(XL, 12.2, z - 1.2), 0.7, 0.62, 0.3); }
+  // v5s46b: tolti i fili che attraversavano la via fino ai pali di destra (si vedevano come file di bandierine bianche sopra la strada)
+  void RZ;
+  // v5s46b: tolti anche i fili verso i pali di sinistra: nel paese non resta nessun filo di luci teso sopra la via o il marciapiede
+  // (restano solo la "gonna" di luci attaccata al campanile e i fili verticali sulla sua facciata)
+  void LZ; void XL;
   // gonna di luci attorno al punto di partenza (il cono luminoso della foto)
   for (let i = 0; i < 34; i++) { const ang = (i / 34) * Math.PI * 2, [x0, z0] = rot(Math.cos(ang) * tw * 1.04, Math.sin(ang) * tw * 1.04);
     const R = 4.6 + Math.sin(i * 1.7) * 0.35; strand(new THREE.Vector3(x0, HUB.y + 0.2, z0), new THREE.Vector3(Math.cos(ang) * R, HUB.y - 3.0, Math.sin(ang) * R), 0.2, 0.36); }

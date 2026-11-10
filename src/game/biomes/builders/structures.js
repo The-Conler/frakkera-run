@@ -4,7 +4,7 @@
 // ferro arrugginita, insegna, carrello sui binari), gallerie (roccia
 // grigia e galleria blu con luce minerale propria), uscita.
 import * as THREE from 'three';
-import { Kit, G, rng, fbm, noise3, addRock, shrub, grassTuft, dryWall, gridSurface, addColored, LEAF, ROCK } from './common.js';
+import { Kit, G, rng, fbm, noise3, addRock, shrub, grassTuft, dryWall, gridSurface, addColored, LEAF, ROCK, tree } from './common.js';
 
 const _c = new THREE.Color(), _c2 = new THREE.Color();
 const pickN = (pal, t) => pal[Math.max(0, Math.min(pal.length - 1, Math.floor(t * pal.length)))];
@@ -198,22 +198,34 @@ export function buildMinePortal(seed = 5) {
   const k = new Kit(seed); const r = rng(seed);
   const { halfW, wallH, crown } = TUNNEL;
   const inArch = (x, y, m = 0) => (Math.abs(x) < halfW + m && y < wallH) || ((x / (halfW + m)) ** 2 + ((y - wallH) / (crown + m)) ** 2 < 1);
-  // parete rocciosa grigia (fratturata, con macchie di arbusti secchi)
-  const X0 = -80, X1 = 80, Y1 = 46, nu = 64, nv = 26;
+  // v5s46b: non piu' un blocco grigio rettangolare (160 x 46 m) che copriva i monti: un versante naturale, alto al centro
+  // (sopra l'arco) e che scende ai lati, inclinato all'indietro, roccia calda in basso e macchia verde in alto.
+  // Dietro restano visibili le montagne e il cielo.
+  const X0 = -80, X1 = 80, nu = 64, nv = 18;
+  const Ytop = (x) => 7 + 17 * Math.exp(-((x / 30) ** 2)) + fbm(x / 14, 3.7, 5, 3) * 4 + noise3(x / 4, 1.3, 2) * 0.8;
   const face = gridSurface(nu, nv, (u, v) => {
-    const x = X0 + u * (X1 - X0), y = v * Y1;
+    const x = X0 + u * (X1 - X0), yt = Ytop(x), y = v * yt;
     if (inArch(x, y, 1.6) && y < crown + wallH + 1.0) return null;
     const near = Math.max(0, 1 - Math.max(Math.abs(x) - 11, y - 14, 0) / 10);
-    const z = 0.9 + (1 - near) * (fbm(x / 9, y / 8, 3, 3) * 3.5 + 1.5 - y * 0.12 + Math.abs(x) * 0.03) + noise3(x / 2.2, y / 2.2, 1) * 0.6;
+    const back = (1 - near) * (y * 0.55 + v * v * 4);   // il versante va indietro salendo (non una parete verticale)
+    const z = 0.9 + (1 - near) * (fbm(x / 9, y / 8, 3, 3) * 3.0 + 1.2 + Math.abs(x) * 0.03) - back + noise3(x / 2.2, y / 2.2, 1) * 0.6;
     return [x, y, z];
   }, (x, y, z) => {
     const n = fbm(x / 6, y / 5, 9, 2) * 0.5 + 0.5, n2 = noise3(x / 1.5, y / 1.5, 3) * 0.5 + 0.5;
-    _c.set(pickN(['#7d7a74', '#8f8b83', '#6c6a65', '#9c978e', '#85817a', '#a5a096'], n));
-    if (n2 > 0.8) _c.multiplyScalar(0.7);
-    if (noise3(x / 5, y / 4, 17) > 0.5 && y > 14) _c.lerp(_c2.set('#7a6a52'), 0.55);    // arbusti secchi
+    const t = y / Math.max(1, Ytop(x)), green = Math.min(1, Math.max(0, (t - 0.35) * 2.2 + (noise3(x / 5, y / 4, 17) * 0.5)));
+    _c.set(pickN(['#8f877a', '#9a8c74', '#857f72', '#a39a8a', '#7d786c', '#b09a78'], n));
+    if (n2 > 0.8) _c.multiplyScalar(0.78);
+    if (green > 0.1 && Math.abs(x) > 9 || y > 15) _c.lerp(_c2.set(pickN(['#5f6e3a', '#6e7a42', '#4f5e34', '#7a7a4a', '#55703a'], n2)), Math.min(0.92, green));
     return _c.getHex();
   });
   addColored(k, face);
+  // macchia e lecci sul versante (piu' fitti in alto e ai lati, mai davanti all'arco)
+  for (let i = 0; i < 70; i++) {
+    const x = r.range(-76, 76); if (Math.abs(x) < 12) continue;
+    const yt = Ytop(x), y = yt * r.range(0.45, 0.98), z = 0.9 - (y * 0.55 + 3) + 0.4;
+    if (r.chance(0.35)) tree(k, r, x, y - 0.2, z, r.range(1.0, 1.6), LEAF.holm); else shrub(k, r, x, y, z, r.range(0.8, 1.5), r.chance(0.5) ? LEAF.holm : LEAF.dry);
+  }
+  for (let i = 0; i < 9; i++) { const x = r.range(-9, 9), yt = Ytop(x); shrub(k, r, x, yt - 0.4, 0.9 - (yt * 0.55 + 4), r.range(0.9, 1.4), LEAF.holm); }   // cespugli sulla cima sopra l'arco
   // muratura in pietra attorno all'arco (paramento, come nella foto)
   for (let y = 0.25; y < 13.5; y += 0.42) for (let x = -11; x < 11; x += r.range(0.6, 0.95)) {
     if (inArch(x, y, 1.15)) continue;

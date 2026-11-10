@@ -80,6 +80,10 @@ export class Kit {
     if (lit && un) out = mergeGeometries([lit, un], true);
     else {
       out = lit || un;
+      if (!out) {   // v5s46b: kit vuoto (es. pezzo lontano LOD senza dettagli grandi): geometria vuota invece di un errore
+        out = new THREE.BufferGeometry();
+        for (const [n, sz] of [['position', 3], ['normal', 3], ['color', 3]]) out.setAttribute(n, new THREE.Float32BufferAttribute([], sz));
+      }
       out.clearGroups();
       out.addGroup(0, out.attributes.position.count, lit ? 0 : 1);
     }

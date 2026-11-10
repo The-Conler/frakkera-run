@@ -192,12 +192,20 @@ export function buildBurraTree(tex) {
   const H = 9.2, R = 1.52;   // ~3 volte piu' alto che largo, 8-10 m
   // v5s45 (14): il vero tessuto Sa Burra (stessa foto della passatoia di Santa Marta) avvolto a fasce:
   // ogni fascia e' alta un tappeto e lo ripete intorno al cono senza stirarlo (motivi leggibili).
-  const NB = 5, bandH = H / NB, tileW = bandH * CARPET_ASPECT;
+  // v5s46b: tessuto continuo tutto intorno: si usa solo la parte tessuta del tappeto (senza frange ne' bordo chiaro),
+  // ripetuta senza giunzioni; prima le frange trasparenti lasciavano una striscia grigia dalla base alla punta.
+  const CROP = [86 / 860, 774 / 860], NB = 5, bandH = H / NB, tileW = bandH * CARPET_ASPECT * (CROP[1] - CROP[0]);
   const under = new THREE.Mesh(new THREE.ConeGeometry(R * 0.985, H, 18, 1, true), new THREE.MeshLambertMaterial({ color: '#efe4cc' }));
   under.position.y = 0.62 + H / 2; g.add(under);   // lana color crema sotto le frange trasparenti (niente buchi)
   const map = loadCarpetTexture(0, 4);   // istanza propria (la ripetizione non tocca i tappeti raccoglibili)
   map.wrapS = THREE.RepeatWrapping; map.wrapT = THREE.ClampToEdgeWrapping; map.colorSpace = THREE.SRGBColorSpace;
-  const fab = new THREE.MeshLambertMaterial({ map, alphaTest: 0.35, side: THREE.DoubleSide, emissive: '#5a5048', emissiveMap: map });   // un po' di luce propria: i motivi si leggono anche di notte
+  const cropTo = (img) => {   // ritaglio in una tela: la ripetizione avviene dentro il tessuto, senza frange
+    const c = document.createElement('canvas'), sx = Math.round(img.width * CROP[0]), sw = Math.round(img.width * (CROP[1] - CROP[0]));
+    c.width = sw; c.height = img.height; c.getContext('2d').drawImage(img, sx, 0, sw, img.height, 0, 0, sw, img.height);
+    map.image = c; map.needsUpdate = true;
+  };
+  if (typeof document !== 'undefined') { const iv = setInterval(() => { if (map.userData.official && map.image && map.image.width) { clearInterval(iv); try { cropTo(map.image); } catch (e) { /* resta il tappeto intero */ } } }, 200); setTimeout(() => clearInterval(iv), 60000); }
+  const fab = new THREE.MeshLambertMaterial({ map, side: THREE.DoubleSide, emissive: '#5a5048', emissiveMap: map });   // un po' di luce propria: i motivi si leggono anche di notte
   g.userData.burraMat = fab; g.userData.burraTiles = [];
   for (let i = 0; i < NB; i++) {
     const t0 = i / NB, t1 = (i + 1) / NB, r0 = R * (1 - t0) * 1.012, r1 = R * (1 - t1) * 1.012;
@@ -217,11 +225,13 @@ export function buildBurraTree(tex) {
   const glowW = new THREE.MeshBasicMaterial({ color: '#fff6e0' });
   const sph = new THREE.SphereGeometry(0.055, 5, 4);
   for (let ring = 0; ring < 4; ring++) {
-    const y = 1.6 + ring * 1.7, rr = R * (1 - (y - 0.62) / H) * 1.06, n = 10 - ring;
+    const y0 = 1.6 + ring * 1.7, n = 10 - ring;
     for (let i = 0; i < n; i++) {
-      const a = (i / n) * Math.PI * 2 + ring * 0.35, sag = Math.sin((i / n) * Math.PI * 2) * 0.12;
+      const a = (i / n) * Math.PI * 2 + ring * 0.35, sag = Math.sin((i / n) * Math.PI * 2) * 0.12, y = y0 - sag;
+      // v5s46b: ogni lucina appoggiata sul tessuto (raggio del cono a quella altezza + meta' lampadina), niente lucine sospese
+      const rr = R * (1 - (y - 0.62) / H) * 1.012 + 0.035;
       const m = new THREE.Mesh(sph, i % 2 ? glow : glowW);
-      m.position.set(Math.cos(a) * rr, y - sag, Math.sin(a) * rr);
+      m.position.set(Math.cos(a) * rr, y, Math.sin(a) * rr);
       g.add(m);
     }
   }

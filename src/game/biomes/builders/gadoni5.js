@@ -58,8 +58,7 @@ export function buildVicolo(len = 26) {
   for (const [za, zb] of [[-22.5, -len]]) k.add(G.box(0.5, 0.9, za - zb), '#a89a86', { x: L * (E + 0.25), y: 0.45, z: (za + zb) / 2, vary: 0.2 });
   k.add(G.box(9, 0.08, 15.5), '#5d6b3c', { x: L * (E + 5), y: 0.0, z: -7.75 });                          // orto (terra erbosa)
   for (let i = 0; i < 14; i++) k.add(G.ico(r2.range(0.45, 0.85), 0), r2.pick(['#4f7a2c', '#5f8a34', '#3f6a28']), { x: L * (E + r2.range(1.2, 3.2)), y: r2.range(0.5, 0.9), z: -r2.range(0.5, 15), flat: true, vary: 0.2 });   // siepe dietro il muretto
-  tree(k, r2, L * (E + 6.5), 0, -3.5, 1.1);
-  tree(k, r2, L * (E + 8.5), 0, -11.5, 1.25);
+  // v5s46b: tolti i due alberi dell'orto: da chi corre coprivano il Monumento ai Caduti (statua, base e bandiere)
   for (let i = 0; i < 6; i++) k.add(G.ico(r.range(0.5, 0.9), 0), r.pick(['#4f7a2c', '#5f8a34', '#3f6a28']), { x: L * (E + r.range(1.5, 6)), y: r.range(0.4, 0.8), z: -r.range(23.5, len - 1), flat: true, vary: 0.2 });
   // --- muro destro: casa rosata scrostata con porta azzurra e balcone di ferro azzurro
   const R = 1;
@@ -219,8 +218,9 @@ function caduti(k, r, cx, cz, yaw = -0.72) {
   // fondale chiuso (niente cielo tra le case) + due alberi alle spalle
   k.add(G.box(1.3, 8.4, 7.0), '#cbb89a', { x: cx - 3.7, y: 4.2, z: cz, vary: 0.08 });
   k.add(G.box(1.7, 0.28, 7.4), '#b3593c', { x: cx - 3.7, y: 8.5, z: cz });
-  tree(k, r, cx - 2.45, 0, cz - 1.25, 1.55, LEAF.holm);
-  tree(k, r, cx - 2.25, 0, cz + 1.3, 1.7, LEAF.holm);
+  // v5s46b: tolti i due lecci alle spalle del monumento (le chiome coprivano statua e bandiere);
+  // costruiti su un kit scartato solo per consumare gli stessi numeri casuali (rose e cannone restano uguali)
+  { const kx = new Kit(1); tree(kx, r, cx - 2.45, 0, cz - 1.25, 1.55, LEAF.holm); tree(kx, r, cx - 2.25, 0, cz + 1.3, 1.7, LEAF.holm); }
   // rose rosse davanti al muretto
   for (const tz of [-1.5, -0.5, 0.5, 1.5]) {
     shrub(k, r, cx + 2.15, 0.2, cz + tz, 0.48, ['#3a6a28', '#4a7a30', '#2f5a22'], 0);

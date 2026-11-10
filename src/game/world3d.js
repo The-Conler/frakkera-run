@@ -453,9 +453,7 @@ export class World {
       v.sig = [0, 1, 2].map(() => { const g = this.glowSprite('#4aff7a', 1.5, 0.95); v.body.add(g); return g; });
       v.stop = [0, 1, 2].map(() => { const g = this.glowSprite('#ff3a2a', 1.3, 0.9); v.body.add(g); return g; });   // v5s22: rosso sui binari interrotti
       // v5s46 (119): freccia verde sopra ogni binario aperto e freccia a terra sul binario (punta avanti)
-      if (!this.arrowMat) { const t = T3.arrowTexture(); this.arrowMat = new THREE.SpriteMaterial({ map: t, transparent: true, depthWrite: false, fog: false, toneMapped: false }); this.arrowGround = new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }); this.arrowGeo = new THREE.PlaneGeometry(1.6, 2.4).rotateX(-Math.PI / 2).rotateY(Math.PI); }
-      v.arrow = [0, 1, 2].map(() => { const g = new THREE.Sprite(this.arrowMat); g.scale.set(1.5, 1.5, 1); g.renderOrder = 16; v.body.add(g); return g; });
-      v.garrow = [0, 1, 2].map(() => { const g = new THREE.Mesh(this.arrowGeo, this.arrowGround); g.renderOrder = 3; v.body.add(g); return g; });
+      // v5s46b: tolte tutte le frecce dello scambio (sospese e dipinte sui binari); restano i semafori rossi
     } else if (kind === 'minatore') {           // v5s17: minatore di Funtana Raminosa
       const mg = minerGeoms();
       if (!this.minerMats) {
@@ -495,7 +493,7 @@ export class World {
       v.body.scale.set(e.side < 0 ? -1.3 : 1.3, 1.3, 1.3);
       v.shadow = this.blob(3.0, 3.8);
     } else if (kind === 'festone') {
-      v.body = new THREE.Mesh(festoonGeom(e.variant || 0, (ROAD_W + WALK_W * 2) + 0.4), this.mats2);
+      v.body = new THREE.Group();   // v5s46b: tolti TUTTI i fili di bandierine/lampadine sopra la via (richiesta utente); l'entita' resta solo per non cambiare la partita
     } else if (kind === 'panni') {               // feat-village: i panni stesi della nonna (ci si abbassa)
       v.body = new THREE.Mesh(laundryGeom(e.variant || 0), this.mats2); v.shadow = this.blob(12.8, 1.0);
     } else if (kind === 'tessitrice') {          // feat-village: tessitrice al telaio sulla soglia
@@ -649,8 +647,7 @@ export class World {
     if (RESET_POSE[e.kind]) { v.body.position.set(0, 0, 0); v.body.rotation.set(0, 0, 0); v.fleeT = 0; v.scT = 0; if (v.shadow) v.shadow.visible = true; }
     if (e.kind === 'deadend') v.deadM.forEach((m, i) => { m.visible = i === (e.variant || 0); });
     if (e.kind === 'scambio') { v.sig.forEach((g, l) => { g.visible = (e.open || []).includes(l); g.position.set(laneX(l) * U, 3.4, 0); }); v.stop.forEach((g, l) => { g.visible = !(e.open || []).includes(l); g.position.set(laneX(l) * U, 3.4, 0); });
-      v.arrow.forEach((g, l) => { g.visible = (e.open || []).includes(l); g.position.set(laneX(l) * U, 5.0, 0); });
-      v.garrow.forEach((g, l) => { g.visible = (e.open || []).includes(l); g.position.set(laneX(l) * U, 0.09, 4.5); }); }
+      }
     if (e.kind === 'minatore') {
       v.poses.forEach((m, i) => { m.visible = i === (e.variant || 0); }); v.arm.visible = e.variant === 3;
       v.body.rotation.y = e.side < 0 ? 0.95 : -0.95; v.waveT = 0; v.body.scale.setScalar(1.5);
@@ -779,7 +776,6 @@ export class World {
         const sz = 1 + v.cueK * (0.9 + Math.sin(t * 9) * 0.12);
         for (const g of v.sig) { g.material.opacity = 0.8 + Math.sin(t * 6) * 0.15; g.scale.setScalar(1.5 * sz); }
         for (const g of v.stop) { g.material.opacity = Math.sin(t * 8) > 0 ? 0.95 : 0.35; g.scale.setScalar(1.3 * sz); }
-        { const bob = Math.abs(Math.sin(t * 5)) * 0.45; for (const g of v.arrow) { g.position.y = 5.0 + bob; g.scale.set(1.5 * sz, 1.5 * sz, 1); } }
       } else if (e.kind === 'deadend') {
         v.glow.material.opacity = Math.sin(t * 7 + e.id) > 0 ? 0.95 : 0.25;
       } else if (e.kind === 'minatore') {
