@@ -398,11 +398,11 @@ export class Generator {
     if (vb.b.id !== VL.BIOME || vb.lap === this.procLap) return;
     if (vb.local < VL.PROC_FROM_M || vb.local >= VL.PROC_TO_M) return;
     if (this.nearDance(D, 80, 40)) return;
-    // v5s44e: sempre sulla corsia destra (a sinistra coprirebbe il monumento ai Caduti).
-    // v5s44f: il corteo cammina verso chi corre (fino a PROC_WALK_MAX_PX indietro): la corsia destra deve essere
-    // libera dal sentiero sicuro anche nelle file precedenti, altrimenti si riprova alla fila dopo (finestra 200-220 m)
+    // v5s44g: sempre sulla corsia SINISTRA (richiesta: il corteo a sinistra). Cammina verso chi corre (fino a
+    // PROC_WALK_MAX_PX indietro): la corsia sinistra deve essere libera dal sentiero sicuro anche nelle file
+    // precedenti, altrimenti si riprova alla fila dopo (finestra 200-220 m); corsie 1 e 2 restano aperte
     const pl = [0, 1, 2].filter((l) => l !== this.path && l !== this.prevPath && l !== this.lastPath && !(this.carpetRows > 0 && this.carpetLane === l) && this.blockedUntil[l] < r - 2);
-    const lane = 2;
+    const lane = 0;
     if (!pl.includes(lane)) return;
     if (!this.paceOk('lane', D + 24, lane)) return;   // corteo non solido: costa solo fuoco; il passo indietro (<= 6 m) non cambia il ritmo
     const vr = this.vrng;
