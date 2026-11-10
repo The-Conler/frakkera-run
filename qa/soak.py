@@ -47,7 +47,9 @@ async def run(p, i):
   b = await p.chromium.launch(executable_path='/usr/bin/google-chrome', args=['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'])
   ctx = await b.new_context(viewport={'width': 390 if i % 2 == 0 else 360, 'height': 844 if i % 2 == 0 else 640}, device_scale_factor=1, has_touch=True, is_mobile=True)
   pg = await ctx.new_page(); errs = []
-  pg.on('console', lambda m: errs.append(m.text[:300]) if m.type == 'error' else None)
+  warns = []
+  pg.on('console', lambda m: errs.append(m.text[:300]) if m.type == 'error' else (warns.append(m.text[:200]) if m.type == 'warning' else None))
+  pg.on('crash', lambda: errs.append('page crashed'))
   pg.on('pageerror', lambda e: errs.append('pageerror: ' + str(e)[:300]))
   await pg.goto(f'{BASE}?test=1', wait_until='domcontentloaded')
   await pg.wait_for_function('window.__frk && document.querySelector("#loading").classList.contains("hidden")', timeout=300000)
@@ -57,16 +59,17 @@ async def run(p, i):
   await pg.wait_for_function("window.__frk.game.sim.mode==='run'", timeout=120000)
   await pg.evaluate("window.__god=setInterval(()=>{const s=window.__frk.game.sim; s.fuel=100; s.shield=1;},30)")
   await pg.evaluate(f"({BOT})('{style}')")
-  await pg.evaluate("(n)=>{const s=window.__frk.game.sim; const f=()=>{ if(s.mode==='run') for(let i=0;i<n;i++) s.tick(1/120); requestAnimationFrame(f);}; requestAnimationFrame(f);}", ACCEL)
+  await pg.evaluate("(n)=>{const s=window.__frk.game.sim; const f=()=>{ window.__fr=(window.__fr|0)+1; if(s.mode==='run') for(let i=0;i<n;i++) s.tick(1/120); requestAnimationFrame(f);}; requestAnimationFrame(f);}", ACCEL)
   t0 = time.time(); m = 0; last = (0, time.time()); modes = set(); stuck = False
   while time.time() - t0 < 2400:
     await asyncio.sleep(3)
-    st = await pg.evaluate("(()=>{const s=window.__frk.game.sim;return {m:s.runD/10+(s.mapOffsetM||0),mode:s.mode,hits:s.stats.hits}})()")
+    try: st = await asyncio.wait_for(pg.evaluate("(()=>{const g=window.__frk.game,s=g.sim;return {m:s.runD/10+(s.mapOffsetM||0),mode:s.mode,hits:s.stats.hits,paused:g.paused,spd:Math.round(s.currentSpeed||0),fr:window.__fr|0,lost:!!(g.world.renderer.getContext().isContextLost())}})()"), 30)
+    except Exception as ex: st = {'m': m, 'mode': 'unresponsive:' + str(ex)[:80]}
     m = st['m']; modes.add(st['mode'])
     if m > last[0] + 1: last = (m, time.time())
-    elif time.time() - last[1] > 120: stuck = True; break
+    elif time.time() - last[1] > 120: stuck = st; break
     if m >= TARGET: break
-  r = {'run': i, 'seed': seed, 'style': style, 'm': round(m, 1), 'secs': round(time.time() - t0), 'modes': sorted(modes), 'stuck': stuck, 'errors': errs[:10]}
+  r = {'run': i, 'seed': seed, 'style': style, 'm': round(m, 1), 'secs': round(time.time() - t0), 'modes': sorted(modes), 'stuck': stuck, 'errors': errs[:10], 'warnings': warns[-5:]}
   r['ok'] = m >= TARGET and not errs and not stuck
   print(json.dumps(r), flush=True)
   await b.close(); return r

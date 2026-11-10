@@ -83,7 +83,8 @@
     return { n, bad };
   };
   // ---------- 3) appoggio a terra di ostacoli, persone, animali, oggetti; raccoglibili non sepolti
-  const MOVERS = new Set(['goat', 'capra', 'pecora', 'sheep', 'maialetto', 'pig', 'rollbarrel', 'rollin', 'tronco', 'cane', 'dog', 'maimoni']);
+  const MOVERS = new Set(['goat', 'caprarupe', 'capra', 'pecora', 'sheep', 'maialetto', 'pig', 'rollbarrel', 'rollin', 'tronco', 'cane', 'dog', 'maimoni']);
+  const ROLLING = new Set(['rollin', 'rollbarrel']);   // botti che rotolano: il riquadro della botte ruotata scende sotto il suolo, la botte no
   const HANG = new Set(['panni', 'fune', 'trave', 'festone', 'scambio', 'lampada', 'ciccio', 'narrow', 'deadend', 'processione']);
   qa.ground = (range = 60) => {
     const objs = qa.scenery(), cz = Wd.camera.position.z, bad = []; let n = 0;
@@ -98,13 +99,14 @@
       const qx = (box.max.x - box.min.x) * 0.25, qz = (box.max.z - box.min.z) * 0.25;
       const pts = [[c.x, c.z], [c.x - qx, c.z], [c.x + qx, c.z], [c.x, c.z - qz], [c.x, c.z + qz]];
       const y0 = box.min.y + Math.min(1.0, (box.max.y - box.min.y) * 0.5 + 0.2), hs = [];
-      for (const [x, z] of pts) { const hh = hitFirst(V(x, y0, z), V(0, -1, 0), 6, objs); if (hh) hs.push(hh.point.y); }
+      const sup = v.perch && v.perch.visible ? objs.concat([v.perch]) : objs;   // capra della roccia: aspetta sul suo masso
+      for (const [x, z] of pts) { const hh = hitFirst(V(x, y0, z), V(0, -1, 0), 6, sup); if (hh) hs.push(hh.point.y); }
       if (!hs.length) { bad.push({ kind, why: 'no-ground', m: +(-c.z).toFixed(1), x: +c.x.toFixed(2), minY: +box.min.y.toFixed(2) }); continue; }
       hs.sort((a, b) => a - b); const gy = hs[Math.floor(hs.length / 2)];
       const gap = box.min.y - gy;
       if (e.pickup) { if (gap < -0.03) bad.push({ kind, why: 'buried', gap: +gap.toFixed(2), m: +(-c.z).toFixed(1) }); }
       else if (gap > (MOVERS.has(kind) ? 0.35 : 0.1)) bad.push({ kind, why: 'float', gap: +gap.toFixed(2), m: +(-c.z).toFixed(1), x: +c.x.toFixed(2) });
-      else if (gap < -0.3 && !(MOVERS.has(kind) && Math.abs(c.x) > 5.4)) bad.push({ kind, why: 'sink', gap: +gap.toFixed(2), m: +(-c.z).toFixed(1), x: +c.x.toFixed(2) });   // animali che entrano dal pendio: fuori dalla via
+      else if (gap < -0.3 && !(MOVERS.has(kind) && Math.abs(c.x) > 5.4) && !ROLLING.has(kind)) bad.push({ kind, why: 'sink', gap: +gap.toFixed(2), m: +(-c.z).toFixed(1), x: +c.x.toFixed(2) });   // animali che entrano dal pendio: fuori dalla via
     }
     return { n, bad };
   };
@@ -151,17 +153,20 @@
     const bad = [];
     for (let i = 0; i < flats.length; i++) for (let j = i + 1; j < flats.length; j++) {
       const a = flats[i].b, b = flats[j].b; if (Math.abs(a.min.y - b.min.y) > 0.003) continue;
+      const dw = (o) => { const m = Array.isArray(o.material) ? o.material[0] : o.material; return !m || m.depthWrite !== false; };
+      if (!dw(flats[i].o) && !dw(flats[j].o)) continue;   // due velature senza scrittura di profondita' non possono sfarfallare tra loro
       if (a.max.x <= b.min.x || b.max.x <= a.min.x || a.max.z <= b.min.z || b.max.z <= a.min.z) continue;
       bad.push({ y: +a.min.y.toFixed(3), m: +(-(a.min.z + a.max.z) / 2).toFixed(1), a: flats[i].o.name || flats[i].o.parent?.name || '?', b: flats[j].o.name || flats[j].o.parent?.name || '?' });
     }
     return { n: flats.length, bad };
   };
   // ---------- 7) binari continui nelle 3 corsie (miniera): sotto ogni rotaia c'e' un ferro sopra il piano
-  qa.rails = (from, to) => {
-    const objs = qa.scenery(), bad = []; let n = 0;
-    for (const lx of [-3.4, 0, 3.4]) for (const off of [-0.55, 0.55]) for (let z = from; z < to; z += 0.5) {
-      const hh = hitFirst(V(lx + off, 2.5, -z), V(0, -1, 0), 4, objs); n++;
-      if (!hh || hh.point.y < 0.06) bad.push([lx + off, +z.toFixed(1), hh ? +hh.point.y.toFixed(2) : null]);
+  // da a a b metri DAVANTI al corridore (coordinate del mondo: la z non conta il giro/la mappa di partenza)
+  qa.rails = (a, b) => {
+    const objs = qa.scenery(), bad = [], z0 = S.T * 0.1; let n = 0;
+    for (const lx of [-3.4, 0, 3.4]) for (const off of [-0.55, 0.55]) for (let d = a; d < b; d += 0.5) {
+      const z = z0 + d, hh = hitFirst(V(lx + off, 2.5, -z), V(0, -1, 0), 4, objs); n++;
+      if (!hh || hh.point.y < 0.06) bad.push([lx + off, +(qa.local() + d).toFixed(1), hh ? +hh.point.y.toFixed(2) : null]);
     }
     return { n, bad };
   };

@@ -48,7 +48,7 @@ async def one(p, seed, lap, start):
         r['zfight'] = await pg.evaluate("window.__qa.zfight()")
       r['corridor'] = await pg.evaluate("window.__qa.corridor(%d, {over: %s, allowOver: (P, o) => /mark:santamarta|mark:mineExit|mark:minePortal|tunnel/.test(o.userData.qaTag)})" % (STEP + 40, 'true' if z == 'village' else 'false'))
       if 160 <= loc % 1600 <= 200: r['memorial'] = await pg.evaluate("window.__qa.memorial()")
-      if z in ('mine-ext', 'mine-int', 'mine-blue'): r['rails'] = await pg.evaluate(f"window.__qa.rails({lap*1600+loc+2},{min(lap*1600+loc+2+STEP, lap*1600+1598)})")
+      if z in ('mine-ext', 'mine-int', 'mine-blue'): r['rails'] = await pg.evaluate(f"window.__qa.rails(2,{min(2+STEP, 1598-loc)})")
     except Exception as e:
       r['err'] = str(e)[:300]
     r['mode'] = await pg.evaluate("window.__frk.game.sim.mode")
