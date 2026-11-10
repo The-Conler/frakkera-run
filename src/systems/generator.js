@@ -58,6 +58,12 @@ export function cartAt(m, lead = 0, tail = 0) {
   if (bi.local < CART.FROM_M - lead || bi.local >= CART.FROM_M + CART.LEN_M + tail) return null;
   return { lap: bi.lap, local: bi.local - CART.FROM_M };
 }
+// v5s46 (113): ostacoli alti (coprono cio' che sta dietro sulla stessa corsia) e semplici (si possono togliere senza rompere gruppi)
+export const HIDE = {
+  BEHIND_M: 14,
+  TALL: { botti: true, maimoni: true, fuso: true, processione: true, tessitrice: true, narrow: true, caprarupe: true },
+  SIMPLE: { muretto: true, botte: true, bottecoricata: true, botti: true, narrow: true, rollin: true, sasso: true, bagnato: true, pozza: true, acqua: true },
+};
 export const SOLID = {
   muretto: true, botte: true, bottecoricata: true, botti: true, narrow: true, goat: true, rollbarrel: true, pozza: false,
   // v5s6: ostacoli d'ambiente (la pietra bagnata non ferma: fa scivolare) e trave bassa (si passa abbassandosi)
@@ -551,6 +557,12 @@ export class Generator {
       // v5s44c: niente travi/panni/rami di traverso negli ultimi NO_SPAN_M prima di Santa Marta (sembravano un ponte/ringhiera)
       if ((e.kind === 'trave' || e.kind === 'panni' || e.kind === 'ramo') &&
           this.inSpan(e.d, e.len, SANTAMARTA.FROM_M - SANTAMARTA.NO_SPAN_M, SANTAMARTA.FROM_M) >= 0) return;
+      // v5s46 (113): niente ostacolo semplice nascosto dietro uno alto sulla stessa corsia (chi rientra dopo averlo
+      // schivato se lo troverebbe davanti senza averlo visto)
+      if (HIDE.SIMPLE[e.kind] && !e.pickup && !e.group && this._tallQ) {
+        for (const a of this._tallQ) if (a.lane === e.lane && e.d > a.d && e.d <= a.end + HIDE.BEHIND_M * PX_PER_METER) return;
+      }
+      if (HIDE.TALL[e.kind] && !e.pickup) { const q = this._tallQ || (this._tallQ = []); q.push({ lane: e.lane, d: e.d, end: e.d + (e.len || 0) }); if (q.length > 12) q.shift(); }
       em(e);
     };
     while (this.rowDist(this.row) < maxDist) {

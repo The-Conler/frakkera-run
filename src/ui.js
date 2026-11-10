@@ -134,6 +134,7 @@ export function initUI(game) {
     if (pct !== last.pct) {
       hud.fill.style.width = `calc(${pct}% - 6px)`;
       hud.fuel.classList.toggle('low', h.fuel * 100 < FUEL.LOW_WARNING);
+      hud.fuel.classList.toggle('crit', h.fuel * 100 < FUEL.LOW_WARNING / 2);   // v5s46 (111): sotto meta' soglia lampeggia piu' in fretta
       last.pct = pct;
     }
   });
@@ -205,15 +206,20 @@ export function initUI(game) {
     audio.unlock();
     state = 'countdown';
     show(null);
+    // v5s46 (166): 3-2-1 piu' leggibile (ogni numero "salta" fuori), poi VIA! mentre la corsa riparte
     let n = 3;
     const cd = $('#countdown');
-    cd.textContent = n; cd.classList.remove('hidden');
+    const pop = (txt) => { cd.textContent = txt; cd.classList.remove('pop'); void cd.offsetWidth; cd.classList.add('pop'); };
+    pop(n); cd.classList.remove('hidden', 'go');
     audio.click();
     countdownTimer = setInterval(() => {
       n--;
-      if (n <= 0) { cancelCountdown(); state = 'play'; game.resume(); }
-      else { cd.textContent = n; audio.click(); }
-    }, 420);
+      if (n <= 0) {
+        clearInterval(countdownTimer); countdownTimer = null; state = 'play'; game.resume();
+        cd.classList.add('go'); pop('VIA!'); audio.click();
+        setTimeout(() => { if (!countdownTimer) { cd.classList.add('hidden'); cd.classList.remove('go'); } }, 380);
+      } else { pop(n); audio.click(); }
+    }, 560);
   }
   function quit() {
     cancelCountdown();

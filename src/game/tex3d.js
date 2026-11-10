@@ -206,6 +206,23 @@ export function blobTexture() {
   ctx.fillStyle = g; ctx.fillRect(0, 0, 64, 64);
   return tex(c, { srgb: false });
 }
+// v5s46 (119): freccia verde (punta in basso) per i binari aperti agli scambi, bordo scuro per leggerla nel buio
+export function arrowTexture() {
+  const [c, ctx] = cv(128, 128);
+  const path = () => { ctx.beginPath(); ctx.moveTo(40, 10); ctx.lineTo(88, 10); ctx.lineTo(88, 62); ctx.lineTo(116, 62); ctx.lineTo(64, 120); ctx.lineTo(12, 62); ctx.lineTo(40, 62); ctx.closePath(); };
+  ctx.lineJoin = 'round'; path(); ctx.lineWidth = 14; ctx.strokeStyle = 'rgba(8,30,12,0.95)'; ctx.stroke();
+  const g = ctx.createLinearGradient(0, 10, 0, 120); g.addColorStop(0, '#b8ffc8'); g.addColorStop(1, '#2fe05a');
+  path(); ctx.fillStyle = g; ctx.fill();
+  return tex(c);
+}
+// v5s46 (105): ombra di contatto del corridore: nucleo scuro e bordo corto (piu' leggibile della macchia generica)
+export function runShadowTexture() {
+  const [c, ctx] = cv(64, 64);
+  const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+  g.addColorStop(0, 'rgba(12,8,20,0.92)'); g.addColorStop(0.45, 'rgba(12,8,20,0.8)'); g.addColorStop(0.72, 'rgba(12,8,20,0.42)'); g.addColorStop(1, 'rgba(12,8,20,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 64, 64);
+  return tex(c, { srgb: false });
+}
 // stella della vampata
 export function flashTexture() {
   const [c, ctx] = cv(128, 128);

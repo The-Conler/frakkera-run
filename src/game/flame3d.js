@@ -77,7 +77,9 @@ export class Flame3D {
       _m.makeBasis(_x, _u, _z); this.group.quaternion.setFromRotationMatrix(_m);
     } else this.group.quaternion.copy(camera.quaternion);
     const s = (0.6 + 0.55 * size) * (0.75 + 0.25 * this.fade);
-    const fl = flickerLow ? (Math.sin(this.t * 23) > -0.3 ? 1 : 0.55) : 1;
+    // v5s46 (165): col fuoco basso la fiamma cala piano (niente piu' lampeggio acceso/spento): lk 0..1 da 25% a 0%
+    const lk = typeof flickerLow === 'number' ? Math.max(0, Math.min(1, flickerLow)) : (flickerLow ? 1 : 0);
+    const fl = 1 - lk * (0.4 + 0.08 * Math.sin(this.t * 6.5));
     for (const { m, mat, L } of this.layers) {
       const wob = 1 + Math.sin(this.t * (9 + L.i * 4)) * 0.05 + Math.sin(this.t * 17.3 + L.i) * 0.04;
       m.scale.set(L.w * s * (2 - wob), L.h * s * wob, 1);

@@ -162,7 +162,7 @@ export class Env {
     this.markCache = new Map();
     if (typeof window !== 'undefined') setTimeout(() => this.prewarm(), 200);
     // v5s33: i moduli della parete arrivano in un attimo (3 x ~11 KB); se nel frattempo si e' gia' costruito qualcosa, si ricostruisce una volta
-    if (typeof window !== 'undefined') loadCliffModels().then((m) => { if (m && this._camW != null) this.rebuild(null, this._camW); });
+    if (typeof window !== 'undefined') loadCliffModels().then((m) => { if (m && this.poolKeep) { for (const g of this.poolKeep.own) g.dispose(); for (const g of this.poolKeep.gpu) g.dispose(); this.poolKeep = null; } if (m && this._camW != null) this.rebuild(null, this._camW); });   // v5s46: la Stiddiosa tenuta da parte era quella senza moduli
     const dev = mapFromURL();
     this.dev = dev;
     // salto di mappa (solo grafica): ?map=<id> e, opzionale, &at=<metri dentro l'ambiente>
@@ -535,7 +535,7 @@ export class Env {
       () => { try { this.world.warmViews && this.world.warmViews(); } catch (e) { /* solo anticipo */ } },   // v5s45
       // v5s45 (QA10 #5/#8): Sa Stiddiosa (parete GLB a istanze, cascate e foschia con shader propri, tende di felci) si costruiva
       // ~450 m prima, cioe' a ~50 m di ogni giro: i suoi 4 programmi si compilavano in corsa. Costruita e disegnata una volta qui.
-      () => this.warmMark('pool@0'),
+      () => { if (cliffModels()) this.warmMark('pool@0'); else Promise.resolve(loadCliffModels()).then(() => idle(() => { if (!this.marks.has('pool@0')) this.warmMark('pool@0'); })); },   // v5s46: con i moduli gia' arrivati (resta pronta per tutti i giri)
       () => this.warmGPU(),
       () => { const p = loadTower(); if (p && p.then) p.then(() => idle(() => this.warmGPU())); },
     ];
@@ -808,7 +808,8 @@ export class Env {
     // inquadratura (oltre il piano lontano: costa solo i vertici), cosi' i buffer sono pronti prima che si veda
     for (const key of want) if (!this.marks.has(key)) {
       this.buildMark(key);
-      const root = this.marks.get(key).root; root.traverse((o) => { if (o.isMesh) o.frustumCulled = false; }); this.upQ.push(root);
+      const mk = this.marks.get(key);
+      if (!mk.reused) { const root = mk.root; root.traverse((o) => { if (o.isMesh) o.frustumCulled = false; }); this.upQ.push(root); }   // v5s46: la Stiddiosa riusata e' gia' sulla GPU
       if (!this.mustMark(key, b0)) break;           // uno per frame, salvo che serva subito
     }
   }
@@ -835,6 +836,15 @@ export class Env {
     const b = BIOMES.find((x) => (x.landmarks || []).includes(id));
     const d = LANDMARKS[id];
     const W = this.wOf(lap * CYCLE + b.from + d.at);
+    // v5s46 (#5): Sa Stiddiosa (parete a istanze, felci, cascate) costava ~1 s di CPU e si ricostruiva a ~50 m di OGNI giro
+    // (lo scatto a 1620-1680 m): ora si costruisce una volta (nel menu) e ad ogni giro si sposta soltanto
+    if (id === 'pool' && this.poolKeep) {
+      const k = this.poolKeep; this.poolKeep = null;
+      k.root.position.z = -W; this.falls = k.falls; this.scene.add(k.root);
+      const lamps = k.lampSpec.map(([x, y, z, c, sz, op]) => this.lamp(x, y, z - W, c, sz, op));
+      this.marks.set(key, { root: k.root, own: k.own, lamps, gpu: k.gpu, ms: 0, feet: [], pool: k, reused: true });
+      return;
+    }
     const root = new THREE.Group(); root.position.z = -W;
     const own = [];         // geometrie da liberare
     const lamps = [];
@@ -931,7 +941,8 @@ export class Env {
       mesh(this.prefab('exit', 0, () => ({ geom: S.buildMineExit(8), w: 0, lamps: [] })).geom, this.mats2, true);
     }
     this.scene.add(root);
-    this.marks.set(key, { root, own, lamps, gpu: m_gpu, ms: performance.now() - t0, feet });
+    const pool = id === 'pool' ? { root, own, gpu: m_gpu, falls: this.falls, lampSpec: lamps.map((g) => [g.position.x, g.position.y, g.position.z + W, '#' + g.material.color.getHexString(), g.scale.x, g.userData.op]) } : null;
+    this.marks.set(key, { root, own, lamps, gpu: m_gpu, ms: performance.now() - t0, feet, pool });
   }
   warmMark(key) {
     const r = this.world.renderer; if (!r || this.marks.has(key)) return;
@@ -947,6 +958,7 @@ export class Env {
   freeMark(key) {
     const m = this.marks.get(key); if (!m) return;
     this.scene.remove(m.root);
+    if (m.pool) { for (const g of m.lamps) { g.visible = false; this.lampPool.push(g); } this.poolKeep = m.pool; if (this.falls === m.pool.falls) this.falls = []; this.marks.delete(key); return; }   // v5s46: tenuta pronta per il giro dopo
     for (const f of m.feet || []) this.dropHouseFoot(f);
     for (const g of m.own) g.dispose();
     for (const g of m.gpu || []) g.dispose();          // solo buffer GPU; i dati CPU restano in cache

@@ -375,7 +375,8 @@ export class Sim {
     // partenza dolce nei primi START_RAMP_S secondi
     const sm = (x) => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
     const depth = 1 - (this.cart ? CART.HIT_SLOW : WORLD.HIT_SLOW), st = this.slowT, E = WORLD.HIT_EASE_S;
-    const slow = st >= WORLD.HIT_RECOVER_S ? 1 : 1 - depth * sm(st / E) * (1 - sm((st - E) / (WORLD.HIT_RECOVER_S - E)))
+    const H = WORLD.HIT_HOLD_S || 0;
+    const slow = st >= WORLD.HIT_RECOVER_S ? 1 : 1 - depth * sm(st / E) * (1 - sm((st - E - H) / (WORLD.HIT_RECOVER_S - E - H)))
 ;
     const startK = this.mode === 'run' ? lerp(WORLD.START_K, 1, sm(this.runTime / WORLD.START_RAMP_S)) : 1;
     const steps = speedStepsAt(rd, this.mapOffsetM);

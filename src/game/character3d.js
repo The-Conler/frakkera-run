@@ -21,6 +21,7 @@ export const MODEL_URL = `${import.meta.env.BASE_URL}models/frakkera-man.glb`;
 export const CHAR_SCALE = 1.6;         // il mondo e' "cartoon": uomo ~2.8 u, frakkera ~5.4 u
 export const DANCE_SCALE = (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('test') && +new URLSearchParams(window.location.search).get('dscale')) || 0.72;   // v5s30c: scala del corridore nel ballu tundu
 const RAISE_TILT = 0.3;
+const LAND = { T: 0.3, SQUASH: 0.085 }, STUMBLE_HOLD_S = 0.4;   // v5s46 (120, 173)
 export const CLIP_NAMES = ['idle', 'run', 'left', 'right', 'stumble', 'gameover'];
 const FADE = { idle: 0.35, run: 0.25, left: 0.09, right: 0.09, stumble: 0.08, gameover: 0.3 };
 
@@ -355,7 +356,7 @@ export class Character3D {
       if (Math.abs(raw) > Math.abs(this.leanSig) || (raw !== 0 && Math.sign(raw) !== Math.sign(this.leanSig))) this.leanSig = raw;
       else this.leanSig += (raw - this.leanSig) * Math.min(1, dt * 3.2);
       const l = this.leanSig;
-      const s = this.stumbleT >= 0 && this.stumbleT < sd - 0.22 ? 1 : 0;
+      const s = this.stumbleT >= 0 && this.stumbleT < Math.min(sd - 0.22, STUMBLE_HOLD_S) ? 1 : 0;   // v5s46 (173): si rimette dritto prima
       T.stumble = s;
       const r = 1 - s;
       T.left = Math.max(0, l) * r; T.right = Math.max(0, -l) * r; T.run = (1 - Math.abs(l)) * r;
@@ -392,6 +393,7 @@ export class Character3D {
     this.facing += (fTarget - this.facing) * Math.min(1, dt * (this.state === 'run' ? 7 : this.state === 'over' ? 1.6 : 2.5));
     this.root.position.set(px, 0, pz);
     this.root.rotation.y = this.facing + (this.state === 'run' ? (st.vx || 0) * 0.22 : 0);
+    this.root.rotation.z = this.state === 'run' && !st.cart ? (st.lean || 0) : 0;   // v5s46 (101): inclinato dentro la curva
     this.cartK = (this.cartK || 0) + ((st.cart ? 1 : 0) - (this.cartK || 0)) * Math.min(1, dt * 8);
     if (this.cartK > 1e-3) this.root.position.y = SEAT_Y * this.cartK;   // v5s20: dentro il carrello (le gambe restano nascoste dalle sponde)
     if (st.jumpH > 0) { this.root.position.y += st.jumpH * 0.16; }   // v5s25: salto piu' alto e visibile (px -> m)
@@ -405,12 +407,13 @@ export class Character3D {
     const k = this.duckK;
     // v5s27: squash & stretch nel salto: allungato in salita/discesa, schiacciato un attimo all'atterraggio
     const jh = Math.max(0, st.jumpH || 0) / 15, prevJ = this.prevJH || 0;
-    if (prevJ > 0.02 && jh <= 0) this.landT = 0.2;
+    // v5s46 (120): atterraggio piu' morbido: schiacciamento piu' lieve e piu' lungo (entra veloce, esce piano)
+    if (prevJ > 0.02 && jh <= 0) this.landT = LAND.T;
     this.prevJH = jh;
     this.landT = Math.max(0, (this.landT || 0) - dt);
     let jy = 1, jx = 1;
-    if (jh > 0) { jy = 1 + 0.12 * (1 - jh); jx = 1 - 0.05 * (1 - jh); }
-    else if (this.landT > 0) { const q = Math.sin(Math.PI * (this.landT / 0.2)); jy = 1 - 0.16 * q; jx = 1 + 0.08 * q; }
+    if (jh > 0) { jy = 1 + 0.08 * (1 - jh); jx = 1 - 0.035 * (1 - jh); }
+    else if (this.landT > 0) { const u = 1 - this.landT / LAND.T, q = u < 0.25 ? Math.sin((u / 0.25) * Math.PI / 2) : 0.5 + 0.5 * Math.cos(((u - 0.25) / 0.75) * Math.PI); jy = 1 - LAND.SQUASH * q; jx = 1 + LAND.SQUASH * 0.5 * q; }
     // v5s30c: nel ballu tundu il corridore e' piu' piccolo (alla misura dei ballerini GLB) e senza frakkera
     this.danceK = (this.danceK || 0) + ((st.dancing ? 1 : 0) - (this.danceK || 0)) * Math.min(1, dt * 5);
     if (this.danceK < 1e-3) this.danceK = 0; else if (this.danceK > 0.999) this.danceK = 1;

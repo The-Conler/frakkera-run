@@ -162,7 +162,8 @@ export const WORLD = {
   HIT_INVULN_S: 1.1,
   DYING_S: 0.9,            // animazione di spegnimento prima del game over
   HIT_SLOW: 0.55,          // moltiplicatore velocita subito dopo un urto
-  HIT_RECOVER_S: 1.4,
+  HIT_RECOVER_S: 1.55,     // v5s46 (104): 1.4 -> 1.55 con una breve tenuta in basso
+  HIT_HOLD_S: 0.25,        // v5s46 (104): dopo l'urto si resta lenti un attimo (si riprende il controllo), poi si riparte
   HIT_EASE_S: 0.22,        // v5s22: la frenata dopo un urto entra in X s (prima era istantanea)
   START_RAMP_S: 1.6,       // v5s22: partenza dolce: da START_K a piena velocita' in X s
   START_K: 0.5,
@@ -432,3 +433,10 @@ export const CICCIO = {
   BANNER: 'STAI ATTENTO! STA PASSANDO CICCIO!',
   REASON: 'Ciccio ti ha preso!',
 };
+
+// ---- v5s46: sensazione di gioco -------------------------------------------
+export const LANE_FEEL = { OMEGA: 34, SNAP_M: 6, V_FULL: 40, LEAN: 0.13 };   // (101) molla critica a video (1/s), scatto oltre SNAP_M m, inclinazione max (rad) a V_FULL m/s laterali
+export const CAM_SPEED = { FROM: 150, TO: 240, BACK: 1.5, UP: 0.35, FOV: 4 };   // (115) da FROM a TO px/s la camera arretra (m), sale (m) e si allarga (gradi)
+export const RUN_SHADOW = { W: 1.6, D_K: 0.8, DZ: 0.05, OP: 0.85, SHRINK: 0.35, FADE: 0.3 };   // (105) ombra di contatto del corridore
+export const VIBE = { HIT: 45, SHIELD: 25, WEAVER: [30, 40, 30], DIE: 140, CICCIO: [120, 60, 260] };   // (44) ms di vibrazione
+

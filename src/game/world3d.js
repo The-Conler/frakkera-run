@@ -5,8 +5,10 @@
 // =====================================================================
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { WORLD, BIOME_OBST, FIRE, MINE, FESTA, WEATHER, ANIMALS } from '../config.js';
-import { laneX, isMoving, ROAD_HALF } from './sim.js';
+import { WORLD, BIOME_OBST, FIRE, MINE, FESTA, WEATHER, ANIMALS, LANE_FEEL, CAM_SPEED, RUN_SHADOW, FUEL } from '../config.js';
+const LOW_FUEL_F = FUEL.LOW_WARNING / FUEL.MAX;   // v5s46 (165)
+const FADE_IN_M = 16, FADE_OP = [0, 0.18, 0.45, 0.75, 1];   // v5s46 (169): metri di dissolvenza d'ingresso, opacita' per gradino
+import { laneX, isMoving, ROAD_HALF, VIEW_AHEAD } from './sim.js';
 import { DanceRing } from './dance/dance3d.js';
 import { initDancerModels, loadWoman, loadMan } from './dance/dancerModel.js';
 import { initStatueModel, loadStatue } from './santaMartaModel.js';
@@ -450,6 +452,10 @@ export class World {
       v.body = new THREE.Group();
       v.sig = [0, 1, 2].map(() => { const g = this.glowSprite('#4aff7a', 1.5, 0.95); v.body.add(g); return g; });
       v.stop = [0, 1, 2].map(() => { const g = this.glowSprite('#ff3a2a', 1.3, 0.9); v.body.add(g); return g; });   // v5s22: rosso sui binari interrotti
+      // v5s46 (119): freccia verde sopra ogni binario aperto e freccia a terra sul binario (punta avanti)
+      if (!this.arrowMat) { const t = T3.arrowTexture(); this.arrowMat = new THREE.SpriteMaterial({ map: t, transparent: true, depthWrite: false, fog: false, toneMapped: false }); this.arrowGround = new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }); this.arrowGeo = new THREE.PlaneGeometry(1.6, 2.4).rotateX(-Math.PI / 2).rotateY(Math.PI); }
+      v.arrow = [0, 1, 2].map(() => { const g = new THREE.Sprite(this.arrowMat); g.scale.set(1.5, 1.5, 1); g.renderOrder = 16; v.body.add(g); return g; });
+      v.garrow = [0, 1, 2].map(() => { const g = new THREE.Mesh(this.arrowGeo, this.arrowGround); g.renderOrder = 3; v.body.add(g); return g; });
     } else if (kind === 'minatore') {           // v5s17: minatore di Funtana Raminosa
       const mg = minerGeoms();
       if (!this.minerMats) {
@@ -575,6 +581,29 @@ export class World {
   // v5s45 (QA10 #5/#8): crea una volta ogni tipo di vista (falo', folla, bancarelle, minatori...) fuori quadro e la disegna
   // sul canvas dietro la schermata di caricamento: shader e buffer pronti, poi le viste vanno nei pool. Prima la prima
   // apparizione (es. falo' a ~50 m e sul giro 2 da Pinu) compilava 2-4 programmi in corsa (scatti di 2-3 s su GPU lente).
+  // v5s46 (169): dissolvenza d'ingresso. k 0..1 -> gradino 1..4 (4 = materiali originali)
+  fadeView(v, k) {
+    const q = k >= 1 ? 4 : Math.max(1, Math.min(3, Math.ceil(k * 4)));
+    if (q === v.fadeQ) return; v.fadeQ = q;
+    if (!v.fadeList) { v.fadeList = []; v.root.traverse((o) => { if (o.isMesh && o.material) v.fadeList.push({ o, base: o.material, cur: null }); }); }
+    for (const f of v.fadeList) {
+      if (f.cur && f.o.material !== f.cur) { f.base = f.o.material; f.cur = null; }   // cambiato da fuori (es. lampada accesa)
+      if (!f.cur && f.o.material !== f.base) f.base = f.o.material;
+      if (q === 4) { if (f.cur) f.o.material = f.base; f.cur = null; continue; }
+      f.cur = this.fadeMat(f.base, q); f.o.material = f.cur;
+    }
+  }
+  fadeMat(m, q) {
+    if (Array.isArray(m)) { const key = m.map((x) => x.uuid).join(',') + ':' + q; let a = this.fadeArr?.get(key); if (!a) { (this.fadeArr || (this.fadeArr = new Map())).set(key, a = m.map((x) => this.fadeMat(x, q))); } return a; }
+    if (!m || m.isShaderMaterial || m.isSpriteMaterial || m.isPointsMaterial) return m;
+    const key = m.uuid + ':' + q; const cache = this.fadeCache || (this.fadeCache = new Map());
+    let c = cache.get(key);
+    if (!c) {
+      c = m.clone(); c.onBeforeCompile = m.onBeforeCompile; if (m.customProgramCacheKey !== THREE.Material.prototype.customProgramCacheKey) c.customProgramCacheKey = m.customProgramCacheKey;
+      c.transparent = true; c.opacity = (m.opacity ?? 1) * FADE_OP[q]; c.depthWrite = true; cache.set(key, c);
+    }
+    return c;
+  }
   warmViews() {
     if (this._viewsWarm || !this.renderer) return; this._viewsWarm = true;
     const made = []; let id = -1e6;
@@ -590,6 +619,8 @@ export class World {
       } catch (err) { /* solo anticipo */ }
     }
     try { this.renderer.render(this.scene, this.camera); } catch (err) { /* solo anticipo */ }
+    // v5s46 (169): anche le varianti trasparenti della dissolvenza (stesso disegno, un programma in piu' per materiale)
+    try { for (const { kind, v } of made) if (kind !== 'narrow') this.fadeView(v, 0.5); this.renderer.render(this.scene, this.camera); for (const { kind, v } of made) if (kind !== 'narrow') this.fadeView(v, 1); } catch (err) { /* solo anticipo */ }
     for (const { kind, v, fc } of made) {
       for (const [o, f] of fc) o.frustumCulled = f;
       v.root.visible = false;
@@ -617,7 +648,9 @@ export class World {
     // scosso dall'urto, masso a meta' caduta): si riparte sempre dalla posa a riposo
     if (RESET_POSE[e.kind]) { v.body.position.set(0, 0, 0); v.body.rotation.set(0, 0, 0); v.fleeT = 0; v.scT = 0; if (v.shadow) v.shadow.visible = true; }
     if (e.kind === 'deadend') v.deadM.forEach((m, i) => { m.visible = i === (e.variant || 0); });
-    if (e.kind === 'scambio') { v.sig.forEach((g, l) => { g.visible = (e.open || []).includes(l); g.position.set(laneX(l) * U, 3.4, 0); }); v.stop.forEach((g, l) => { g.visible = !(e.open || []).includes(l); g.position.set(laneX(l) * U, 3.4, 0); }); }
+    if (e.kind === 'scambio') { v.sig.forEach((g, l) => { g.visible = (e.open || []).includes(l); g.position.set(laneX(l) * U, 3.4, 0); }); v.stop.forEach((g, l) => { g.visible = !(e.open || []).includes(l); g.position.set(laneX(l) * U, 3.4, 0); });
+      v.arrow.forEach((g, l) => { g.visible = (e.open || []).includes(l); g.position.set(laneX(l) * U, 5.0, 0); });
+      v.garrow.forEach((g, l) => { g.visible = (e.open || []).includes(l); g.position.set(laneX(l) * U, 0.09, 4.5); }); }
     if (e.kind === 'minatore') {
       v.poses.forEach((m, i) => { m.visible = i === (e.variant || 0); }); v.arm.visible = e.variant === 3;
       v.body.rotation.y = e.side < 0 ? 0.95 : -0.95; v.waveT = 0; v.body.scale.setScalar(1.5);
@@ -689,6 +722,8 @@ export class World {
       if (farCull && ahead * U > farCull && !(e.kind === 'processione' || e.kind === 'trave' || e.kind === 'panni')) v.root.visible = false;
       // v5s45 (QA10 #3): la strettoia rocciosa gia' superata (tra camera e corridore) diventa trasparente: non copre chi corre
       if (v.kind === 'narrow') this.fadeNarrow(v, ahead * U < -0.3 ? NARROW_FADE : 1, dt);
+      // v5s46 (169): da lontano gli oggetti entrano in dissolvenza (4 gradini, materiali gemelli trasparenti), mai di colpo
+      else if (v.root.visible) { const F = farCull && !(e.kind === 'processione' || e.kind === 'trave' || e.kind === 'panni') ? farCull : VIEW_AHEAD * U - 2; this.fadeView(v, (F - ahead * U) / FADE_IN_M); }
       if (e.offroad) v.root.visible = false;   // v5s40: animale/tronco uscito dalla carreggiata
       // v5s41: le pecore in coda al gregge che aspettano lontano dalla via non si vedono dentro roccia/acqua/case
       if (isMoving(e.kind) && e.kind !== 'maimoni' && Math.abs(e.x) * U > ROAD_HALF * U + 2.0) v.root.visible = false;   // v5s41b: entro ~0.5 m oltre il marciapiede (prima 3.2: pecora dentro la roccia)
@@ -744,6 +779,7 @@ export class World {
         const sz = 1 + v.cueK * (0.9 + Math.sin(t * 9) * 0.12);
         for (const g of v.sig) { g.material.opacity = 0.8 + Math.sin(t * 6) * 0.15; g.scale.setScalar(1.5 * sz); }
         for (const g of v.stop) { g.material.opacity = Math.sin(t * 8) > 0 ? 0.95 : 0.35; g.scale.setScalar(1.3 * sz); }
+        { const bob = Math.abs(Math.sin(t * 5)) * 0.45; for (const g of v.arrow) { g.position.y = 5.0 + bob; g.scale.set(1.5 * sz, 1.5 * sz, 1); } }
       } else if (e.kind === 'deadend') {
         v.glow.material.opacity = Math.sin(t * 7 + e.id) > 0 ? 0.95 : 0.25;
       } else if (e.kind === 'minatore') {
@@ -1145,9 +1181,24 @@ export class World {
     this.add.uniforms.uScale.value = ph * 0.9; this.norm.uniforms.uScale.value = ph * 0.9;
   }
 
+  smoothLaneX(px, dt, sim) {
+    const W = LANE_FEEL.OMEGA;
+    if (this.visPx == null || Math.abs(px - this.visPx) > LANE_FEEL.SNAP_M || sim.mode !== 'run' || sim.cart) { this.visPx = px; this.visVx = 0; }
+    else {
+      let left = Math.min(dt, 0.1);
+      while (left > 1e-6) { const h = Math.min(left, 1 / 120); const a = W * W * (px - this.visPx) - 2 * W * this.visVx; this.visVx += a * h; this.visPx += this.visVx * h; left -= h; }
+    }
+    // inclinazione dentro la curva (rad), dalla velocita' laterale a video
+    const want = Math.max(-1, Math.min(1, (this.visVx || 0) / LANE_FEEL.V_FULL)) * LANE_FEEL.LEAN;
+    this.laneLean = (this.laneLean || 0) + (want - (this.laneLean || 0)) * Math.min(1, dt * 14);
+    return this.visPx;
+  }
   render(sim, dt, view) {
     this.clock += dt;
-    const pz = -sim.T * U, px = sim.px * U;
+    const pz = -sim.T * U, px0 = sim.px * U;
+    // v5s46 (101): cambio di corsia piu' morbido a video: il corpo segue la posizione della simulazione con una molla
+    // critica (partenza dolce, nessun rimbalzo, ritardo < 0.06 s); la collisione resta quella della simulazione
+    const px = this.smoothLaneX(px0, dt, sim);
     this.updateMood(dt, view.fuelF);
     this.dance.preview(sim);
     const dpos = this.dance.update(dt, sim);
@@ -1162,6 +1213,10 @@ export class World {
       // per ambiente (config.light.camLook/camFov): un po' piu' larga e meno inclinata dove i monumenti devono entrare in verticale
       const L = this.light || {}, por = 1 - wide;
       cp = _v.set(px * 0.82 - 0.6, 6.4 - wide, pz + 9.4 - wide * 1.5); cl = _v2.set(px * 0.55 - 0.1, 1.8 + (L.camLook || 0) * por, pz - 15); fov = 64 - wide * 6 + (L.camFov || 0) * por;
+      // v5s46 (115): ad alta velocita' la camera arretra un poco e si allarga (si vede prima cosa arriva)
+      { const v = view.speed || 0, sk = Math.max(0, Math.min(1, (v - CAM_SPEED.FROM) / (CAM_SPEED.TO - CAM_SPEED.FROM)));
+        this.speedCamK = (this.speedCamK || 0) + (sk - (this.speedCamK || 0)) * Math.min(1, dt * 0.8);
+        const q = this.speedCamK; cp.z += CAM_SPEED.BACK * q; cp.y += CAM_SPEED.UP * q; fov += CAM_SPEED.FOV * q; }
       // v5s27: come alla piscina (camYaw), mentre la chiesa col campanile entra in vista la camera si sposta a destra e guarda un po' verso la chiesa (a sinistra)
       const va = this.vistaAhead ?? 999, vk = va < -6 || va > 140 ? 0 : Math.min(1, (140 - va) / 40, (va + 6) / 14);
       this.vistaCamK = (this.vistaCamK || 0) + (vk - (this.vistaCamK || 0)) * Math.min(1, dt * 2);
@@ -1264,11 +1319,13 @@ export class World {
     const ch = this.character, c3 = this.char3d;
     const use3d = c3.ready;
     // v5s27: ombra a terra del corridore durante il salto (resta sul suolo, si stringe e sbiadisce con l'altezza)
+    // v5s46 (105): ombra di contatto netta e scura sotto il corridore, sempre a terra: nel salto si stringe e schiarisce con
+    // l'altezza (si legge quando si atterra); prende il posto della macchia larga e chiara di prima
     { let js = this.jumpShadow;
-      if (!js) { const m = this.mat.blob.clone(); m.transparent = true; js = this.jumpShadow = new THREE.Mesh(this.geo.blob, m); js.renderOrder = 2; this.scene.add(js); }
-      const h = Math.max(0, sim.jumpH || 0) / 15, on = view.cam === 'run' && h > 0.001;
-      js.visible = on;
-      if (on) { const s = 1.5 * (1 - 0.45 * h); js.scale.set(s, 1, s * 0.8); js.position.set(px, 0.035 + (this.cartK || 0) * 0, pz + 0.1); js.material.opacity = (this.mat.blob.opacity ?? 0.5) * (1 - 0.5 * h) + 0.15; }
+      if (!js) { const m = new THREE.MeshBasicMaterial({ map: T3.runShadowTexture(), transparent: true, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }); js = this.jumpShadow = new THREE.Mesh(this.geo.blob, m); js.renderOrder = 2; this.scene.add(js); }
+      const h = Math.max(0, sim.jumpH || 0) / 15, on = (view.cam === 'run' || view.cam === 'menu') && !sim.cart && sim.mode !== 'dance' && this.dance.state === 'off';
+      js.visible = on; this.runShadowOn = on;
+      if (on) { const s = RUN_SHADOW.W * (1 - RUN_SHADOW.SHRINK * h); js.scale.set(s, 1, s * RUN_SHADOW.D_K); js.position.set(px, 0.04, pz + RUN_SHADOW.DZ); js.material.opacity = RUN_SHADOW.OP * (1 - RUN_SHADOW.FADE * h); }
       const jumping = (sim.jumpH || 0) > 0;
       if (jumping && !this.wasJump) this.jumpPuff(px, pz, 6);   // polvere allo stacco
       this.wasJump = jumping; }
@@ -1292,13 +1349,14 @@ export class World {
       // v5s20: nel cerchio del ballu tundu si balla col vestito della festa (niente maschera di su Stramaioni tra i ballerini)
       { const want = (sim.mode === 'dance' || this.dance.state === 'dance') ? (this.skinId === 'stramaioni' ? 'classico' : (this.skinId || 'base')) : (this.skinId || 'base');   // v5c: nel ballo vestito della festa (la mascotte o il portatore classico)
         if (want !== this.skinShown) { if (this.skinShown && this.skinId !== 'base') this.dustPuff(px, pz, 16); this.skinShown = want; c3.setSkin?.(want); } }
+      view.char.lean = dpos ? 0 : (this.laneLean || 0);   // v5s46 (101)
       c3.update(dt, view.char, dpos ? dpos.x : px, dpos ? dpos.z : pz);
       this.updateRideCart(sim, dt, px, pz, view);
       c3.tipWorld(this.tipW); c3.tipAxis?.(this.tipAxW || (this.tipAxW = new THREE.Vector3()));
       if (view.char.armed) c3.muzzleWorld(this.muzzleW);
       else this.muzzleW.set(px - 0.5, 2.0, pz - 0.8);
       this.charShadow.position.set(dpos ? dpos.x : px, 0.03, (dpos ? dpos.z : pz) - 0.2);
-      this.charShadow.scale.set(2.3, 1, 2.0);
+      this.charShadow.scale.set(2.3, 1, 2.0); this.charShadow.visible = !this.runShadowOn;
       c3.setOcclusion(view.cam === 'run' && this.occludes(px, pz) ? 0.38 : 1, dt);
     } else {
       ch.update(dt, view.char);
@@ -1312,7 +1370,7 @@ export class World {
     const lit = (view.char.flameOn && !(use3d && view.char.dancing)) || burnLit;   // v5s30c: senza frakkera niente fiamma nel ballo
     const flick = Math.sin(this.clock * 17) * 0.06 + Math.sin(this.clock * 29) * 0.05;
     this.fireKick = Math.max(0, (this.fireKick || 0) - dt * 1.6);
-    this.flame3d.update(dt, this.camera, this.tipW, Math.min(1.6, fuelF + this.fireKick * 0.6), use3d && lit, view.char.fuelLow, -(view.char.vx || 0) * 0.5, use3d ? this.tipAxW : null);
+    this.flame3d.update(dt, this.camera, this.tipW, Math.min(1.6, fuelF + this.fireKick * 0.6), use3d && lit, this.burnT >= 0 ? 0 : Math.max(0, Math.min(1, 1 - fuelF / LOW_FUEL_F)), -(view.char.vx || 0) * 0.5, use3d ? this.tipAxW : null);
     this.flame3d.group.scale.setScalar((use3d && this.char3d.flameScale || 1) * FLAME_FIT);   // v5s42: piu' piccola, base sulla punta | v5s29b: fiamma in proporzione alla frakkera della mascotte
     this.flameLight.position.copy(this.tipW); if (use3d) this.flameLight.position.y += 0.9;
     const L = this.light, dark = L.darkByFuel * (1 - fuelF);

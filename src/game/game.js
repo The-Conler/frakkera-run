@@ -2,7 +2,7 @@
 // Controller: ciclo a passo fisso (Sim) + rendering 3D (World) + input.
 // Espone all'interfaccia la stessa API della scena v2.
 // =====================================================================
-import { WORLD, FUEL, PX_PER_METER } from '../config.js';
+import { WORLD, FUEL, PX_PER_METER, VIBE } from '../config.js';
 import { difficultyAt } from '../systems/generator.js';
 import { Sim } from './sim.js';
 import { World } from './world3d.js';
@@ -70,6 +70,12 @@ export class Game {
   setHidden(h) { this.hidden = h; this.last = 0; this.accum = 0; }
   debugState() { return this.sim.debugState(); }
 
+  // v5s46 (44): vibrazione del telefono (dove c'e' navigator.vibrate; iOS Safari non la supporta e si ignora)
+  buzz(pattern) {
+    if (!pattern) return;
+    (this.vibes || (this.vibes = [])).push(pattern); if (this.vibes.length > 20) this.vibes.shift();
+    try { if (typeof navigator !== 'undefined' && navigator.vibrate && !(this.settings && this.settings.vibrate === false)) navigator.vibrate(pattern); } catch { /* non supportato */ }
+  }
   // ---------------------------------------------------- effetti
   onFx(type, d) {
     const sim = this.sim;
@@ -85,7 +91,7 @@ export class Game {
       case 'collectible': bus.emit('collect', d); break;
       case 'junctionCue': try { navigator.vibrate?.(d.safe ? 20 : [60, 40, 60]); } catch { /* non supportato */ } break;   // v5s22: vibrazione
       case 'puddle': audio.puddle(); break;
-      case 'hit': audio.hit(); if (d.e && (d.e.kind === 'maimoni' || d.e.kind === 'fune')) audio.bellRing(this.bellPan(d.e)); break;
+      case 'hit': this.buzz(d.e && d.e.kind === 'ciccio' ? null : VIBE.HIT); audio.hit(); if (d.e && (d.e.kind === 'maimoni' || d.e.kind === 'fune')) audio.bellRing(this.bellPan(d.e)); break;
       case 'slip': audio.puddle(); break;
       case 'rockFall': audio.rockFall?.(); break;
       case 'duck': audio.duck?.(); break;
@@ -106,14 +112,16 @@ export class Game {
       case 'danceJudge': bus.emit('danceJudge', d); audio.danceHit(d.res); break;
       case 'danceEnd': bus.emit('danceEnd', d); audio.danceStop(); break;
       case 'shopBuy': bus.emit('carpet', { run: this.sim.stats.carpets, total: d.total }); break;
-      case 'shieldBlock': audio.ricochet(); break;
+      case 'shieldBlock': this.buzz(VIBE.SHIELD); audio.ricochet(); break;
+      case 'weaverHit': this.buzz(VIBE.WEAVER); break;
+      case 'ciccioHit': this.buzz(VIBE.CICCIO); break;   // v5s46 (44): piu' forte
       case 'beamHint': {
         // suggerimento la prima volta (poi resta salvato)
         let seen = false; try { seen = localStorage.getItem('frakkera.duckhint.v1') === '1'; localStorage.setItem('frakkera.duckhint.v1', '1'); } catch { /* privato */ }
         if (!seen || this.debug.includes('hint')) bus.emit('popup', { text: 'SCORRI GI\u00d9 PER ABBASSARTI', style: 'hint' });
         break;
       }
-      case 'die': audio.gameOver(); audio.setIntensity(0); this.world.setMood('over'); break;
+      case 'die': if (sim.deathReason !== 'ciccio') this.buzz(VIBE.DIE); audio.gameOver(); audio.setIntensity(0); this.world.setMood('over'); break;
       case 'over': bus.emit('gameover', d); break;
       case 'popup': bus.emit('popup', d); break;
       case 'sound': audio[d]?.(); break;
@@ -129,7 +137,17 @@ export class Game {
     // pointermove intermedi viene letto al rilascio. Pulsanti con stopPropagation (spara, pausa) restano esclusi.
     const el = this.container;
     const isBtn = (t) => !!(t && t.closest && t.closest('button, .dn-pad'));
-    window.addEventListener('pointerdown', (p) => { this.ptr = { x: p.clientX, y: p.clientY, t: performance.now(), swiped: false, id: p.pointerId, btn: isBtn(p.target) }; });
+    // v5s46 (168): vicino ai bordi dello schermo lo swipe ha meno spazio (e il telefono se lo prende per i suoi gesti):
+    // soglia piu' bassa se parte a meno di EDGE_PX dal bordo, e uno swipe interrotto dal sistema (pointercancel) si legge lo stesso
+    const EDGE_PX = 36;
+    const nearEdge = (x, y) => { const r = el.getBoundingClientRect(); return x < r.left + EDGE_PX || x > r.right - EDGE_PX || y > r.bottom - EDGE_PX; };
+    window.addEventListener('pointerdown', (p) => { this.ptr = { x: p.clientX, y: p.clientY, lx: p.clientX, ly: p.clientY, t: performance.now(), swiped: false, id: p.pointerId, btn: isBtn(p.target), edge: nearEdge(p.clientX, p.clientY) }; });
+    // iOS/Android: un tocco che parte sul bordo non deve diventare il gesto "indietro" del browser durante la corsa
+    window.addEventListener('touchstart', (e) => {
+      if (!(this.sim.mode === 'run' || this.sim.mode === 'dance') || this.paused) return;
+      const t = e.touches[0]; if (!t || isBtn(e.target)) return;
+      const r = el.getBoundingClientRect(); if (t.clientX < r.left + EDGE_PX || t.clientX > r.right - EDGE_PX) e.preventDefault();
+    }, { passive: false });
     const swipe = (q, dx, dy, min) => {
       const dir = classifySwipe(dx, dy, min);
       if (!dir) return false;
@@ -142,7 +160,8 @@ export class Game {
     window.addEventListener('pointermove', (p) => {
       const q = this.ptr;
       if (!q || q.swiped || q.id !== p.pointerId) return;
-      swipe(q, p.clientX - q.x, p.clientY - q.y, SWIPE_PX);
+      q.lx = p.clientX; q.ly = p.clientY;
+      swipe(q, p.clientX - q.x, p.clientY - q.y, q.edge ? SWIPE_PX * 0.65 : SWIPE_PX);
     });
     const up = (p) => {
       const q = this.ptr;
@@ -155,7 +174,7 @@ export class Game {
       this.ptr = null;
     };
     window.addEventListener('pointerup', up);
-    window.addEventListener('pointercancel', () => { this.ptr = null; });
+    window.addEventListener('pointercancel', (p) => { const q = this.ptr; if (q && q.id === p.pointerId && !q.swiped) swipe(q, q.lx - q.x, q.ly - q.y, SWIPE_PX * 0.6); this.ptr = null; });
     window.addEventListener('keydown', (e) => {
       if (e.target && e.target.tagName === 'INPUT') return;
       if (this.paused) return;
