@@ -814,16 +814,20 @@ export class Sim {
       return;
     }
     if (type === 'carpet') {
-      this.stats.carpets++;
-      this.carpetTotal = this.addCarpets(1); // salvato subito: non si perde
-      const pts = this.addBonus(SCORE.CARPET);
+      const n = Math.max(1, e.value | 0);   // v5s46c (8): nel paese un tappeto vale per due (la via e' meno affollata, stesso totale)
+      this.stats.carpets += n;
+      this.carpetTotal = this.addCarpets(n); // salvato subito: non si perde
+      const pts = this.addBonus(SCORE.CARPET * n);
       this.log('c', pts);
-      this.fx('carpet', { e, pts, streak: this.carpetStreak++, run: this.stats.carpets, total: this.carpetTotal });
+      this.fx('carpet', { e, pts, streak: this.carpetStreak, run: this.stats.carpets, total: this.carpetTotal, n });
       // v5s21: nella festa la folla esulta per le scie di tappeti (solo effetto, nel log)
       const vm = this.runD / PX_PER_METER + this.mapOffsetM;
-      // feat-village: nel paese (fuori dalla festa) i paesani esultano dalle finestre per le scie
-      if (this.carpetStreak % VILLAGE.CHEER_STREAK === 0 && this.mode !== 'attract' && biomeAt(vm).b.id === VILLAGE.BIOME && !festaAt(vm)) { this.stats.windowCheers++; const wp = this.addBonus(VILLAGE.CHEER_PTS); this.log('vV', wp); this.fx('windowCheer', { streak: this.carpetStreak }); this.fx('sound', 'crowdRoar'); }
-      if (this.carpetStreak % FESTA.STREAK === 0 && festaAt(vm)) { this.stats.roars++; this.log('Y', this.carpetStreak); this.fx('crowdRoar', { streak: this.carpetStreak }); this.fx('sound', 'crowdRoar'); }
+      for (let i = 0; i < n; i++) {
+        this.carpetStreak++;
+        // feat-village: nel paese (fuori dalla festa) i paesani esultano dalle finestre per le scie
+        if (this.carpetStreak % VILLAGE.CHEER_STREAK === 0 && this.mode !== 'attract' && biomeAt(vm).b.id === VILLAGE.BIOME && !festaAt(vm)) { this.stats.windowCheers++; const wp = this.addBonus(VILLAGE.CHEER_PTS); this.log('vV', wp); this.fx('windowCheer', { streak: this.carpetStreak }); this.fx('sound', 'crowdRoar'); }
+        if (this.carpetStreak % FESTA.STREAK === 0 && festaAt(vm)) { this.stats.roars++; this.log('Y', this.carpetStreak); this.fx('crowdRoar', { streak: this.carpetStreak }); this.fx('sound', 'crowdRoar'); }
+      }
       return;
     }
     if (type === 'power') { this.powerUp(e.kind, e); return; }
@@ -837,7 +841,7 @@ export class Sim {
       this.fx('popup', { text: `${PISTOL.AMMO} COLPI`, style: 'small' });
       return;
     }
-    const add = e.kind === 'ferula' ? FUEL.FERULA : FUEL.ASFODELO;
+    const add = (e.kind === 'ferula' ? FUEL.FERULA : FUEL.ASFODELO) * (e.mult || 1);   // v5s46c (8): fascina doppia dove una e' stata diradata
     this.fuel = Math.min(FUEL.MAX, this.fuel + add);
     const pts = this.addBonus(SCORE.MATERIAL);
     this.stats.pickups++;

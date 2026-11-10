@@ -29,7 +29,9 @@ export function rng(seed) {
 
 export class Kit {
   static lodMin = 0;
-  constructor(seed = 1) { this.lit = []; this.unlit = []; this.r = rng(seed); }
+  constructor(seed = 1) { this.lit = []; this.unlit = []; this.r = rng(seed); this.shadows = []; }
+  // v5s46c (13/41): ombra di contatto morbida sotto carrelli, botti, casse (resa da Env con un'unica mesh trasparente)
+  shadow(x, z, rx, rz = rx, y = 0.02, a = 0.5) { this.shadows.push([x, y, z, rx, rz, a]); return this; }
   // o: {x,y,z,rx,ry,rz,sx,sy,sz,vary,flat,unlit,ao}
   add(geom, color, o = {}) {
     // versione lontana (LOD) dei pezzi ai lati: si saltano i dettagli piu' piccoli di Kit.lodMin (m di raggio)
@@ -89,6 +91,7 @@ export class Kit {
     }
     out.computeBoundingSphere();
     out.computeBoundingBox();
+    if (this.shadows.length) out.userData.shadows = this.shadows;
     return out;
   }
 }

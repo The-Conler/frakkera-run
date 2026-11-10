@@ -24,7 +24,7 @@ export const BIOMES = [
     moodEnd: { top: '#5257a8', mid: '#ee8c70', hor: '#ffb874', fog: '#f1ae88', hemiI: 1.22, dirI: 2.0 }, // verso sera a fine paese
     light: { flameDist: 11, flameK: 1, mineral: 0, lamp: 0, darkByFuel: 0, tunnel: 0, exposure: 1.05, camLook: 1.0, camFov: 4 },
     ambience: { wind: 0.06, water: 0, drips: 0, birds: 0.3, bells: 1, cave: 0 },
-    transitionOut: 30,          // metri di dissolvenza di luce/nebbia verso il bioma successivo
+    transitionOut: 45,          // metri di dissolvenza di luce/nebbia verso il bioma successivo
   },
   {
     id: 'rock', name: 'La roccia (Su Pranu / guglia)', from: 250, to: 500,
@@ -36,7 +36,7 @@ export const BIOMES = [
     mood: { top: '#5d86cf', mid: '#a9c2e0', hor: '#f7d7a8', fog: '#a9c0d6', hemiS: '#eef4ff', hemiG: '#4f5f32', hemiI: 1.15, dirC: '#fff0d0', dirI: 1.9, moon: 0, sun: 0.9, far: '#ffffff', fogNear: 120, fogFar: 650 },
     light: { flameDist: 11, flameK: 1, mineral: 0, lamp: 0, darkByFuel: 0, tunnel: 0, exposure: 1.05, camLook: 1.2, camFov: 6 },
     ambience: { wind: 0.16, water: 0, drips: 0, birds: 0.5, bells: 0, cave: 0 },
-    transitionOut: 35,
+    transitionOut: 50,
   },
   {
     id: 'river', name: 'Il fiume e la piscina naturale', from: 500, to: 750,
@@ -49,7 +49,7 @@ export const BIOMES = [
     mood: { top: '#3a4a9c', mid: '#b08ac0', hor: '#ffb070', fog: '#c89a8e', hemiS: '#ffe8d8', hemiG: '#3a3644', hemiI: 1.3, dirC: '#ffd8b0', dirI: 3.0, moon: 0, sun: 1.6, far: '#d8a8a0', fogNear: 60, fogFar: 380 },
     light: { flameDist: 13, flameK: 1.15, mineral: 0, lamp: 0, darkByFuel: 0, tunnel: 0, exposure: 1.2, camLook: 0.2, camFov: 5, camYaw: 0.9, sunDX: -30, sunDY: -22, sunDZ: -45, glowX: -88, glowY: 30, skySunX: -0.3 },  // v5s28: fiume a sinistra e parete a destra entrambi in quadro; v5s6: inquadratura girata verso la piscina (target3-cascata)
     ambience: { wind: 0.04, water: 0.22, drips: 0, birds: 0.7, bells: 0, cave: 0 },
-    transitionOut: 35,
+    transitionOut: 50,
   },
   {
     id: 'viaduct', name: 'Il viadotto di Gadoni', from: 750, to: 1000,
@@ -61,7 +61,7 @@ export const BIOMES = [
     mood: { top: '#3d5fae', mid: '#f0956a', hor: '#ffc66e', fog: '#e7a982', hemiS: '#ffdcae', hemiG: '#5e4c3a', hemiI: 1.25, dirC: '#ffbf78', dirI: 2.3, moon: 0, sun: 1.25, far: '#ffd9b8', fogNear: 70, fogFar: 340 },
     light: { flameDist: 12, flameK: 1, mineral: 0, lamp: 0, darkByFuel: 0, tunnel: 0, exposure: 1.05, camLook: 1.2, camFov: 6 },
     ambience: { wind: 0.14, water: 0.12, drips: 0, birds: 0.25, bells: 0, cave: 0 },
-    transitionOut: 30,
+    transitionOut: 45,
   },
   {
     id: 'mine-ext', name: 'Miniera Fenice - piazzale e ingresso', from: 1000, to: 1150,

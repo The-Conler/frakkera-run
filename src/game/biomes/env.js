@@ -42,20 +42,30 @@ const AMB_KEYS = ['wind', 'water', 'drips', 'birds', 'bells', 'cave'];
 function groundMat(map, o = {}) {
   const P = o.phong ? THREE.MeshPhongMaterial : THREE.MeshLambertMaterial;
   const m = new P({ map, color: o.color || '#ffffff', ...(o.phong ? { specular: o.specular || '#8890a0', shininess: o.shininess || 60 } : {}) });
-  const u = { uWet: { value: 1 }, uMapB: { value: o.mapB || map }, uZ0: { value: 0 }, uZ1: { value: 1 }, uSX: { value: o.sx ?? 1 / 11 }, uSZ: { value: o.sz ?? 1 / 11 }, uX0: { value: o.x0 ?? -5.5 }, uAbs: { value: o.abs ? 1 : 0 } };
+  const u = { uMapF: { value: o.feather || map }, uWet: { value: 1 }, uMapB: { value: o.mapB || map }, uZ0: { value: 0 }, uZ1: { value: 1 }, uSX: { value: o.sx ?? 1 / 11 }, uSZ: { value: o.sz ?? 1 / 11 }, uX0: { value: o.x0 ?? -5.5 }, uAbs: { value: o.abs ? 1 : 0 } };
   m.userData.u = u;
   if (o.mapB) m.defines = { BLEND: '' };
   if (o.wet) m.defines = { ...(m.defines || {}), WET: '' };
+  if (o.feather) m.defines = { ...(m.defines || {}), FEATHER: '' };
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, u);
     sh.vertexShader = 'varying vec3 vWP;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n  vWP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
-    sh.fragmentShader = 'varying vec3 vWP;\nuniform sampler2D uMapB; uniform float uZ0, uZ1, uSX, uSZ, uX0, uAbs;\n' + sh.fragmentShader.replace('#include <map_fragment>', `
+    sh.fragmentShader = 'varying vec3 vWP;\nuniform sampler2D uMapB; uniform sampler2D uMapF; uniform float uZ0, uZ1, uSX, uSZ, uX0, uAbs;\n' + sh.fragmentShader.replace('#include <map_fragment>', `
       vec2 wuv = vec2((mix(vWP.x, abs(vWP.x), uAbs) - uX0) * uSX, -vWP.z * uSZ);
       vec4 sA = texture2D(map, wuv);
       #ifdef BLEND
         vec4 sB = texture2D(uMapB, wuv);
         float kb = smoothstep(uZ0, uZ1, -vWP.z + (sA.g - 0.45) * 9.0);
         sA = mix(sA, sB, kb);
+      #endif
+      #ifdef FEATHER
+        // v5s46c (6): bordo morbido e irregolare fra strada e ciglio: vicino alla strada il ciglio prende la terra della strada
+        // (campionata a specchio oltre il bordo), con un contorno frastagliato invece della riga dritta
+        float ax = abs(vWP.x), xr = sign(vWP.x) * (11.0 - ax);
+        vec4 sF = texture2D(uMapF, vec2((xr + 5.5) / 11.0, -vWP.z / 11.0));
+        float jag = sin(vWP.z * 1.7) * 0.18 + sin(vWP.z * 4.3 + 1.3) * 0.1 + (sA.g - 0.45) * 0.9;
+        float kf = 1.0 - smoothstep(5.55, 6.45, ax + jag);
+        sA = mix(sA, sF, kf * 0.92);
       #endif
       diffuseColor *= sA;`);
     if (o.wet) {
@@ -75,7 +85,7 @@ function groundMat(map, o = {}) {
       sh.fragmentShader = 'uniform float uWet;\n' + sh.fragmentShader;
     }
   };
-  m.customProgramCacheKey = () => (o.mapB ? 'gb' : 'g') + (o.phong ? 'p' : 'l') + (o.wet ? 'w' : '');
+  m.customProgramCacheKey = () => (o.mapB ? 'gb' : 'g') + (o.phong ? 'p' : 'l') + (o.wet ? 'w' : '') + (o.feather ? 'f' : '');
   return m;
 }
 function waterMat(normalMap, color, opacity = 0.84, deep = null) {
@@ -211,6 +221,8 @@ export class Env {
       earthEdge: groundMat(this.tex.earthEdge, { sx: 1 / 3, sz: 1 / 3, x0: 0, abs: true }),
       none: groundMat(this.tex.mineFloor, { phong: true, shininess: 30 }),
     };
+    for (const b of BIOMES) { const g = b.ground, key = 'f:' + g.shoulder + '|' + g.road;
+      if (g.shoulder && !g.curb && this.tex[g.shoulder] && !this.shoulderMat[key]) this.shoulderMat[key] = groundMat(this.tex[g.shoulder], { sx: 1 / 3, sz: 1 / 3, x0: 0, abs: true, feather: this.roadTex[g.road] }); }
     this.waterMat = { pool: waterMat(nrm, '#0f8a72', 0.8, { x0: 6.5, x1: 16, a: '0.03, 0.21, 0.17', b: '0.004, 0.075, 0.062' }), river: waterMat(nrm, '#3f7f7c', 0.86) };
     this.waterMat.pool.side = THREE.DoubleSide;   // v5s28: specchiata a sinistra (fiume di Sa Stiddiosa)
     this.tunnelMat = { rock: tunnelMat(false), blue: tunnelMat(true) };
@@ -252,6 +264,33 @@ export class Env {
     let m = this.blendMats.get(key);
     if (!m) { m = groundMat(this.roadTex[a], { mapB: this.roadTex[b], phong: b === 'blueFloor' || b === 'mineFloor' || a === 'blueFloor', wet: false, specular: '#2a3044', shininess: 24 }); this.blendMats.set(key, m); }
     return m;
+  }
+  // v5s46c (10): c'e' scenografia (muretto, gradini, casa) piu' alta di h sotto l'impronta (x, W)? (raggi dall'alto sui lati e monumenti)
+  sideBlocked(x, W, h, r = 0.55) {
+    const rc = this._rcS || (this._rcS = new THREE.Raycaster()), dn = new THREE.Vector3(0, -1, 0), o = new THREE.Vector3(), objs = [];
+    for (const sd of this.sides) for (const p of sd.list) if (p.mesh && p.W0 - 3 <= W && p.W1 + 3 >= W) objs.push(p.mesh);
+    for (const [, mk] of this.marks) objs.push(mk.root);
+    for (const [, b] of this.batches) if (b.mesh && b.mesh.visible) objs.push(b.mesh);
+    if (!objs.length) return false;
+    rc.far = 12;
+    for (const [dx, dz] of [[0, 0], [-r, 0], [r, 0], [0, -r], [0, r]]) {
+      o.set(x + dx, 10, -W + dz); rc.set(o, dn);
+      const hh = rc.intersectObjects(objs, true).find((q) => q.object.visible);
+      if (hh && hh.point.y > h) return true;
+    }
+    return false;
+  }
+  // v5s46c (13/41): ombre di contatto dichiarate dai Kit (k.shadow) -> macchie morbide del sistema di ombre del mondo
+  attachShadows(mesh) {
+    const sh = mesh.geometry && mesh.geometry.userData.shadows; if (!sh || !this.world.blob) return;
+    const list = [];
+    for (const [x, y, z, rx, rz] of sh) { const b = this.world.blob(rx * 2, rz * 2); b.position.set(x, y, z); mesh.add(b); list.push(b); }
+    mesh.geometry.addEventListener('dispose', () => { for (const b of list) this.world.blobs && this.world.blobs.delete(b); });
+  }
+  // v5s46c (6): ciglio con bordo sfumato verso la strada del bioma (una variante per coppia ciglio/strada)
+  edgeMat(shoulder, road) {
+    const key = 'f:' + shoulder + '|' + road;   // creati in mats(): stanno in shoulderMat (neve e shader pre-compilati come gli altri)
+    return this.shoulderMat[key] || this.shoulderMat[shoulder];
   }
   // geometria varia unita (cordoli, terreni ai lati, binari, letto del fiume), lunga 1 m
   misc(bid) {
@@ -358,7 +397,7 @@ export class Env {
     add(this.geo.road, rm, 'road');
     if (g.shoulder === 'walk') { add(this.geo.walk, this.shoulderMat.walk, 'walkL'); meshes[meshes.length - 1].position.x = -(ROAD_W / 2 + WALK_W / 2); add(this.geo.walk, this.shoulderMat.walk, 'walkR'); meshes[meshes.length - 1].position.x = ROAD_W / 2 + WALK_W / 2; }
     else if (g.shoulder === 'none') { add(this.geo.tfloor, this.shoulderMat.none, 'tfR'); add(this.geo.tfloor, this.shoulderMat.none, 'tfL'); meshes[meshes.length - 1].scale.x = -1; }
-    else if (g.shoulder) { add(g.right === 'water' ? this.geo.edgeN : this.geo.edge, this.shoulderMat[g.shoulder], g.right === 'water' ? 'edgeRn' : 'edgeR'); if (g.right !== 'water' && g.right !== 'river') { add(this.geo.edge, this.shoulderMat[g.shoulder], 'edgeL'); meshes[meshes.length - 1].scale.x = -1; } else { add(this.geo.edge, this.shoulderMat[g.shoulder], 'edgeL'); meshes[meshes.length - 1].scale.x = -1; } }
+    else if (g.shoulder) { const em = g.curb ? this.shoulderMat[g.shoulder] : this.edgeMat(g.shoulder, g.road); add(g.right === 'water' ? this.geo.edgeN : this.geo.edge, em, g.right === 'water' ? 'edgeRn' : 'edgeR'); add(this.geo.edge, em, 'edgeL'); meshes[meshes.length - 1].scale.x = -1; }
     add(this.misc(b.id), this.mats2, 'misc');
     if (g.right === 'water') add(this.geo.waterPool, this.waterMat.pool, 'water');
     if (g.right === 'river') add(this.geo.waterRiver, this.waterMat.river, 'water');
@@ -759,7 +798,7 @@ export class Env {
       const mesh = new THREE.Mesh(geom, this.tunnelMat[type]); this.scene.add(mesh);
       const extra = [];
       const props = S.tunnelProps(W, len, type, lampsNear, { frames: i.b.id === 'mine-int' && i.local < 70 ? 7 : type === 'blue' ? 15 : 0 });
-      if (props) { const pm = new THREE.Mesh(props, this.mats2); pm.position.z = -W; pm.userData.ownGeo = true; this.scene.add(pm); extra.push(pm); }
+      if (props) { const pm = new THREE.Mesh(props, this.mats2); pm.position.z = -W; pm.userData.ownGeo = true; this.scene.add(pm); this.attachShadows(pm); extra.push(pm); }
       if (i.b.id === 'mine-int' && Math.floor((i.local + len) / 90) > Math.floor(i.local / 90) && i.local > 40) {
         const dm = new THREE.Mesh(this.prefab('drill', 0, () => ({ geom: S.buildDrillMachine(), w: 0, lamps: [] })).geom, this.mats2);
         dm.position.set(-5.4, 0, -(W + len * 0.5)); dm.rotation.y = 0.05; this.scene.add(dm); extra.push(dm);
@@ -852,7 +891,7 @@ export class Env {
     const root = new THREE.Group(); root.position.z = -W;
     const own = [];         // geometrie da liberare
     const lamps = [];
-    const mesh = (geom, mat = this.mats2, keep = false) => { const m = new THREE.Mesh(geom, mat); root.add(m); if (!keep) own.push(geom); return m; };
+    const mesh = (geom, mat = this.mats2, keep = false) => { const m = new THREE.Mesh(geom, mat); root.add(m); if (!keep) own.push(geom); this.attachShadows(m); return m; };
     // geometria del monumento in cache (solo CPU: alla rimozione si libera la GPU, i dati restano
     // per non ricostruirla a ogni giro). Costruita in coordinate b del giro 0 => indipendente dal giro.
     const Bm = b.from + d.at;
@@ -940,7 +979,7 @@ export class Env {
       sign.position.set(9.6, 11.6, 1.9); sign.rotation.set(0, -0.12, 0.04); root.add(sign); own.push(sign.geometry);
       const net = new THREE.Mesh(new THREE.PlaneGeometry(70, 26), this.netMat || (this.netMat = new THREE.MeshBasicMaterial({ map: (() => { const t = BT.netTexture(); t.repeat.set(18, 7); return t; })(), transparent: true, depthWrite: false, opacity: 0.55 })));
       net.position.set(0, 27, -0.5); net.rotation.x = -0.18; own.push(net.geometry);   // v5s46b: rete paramassi tolta (col versante piu' basso restava sospesa nel cielo)
-      lamps.push(this.lamp(0, 6.2, -W - 1.2, '#ffb060', 1.05, 0.22));   // v5s43: bocca del portale, alone piccolo come Su Nascimentu
+      lamps.push(this.lamp(0, 7.6, -W - 1.2, '#ffb060', 1.05, 0.22));   // v5s46c: alla lanterna appesa alla volta   // v5s43: bocca del portale, alone piccolo come Su Nascimentu
     } else if (id === 'mineExit') {
       mesh(this.prefab('exit', 0, () => ({ geom: S.buildMineExit(8), w: 0, lamps: [] })).geom, this.mats2, true);
     }
@@ -1048,10 +1087,11 @@ export class Env {
   moodAt(b, out) {
     const i = biomeAt(b), B = i.b, len = B.to - B.from;
     const nextI = (BIOMES.indexOf(B) + 1) % BIOMES.length, NB = BIOMES[nextI];
-    const T = B.transitionOut || 30;
+    const T = B.transitionOut || 45;   // v5s46c (31): passaggi di cielo/nebbia piu' lunghi (prima 30 m: tagli netti di colore)
     let t = this.mode === 'attract' ? 0 : Math.max(0, Math.min(1, (i.local - (len - T)) / T)); t = t * t * (3 - 2 * t);
     const e = B.moodEnd ? Math.min(1, Math.max(0, i.local / len)) : 0;
-    const night = (LAP_NIGHT[Math.min(LAP_NIGHT.length - 1, i.lap + (t > 0.5 && nextI === 0 ? 1 : 0))] || 0);
+    const nAt = (l) => LAP_NIGHT[Math.min(LAP_NIGHT.length - 1, l)] || 0;
+    const night = nextI === 0 ? nAt(i.lap) + (nAt(i.lap + 1) - nAt(i.lap)) * t : nAt(i.lap);   // v5s46c (31/32): la sera del giro dopo arriva sfumata (prima scattava a meta')
     for (const k of MOOD_KEYS) {
       out[k] = out[k] || new THREE.Color();
       out[k].set(B.mood[k]); if (B.moodEnd && B.moodEnd[k]) out[k].lerp(_c.set(B.moodEnd[k]), e);

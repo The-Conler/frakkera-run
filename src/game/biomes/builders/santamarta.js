@@ -128,6 +128,14 @@ export function buildSantaMarta(seed = 1) {
     k.add(G.torus(0.7, 0.05, 4, 14), C.gold, { y, z, rx: Math.PI / 2 }); k.add(G.torus(0.4, 0.05, 4, 12), C.gold, { y: y + 0.4, z, rx: Math.PI / 2 });
     for (let j = 0; j < 6; j++) { const a = j / 6 * Math.PI * 2; k.add(G.sph(0.09, 6, 4), '#fff0c0', { x: Math.cos(a) * 0.7, y: y + 0.15, z: z + Math.sin(a) * 0.7, unlit: true }); } }
 
+  // v5s46c (16): le luci delle navatelle pendono da una lanterna in ferro appesa al soffitto (prima: luce sospesa nel vuoto)
+  for (const [lx, ly, lz] of santaMartaAisleLamps()) {
+    k.add(G.box(0.035, SM.AH - ly - 0.32, 0.035), '#2a2018', { x: lx, y: (SM.AH + ly + 0.32) / 2, z: lz });
+    k.add(G.box(0.36, 0.06, 0.36), '#2a2018', { x: lx, y: ly + 0.3, z: lz });
+    k.add(G.box(0.26, 0.42, 0.26), '#ffe2a8', { x: lx, y: ly + 0.05, z: lz, unlit: true });
+    for (const [ox, oz] of [[-0.14, -0.14], [0.14, -0.14], [-0.14, 0.14], [0.14, 0.14]]) k.add(G.box(0.03, 0.5, 0.03), '#2a2018', { x: lx + ox, y: ly + 0.05, z: lz + oz });
+    k.add(G.box(0.32, 0.05, 0.32), '#2a2018', { x: lx, y: ly - 0.2, z: lz });
+  }
   // ---- facciata (davanti) e parete di fondo (abside), con portale ad arco
   const DOOR_W = SM_DOOR_W, DOOR_H = 7.4, DR = DOOR_W / 2;   // v5s45 (QA10 #4): portale piu largo (era 7.6), la frakkera in corsia 0 non attraversa lo stipite
   const inDoor = (x, y) => (Math.abs(x) < DR + 1.1 && y < DOOR_H - DR + 0.2) || Math.hypot(x, y - (DOOR_H - DR)) < DR + 1.1;

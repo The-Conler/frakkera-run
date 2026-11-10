@@ -144,6 +144,7 @@ export function initUI(game) {
 
   // --------------------------------------------------------- popup (testi volanti)
   const popLayer = $('#popups');
+  let recentPops = [];
   bus.on('popup', (p) => {
     if (state !== 'play' && state !== 'countdown') return;
     while (popLayer.childElementCount > 7) popLayer.firstElementChild.remove();
@@ -161,6 +162,14 @@ export function initUI(game) {
     }
     el.addEventListener('animationend', () => el.remove());
     popLayer.appendChild(el);
+    // v5s46c (45): i testi nel mondo non si sovrappongono: posizioni logiche dei testi recenti (le animazioni rendono
+    // inaffidabili i rettangoli), se il nuovo cade vicino a uno ancora visibile scende di una riga (max 5)
+    if (p.x != null) {
+      const now = performance.now(); recentPops = recentPops.filter((q) => now - q.t < 900);
+      let x = parseFloat(el.style.left), y = parseFloat(el.style.top);
+      for (let k = 0; k < 5 && recentPops.some((q) => Math.abs(q.x - x) < 16 && Math.abs(q.y - y) < 6); k++) y = Math.min(90, y + 6.5);   // sotto: quello vecchio sta gia salendo
+      el.style.top = `${y}%`; recentPops.push({ x, y, t: now });
+    }
   });
 
   const refreshBest = () => {

@@ -131,6 +131,8 @@ export class World {
     this.shake = 0; this.shakeAmp = 0;
     this.camPos = new THREE.Vector3(0, 4, 10); this.camLook = new THREE.Vector3(0, 2, 0);
     this.views = new Map();
+    // v5s46c: solo in modalita' test, classi per il QA automatico (ray cast, box) — niente in produzione
+    if (typeof location !== 'undefined' && /[?&]test\b/.test(location.search)) this.qa = { Raycaster: THREE.Raycaster, Vector3: THREE.Vector3, Box3: THREE.Box3, Color: THREE.Color };
     this.pools = {};
     this.buildMaterials();
     this.buildSky();
@@ -269,7 +271,7 @@ export class World {
     sg.setAttribute('position', new THREE.Float32BufferAttribute(sp, 3));
     this.stars = new THREE.Points(sg, new THREE.PointsMaterial({ color: '#fff6dd', size: 1.6, sizeAttenuation: false, transparent: true, opacity: 0, fog: false, depthWrite: false }));
     this.scene.add(this.stars);
-    this.far = new THREE.Mesh(M.buildFar(), new THREE.MeshBasicMaterial({ vertexColors: true, fog: false }));
+    this.far = new THREE.Mesh(M.buildFar(), new THREE.MeshLambertMaterial({ vertexColors: true }));   // v5s46c (3): fondale illuminato e nella nebbia (prima piatto e pallido, senza ombre)
     this.scene.add(this.far);
     // v5s12: campanile + chiesa rosa centrati in fondo alla via del paese (segue la camera come il fondale)
     this.vista = new THREE.Mesh(buildVista(1), this.mats2); this.scene.add(this.vista);
@@ -657,12 +659,14 @@ export class World {
       v.litT = -1; v.bulb.material = this.lampMats.off; v.glow.material.opacity = 0; v.halo.material.opacity = 0;
     }
     if (e.kind === 'falo') {
+      v.sideChk = undefined;
       const vil = e.variant === 1; v.bon.visible = !vil; v.vil.visible = vil;
       v.fa = FLAME_AT[vil ? 1 : 0]; v.litT = -1;
       v.body.rotation.y = vil ? (e.side < 0 ? 0.5 : -0.5) : e.id * 0.7;
       v.flame.position.set(0, 0, 0); v.glow.position.set(0, 0, 0);
     }
     if (e.kind === 'botte' || e.kind === 'muretto') v.body.rotation.y = (e.id * 1.37) % 6.28 * (e.kind === 'botte' ? 1 : 0.06);
+    v.sideChk = undefined;
     this.views.set(e.id, v);
     this.placeView(e, v);
   }
@@ -680,7 +684,10 @@ export class World {
     const zc = -(e.d + e.len / 2) * U;
     if (v.kind === 'narrow') { v.root.position.set(v.root.userData.x, 0, -e.d * U); return; }
     const x = (e.kind === 'scambio' || e.kind === 'festone' ? 0 : e.kind === 'bancarella' || e.kind === 'folla' ? e.side * FESTA.X : e.kind === 'tessitrice' ? e.side * VILLAGE.WEAVER_X : e.kind === 'falo' ? e.side * FIRE.X : e.kind === 'minatore' ? e.side * MINE.MINER_X : e.kind === 'lampada' ? e.side * MINE.LAMP_X : e.kind === 'pastore' ? e.side * ANIMALS.SHEPHERD_X : isMoving(e.kind) ? e.x : e.kind === 'ramo' ? 0 : e.kind === 'tappeto' && e.mx !== undefined ? e.mx : laneX(e.lane)) * U;
-    v.root.position.set(x, e.my ? e.my * U : 0, zc);
+    // v5s46c (9/18): chi sta sul marciapiede del paese (falo', bancarelle, folla, tessitrice) poggia sulle lastre (alte 0.22), non dentro
+    let y = e.my ? e.my * U : 0;
+    if (!e.my && Math.abs(x) > 5.6 && Math.abs(x) < 6.95 && !isMoving(e.kind) && this.env.info(-zc).b.ground.shoulder === 'walk') y = 0.22;
+    v.root.position.set(x, y, zc);
   }
   // v5s24: cane randagio che corre al tuo fianco e cane pastore che ti insegue
   animateCompanions(sim, dt) {
@@ -722,6 +729,8 @@ export class World {
       // v5s46 (169): da lontano gli oggetti entrano in dissolvenza (4 gradini, materiali gemelli trasparenti), mai di colpo
       else if (v.root.visible) { const F = farCull && !(e.kind === 'processione' || e.kind === 'trave' || e.kind === 'panni') ? farCull : VIEW_AHEAD * U - 2; this.fadeView(v, (F - ahead * U) / FADE_IN_M); }
       if (e.offroad) v.root.visible = false;   // v5s40: animale/tronco uscito dalla carreggiata
+      // v5s46c (10/18): falo' sul marciapiede dove a lato c'e' un muretto/gradino/casa: non si disegna dentro il muro
+      if ((e.kind === 'falo' || e.kind === 'bancarella' || e.kind === 'pastore') && v.root.visible) { if (v.sideChk === undefined && ahead * U < 75) v.sideChk = this.env.sideBlocked(v.root.position.x, -v.root.position.z, v.root.position.y + 0.3); if (v.sideChk) v.root.visible = false; }
       // v5s41: le pecore in coda al gregge che aspettano lontano dalla via non si vedono dentro roccia/acqua/case
       if (isMoving(e.kind) && e.kind !== 'maimoni' && Math.abs(e.x) * U > ROAD_HALF * U + 2.0) v.root.visible = false;   // v5s41b: entro ~0.5 m oltre il marciapiede (prima 3.2: pecora dentro la roccia)
       if (e.done && !v.dead && (e.pickup || e.destroyed)) { v.dead = true; v.body.visible = false; if (v.glow) v.glow.visible = false; if (v.warn) v.warn.visible = false; if (v.shadow) v.shadow.visible = !e.pickup && !e.destroyed; }
@@ -1142,7 +1151,7 @@ export class World {
     // in miniera il buio cresce quando la frakkera si consuma
     const dark = Math.min(0.4, L.darkByFuel * (1 - fuelF));
     this.skyU.uTop.value.copy(m.top); this.skyU.uMid.value.copy(m.mid); this.skyU.uHor.value.copy(m.hor); this.skyU.uFog.value.copy(m.fog); this.skyU.uSun.value = m.sun;
-    this.scene.fog.color.copy(m.fog); this.scene.fog.near = m.fogNear * (1 - dark * 0.4); this.scene.fog.far = m.fogFar * (1 - dark * 0.55);
+    this.scene.fog.color.copy(m.fog).convertSRGBToLinear();   /* v5s46c: three passa il colore della nebbia in sRGB, il cielo (shader proprio) mostra i valori lineari: senza questa conversione tutto cio' che sta nella nebbia risultava piu' chiaro del cielo (sagome pallide e piatte in fondo, salti di colore) */ this.scene.fog.near = m.fogNear * (1 - dark * 0.4); this.scene.fog.far = m.fogFar * (1 - dark * 0.55);
     this.hemi.color.copy(m.hemiS); this.hemi.groundColor.copy(m.hemiG); this.hemi.intensity = m.hemiI * (1 - dark * 0.5);   // v5s9: il buio cresce col fuoco che cala, ma non scende sotto la meta'
     // v5s42: luminosita' minima all'aperto (notte, pioggia, giri successivi): il telefono resta leggibile senza slavare.
     // Luce dal cielo efficace >= 0.62 e terreno mai nero (bordo strada e piloni del viadotto); in galleria resta il buio voluto.

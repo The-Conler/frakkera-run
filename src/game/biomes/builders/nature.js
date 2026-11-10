@@ -256,6 +256,10 @@ export function riverDropPiece(W0, len, o = {}) {
   addColored(k, g);
   for (let z = -r() * 2; z > -len; z -= r.range(1.2, 2.6)) addRock(k, r, r.range(-8, -3), -depth + r.range(-0.2, 0.8), z, r.range(0.6, 1.8), ROCK.granite, { squash: 0.6 });
   for (let z = -r() * 2; z > -len; z -= r.range(2, 4)) shrub(k, r, r.range(-3, -0.5), -r.range(0.5, 2.5), z, r.range(0.6, 1.0), LEAF.holm, 0.15);
+  // v5s46c (7): riva vera dove l'acqua incontra il pendio (sassi bassi + ciuffi), generatore separato: il resto non cambia
+  if (o.shore !== false) { const q = rng((Math.floor(W0 * 31) ^ 7717) >>> 0);
+    for (let z = -q() * 1.2; z > -len; z -= q.range(0.7, 1.5)) addRock(k, q, -6.2 - q() * 1.3, -depth - 0.1 + q.range(-0.1, 0.25), z, q.range(0.35, 0.9), ROCK.granite, { squash: 0.45 });
+    for (let z = -q() * 2; z > -len; z -= q.range(1.4, 2.8)) shrub(k, q, -5.6 - q() * 0.8, -depth + 0.2, z, q.range(0.4, 0.7), LEAF.holm, 0.1); }
   return k.build({ ao: 0.2 });
 }
 

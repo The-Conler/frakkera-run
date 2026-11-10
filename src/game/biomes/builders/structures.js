@@ -153,8 +153,8 @@ export function tunnelProps(W0, len, type, lamps, o = {}) {
   if (type === 'blue') {                // botti e massi ai lati dei binari, fuori dalle corsie
     for (let z = -r.range(0, 6); z > -len; z -= r.range(5, 11)) {
       const s = r.chance(0.5) ? 1 : -1;
-      if (r.chance(0.45)) { const n = 1 + r.int(2); for (let q = 0; q < n; q++) k.add(G.cyl(0.42, 0.42, 1.05, 10), r.pick(['#6b4426', '#5a3820', '#7a5030']), { x: s * (5.1 + q * 0.2), y: 0.53, z: z - q * 0.95, vary: 0.12 }); }
-      else k.add(G.ico(r.range(0.4, 0.8), 0), r.pick(['#14205e', '#1c2f86', '#0f1748']), { x: s * r.range(4.9, 5.6), y: 0.25, z, sy: 0.7, flat: true, vary: 0.2 });
+      if (r.chance(0.45)) { const n = 1 + r.int(2); for (let q = 0; q < n; q++) { k.add(G.cyl(0.42, 0.42, 1.05, 10), r.pick(['#6b4426', '#5a3820', '#7a5030']), { x: s * (5.1 + q * 0.2), y: 0.53, z: z - q * 0.95, vary: 0.12 }); k.shadow(s * (5.1 + q * 0.2), z - q * 0.95, 0.7); } }
+      else { const rr = r.range(0.4, 0.8); k.add(G.ico(rr, 0), r.pick(['#14205e', '#1c2f86', '#0f1748']), { x: s * r.range(4.9, 5.6), y: 0.25, z, sy: 0.7, flat: true, vary: 0.2 }); }
     }
   }
   if (o.frames) for (let z = -r.range(2, 5); z > -len; z -= o.frames) {   // centine di legno
@@ -264,6 +264,13 @@ export function buildMinePortal(seed = 5) {
     const x = -2 + (dx + 2) * t, z = 9 - 6.5 * t;
     for (const g of [-0.5, 0.5]) k.add(G.box(0.12, 0.12, 1.1), '#6a3a22', { x: x + g * 0.8, y: 0.08, z, ry: Math.atan2(dx + 2, -6.5) });
   }
+  // v5s46c (16): la luce calda della bocca pende da una lanterna con catena agganciata alla volta (prima: alone nel vuoto)
+  { const lz = -1.2, ly = 7.6, top = wallH + crown - 0.1;   // alta: la frakkera sulla spalla passa sotto
+    k.add(G.box(0.05, top - ly - 0.3, 0.05), '#2a2018', { x: 0, y: (top + ly + 0.3) / 2, z: lz });
+    k.add(G.box(0.42, 0.08, 0.42), '#2a2018', { x: 0, y: ly + 0.3, z: lz });
+    k.add(G.box(0.3, 0.46, 0.3), '#ffd08a', { x: 0, y: ly + 0.03, z: lz, unlit: true });
+    for (const [ox, oz] of [[-0.16, -0.16], [0.16, -0.16], [-0.16, 0.16], [0.16, 0.16]]) k.add(G.box(0.035, 0.55, 0.035), '#2a2018', { x: ox, y: ly + 0.03, z: lz + oz });
+    k.add(G.box(0.36, 0.06, 0.36), '#2a2018', { x: 0, y: ly - 0.24, z: lz }); }
   return k.build({ ao: 0.2 });
 }
 // carrello da miniera sui binari (decorazione accanto all'ingresso, come nella foto)
@@ -275,6 +282,7 @@ export function buildMineCartDecor() {
   k.add(G.box(1.4, 0.15, 2.1), dark, { y: 1.72 });
   for (const [x, z] of [[-0.75, 0.75], [0.75, 0.75], [-0.75, -0.75], [0.75, -0.75]]) k.add(G.cyl(0.35, 0.35, 0.16, 12), dark, { x, y: 0.4, z, rz: Math.PI / 2 });
   k.add(G.box(1.2, 0.5, 0.2), rust2, { y: 0.7, z: 1.25 });
+  k.shadow(0, 0, 1.25, 1.7);   // v5s46c (41): ombra sotto il carrello
   return k.build();
 }
 // ghiera dell'uscita della galleria blu

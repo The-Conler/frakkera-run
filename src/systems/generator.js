@@ -838,6 +838,16 @@ export class Generator {
     used[lane] = true;
     this.lastPickupRow = r;
     const kind = rng() < DF.FERULA_SHARE ? 'ferula' : 'asfodelo';
+    // v5s46c (8): nel paese la via e' piena di tappeti: le fascine si diradano (almeno 5 file fra una e l'altra).
+    // Le estrazioni casuali restano identiche (stesso percorso) e la fascina saltata vale doppio nella successiva (stesso fuoco totale).
+    if (biomeIdAt(D, this.offM) === 'village') {
+      if (r - (this.lastVillagePick ?? -99) < 5) { this.fuelOwed = Math.min(2, (this.fuelOwed || 0) + 1); return; }
+      this.lastVillagePick = r;
+      const mult = 1 + Math.min(1, this.fuelOwed || 0); this.fuelOwed = Math.max(0, (this.fuelOwed || 0) - 1);
+      emit({ kind, lane, d: D + 9, len: 12, pickup: true, ...(mult > 1 ? { mult } : {}) });
+      return;
+    }
+    if (this.fuelOwed) { this.fuelOwed = 0; emit({ kind, lane, d: D + 9, len: 12, pickup: true, mult: 2 }); return; }
     emit({ kind, lane, d: D + 9, len: 12, pickup: true });
   }
 
@@ -882,6 +892,8 @@ export class Generator {
     this.freeUntil[lane] = Math.max(this.freeUntil[lane], r + 1);
     used[lane] = true;
     const step = Math.floor(WORLD.ROW / CP.PER_ROW);
+    // v5s46c (8): nel paese un tappeto per fila (vale per due: stesso totale), la via e' meno affollata
+    if (biomeIdAt(D, this.offM) === 'village') { emit({ kind: 'tappeto', lane, d: D + 3, len: 8, pickup: true, variant: this.carpetVariant, value: CP.PER_ROW }); return; }
     for (let i = 0; i < CP.PER_ROW; i++) {
       emit({ kind: 'tappeto', lane, d: D + 3 + i * step, len: 8, pickup: true, variant: this.carpetVariant });
     }

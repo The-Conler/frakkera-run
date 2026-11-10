@@ -113,11 +113,14 @@ export function buildNascimentu(tex) {
   // v5s46b: tolti anche i fili verso i pali di sinistra: nel paese non resta nessun filo di luci teso sopra la via o il marciapiede
   // (restano solo la "gonna" di luci attaccata al campanile e i fili verticali sulla sua facciata)
   void LZ; void XL;
-  // gonna di luci attorno al punto di partenza (il cono luminoso della foto)
-  for (let i = 0; i < 34; i++) { const ang = (i / 34) * Math.PI * 2, [x0, z0] = rot(Math.cos(ang) * tw * 1.04, Math.sin(ang) * tw * 1.04);
-    const R = 4.6 + Math.sin(i * 1.7) * 0.35; strand(new THREE.Vector3(x0, HUB.y + 0.2, z0), new THREE.Vector3(Math.cos(ang) * R, HUB.y - 3.0, Math.sin(ang) * R), 0.2, 0.36); }
-  // fili verticali sulla facciata, dal punto fino alla cima
-  for (const u of [-0.6, 0, 0.6]) { const [fx, fz] = rot(u * tw, tw + 0.1); strand(new THREE.Vector3(fx, HUB.y, fz), new THREE.Vector3(fx, NASC.HUB_Y, fz), 0, 0.5); }
+  // v5s46c (2): niente piu' "ragnatela" di fili sul campanile (gonna a raggiera e fili verticali tolti): le luci restano
+  // solo sulla capanna, appoggiate sui tronchi dell'architrave e lungo le gronde dei lati (nessun filo nel vuoto)
+  void HUB; void tw;
+  { const W = 7.2, D = 3.4, H = 2.7, hp = (x, y, z) => new THREE.Vector3(x, y, z).applyMatrix4(hutM);
+    strand(hp(-W / 2 - 0.1, H - 0.05, D / 2 + 0.3), hp(W / 2 + 0.1, H - 0.05, D / 2 + 0.3), 0.0, 0.42);           // architrave davanti
+    for (const sx of [-W / 2 - 0.2, W / 2 + 0.2]) strand(hp(sx, H - 0.05, D / 2 + 0.3), hp(sx, H - 0.05, -D / 2), 0.0, 0.42);   // gronde laterali
+    for (const sx of [-1.25, 1.25]) strand(hp(sx, 0.2, D / 2 + 2.6 + 0.16), hp(sx, 1.45, D / 2 + 2.6 + 0.16), 0.0, 0.3);       // pali del cartello
+  }
   // pali scuri sui marciapiedi (reggono i fili; stile dei pali dei fili del paese)
   const kp = new Kit(2416);
   for (const [x, z, h] of poles) { kp.add(G.cyl(0.07, 0.11, h, 6), '#2e2a2a', { x, y: h / 2, z, flat: true }); kp.add(G.box(0.18, 0.08, 0.18), '#1e1a1a', { x, y: h + 0.02, z }); }

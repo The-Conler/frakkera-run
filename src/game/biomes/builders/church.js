@@ -39,39 +39,42 @@ export const TOWER_AT = { x: 10.3, z: -22.0 };
 export const CHURCH = { x0: -11.0, x1: -29, z0: -21.4, z1: -35.6, eave: 9.5, ridge: 13.0 };
 
 // paramento in pietra irregolare su una faccia piana (corsi sfalsati, giunti chiari)
+// v5s46c (1): prima la faccia era una griglia di celle da 0.3 m colorate una per una: pietre e giunti finivano
+// "a scalini" (campanile pixelato a ~33 m). Ora: fondo di malta uniforme + una lastra per ogni pietra, con bordi netti.
 function masonryFace(k, r, o) {
-  // o: origine, u (vettore larghezza), v (su), n (normale), W, H, cell
-  const { W, H } = o; const cell = 0.3;
-  const nu = Math.round(W / cell), nv = Math.round(H / cell);
-  const pal = C.stone; const seed = r() * 1000;
-  const courseH = 0.34;
-  const colorAt = (x, y) => {
-    const c = Math.floor(y / courseH); const off = (c * 0.53 + seed) % 1;
-    const bw = 0.55 + ((c * 7) % 5) * 0.12;
-    const b = Math.floor(x / bw + off);
-    const fy = (y / courseH) - c, fx = (x / bw + off) - b;
-    if (fy < 0.12 || fx < 0.07) return C.mortar;               // giunti
-    const h = Math.abs(Math.sin(c * 12.9898 + b * 78.233 + seed) * 43758.5453) % 1;
-    return pal[Math.floor(h * pal.length)];
-  };
-  const P = (u, v) => {
-    const x = u * W, y = v * H;
-    const fy = (y / courseH) % 1;
-    const rel = fy < 0.12 ? -0.03 : 0.0;
-    return [o.ox + o.ux * x + o.nx * rel, o.oy + y, o.oz + o.uz * x + o.nz * rel];
-  };
+  const { W, H } = o; const pal = C.stone; const seed = r() * 1000;
+  const courseH = 0.34, gap = 0.035, out = 0.025;
   const pos = [], col = [];
   const cc = new THREE.Color();
-  for (let j = 0; j < nv; j++) for (let i = 0; i < nu; i++) {
-    const a = P(i / nu, j / nv), b = P((i + 1) / nu, j / nv), c = P((i + 1) / nu, (j + 1) / nv), d = P(i / nu, (j + 1) / nv);
-    if (o.hole && o.hole((i + 0.5) / nu * W, (j + 0.5) / nv * H)) continue;
-    cc.set(colorAt((i + 0.5) / nu * W, (j + 0.5) / nv * H)).multiplyScalar(0.92 + r() * 0.16);
+  const at = (x, y, rel) => [o.ox + o.ux * x + o.nx * rel, o.oy + y, o.oz + o.uz * x + o.nz * rel];
+  const quad = (x0, y0, x1, y1, rel, color, mul = 1) => {
+    const a = at(x0, y0, rel), b = at(x1, y0, rel), c = at(x1, y1, rel), d = at(x0, y1, rel);
+    cc.set(color).multiplyScalar(mul);
     for (const p of [a, b, c, a, c, d]) { pos.push(...p); col.push(cc.r, cc.g, cc.b); }
+  };
+  // fondo di malta (celle uniformi, rispettando il vano della cella campanaria)
+  const cell = 0.3, nu = Math.round(W / cell), nv = Math.round(H / cell);
+  for (let j = 0; j < nv; j++) for (let i = 0; i < nu; i++) {
+    if (o.hole && o.hole((i + 0.5) / nu * W, (j + 0.5) / nv * H)) continue;
+    quad(i / nu * W, j / nv * H, (i + 1) / nu * W, (j + 1) / nv * H, -0.01, C.mortar);
+  }
+  // pietre: una lastra per pietra, leggermente in rilievo
+  const inHole = (x, y) => o.hole && o.hole(x, y);
+  for (let c = 0; c * courseH < H - 0.02; c++) {
+    const y0 = c * courseH + gap, y1 = Math.min(H, (c + 1) * courseH) - 0.005;
+    if (y1 - y0 < 0.08) continue;
+    const off = (c * 0.53 + seed) % 1, bw = 0.55 + ((c * 7) % 5) * 0.12;
+    for (let bI = -1; (bI - off) * bw < W; bI++) {
+      const x0 = Math.max(0.02, (bI - off) * bw + gap), x1 = Math.min(W - 0.02, (bI + 1 - off) * bw - gap);
+      if (x1 - x0 < 0.1) continue;
+      if (inHole(x0, y0) || inHole(x1, y0) || inHole(x0, y1) || inHole(x1, y1) || inHole((x0 + x1) / 2, (y0 + y1) / 2)) continue;
+      const h = Math.abs(Math.sin(c * 12.9898 + bI * 78.233 + seed) * 43758.5453) % 1;
+      quad(x0, y0, x1, y1, out, pal[Math.floor(h * pal.length)], 0.93 + r() * 0.14);
+    }
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-  // normale costante (la faccia e' piana)
   const n = new Float32Array(pos.length); for (let i = 0; i < n.length; i += 3) { n[i] = o.nx; n[i + 1] = 0; n[i + 2] = o.nz; }
   g.setAttribute('normal', new THREE.BufferAttribute(n, 3));
   addColored(k, g);

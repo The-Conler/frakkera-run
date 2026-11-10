@@ -84,7 +84,28 @@ export function instMatrix(it, out = new THREE.Matrix4()) {
 let cliffMat = null;
 export function buildCliffInstances(list, mat, fallsLz) {
   // v5s35: materiale proprio leggermente freddo -> pietra grigia anche sulle facce al sole (il materiale condiviso resta com'e')
-  if (!cliffMat || cliffMat.userData.src !== mat) { cliffMat = mat.clone(); cliffMat.color.set('#c2c6ca'); cliffMat.userData.src = mat; }
+  if (!cliffMat || cliffMat.userData.src !== mat) {
+    cliffMat = mat.clone(); cliffMat.color.set('#c2c6ca'); cliffMat.userData.src = mat;
+    // v5s46c (4): la parete non sembra piu' una massa liscia: faccette (flat shading) + strati e crepe in coordinate mondo
+    cliffMat.flatShading = true;
+    cliffMat.onBeforeCompile = (sh) => {
+      sh.vertexShader = 'varying vec3 vRW;\n' + sh.vertexShader.replace('#include <project_vertex>', `#include <project_vertex>
+        { vec4 rw = vec4(transformed, 1.0);
+          #ifdef USE_INSTANCING
+            rw = instanceMatrix * rw;
+          #endif
+          vRW = (modelMatrix * rw).xyz; }`);
+      sh.fragmentShader = 'varying vec3 vRW;\nfloat rkH(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }\n'
+        + 'float rkN(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(mix(rkH(i), rkH(i + vec3(1,0,0)), f.x), mix(rkH(i + vec3(0,1,0)), rkH(i + vec3(1,1,0)), f.x), f.y), mix(mix(rkH(i + vec3(0,0,1)), rkH(i + vec3(1,0,1)), f.x), mix(rkH(i + vec3(0,1,1)), rkH(i + vec3(1,1,1)), f.x), f.y), f.z); }\n'
+        + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+        { float n = rkN(vRW * 0.9) * 0.55 + rkN(vRW * 2.7) * 0.3 + rkN(vRW * 7.0) * 0.15;
+          float strata = sin(vRW.y * 2.3 + rkN(vRW * 0.35) * 5.0) * 0.5 + 0.5;
+          float crack = smoothstep(0.035, 0.0, abs(rkN(vRW * vec3(1.6, 0.55, 1.6)) - 0.5));
+          diffuseColor.rgb *= (0.78 + 0.34 * n) * (0.9 + 0.12 * strata) * (1.0 - 0.45 * crack); }`);
+    };
+    cliffMat.customProgramCacheKey = () => 'cliffRough';
+    cliffMat.needsUpdate = true;
+  }
   mat = cliffMat;
   const L = cliffLayout(fallsLz), meshes = [], lips = [];
   // v5s35: istanze divise in due blocchi lungo la via (0-125 / 125-250 m) cosi' quello alle spalle viene scartato dal frustum
@@ -158,11 +179,15 @@ export function fernMaterial() {
 }
 // una carta pendente: 2 tratti in verticale (4 triangoli), si stacca un po' dalla parete scendendo
 function card(pos, uv, col, cx, cy, cz, w, L, cell, out, shade) {
-  const u0 = cell * 0.25 + 0.008, u1 = u0 + 0.234, segs = [0, 0.45, 1], dx = [0, -0.42, -0.62];
-  for (let s = 0; s < 2; s++) {
+  // v5s46c (4): carte piu' morbide: 4 tratti che si staccano dalla parete in curva e ondeggiano un po' di lato
+  // (prima 2 tratti dritti: le fronde lunghe sembravano righe tirate col righello); si usa la parte alta, piu' fitta, della tenda
+  const u0 = cell * 0.25 + 0.008, u1 = u0 + 0.234, segs = [0, 0.22, 0.48, 0.74, 1], dx = [0, -0.2, -0.46, -0.66, -0.78];
+  const ph = cx * 1.7 + cz * 0.9, sway = [0, 0.18, -0.12, 0.22, -0.08].map((v, i) => v * Math.sin(ph + i));
+  const V0 = 1, V1 = 0.5;   // solo la meta' alta dell'atlante (fronde fitte); sotto erano fili dritti radi
+  for (let s = 0; s < 4; s++) {
     const ya = cy - L * segs[s], yb = cy - L * segs[s + 1], xa = cx + dx[s], xb = cx + dx[s + 1];
-    const va = 1 - segs[s], vb = 1 - segs[s + 1];
-    const P = [[xa, ya, cz - w / 2, u0, va], [xa, ya, cz + w / 2, u1, va], [xb, yb, cz + w / 2, u1, vb], [xb, yb, cz - w / 2, u0, vb]];
+    const va = V0 + (V1 - V0) * segs[s], vb = V0 + (V1 - V0) * segs[s + 1], za = cz + sway[s] * L * 0.25, zb = cz + sway[s + 1] * L * 0.25;
+    const P = [[xa, ya, za - w / 2, u0, va], [xa, ya, za + w / 2, u1, va], [xb, yb, zb + w / 2, u1, vb], [xb, yb, zb - w / 2, u0, vb]];
     for (const i of [0, 1, 2, 0, 2, 3]) { pos.push(P[i][0], P[i][1], P[i][2]); uv.push(P[i][3], P[i][4]); col.push(col.r0 * shade, col.g0 * shade, col.b0 * shade); }
   }
 }
@@ -170,7 +195,7 @@ function card(pos, uv, col, cx, cy, cz, w, L, cell, out, shade) {
 // v5s36: cortine fitte e sovrapposte (~50-60% della parete). I bordi vengono raggruppati in "mensole" (una ogni ~2.6 m x 3.2 m,
 // si tiene il punto piu' vicino alla via), ogni mensola porta 2-3 carte sfalsate in profondita'; tetto MAX_CARDS -> <=5k triangoli.
 // Restituisce due geometrie (0-125 / 125-250 m) cosi' quella alle spalle viene scartata: 2 draw call.
-export const FERN_MAX_CARDS = 1240;   // 4 triangoli a carta -> <= 4960 triangoli
+export const FERN_MAX_CARDS = 1240;   // v5s46c: 8 triangoli a carta -> <= 9920 triangoli
 export function buildCurtains(lips, seed = 5, o = {}) {
   const r = rng(seed), keep = o.keep ?? 1, cells = new Map();
   for (const lp of lips) {
@@ -194,7 +219,7 @@ export function buildCurtains(lips, seed = 5, o = {}) {
     if (avoid.some((f) => Math.abs(lp.z - f.z) < f.half && lp.y < (f.y0 - 1.2) && lp.y > (f.yMin ?? 3))) continue;
     const n = r.chance(0.45) ? 3 : 2, gap = r.range(0.9, 1.35);
     for (let i = 0; i < n && cards < FERN_MAX_CARDS; i++) {
-      const L = (r.chance(0.6) ? r.range(5.0, 7.2) : r.range(2.5, 5.0)) * (lp.t ? 1.08 : 1);
+      const L = (r.chance(0.6) ? r.range(5.0, 7.2) : r.range(2.5, 5.0)) * (lp.t ? 1.08 : 1) * 0.6;   // v5s46c: tende piu' corte (la parte rada e dritta in basso non si usa piu')
       const z = lp.z + (i - (n - 1) / 2) * gap + r.range(-0.3, 0.3);
       const back = (i === Math.floor(n / 2)) ? 0 : r.range(0.12, 0.4);   // centrale davanti, laterali un po' piu' indietro e piu' scure
       put(lp, lp.x - 0.5 + back, lp.y + r.range(0.1, 0.45), z, r.range(2.6, 3.8), L, back ? r.range(0.8, 0.92) : 1);
