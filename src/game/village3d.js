@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { Kit, G, rng } from './kit.js';
 import { buildDancer } from './dance/dancers.js';
 import { statueFromModel, LITTER_TOP_Y } from './santaMartaModel.js';
+import { CARPET_ASPECT, loadCarpetTexture } from './tex3d.js';
 
 const cache = {};
 const once = (k, f) => cache[k] || (cache[k] = f());
@@ -189,21 +190,21 @@ export function buildWindowFan(mats, woman, v) {
 export function buildBurraTree(tex) {
   const g = new THREE.Group(); g.name = 'burraTree';
   const H = 9.2, R = 1.52;   // ~3 volte piu' alto che largo, 8-10 m
-  // fasce orizzontali di Sa Burra (colori del tessuto): sempre visibili, anche senza texture
-  const BANDS = ['#c8283a', '#e07030', '#f4eee0', '#2f8a4a', '#c8283a', '#e8a030', '#f4eee0', '#2f6fb0'];
-  for (let i = 0; i < BANDS.length; i++) {
-    const t0 = i / BANDS.length, t1 = (i + 1) / BANDS.length, y0 = 0.62 + t0 * H, y1 = 0.62 + t1 * H;
-    const cyl = new THREE.Mesh(new THREE.CylinderGeometry(R * (1 - t1), R * (1 - t0), y1 - y0, 14, 1, true),
-      new THREE.MeshLambertMaterial({ color: BANDS[i] }));
-    cyl.position.y = (y0 + y1) / 2; g.add(cyl);
-  }
-  if (tex && tex.image) {
-    const map = tex.clone();
-    map.wrapS = map.wrapT = THREE.RepeatWrapping;
-    map.repeat.set(2.2, 3.4);
-    map.colorSpace = THREE.SRGBColorSpace;
-    const overlay = new THREE.Mesh(new THREE.ConeGeometry(R * 1.01, H, 16, 1, true), new THREE.MeshLambertMaterial({ map, transparent: true, opacity: 0.35 }));
-    overlay.position.y = 0.62 + H / 2; g.add(overlay);
+  // v5s45 (14): il vero tessuto Sa Burra (stessa foto della passatoia di Santa Marta) avvolto a fasce:
+  // ogni fascia e' alta un tappeto e lo ripete intorno al cono senza stirarlo (motivi leggibili).
+  const NB = 5, bandH = H / NB, tileW = bandH * CARPET_ASPECT;
+  const under = new THREE.Mesh(new THREE.ConeGeometry(R * 0.985, H, 18, 1, true), new THREE.MeshLambertMaterial({ color: '#efe4cc' }));
+  under.position.y = 0.62 + H / 2; g.add(under);   // lana color crema sotto le frange trasparenti (niente buchi)
+  const map = loadCarpetTexture(0, 4);   // istanza propria (la ripetizione non tocca i tappeti raccoglibili)
+  map.wrapS = THREE.RepeatWrapping; map.wrapT = THREE.ClampToEdgeWrapping; map.colorSpace = THREE.SRGBColorSpace;
+  const fab = new THREE.MeshLambertMaterial({ map, alphaTest: 0.35, side: THREE.DoubleSide, emissive: '#5a5048', emissiveMap: map });   // un po' di luce propria: i motivi si leggono anche di notte
+  g.userData.burraMat = fab; g.userData.burraTiles = [];
+  for (let i = 0; i < NB; i++) {
+    const t0 = i / NB, t1 = (i + 1) / NB, r0 = R * (1 - t0) * 1.012, r1 = R * (1 - t1) * 1.012;
+    const n = Math.max(1, Math.round((Math.PI * (r0 + r1)) / tileW));   // ripetizioni intorno alla fascia
+    const geo = new THREE.CylinderGeometry(r1, r0, bandH, 24, 1, true);
+    const uv = geo.attributes.uv; for (let j = 0; j < uv.count; j++) uv.setX(j, uv.getX(j) * n);
+    const m = new THREE.Mesh(geo, fab); m.position.y = 0.62 + (t0 + t1) / 2 * H; g.add(m); g.userData.burraTiles.push(n);
   }
   const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 0.7, 8), new THREE.MeshLambertMaterial({ color: '#5a3a22' }));
   pole.position.y = 0.35; g.add(pole);
@@ -216,7 +217,7 @@ export function buildBurraTree(tex) {
   const glowW = new THREE.MeshBasicMaterial({ color: '#fff6e0' });
   const sph = new THREE.SphereGeometry(0.055, 5, 4);
   for (let ring = 0; ring < 4; ring++) {
-    const y = 1.6 + ring * 1.7, rr = R * (1 - (y - 0.62) / H) * 1.02, n = 10 - ring;
+    const y = 1.6 + ring * 1.7, rr = R * (1 - (y - 0.62) / H) * 1.06, n = 10 - ring;
     for (let i = 0; i < n; i++) {
       const a = (i / n) * Math.PI * 2 + ring * 0.35, sag = Math.sin((i / n) * Math.PI * 2) * 0.12;
       const m = new THREE.Mesh(sph, i % 2 ? glow : glowW);

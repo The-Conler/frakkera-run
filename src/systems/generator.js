@@ -7,7 +7,7 @@
 // mobili compaiono solo in "finestre calme" senza altri ostacoli.
 // Tappeti, combustibile e pistola si piazzano solo in celle libere.
 // =====================================================================
-import { DIFFICULTY as DF, WORLD, PX_PER_METER, CARPETS as CP, PISTOL, SPEED_STEPS as SS, BIOME_OBST as BO, DUCK, MASKS as MK, FIRE, MINE, CART, COLLECT, DANCE, FESTA, POWER, WEATHER, ANIMALS, SANTAMARTA, VILLAGE as VL, ZONE3 as Z3, NATURE_TREES as NT, PACE } from '../config.js';
+import { DIFFICULTY as DF, WORLD, PX_PER_METER, CARPETS as CP, PISTOL, SPEED_STEPS as SS, BIOME_OBST as BO, DUCK, MASKS as MK, FIRE, MINE, CART, COLLECT, DANCE, FESTA, POWER, WEATHER, ANIMALS, SANTAMARTA, VILLAGE as VL, ZONE3 as Z3, NATURE_TREES as NT, PACE, CICCIO } from '../config.js';
 import { rainLap } from './weather.js';
 import { biomeAt, BIOMES, CYCLE } from '../game/biomes/config.js';
 import { makeRng } from './rng.js';
@@ -80,7 +80,7 @@ export const BIOME_OBST_KIND = { village: 'rollin', rock: 'sasso', river: 'bagna
 // v5s10: maschere del carnevale di Gadoni: la pistola le attraversa senza effetto
 export const MASK_KINDS = { maimoni: true, fune: true, fuso: true };
 // v5s16: frakkere accese a bordo strada (non occupano corsie)
-export const SIDE_KINDS = { falo: true, minatore: true, lampada: true, carrello: true, scambio: true, bancarella: true, folla: true, festone: true, tessitrice: true };
+export const SIDE_KINDS = { falo: true, minatore: true, lampada: true, carrello: true, scambio: true, bancarella: true, folla: true, festone: true };   // v5s45 (15): la tessitrice ora e' un ostacolo in mezzo alla via
 // v5 stage 24: navata di Santa Marta alla distanza m (metri assoluti): null o { lap, local }
 export function santaMartaAt(m, lead = 0, tail = 0) {
   // misurata dall'inizio del paese nel giro (la navata sconfina nei primi metri della roccia)
@@ -149,7 +149,7 @@ export class Generator {
     this.rrng = makeRng(((seed >>> 0) ^ 0x4a1c9d) >>> 0);   // v5s25: pozzanghere della notte di pioggia
     // feat-village: flusso separato per la vita del paese (panni, tessitrice, processione)
     this.vrng = makeRng(((seed >>> 0) ^ 0x7a11a9) >>> 0);
-    this.weaverNext = 0; this.weavers = 0; this.procLap = -1; this.procs = 0; this.laundry = 0;
+    this.weaverNext = 0; this.weaverLap = -1; this.weavers = 0; this.procLap = -1; this.procs = 0; this.laundry = 0;
     this.nextMinerRow = 0; this.nextLampRow = 0; this.minerSide = 1; this.lampSide = -1; this.miners = 0; this.lamps = 0;
     this.rockHold = [[], [], []];
     // v5s44c: ritmo delle azioni (accovacciata / salto / scarto) sopra la prenotazione di corsia
@@ -182,7 +182,7 @@ export class Generator {
     if (kind === 'trave' || kind === 'panni' || kind === 'ramo' || kind === 'fune') return 'crouch';
     if (kind === 'botte' || kind === 'bottecoricata' || kind === 'muretto' || kind === 'sasso' || kind === 'botti') return 'jump';
     if (PICKUP_KINDS[kind] || SIDE_KINDS[kind] || kind === 'deadend') return null;   // il carrello ha il suo ritmo di scambi
-    if (SOLID[kind] || kind === 'processione') return 'lane';
+    if (SOLID[kind] || kind === 'processione' || kind === 'tessitrice') return 'lane';
     return null;
   }
   paceDt(a, b) { return (b - a) / Math.max(40, speedAt(a, this.offM)); }
@@ -225,18 +225,22 @@ export class Generator {
     for (let l = 0; l < L; l++) if (this.blockedUntil[l] >= r) used[l] = true;
     if (this.cartLap !== c.lap && (c.local >= 0 || c.local > -ROW / PX_PER_METER * 2.2)) {
       this.cartLap = c.lap; this.cartJ = 0;
-      this.nextJunction = r + (c.local < 0 ? Math.ceil(CART.FIRST_M * PX_PER_METER / ROW) + 1 : 3);
+      // v5s45 (12): grazia dopo la salita: il primo scambio arriva dopo almeno CART.GRACE_S di corsa in carrello
+      { const boardD = D - c.local * PX_PER_METER, grace = Math.max(CART.FIRST_M * PX_PER_METER, CART.GRACE_S * speedAt(boardD, this.offM) * CART.SPEED_K);
+        this.cartGraceD = boardD + grace;
+        this.nextJunction = r + Math.max(c.local < 0 ? 1 : 3, Math.ceil((boardD + grace - 10 - D) / ROW)); }
       if (c.local < 0) { const dB = Math.round(D - c.local * PX_PER_METER) - 10; for (let l = 0; l < L; l++) emit({ kind: 'carrello', lane: l, d: dB, len: 14, lap: c.lap }); }   // v5s20: carrelli fermi proprio dove si sale   // carrelli fermi, uno per binario
     }
     if (c.local < 0) { this.carpetRow(r, D, diff, used, emit); return true; }   // tratto libero prima della salita
     if (r >= this.nextJunction && c.local < CART.LEN_M - CART.END_FREE_M) {
       this.nextJunction = r + CART.JUNCTION_ROWS;
+      const j0 = this.cartJ;
       let dir = rng() < 0.5 ? -1 : 1;
       if (this.path + dir < 0 || this.path + dir >= L) dir = -dir;
       let next = rng() < 0.75 ? this.path + dir : this.path;
       if (used[next]) next = this.path;
       if (used[next]) { this.nextJunction = r + 1; this.carpetRow(r, D, diff, used, emit); return true; }
-      const two = rng() < CART.P_TWO_BLOCKED;
+      const two = rng() < CART.P_TWO_BLOCKED && j0 > 0;   // v5s45 (12): il primo scambio interrompe un solo binario
       // binari aperti: sempre quello del sentiero; con un solo binario interrotto se ne apre un secondo
       const open = new Set([next]);
       if (!two) { const others = [0, 1, 2].filter((l) => l !== next); open.add(others.includes(this.path) && this.path !== next ? this.path : rng.pick(others)); }
@@ -283,9 +287,10 @@ export class Generator {
     if (!festaAt(D / PX_PER_METER + this.offM)) return;
     const pr = this.prng, L = WORLD.LANES;
     const busy = (side) => { const edge = side < 0 ? 0 : L - 1; return this.blockedUntil[edge] >= r - 1 || this.sideBlocks.some((b) => b.edge === edge && b.until >= r); };
-    if (r >= this.festoonNext) { this.festoonNext = r + FESTA.FESTOON_ROWS; emit({ kind: 'festone', lane: 1, d: D + 2, len: 4, variant: pr.int(0, 2) }); }
+    const nearD = this.nearDance(D, 70, 46);   // v5s45 (19/20): niente festoni ne' bancarelle davanti e sopra il cerchio del ballo
+    if (r >= this.festoonNext && !nearD) { this.festoonNext = r + FESTA.FESTOON_ROWS; emit({ kind: 'festone', lane: 1, d: D + 2, len: 4, variant: pr.int(0, 2) }); }
     for (const side of [-1, 1]) {
-      if (r < this.stallNext[side] || busy(side)) continue;
+      if (r < this.stallNext[side] || busy(side) || this.nearDance(D, 12, 14)) continue;
       this.stallNext[side] = r + pr.int(FESTA.STALL_GAP[0], FESTA.STALL_GAP[1]);
       const edge = side < 0 ? 0 : L - 1;
       this.sideBlocks.push({ edge, until: r + 2 });
@@ -294,7 +299,7 @@ export class Generator {
     if (r >= this.crowdNext) {
       const side = pr() < 0.5 ? -1 : 1;
       this.crowdNext = r + pr.int(FESTA.CROWD_GAP[0], FESTA.CROWD_GAP[1]);
-      if (!busy(side) && festaAt((D + 10) / PX_PER_METER + this.offM)) {   // v5s24: mai a cavallo della fine della festa
+      if (!busy(side) && !this.nearDance(D, 12, 14) && festaAt((D + 10) / PX_PER_METER + this.offM)) {   // v5s24: mai a cavallo della fine della festa
         const edge = side < 0 ? 0 : L - 1; this.crowds++;
         this.sideBlocks.push({ edge, until: r + 1 });
         emit({ kind: 'folla', lane: edge, side, d: D + 10, len: 14, n: pr.int(3, 5), variant: pr.int(0, 5), crowd: this.crowds });
@@ -302,17 +307,41 @@ export class Generator {
     }
   }
 
-  // feat-village: tessitrice al telaio sul marciapiede (dopo la festa), flusso vrng
-  maybeWeaver(r, D, emit) {
-    if (r < this.weaverNext) return;
+  // v5s45 (15): la tessitrice al telaio IN MEZZO alla via (corsia 1), girata verso chi corre: una per giro nel paese.
+  // Le corsie 0 e 2 restano aperte; se il sentiero sicuro e' sulla corsia 1 lo si sposta prima (come un cambio normale).
+  villageCalm(D) {
     const bi = biomeAt(D / PX_PER_METER + this.offM);
-    if (bi.b.id !== VL.BIOME || bi.local < VL.WEAVER_FROM_M || bi.local >= VL.WEAVER_TO_M) return;
-    const vr = this.vrng, L = WORLD.LANES;
-    this.weaverNext = r + vr.int(VL.WEAVER_GAP[0], VL.WEAVER_GAP[1]);
-    const side = vr() < 0.5 ? -1 : 1, edge = side < 0 ? 0 : L - 1;
-    if (this.sideBlocks.some((b) => b.edge === edge && b.until >= r)) return;
-    this.sideBlocks.push({ edge, until: r + 1 }); this.weavers++;
-    emit({ kind: 'tessitrice', lane: edge, side, d: D + 8, len: 16, variant: vr.int(0, 3), weaver: this.weavers });
+    if (bi.b.id !== VL.BIOME) return false;
+    if (bi.lap >= 1 && bi.local > DANCE.AT_M - DANCE.CLEAR_BEFORE_M - 6 && bi.local < DANCE.AT_M + DANCE.CLEAR_AFTER_M) return true;
+    if (bi.lap === CICCIO.LAP && bi.local > CICCIO.CLEAR_FROM_M - 8 && bi.local < CICCIO.CLEAR_TO_M) return true;
+    if (this.weaverLap !== bi.lap) { const [f, t] = this.weaverWindow(bi.lap); if (bi.local > f - 22 && bi.local < t) return true; }
+    return false;
+  }
+  weaverWindow(lap) { return lap === CICCIO.LAP ? [VL.WEAVER_LAP2_FROM_M, VL.WEAVER_LAP2_TO_M] : [VL.WEAVER_FROM_M, VL.WEAVER_TO_M]; }
+  maybeWeaver(r, D, used, emit) {
+    const bi = biomeAt(D / PX_PER_METER + this.offM);
+    if (bi.b.id !== VL.BIOME || bi.lap === this.weaverLap) return;
+    const [from, to] = this.weaverWindow(bi.lap);
+    if (bi.local < from || bi.local >= to) return;
+    if (this.parade || this.nearDance(D, 30, 18)) return;
+    const L = WORLD.LANES, lane = 1, d = D + 8;
+    if (this.path === lane) {          // sposta il sentiero sicuro su una corsia laterale libera, riprova tra due file
+      const opts = [0, L - 1].filter((l) => this.blockedUntil[l] < r && !used[l]);
+      if (!opts.length) return;
+      const t = opts[this.vrng.int(0, opts.length - 1)];
+      this.freeUntil[this.path] = Math.max(this.freeUntil[this.path], r + 1); this.freeUntil[t] = Math.max(this.freeUntil[t], r + 1);
+      this.path = t; this.hold = Math.max(this.hold, 4);
+      return;
+    }
+    if (this.freeUntil[lane] >= r || this.blockedUntil[lane] >= r || used[lane] || (this.carpetRows > 0 && this.carpetLane === lane)) return;
+    if (!this.paceOk('lane', d, lane)) return;
+    const vr = this.vrng;
+    this.weaverLap = bi.lap; this.weavers++;
+    const rows = Math.ceil((VL.WEAVER_LEN + 8) / WORLD.ROW) + 1;
+    this.blockedUntil[lane] = Math.max(this.blockedUntil[lane], r + rows); used[lane] = true;
+    this.hold = Math.max(this.hold, rows);    // il sentiero resta sulla corsia laterale finche' il telaio non e' passato
+    this.paceTake('lane', d, lane);
+    emit({ kind: 'tessitrice', lane, side: 0, d, len: VL.WEAVER_LEN, variant: vr.int(0, 3), weaver: this.weavers });
   }
 
   // v5s16: falo' o paesano con la frakkera sul marciapiede, lato -1 (sinistra) / +1 (destra)
@@ -502,6 +531,20 @@ export class Generator {
           if (m.lane === e.lane && e.d < m.d + (m.len || 0) + 6 && e.d + (e.len || 0) > m.d - 6) return;
         }
       }
+      // v5s45 (12): niente ostacoli normali sul tratto del carrello (salita compresa): solo scambi e binari interrotti
+      if (!e.pickup && !SIDE_KINDS[e.kind] && e.kind !== 'deadend' && e.kind !== 'scambio' && e.kind !== 'carrello' && (SOLID[e.kind] || this.actionType(e.kind) || e.kind === 'rollin')) {
+        const a = e.d / PX_PER_METER + this.offM, b = (e.d + (e.len || 0)) / PX_PER_METER + this.offM;
+        if (cartAt(a, CART.LEAD_M, CART.EXIT_GRACE_M) || cartAt(b, CART.LEAD_M, CART.EXIT_GRACE_M) || cartAt((a + b) / 2, CART.LEAD_M, CART.EXIT_GRACE_M)) return;
+      }
+      // v5s45 (19): cerchio del ballu tundu (dal giro 2): niente ostacoli ne' pickup nel cerchio e subito prima
+      if (!SIDE_KINDS[e.kind] && e.kind !== 'cane') {
+        const dl = this.inSpan(e.d, e.len, DANCE.AT_M - DANCE.CLEAR_BEFORE_M, DANCE.AT_M + DANCE.CLEAR_AFTER_M);
+        if (dl >= 1) return;
+      }
+      // v5s45 (18): passaggio di Ciccio (solo giro 2): nessun altro ostacolo, nessun pickup sulla sua corsia
+      if (e.kind !== 'cane' && !SIDE_KINDS[e.kind] && this.inSpan(e.d, e.len, CICCIO.CLEAR_FROM_M, CICCIO.CLEAR_TO_M) === CICCIO.LAP) {
+        if (!e.pickup || e.lane === CICCIO.LANE || e.mx !== undefined) return;
+      }
       // v5s43: dal vicolo fino alla navata (paese, 150-230 m) niente ostacoli solidi (la botte davanti all'arco)
       const approach = this.inSpan(e.d, e.len, 150, clearFrom);
       if (approach >= 0 && SOLID[e.kind] && !e.pickup && !e.group && biomeIdAt(e.d, this.offM) === 'village') return;
@@ -536,10 +579,13 @@ export class Generator {
     this.maybeFire(r, D, emit);
     this.maybeMine(r, D, emit);
     this.maybeFesta(r, D, emit);
-    this.maybeWeaver(r, D, emit);
+    this.maybeWeaver(r, D, used, emit);
     this.maybeProcession(r, D, used, emit);
     if (this.sideBlocks.length > 4) this.sideBlocks = this.sideBlocks.filter((b) => b.until >= r);
     if (this.cartRow(r, D, diff, used, emit)) return;
+    // v5s45: tratti calmi del paese (cerchio del ballo dal giro 2, attesa della tessitrice, passaggio di Ciccio nel giro 2):
+    // niente nuove azioni obbligate (cosi' il ritmo non registra ostacoli che poi verrebbero tolti), solo tappeti e pickup
+    if (this.villageCalm(D)) { this.maybePickup(r, D, diff, used, emit, 0); this.carpetRow(r, D, diff, used, emit); return; }
 
     // ---- finestra calma con ostacolo mobile -------------------------
     if (r <= this.calmUntil) {
@@ -553,6 +599,7 @@ export class Generator {
     if (!this.parade && !longActive && z3ok && r >= this.nextParadeAt && D / PX_PER_METER >= MK.FROM_M &&
         biomeIdAt(D, this.offM) === 'village') {
       const bi = biomeAt(D / PX_PER_METER + this.offM), lap = bi.lap;
+      if (lap === CICCIO.LAP) { this.nextParadeAt = r + 1; } else
       // v5s20: il corteo non entra mai nel cerchio del ballu tundu (piazza della chiesa)
       if (bi.local < Math.min(bi.b.to - bi.b.from, SANTAMARTA.FROM_M - SANTAMARTA.LEAD_M) - 90 && !this.nearDance(D, 90, 30) && this.paceOk('lane', D + 3 * ROW, 0, 3) && rng() < MK.P_LAP[Math.min(lap, MK.P_LAP.length - 1)]) {
         const g = ++this.paradeG;

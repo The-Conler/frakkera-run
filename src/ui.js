@@ -170,9 +170,13 @@ export function initUI(game) {
 
   // --------------------------------------------------------- flusso di gioco
   function play() {
+    // v5s45 (QA10 #8): si aspetta anche la fine del pre-riscaldamento (shader e geometrie): prima finiva nei primi 50 m di corsa
     // v5s9: se il corridore 3D non e' ancora caricato si aspetta (max 10 s) invece di partire con la fiamma che vola da sola
     const c3 = game.world && game.world.char3d;
-    if (((c3 && !c3.ready && !c3.failed) || game.world.dancersPending) && performance.now() - (play.t0 ??= performance.now()) < 10000) { $('#loading').classList.remove('hidden'); setTimeout(play, 120); return; }
+    if (((c3 && !c3.ready && !c3.failed) || game.world.dancersPending || (game.world.env && game.world.env._warm && !game.world.env._warmDone)) && performance.now() - (play.t0 ??= performance.now()) < 14000) { $('#loading').classList.remove('hidden'); setTimeout(play, 120); return; }
+    // v5s45 (QA10 #5): le icone 3D del Garage di Pinu si disegnano qui, dietro la schermata di caricamento (prima al primo
+    // arrivo da Pinu sul giro 2: ridimensionava il renderer e compilava 4 shader => scatto di ~2-9 s a 1620-1680 m)
+    if (!play.icons) { play.icons = true; try { icon('pistola'); } catch (err) { /* solo anticipo */ } }
     play.t0 = undefined; $('#loading').classList.add('hidden');
     if (state === 'over' && performance.now() - overShownAt < 350) return; // anti doppio input
     if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
@@ -367,7 +371,13 @@ export function initUI(game) {
       box.appendChild(b);
     }
   }
-  offerBtn.addEventListener('pointerdown', (e) => {
+  // v5s45 (#10): l'offerta di Pinu si apre con un tocco (rilascio senza spostamento); uno swipe che parte sopra
+  // il banner arriva al gioco (prima entrava subito nel negozio e il salto andava perso)
+  let offerDown = null;
+  offerBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); offerDown = { x: e.clientX, y: e.clientY, id: e.pointerId }; });
+  offerBtn.addEventListener('pointerup', (e) => {
+    const d = offerDown; offerDown = null;
+    if (!d || d.id !== e.pointerId || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 14) return;
     e.preventDefault(); e.stopPropagation();
     if (state !== 'play' || !game.enterShop()) return;
     hideOffer();
@@ -376,7 +386,7 @@ export function initUI(game) {
     renderShop();
     show('shop'); $('#hud').classList.add('hidden'); measureShopUI();
   });
-  ['pointerup', 'pointermove', 'click', 'touchstart', 'touchend'].forEach((ev) => offerBtn.addEventListener(ev, (e) => { e.stopPropagation(); if (ev !== 'touchstart') e.preventDefault(); }, { passive: false }));
+  ['click', 'touchend'].forEach((ev) => offerBtn.addEventListener(ev, (e) => { e.preventDefault(); }, { passive: false }));
   $('#scr-shop').addEventListener('pointerdown', (e) => e.stopPropagation());
   // v5s7b: la camera del negozio inquadra la bancarella nello spazio libero tra titolo e pannello
   function measureShopUI() {
@@ -435,6 +445,7 @@ export function initUI(game) {
     state = 'over';
     countUp($('#go-score'), r.score);
     $('#go-dist').textContent = `${fmt(r.meters)} m`;
+    { const el = $('#go-reason'); el.textContent = r.reason || ''; el.classList.toggle('hidden', !r.reason); }   // v5s45 (18): 'Ciccio ti ha preso!'
     $('#go-best').textContent = fmt(store.getBest());
     $('#go-carpets').textContent = fmt(r.carpets);
     $('#go-barrels').textContent = fmt(r.barrels);

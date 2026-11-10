@@ -143,3 +143,6 @@ export function mapFromURL(search = (typeof location !== 'undefined' ? location.
   const b = byId[q] || BIOMES.find((x) => x.id.replace('-', '') === q.replace('-', ''));
   return b || null;
 }
+
+// v5s45 (13): binari del carrello su tutte e tre le corsie (x del centro corsia, m)
+export const RAIL_X = [-3.4, 0, 3.4];

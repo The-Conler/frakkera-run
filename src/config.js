@@ -77,6 +77,8 @@ export const CART = {
   SPEED_K: 1.22,            // il carrello corre piu' veloce della corsa a piedi
   JUNCTION_ROWS: 7,         // file tra uno scambio e l'altro (~21 m)
   FIRST_M: 12,              // primo scambio dopo la salita
+  GRACE_S: 2.6,             // v5s45: almeno ~2.5 s di corsa in carrello prima del primo scambio
+  EXIT_GRACE_M: 16,         // v5s45: tratto libero anche dopo la discesa dal carrello
   END_FREE_M: 12,           // ultimo tratto libero prima della discesa
   P_TWO_BLOCKED: 0.6,       // probabilita' che due binari su tre siano interrotti
   PTS_JUNCTION: 60,
@@ -106,7 +108,7 @@ export const FIRE = {
   BRUSH_PX: 14,            // il giocatore deve stare entro questa distanza dal centro della corsia laterale
   FROM_M: 20,              // non prima di questi metri
   // ambiente -> lati ammessi e passo (file) tra una frakkera e l'altra
-  BIOMES: { village: { sides: [-1, 1], gap: [12, 20] } },   // v5s34: solo in paese (nella natura niente frakkere a bordo strada)
+  BIOMES: { village: { sides: [1], gap: [12, 20] } },   // v5s45 (16b): niente frakkere accese/portatori sul lato SINISTRO del paese   // v5s34: solo in paese (nella natura niente frakkere a bordo strada)
   VILLAGER_SHARE: 0.5,     // quota di paesani con la frakkera in braccio (il resto: falo' a terra)
 };
 
@@ -256,7 +258,8 @@ export const MASKS = {
 
 // ---- v5s11: ballu tundu nella piazza della chiesa (una volta per giro, facoltativo: SALTA) ----
 export const DANCE = {
-  AT_M: 150,               // metri dentro il paese (piazza della chiesa) a cui parte il ballo
+  AT_M: 84,                // v5s45 (19): subito dopo la vista di Su Nascimentu e della chiesa (VISTA.AT_M 58); prima 150
+  CLEAR_BEFORE_M: 26, CLEAR_AFTER_M: 18,   // v5s45: niente ostacoli/pickup dentro e davanti al cerchio
   VIS_M: 110,              // v5s44c: il cerchio si vede da lontano (solo grafica; il cue/gameplay resta CUE_S)
   CUE_S: 1.9,              // distanza del cue = X s a piena velocita' (rallentando diventano ~2.5-3 s)
   CUE_SLOW: 0.45,          // velocita' minima mentre ci si avvicina al cerchio
@@ -280,7 +283,7 @@ export const DANCE = {
 // registrata nel log), gli acquisti passano dalla sim e dal log (convalida futura sul server).
 export const SHOP = {
   NAME: 'Garag di Pinu',
-  OFFER_AT_M: 6,           // metri dentro il paese a cui compare l'offerta
+  OFFER_AT_M: 90,          // v5s45 (19): dopo il ballu tundu (prima 6 m: si sovrapponeva al cue del ballo); nel giro di Ciccio dopo il camion
   OFFER_S: 5,              // secondi (di corsa) per decidere
   MAX_PER_VISIT: 3,        // acquisti al massimo per visita
   AMMO_CAP: 9,
@@ -360,6 +363,7 @@ export const PACE = {
 
 export const JUMP = {
   TIME_S: 0.62, COOLDOWN_S: 0.1, H_PX: 15, CLEAR_PX: 6, PTS: 5,
+  BUFFER_S: 0.15,          // v5s45: swipe su in atterraggio: resta in memoria 150 ms
   KINDS: { botte: true, bottecoricata: true, muretto: true, sasso: true, pozza: true, bagnato: true, acqua: true },   // NON travi, rami, funi
 };
 // ---- v5s25: migliorie permanenti nel Garag di Pinu (salvate in locale, 3 livelli) ----
@@ -392,7 +396,11 @@ export const SANTAMARTA = {
 export const VILLAGE = {
   BIOME: 'village',
   LAUNDRY_SHARE: 0.22,      // v5s36: meno panni (prima 0.6: lenzuola bianche luminose di traverso alla via)
-  WEAVER_FROM_M: 130, WEAVER_TO_M: 162,   // v5s24: dopo la festa, prima del vicolo in mezzo alla via (niente sovrapposizioni con blocchi e Santa Marta)
+  WEAVER_FROM_M: 118, WEAVER_TO_M: 146,   // v5s45 (15): una per giro, IN MEZZO alla via (corsia 1), girata verso chi corre
+  WEAVER_LAP2_FROM_M: 102, WEAVER_LAP2_TO_M: 113,   // v5s45: nel giro 2 prima, per lasciare libero il passaggio di Ciccio
+  WEAVER_LEN: 30,           // px di profondita' (telaio 2.8 m)
+  WEAVER_HALF: 8,           // px di mezza larghezza (telaio ~1.5 m)
+  WEAVER_LOSS_K: 0.25, WEAVER_LOSS_MAX: 5,   // urto: perdi il 25% dei tappeti (min 1, max 5)
   WEAVER_GAP: [14, 22],     // file tra due tessitrici
   WEAVER_X: 52,             // px dal centro (bordo del marciapiede, v5s24: piu' vicina per leggersi sul telefono)
   WEAVER_BRUSH_PX: 14,
@@ -407,4 +415,20 @@ export const VILLAGE = {
   PROC_PTS: 40,             // passata pulita
   CHEER_STREAK: 4,          // ogni X tappeti di fila nel paese (fuori dalla festa): applausi dalle finestre
   CHEER_PTS: 10,
+};
+
+// ---- v5s45 (18): "Ciccio": nel giro 2 (lap index 1, 1600-1850 m) un pickup bianco passa veloce nel paese ----
+// Avviso (banner + clacson + corsia) WARN_S prima dell'incrocio alla velocita' attuale; corsia destra (2),
+// finestra senza altri ostacoli (CLEAR_*), urto = morte immediata (scudo e invulnerabilita' non contano).
+export const CICCIO = {
+  LAP: 1,                    // lap index 1 = "giro 2" nella schermata di fine partita
+  WARN_M: 128,               // metri dentro il paese a cui parte l'avviso (dopo ballo e tessitrice)
+  WARN_S: 2.0,               // secondi dall'avviso all'incrocio
+  SPEED_PX_S: 150,           // velocita' del camion verso il giocatore (15 m/s, ~54 km/h)
+  LANE: 2,
+  LEN: 52, HALF: 10,         // px: 5.2 m x 2.0 m
+  CLEAR_FROM_M: 124, CLEAR_TO_M: 200,   // niente altri ostacoli (e niente pickup nella sua corsia) in questo tratto
+  PTS: 60,
+  BANNER: 'STAI ATTENTO! STA PASSANDO CICCIO!',
+  REASON: 'Ciccio ti ha preso!',
 };

@@ -106,7 +106,8 @@ export function buildNascimentu(tex) {
   // raggi che convergono sulla torre. Attorno al punto, la "gonna" fitta di luci; tre fili salgono fino alla cima.
   const [hx, hz] = rot(tw * 0.55, tw + 0.15), HUB = new THREE.Vector3(hx, NASC.SKIRT_Y + 0.6, hz);
   const XR = toLocal(6.75), XL = toLocal(-6.75), poles = [];
-  const RZ = [66, 54, 43, 33, 24, 15, 6, -4, -15, -27], LZ = [66, 56, 47];
+  // v5s45 (20): niente fili oltre la torre (z <= 6, cioe' da ~52 m in poi): passavano davanti e sopra il cerchio del ballu tundu
+  const RZ = [66, 54, 43, 33, 24, 15], LZ = [66, 56, 47];
   for (const z of RZ) { poles.push([XR, z, 13.6]); strand(HUB, new THREE.Vector3(XR, 13.4, z), 0.5, 0.62, 0.3); strand(HUB, new THREE.Vector3(XR, 12.2, z + 1.2), 0.7, 0.62, 0.3); }
   for (const z of LZ) { poles.push([XL, z, 13.6]); strand(HUB, new THREE.Vector3(XL, 13.4, z), 0.5, 0.62, 0.3); strand(HUB, new THREE.Vector3(XL, 12.2, z - 1.2), 0.7, 0.62, 0.3); }
   // gonna di luci attorno al punto di partenza (il cono luminoso della foto)

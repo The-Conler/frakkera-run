@@ -16,7 +16,8 @@ function toVillage(total = 200, script) {
 // 1) offerta al ritorno al paese (giro 2, ~1600 m), non al primo passaggio
 const a = toVillage();
 const m = a.sim.runD / 10;
-ok('offerta al ritorno al paese (~1606 m)', m >= 1600 && m < 1620 && a.sim.events.some((e) => e[1] === 'O' && e[2] === 1), `${m.toFixed(1)} m`);
+// v5s45 (19): l'offerta arriva dopo il ballu tundu (e nel giro 2 dopo il passaggio di Ciccio), sempre nel paese
+ok('offerta al ritorno al paese, dopo il ballo e Ciccio', m >= 1600 + SHOP.OFFER_AT_M && m < 1600 + 250 && a.sim.events.some((e) => e[1] === 'O' && e[2] === 1) && a.sim.stats.ciccioDodged === 1, `${m.toFixed(1)} m`);
 ok('offerta annunciata alla UI (shopOffer)', a.fx.some((f) => f[0] === 'shopOffer'));
 // 2) entrare congela la corsa
 const T0 = a.sim.T, step0 = a.sim.step;

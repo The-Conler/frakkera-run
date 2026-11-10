@@ -37,6 +37,7 @@ import { loadPinuGeometry } from './shop/pinu.js';
 import { MENU_MOOD, OVER_TINT, CYCLE } from './biomes/config.js';
 import { buildVista, VISTA } from './biomes/builders/church.js';
 import { buildNascimentu } from './nascimentu3d.js';
+import { ciccioGeom } from './ciccio3d.js';
 import { SKINS, SHARDS, outcropGeometry } from './biomes/builders/skins.js';
 
 const FLAME_FIT = 0.7;   // v5s42: la fiamma (alta ~3.4 m) era sproporzionata e sembrava staccata dalla frakkera
@@ -105,6 +106,11 @@ const COL = {
 };
 
 const _vf = new THREE.Vector3();
+export const WARM_KINDS = ['festone', 'botte', 'bancarella', 'falo', 'tappeto', 'asfodelo', 'folla', 'bottecoricata', 'ferula', 'facciola', 'muretto', 'tessitrice', 'pistola', 'finocchio', 'processione', 'sasso', 'pastore', 'pecora', 'canepastore', 'ramo', 'pozza', 'campanaccio', 'trave', 'bagnato', 'rollbarrel', 'scarponi', 'goat', 'botti', 'minatore', 'calamita', 'rollin', 'lampada', 'carrello', 'deadend', 'scambio', 'narrow', 'cane', 'caprarupe', 'maialetto', 'panni', 'fune', 'fuso', 'maimoni', 'ciccio'];
+export const HIT_KICK = { a: 0.6, p: 0.5 };   // v5s45: spinta sulla molla della frakkera quando si urta
+export const NARROW_FADE = 0.25;   // v5s45: opacita' della strettoia rocciosa quando sta tra camera e corridore
+export const RIDE_HIDE_M = 6.0;   // v5s45: sotto questa distanza dalla camera il carrello lasciato non si disegna
+
 export class World {
   constructor(container) {
     this.container = container;
@@ -266,7 +272,7 @@ export class World {
     // v5s12: campanile + chiesa rosa centrati in fondo alla via del paese (segue la camera come il fondale)
     this.vista = new THREE.Mesh(buildVista(1), this.mats2); this.scene.add(this.vista);
     if (!/[?&]xmas=0/.test(typeof location !== 'undefined' ? location.search : '')) {
-      const tree = buildBurraTree(this.tex.carpets[0]);
+      const tree = buildBurraTree();
       tree.frustumCulled = false;
       this.scene.add(tree); this.burraTree = tree;
     }
@@ -489,6 +495,13 @@ export class World {
     } else if (kind === 'tessitrice') {          // feat-village: tessitrice al telaio sulla soglia
       v.weaver = buildWeaver(this.mats2, e.variant || 0); v.body = v.weaver.root; v.body.scale.multiplyScalar(1.4);   // v5s26: piu' grande, si legge di corsa
       v.throwT = -1; v.shadow = this.blob(2.2, 2.6);
+    } else if (kind === 'ciccio') {              // v5s45 (18): il pickup bianco di Ciccio + avviso rosso sulla sua corsia
+      v.body = new THREE.Group();
+      v.truck = new THREE.Mesh(ciccioGeom(), this.mats2); v.body.add(v.truck);
+      v.shadow = this.blob(2.3, 5.6);
+      const wm = new THREE.MeshBasicMaterial({ color: '#ff3a22', transparent: true, opacity: 0.35, depthWrite: false, fog: false });
+      v.lane = new THREE.Mesh(new THREE.PlaneGeometry(2.7, 1), wm); v.lane.rotation.x = -Math.PI / 2; v.lane.position.y = 0.07; v.lane.renderOrder = 4; v.body.add(v.lane);
+      v.heads = [-1, 1].map((sx) => { const g = this.glowSprite('#fff4c8', 1.6, 0.9); g.position.set(sx * 0.68, 1.1, 2.75); v.body.add(g); return g; });
     } else if (kind === 'processione') {         // feat-village: processione di Santa Marta
       v.proc = buildProcession(this.mats2, e.variant || 0); v.body = v.proc.root; v.shadow = this.blob(2.6, 7.5);
       v.glow = this.glowSprite('#ffd27a', 3.0, 0.35); v.glow.position.set(0, 4.6, 0); v.body.add(v.glow);
@@ -533,6 +546,16 @@ export class World {
     this.scene.add(root);
     return v;
   }
+  fadeNarrow(v, target, dt) {
+    v.alpha = v.alpha ?? 1;
+    v.alpha += (target - v.alpha) * Math.min(1, dt * 10);
+    if (Math.abs(v.alpha - target) < 0.01) v.alpha = target;
+    if (v.alpha < 0.999 && !v.fadeMats) {   // materiali propri solo quando serve (stessi shader, trasparenti)
+      v.fadeMats = this.mats2.map((m) => { const c = m.clone(); c.onBeforeCompile = m.onBeforeCompile; if (m.customProgramCacheKey) c.customProgramCacheKey = m.customProgramCacheKey; c.transparent = true; return c; });
+      v.body.material = v.fadeMats;
+    }
+    if (v.fadeMats) for (const m of v.fadeMats) m.opacity = v.alpha;
+  }
   narrowView(e, skin) {
     const rows = Math.round((e.len + 6) / WORLD.ROW);
     const side = e.lane === 0 ? -1 : 1;
@@ -548,6 +571,32 @@ export class World {
     root.userData.x = side * inner * U;
     this.scene.add(root);
     return { kind: 'narrow', root, body: mesh, side };
+  }
+  // v5s45 (QA10 #5/#8): crea una volta ogni tipo di vista (falo', folla, bancarelle, minatori...) fuori quadro e la disegna
+  // sul canvas dietro la schermata di caricamento: shader e buffer pronti, poi le viste vanno nei pool. Prima la prima
+  // apparizione (es. falo' a ~50 m e sul giro 2 da Pinu) compilava 2-4 programmi in corsa (scatti di 2-3 s su GPU lente).
+  warmViews() {
+    if (this._viewsWarm || !this.renderer) return; this._viewsWarm = true;
+    const made = []; let id = -1e6;
+    for (const kind of WARM_KINDS) {
+      try {
+        const e = { kind, id: id--, lane: 1, side: 1, d: 0, len: kind === 'narrow' ? 120 : 10, variant: 0, n: 3, dir: 1, vx: 0, x: 0, open: [1], junction: 1, fire: true, crowd: true, weaver: true, miner: true, lamp: true, animal: true, proc: true, pickup: false };
+        const v = kind === 'narrow' ? this.narrowView(e, null) : this.createView(kind, e, null);
+        if (!v || !v.root) continue;
+        if (!v.root.parent) this.scene.add(v.root);
+        v.root.position.set(0, -2000, 0); v.root.visible = true;
+        const fc = []; v.root.traverse((o) => { fc.push([o, o.frustumCulled]); o.frustumCulled = false; });
+        made.push({ kind, v, fc });
+      } catch (err) { /* solo anticipo */ }
+    }
+    try { this.renderer.render(this.scene, this.camera); } catch (err) { /* solo anticipo */ }
+    for (const { kind, v, fc } of made) {
+      for (const [o, f] of fc) o.frustumCulled = f;
+      v.root.visible = false;
+      if (kind === 'narrow') { this.scene.remove(v.root); continue; }
+      const pk = kind + '|'; v.poolKey = pk; (this.pools[pk] || (this.pools[pk] = [])).push(v);
+    }
+    return made.length;
   }
   spawnView(e) {
     let v;
@@ -592,7 +641,7 @@ export class World {
     if (!v) return;
     this.views.delete(e.id);
     v.root.visible = false;
-    if (v.kind === 'narrow') { this.scene.remove(v.root); return; }
+    if (v.kind === 'narrow') { this.scene.remove(v.root); if (v.fadeMats) v.fadeMats.forEach((m) => m.dispose()); return; }
     const pk = v.poolKey || v.kind;
     (this.pools[pk] || (this.pools[pk] = [])).push(v);
   }
@@ -636,8 +685,10 @@ export class World {
       v.root.visible = !(this.moodName === 'over' && !e.pickup && ahead + (e.len || 0) > -210 && ahead < 70);
       // v5s27 (telefono): oggetti oltre ~95 m sono pochi pixel nella nebbia: non si disegnano (meno draw call)
       // v5s29 (QA M4/M5/M6): passato il corridore, l'ostacolo sparisce (travi, panni, ringhiere non coprono piu' la camera)
-      if ((ahead + (e.len || 0)) * U < -1.5 && this.moodName !== 'over') v.root.visible = false;
+      if ((ahead + (e.len || 0)) * U < (e.kind === 'ciccio' ? -16 : -1.5) && this.moodName !== 'over') v.root.visible = false;   // v5s45: il camion di Ciccio passa oltre la camera
       if (farCull && ahead * U > farCull && !(e.kind === 'processione' || e.kind === 'trave' || e.kind === 'panni')) v.root.visible = false;
+      // v5s45 (QA10 #3): la strettoia rocciosa gia' superata (tra camera e corridore) diventa trasparente: non copre chi corre
+      if (v.kind === 'narrow') this.fadeNarrow(v, ahead * U < -0.3 ? NARROW_FADE : 1, dt);
       if (e.offroad) v.root.visible = false;   // v5s40: animale/tronco uscito dalla carreggiata
       // v5s41: le pecore in coda al gregge che aspettano lontano dalla via non si vedono dentro roccia/acqua/case
       if (isMoving(e.kind) && e.kind !== 'maimoni' && Math.abs(e.x) * U > ROAD_HALF * U + 2.0) v.root.visible = false;   // v5s41b: entro ~0.5 m oltre il marciapiede (prima 3.2: pecora dentro la roccia)
@@ -654,8 +705,19 @@ export class World {
       }
       if (e.kind === 'bancarella' || e.kind === 'festone') { if (v.shadow) v.shadow.visible = true; continue; }
       if (e.kind === 'panni') { if (v.shadow) v.shadow.visible = true; v.body.rotation.x = Math.sin(t * 1.7 + e.d) * 0.025; continue; }
+      if (e.kind === 'ciccio') {
+        if (v.shadow) v.shadow.visible = true;
+        // striscia rossa sulla corsia davanti al camion (fino al giocatore) finche' non e' passato
+        const gapM = Math.max(0, ahead * U), on = !e.passed && !e.hit && gapM > 0.5;
+        v.lane.visible = on;
+        if (on) { const Lm = Math.min(60, gapM); v.lane.scale.set(1, Lm, 1); v.lane.position.z = 2.6 + Lm / 2; v.lane.material.opacity = 0.42 + 0.3 * (0.5 + 0.5 * Math.sin(t * 14)); }
+        v.truck.position.y = Math.abs(Math.sin(t * 22)) * 0.03; v.truck.rotation.z = Math.sin(t * 9) * 0.006;
+        for (const g of v.heads) g.material.opacity = 0.75 + 0.2 * Math.sin(t * 30);
+        continue;
+      }
       if (e.kind === 'tessitrice') {
         v.body.scale.set((e.side < 0 ? -1 : 1) * 1.3, 1.3, 1.3); if (v.shadow) v.shadow.visible = true;
+        v.body.rotation.y = e.side === 0 ? Math.PI : 0;   // v5s45 (15): in mezzo alla via, la tessitrice guarda chi arriva (telaio davanti)
         if (e.thrown && v.throwT < 0) v.throwT = 0;
         let k = 0; if (v.throwT >= 0) { v.throwT += dt; k = v.throwT < 0.9 ? Math.min(1, v.throwT * 8) : Math.max(0, 1 - (v.throwT - 0.9) * 3); }
         animateWeaver(v.weaver, t, k); continue;
@@ -918,7 +980,7 @@ export class World {
         this.addShake(0.35, 0.28); this.smokeAtTip(12);
         const t = this.tipW;
         this.burst(t.x, t.y + 0.5, t.z, COL.spark, 34, 5.5); this.burst(t.x, t.y + 0.3, t.z, COL.ember, 22, 3.5);
-        this.char3d.stumble(); this.char3d.kick((Math.random() < 0.5 ? -1 : 1) * 1.6, 2.2);
+        this.char3d.stumble(); this.char3d.kick((Math.random() < 0.5 ? -1 : 1) * HIT_KICK.a, HIT_KICK.p);   // v5s45 (QA10 #7): urto piu' morbido (era 1.6 / 2.2), la frakkera resta in spalla
         break;
       }
       case 'slip': {
@@ -934,6 +996,8 @@ export class World {
       case 'crowdRoar': this.roarT = 0.5; break;
       case 'dogBark': if (this.comp) this.comp[0].barkT = 0.35; break;
       case 'dogNip': this.addShake(0.2, 0.15); if (this.comp) this.comp[1].barkT = 0.35; break;
+      case 'weaverHit': { this.char3d.stumble(); const p = this.views.get(d.e.id)?.root.position; if (p) { this.dustPuff(p.x, p.z + 1.5, 12); this.burst(p.x, 1.2, p.z + 1.4, COL.spark2, 14, 4); } this.addShake(0.25, 0.2); break; }
+      case 'ciccioHit': this.addShake(0.8, 0.5); break;
       case 'weaverThrow': { const p = this.views.get(d.e.id)?.root.position; if (p) this.burst(p.x * 0.6, 2.2, p.z, COL.spark2, 16, 4); break; }
       case 'procBump': { const p = this.views.get(d.e.id)?.root.position; if (p) this.burst(p.x, 2.0, p.z, COL.spark2, 10, 3); break; }
       case 'windowCheer': break;   // v5s26: niente paesani alle finestre (sembravano sospesi); resta solo il punteggio
@@ -1429,7 +1493,12 @@ export class World {
     if (!on && this.rideLeft) {           // il carrello vuoto prosegue un po' e frena
       const L = this.rideLeft; L.t += dt; L.v = Math.max(0, L.v - dt * 9);
       r.position.z -= L.v * dt; r.rotation.set(0, 0, 0);
-      if (L.t > 5) { this.rideLeft = null; r.visible = false; }
+      // v5s45 (QA10 #1): il carrello vuoto resta indietro e la camera lo raggiunge: si rimpicciolisce e sparisce
+      // prima di arrivare a ~6 m dalla camera (prima riempiva il basso dello schermo e copriva chi corre)
+      const camGap = this.camera.position.z - r.position.z;   // distanza davanti alla camera (la corsa va verso -z)
+      const k = Math.max(0, Math.min(1, (camGap - RIDE_HIDE_M) / 2.5));
+      r.scale.setScalar(0.85 * k + 0.001);
+      if (L.t > 5 || k <= 0) { this.rideLeft = null; r.visible = false; }
     } else if (!on) r.visible = false;
     this.rideShadow.visible = r.visible; if (r.visible) this.rideShadow.position.set(r.position.x, 0.03, r.position.z);
   }

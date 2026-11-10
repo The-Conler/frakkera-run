@@ -132,13 +132,16 @@ export function tunnelSegment(W0, len, type = 'rock', lamps = []) {
   return g;
 }
 
+export const PIPE = { x: 5.15, y: 6.1 }, CABLE = { x: -4.8, y: 6.7 };   // v5s45: tubo blu e cavo lungo le pareti
 // accessori della galleria per un segmento: tubo blu sulla volta, cavo, lampade, centine di legno
 export function tunnelProps(W0, len, type, lamps, o = {}) {
   const k = new Kit(Math.floor(W0) + 3); const r = rng(Math.floor(W0 * 3) + 1);
   if (type === 'rock') {
-    k.add(G.cyl(0.16, 0.16, len, 8), '#3d6fb8', { x: 2.4, y: 8.0, z: -len / 2, rx: Math.PI / 2 });       // tubo blu (come nella foto)
-    k.add(G.cyl(0.06, 0.06, len, 4), '#2a2a2a', { x: -2.0, y: 8.3, z: -len / 2, rx: Math.PI / 2 });
-    for (let z = -r() * 4; z > -len; z -= 4) k.add(G.box(0.08, 0.6, 0.08), '#2f3d55', { x: 2.4, y: 8.4, z });
+    // v5s45 (QA10 #2): tubo e cavo stavano a 1.6-1.9 m sopra la camera (6.4 m) e tagliavano lo schermo in diagonale:
+    // ora corrono lungo le pareti, a fianco della camera e lontani da lei (>= 4 m), piu' sottili
+    k.add(G.cyl(0.11, 0.11, len, 8), '#3d6fb8', { x: PIPE.x, y: PIPE.y, z: -len / 2, rx: Math.PI / 2 });       // tubo blu (come nella foto)
+    k.add(G.cyl(0.045, 0.045, len, 4), '#2a2a2a', { x: CABLE.x, y: CABLE.y, z: -len / 2, rx: Math.PI / 2 });
+    for (let z = -r() * 4; z > -len; z -= 4) k.add(G.box(0.5, 0.07, 0.07), '#2f3d55', { x: PIPE.x + 0.22, y: PIPE.y - 0.14, z });   // staffe a muro
   }
   for (const [lw, lx, ly] of lamps) {
     if (lw < W0 || lw >= W0 + len) continue;

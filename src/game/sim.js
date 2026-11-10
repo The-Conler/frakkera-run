@@ -5,14 +5,14 @@
 // tramite `fx(tipo, dati)`. Unita': px del mondo 2D (10 px = 1 m), corsie
 // centrate su x = 0.
 // =====================================================================
-import { SCORE, FUEL, WORLD, PX_PER_METER, PISTOL, SPEED_STEPS, BIOME_OBST, DUCK, SHOP, MASKS, DANCE, FIRE, MINE, CART, COLLECT, SKINS, FESTA, POWER, JUMP, UPGRADES, WEATHER, ANIMALS, VILLAGE } from '../config.js';
+import { SCORE, FUEL, WORLD, PX_PER_METER, PISTOL, SPEED_STEPS, BIOME_OBST, DUCK, SHOP, MASKS, DANCE, FIRE, MINE, CART, COLLECT, SKINS, FESTA, POWER, JUMP, UPGRADES, WEATHER, ANIMALS, VILLAGE, CICCIO } from '../config.js';
 import { biomeAt } from './biomes/config.js';
 import { cartAt, festaAt } from '../systems/generator.js';
 import { Generator, SOLID, DESTRUCTIBLE, PICKUP_KINDS, BIOME_KINDS, MASK_KINDS, difficultyAt, speedAt, speedStepsAt, lerp } from '../systems/generator.js';
 import { randomSeed, makeRng } from '../systems/rng.js';
 export const DANCE_DIRS = ['left', 'down', 'up', 'right'];
 
-export const HALF_W = { muretto: 12, botte: 7, bottecoricata: 11, botti: 12, pozza: 9, narrow: 17, goat: 7, rollbarrel: 7, rollin: 7, sasso: 8, bagnato: 9, trave: 60, panni: 60, processione: 13, ramo: 60, acqua: 10, calamita: 11, finocchio: 11, scarponi: 11, maimoni: 8, fune: 40, fuso: 7, asfodelo: 10, ferula: 10, tappeto: 11, pistola: 11, pecora: 7, maialetto: 5, caprarupe: 8 };
+export const HALF_W = { muretto: 12, botte: 7, bottecoricata: 11, botti: 12, pozza: 9, narrow: 17, goat: 7, rollbarrel: 7, rollin: 7, sasso: 8, bagnato: 9, trave: 60, panni: 60, processione: 13, tessitrice: 8, ciccio: 10, ramo: 60, acqua: 10, calamita: 11, finocchio: 11, scarponi: 11, maimoni: 8, fune: 40, fuso: 7, asfodelo: 10, ferula: 10, tappeto: 11, pistola: 11, pecora: 7, maialetto: 5, caprarupe: 8 };
 export const ATTRACT_SPEED = 34;
 const PLAYER_BACK = 3, PLAYER_FRONT = 5, PLAYER_HALF = 3;
 export const GUTTER = 4;
@@ -48,14 +48,14 @@ export class Sim {
 
   resetRunState() {
     this.score = 0; this.metersCredited = 0; this.fuel = FUEL.START; this.chain = 0;
-    this.stats = { pickups: 0, nearMiss: 0, chains: 0, milestones: 0, hits: 0, bonus: 0, carpets: 0, barrels: 0, goats: 0, shopVisits: 0, shopBuys: 0, shopSpent: 0, shields: 0, obst: 0, ducks: 0, beams: 0, slips: 0, speedSteps: 0, shots: 0, pistols: 0, masks: 0, parades: 0, ropes: 0, spindles: 0, dances: 0, danceSkips: 0, dancePerfect: 0, danceGood: 0, danceMiss: 0, danceBest: 0, survival: 0, capped: 0, fires: 0, fireFuel: 0, lamps: 0, miners: 0, carts: 0, junctions: 0, deadends: 0, bells: 0, sweets: 0, cheers: 0, roars: 0, magnets: 0, fennels: 0, fennelBlocks: 0, boots: 0, bootsPts: 0, branches: 0, magnetPulls: 0, jumps: 0, jumped: 0, upBuys: 0, wetSlows: 0, flocks: 0, sheep: 0, piglets: 0, dogs: 0, barks: 0, chases: 0, nips: 0, escapes: 0, rockGoats: 0, laundry: 0, weaverCarpets: 0, procHits: 0, procClean: 0, windowCheers: 0 };
-    this.dogT = 0; this.chase = null;
+    this.stats = { pickups: 0, nearMiss: 0, chains: 0, milestones: 0, hits: 0, bonus: 0, carpets: 0, barrels: 0, goats: 0, shopVisits: 0, shopBuys: 0, shopSpent: 0, shields: 0, obst: 0, ducks: 0, beams: 0, slips: 0, speedSteps: 0, shots: 0, pistols: 0, masks: 0, parades: 0, ropes: 0, spindles: 0, dances: 0, danceSkips: 0, dancePerfect: 0, danceGood: 0, danceMiss: 0, danceBest: 0, survival: 0, capped: 0, fires: 0, fireFuel: 0, lamps: 0, miners: 0, carts: 0, junctions: 0, deadends: 0, bells: 0, sweets: 0, cheers: 0, roars: 0, magnets: 0, fennels: 0, fennelBlocks: 0, boots: 0, bootsPts: 0, branches: 0, magnetPulls: 0, jumps: 0, jumped: 0, upBuys: 0, wetSlows: 0, flocks: 0, sheep: 0, piglets: 0, dogs: 0, barks: 0, chases: 0, nips: 0, escapes: 0, rockGoats: 0, laundry: 0, weaverCarpets: 0, weaverHits: 0, weaverDodges: 0, carpetsLost: 0, ciccio: 0, ciccioDodged: 0, procHits: 0, procClean: 0, windowCheers: 0 };
+    this.dogT = 0; this.chase = null; this.cic = null; this.cicLap = -1; this.deathReason = null;
     this.shopLap = 0; this.shopOffer = 0; this.shop = null; this.shield = 0;
     this.danceLap = -1; this.danceCue = null; this.dance = null;
     this.cart = null; this.cartLap = -1; this.cartSpK = 1;
     this.duckT = 0; this.duckCd = 0; this.slipT = 0; this.speedStep = 0; this.beamHint = false;
     this.magnetT = 0; this.fennelT = 0; this.bootsT = 0; this.bootsTick = 0;
-    this.jumpHint = false; this.jumpT = 0; this.jumpCd = 0; this.jumpH = 0; this.wetT = 0;
+    this.jumpHint = false; this.jumpT = 0; this.jumpCd = 0; this.jumpBuf = 0; this.jumpH = 0; this.wetT = 0;
     this.carpetStreak = 0; this.ammo = 0; this.fireCd = 0; this.recoilT = 0;
     this.shots = [];
     this.nextSurvival = SCORE.SURVIVAL_EVERY_S;
@@ -132,8 +132,17 @@ export class Sim {
   }
 
   // v5s25: salto (swipe su): si passa sopra gli ostacoli bassi (JUMP.KINDS)
+  // v5s45 (#10 "a volte non salta"): lo swipe su non si perde piu': durante l'atterraggio (ultimi JUMP.BUFFER_S del salto
+  // o nel cooldown) resta in memoria e parte appena possibile; da accovacciati il salto interrompe l'accovacciata.
+  // Si rifiuta solo quando e' davvero impossibile (fuori corsa, nel carrello).
   jump() {
-    if (this.mode !== 'run' || this.jumpCd > 0 || this.jumpT > 0 || this.cart || this.duckT > 0) return false;
+    if (this.mode !== 'run' || this.cart) return false;
+    if (this.jumpT > 0 || this.jumpCd > 0) {
+      if (this.jumpT <= JUMP.BUFFER_S) { this.jumpBuf = JUMP.BUFFER_S + this.jumpT + this.jumpCd; return true; }
+      return false;
+    }
+    if (this.duckT > 0) { this.duckT = 0; this.duckCd = DUCK.COOLDOWN_S; }
+    this.jumpBuf = 0;
     this.jumpT = JUMP.TIME_S; this.stats.jumps++;
     this.inputs.push([this.step, 'J']);
     this.fx('jump'); this.fx('sound', 'jump');
@@ -380,7 +389,8 @@ export class Sim {
     // v5s7: offerta del Garag di Pinu a ogni ritorno al paese (giro >= 1)
     if (this.shopOffer > 0) { this.shopOffer = Math.max(0, this.shopOffer - dt); if (this.shopOffer === 0) { this.log('Q', 0); this.fx('shopOfferEnd'); } }
     { const bi = biomeAt(rd / PX_PER_METER + this.mapOffsetM);
-      if (bi.b.id === 'village' && bi.lap >= 1 && bi.lap > this.shopLap && bi.local >= SHOP.OFFER_AT_M) {
+      const cicWait = bi.lap === CICCIO.LAP && !(this.cicLap === bi.lap && (!this.cic || this.cic.passed));   // v5s45: nel giro di Ciccio l'offerta arriva dopo il camion
+      if (bi.b.id === 'village' && bi.lap >= 1 && bi.lap > this.shopLap && bi.local >= SHOP.OFFER_AT_M && !cicWait && !this.danceCue) {
         this.shopLap = bi.lap; this.shopOffer = SHOP.OFFER_S; this.log('O', bi.lap); this.fx('shopOffer', { lap: bi.lap, s: SHOP.OFFER_S });
       } }
     // v5s11: ballu tundu una volta per giro nella piazza della chiesa (launeddas e coro qualche secondo prima)
@@ -394,11 +404,15 @@ export class Sim {
         }
         if (this.danceCue && toGo <= 0) { this.danceLap = bi.lap; this.danceCue = null; this.startDance(bi.lap); return; }
       } }
+    // v5s45 (18): Ciccio col pickup bianco, una volta nel giro 2 (lap index CICCIO.LAP), nel paese
+    { const bi = biomeAt(rd / PX_PER_METER + this.mapOffsetM);
+      if (bi.b.id === 'village' && bi.lap === CICCIO.LAP && this.cicLap !== bi.lap && bi.local >= CICCIO.WARN_M && bi.local < CICCIO.CLEAR_TO_M - 30 && !this.danceCue) this.startCiccio(bi.lap); }
     if (this.duckT > 0) { this.duckT = Math.max(0, this.duckT - dt); if (this.duckT === 0) this.duckCd = DUCK.COOLDOWN_S; }
     else this.duckCd = Math.max(0, this.duckCd - dt);
     this.slipT = Math.max(0, this.slipT - dt);
     if (this.jumpT > 0) { this.jumpT = Math.max(0, this.jumpT - dt); if (this.jumpT === 0) { this.jumpCd = JUMP.COOLDOWN_S; this.fx('land'); } }
     else this.jumpCd = Math.max(0, this.jumpCd - dt);
+    if (this.jumpBuf > 0) { this.jumpBuf = Math.max(0, this.jumpBuf - dt); if (this.jumpT === 0 && this.jumpCd === 0) { this.jumpBuf = 0; this.jump(); } }   // v5s45: salto in memoria
     this.jumpH = this.jumpT > 0 ? Math.sin(Math.PI * (1 - this.jumpT / JUMP.TIME_S)) * JUMP.H_PX : 0;
     this.wetT = Math.max(0, this.wetT - dt);
     // v5s18: giro in carrello (salita / discesa decise dalla distanza: deterministico)
@@ -449,7 +463,7 @@ export class Sim {
       this.fx('popup', { text: 'NUOVO RECORD!', style: 'record' });
       this.fx('sound', 'record');
     }
-    if (this.fuel <= 0) {
+    if (this.fuel <= 0 && this.mode === 'run') {
       this.fuel = 0;
       this.mode = 'dying';
       this.dieByHit = this.lastHitStep === this.step;
@@ -541,6 +555,13 @@ export class Sim {
         if (e.kind === 'pecora' && !e.bleat && e.d - T < MOVE_AHEAD - 10) { e.bleat = true; this.stats.sheep++; if (!e.xoff) this.fx('sound', 'sheep'); }
         if (e.kind === 'maialetto' && !e.bleat && e.d - T < MOVE_AHEAD - 10) { e.bleat = true; this.stats.piglets++; this.log('aP', e.dir); this.fx('sound', 'piglet'); this.fx('popup', { text: 'SU PORCHEDDU!', style: 'small' }); }
       }
+      if (e.kind === 'ciccio' && !e.done) {   // v5s45 (18): il pickup corre verso il giocatore nella sua corsia
+        e.d -= e.vt * dt;
+        if (!e.hit && e.d <= pFront && e.d + e.len >= pBack && Math.abs(laneX(e.lane) - px) <= CICCIO.HALF + PLAYER_HALF) { this.hitCiccio(e); return; }
+        if (!e.passed && e.d + e.len < pBack) { e.passed = true; this.stats.ciccioDodged++; const pts = this.addBonus(CICCIO.PTS); this.log('cP', pts); this.fx('popup', { text: `CICCIO E' PASSATO! +${pts}`, style: 'gold' }); this.fx('sound', 'cheer'); }
+        if (e.d + e.len < T - 260) { e.done = true; }
+        continue;
+      }
       if (e.kind === 'processione' && !e.done && e.d - T < MOVE_AHEAD) {
         // v5s44f: il corteo avanza verso il giocatore (passo lento, corsa massima limitata)
         if (e.d0 == null) e.d0 = e.d;
@@ -619,13 +640,16 @@ export class Sim {
         if (e.d + e.len < pBack) e.done = true;
         continue;
       }
-      if (e.kind === 'tessitrice') {  // feat-village: passando nella sua corsia laterale ti lancia un tappeto
-        if (!e.thrown && overlapD && Math.abs(px - laneX(e.lane)) <= VILLAGE.WEAVER_BRUSH_PX) {
-          e.thrown = true; this.stats.weaverCarpets++; this.stats.carpets++; this.carpetTotal = this.addCarpets(1);
-          const pts = this.addBonus(VILLAGE.WEAVER_PTS); this.log('vW', pts);
-          this.fx('weaverThrow', { e, pts, total: this.carpetTotal }); this.fx('popup', { text: `TAPPETO! +${pts}`, style: 'gold' }); this.fx('sound', 'cheer');
+      if (e.kind === 'tessitrice') {  // v5s45 (15): telaio IN MEZZO alla via: urto = perdi tappeti; schivata = applauso e un tappeto
+        if (!e.hit && overlapD && Math.abs(ex - px) <= hw + PLAYER_HALF && this.invuln <= 0) { this.hitWeaver(e); continue; }
+        if (e.d + e.len < pBack) {
+          e.done = true;
+          if (!e.hit && !e.thrown) {
+            e.thrown = true; this.stats.weaverDodges++; this.stats.weaverCarpets++; this.stats.carpets++; this.carpetTotal = this.addCarpets(1);
+            const pts = this.addBonus(VILLAGE.WEAVER_PTS); this.log('vW', pts);
+            this.fx('weaverThrow', { e, pts, total: this.carpetTotal }); this.fx('popup', { text: `BRAVU! TAPPETO +${pts}`, style: 'gold' }); this.fx('sound', 'cheer');
+          }
         }
-        if (e.d + e.len < pBack) e.done = true;
         continue;
       }
       if (e.kind === 'processione') { // feat-village: Santa Marta: si schiva; l'urto costa fuoco ma non ferma
@@ -875,6 +899,44 @@ export class Sim {
     this.fx('sound', 'fireBonus');
   }
 
+  // v5s45 (15): urto col telaio della tessitrice: perdi il 25% dei tappeti Sa Burra (min 1, max 5), inciampo breve
+  hitWeaver(e) {
+    e.hit = true; this.stats.weaverHits++;
+    const have = Math.max(0, this.carpetTotal || 0);
+    const want = Math.min(VILLAGE.WEAVER_LOSS_MAX, Math.max(1, Math.round(have * VILLAGE.WEAVER_LOSS_K)));
+    const loss = Math.min(have, want);
+    if (loss > 0) { const left = this.spendCarpets(loss); if (left >= 0) this.carpetTotal = left; }
+    this.stats.carpetsLost += loss; this.stats.carpets = Math.max(0, this.stats.carpets - loss);
+    this.carpetStreak = 0; this.invuln = WORLD.HIT_INVULN_S; this.slowT = 0; this.slipT = 0.35;
+    this.log('vX', loss);
+    this.fx('weaverHit', { e, loss, total: this.carpetTotal });
+    this.fx('popup', { text: loss > 0 ? `IL TELAIO! -${loss} TAPPET${loss > 1 ? 'I' : 'O'}` : 'IL TELAIO! ATTENTO!', style: 'white' });
+    this.fx('sound', 'weaverHit');
+  }
+  // v5s45 (18): Ciccio. Il camion nasce a (v_giocatore + v_camion) * WARN_S davanti: arriva dopo WARN_S alla velocita' attuale
+  startCiccio(lap) {
+    this.cicLap = lap; this.stats.ciccio++;
+    const vp = Math.max(40, this.currentSpeed || speedAt(this.runD, this.mapOffsetM)), vt = CICCIO.SPEED_PX_S;
+    const gap = (vp + vt) * CICCIO.WARN_S;
+    const e = { kind: 'ciccio', lane: CICCIO.LANE, d: this.T + PLAYER_FRONT + gap - this.genOffset, len: CICCIO.LEN, vt, warnAt: this.runTime };
+    this.spawn(e); this.cic = e;
+    this.log('cW', CICCIO.LANE);
+    this.fx('ciccioWarn', { e, lane: CICCIO.LANE, s: CICCIO.WARN_S });
+    this.fx('popup', { text: CICCIO.BANNER, style: 'ciccio' });
+    this.fx('sound', 'horn');
+  }
+  // v5s45 (18): investito da Ciccio: game over immediato (niente scudo, niente invulnerabilita')
+  hitCiccio(e) {
+    e.hit = true; this.lastHitStep = this.step; this.deathReason = 'ciccio';
+    this.log('cX', 0);
+    this.fx('hit', { e }); this.fx('ciccioHit', { e }); this.fx('sound', 'horn');
+    this.fx('popup', { text: CICCIO.REASON.toUpperCase(), style: 'white' });
+    this.fuel = 0; this.shield = 0;
+    this.mode = 'dying'; this.dieByHit = true; this.dieT = WORLD.DYING_S;
+    for (const p of this.shots) this.fx('shotEnd', p);
+    this.shots = [];
+    this.fx('die');
+  }
   // feat-village: urto con la processione: fuoco in meno (mai sotto 1), niente frenata
   hitProcession(e) {
     e.hit = true; this.stats.procHits++;
@@ -969,7 +1031,7 @@ export class Sim {
     this.mode = 'over';
     const meters = Math.floor(this.runD / PX_PER_METER);
     this.fx('over', {
-      score: this.score, meters, ...this.stats, time: Math.round(this.runTime * 10) / 10,
+      score: this.score, meters, ...this.stats, reason: this.deathReason === 'ciccio' ? CICCIO.REASON : null, time: Math.round(this.runTime * 10) / 10,
       seed: this.seed, carpetTotal: this.carpetTotal, debug: this.debug,
       log: { v: 4, mapOffsetM: this.mapOffsetM, seed: this.seed, steps: this.step, inputs: this.inputs.slice(), events: this.events.slice() },
     });

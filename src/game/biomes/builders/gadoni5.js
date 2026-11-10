@@ -48,34 +48,19 @@ function slanted(k, cx, cz, side) {
 }
 export function buildVicolo(len = 26) {
   const k = new Kit(5101), r = rng(5101);
-  // --- muro sinistro: casa alta d'intonaco ocra-grigio consumato, zoccolo in pietra
-  const L = -1;
-  for (let z0 = 0; z0 > -len; z0 -= 3.25) {
-    const c = r.pick(['#b9a183', '#c4ab88', '#ad9677', '#c9b394']);
-    const zc = z0 - 1.6, rec = zc > -26 && zc < -3 ? 4 : 0;          // slargo davanti al portone verde
-    if (zc < -10) continue;                                           // v5s44e: slargo prima del monumento, si vede da lontano; v5s27: la cappella tonda si vede da lontano
-    k.add(G.box(6, 9.5 + r.range(-0.4, 0.4), 3.3), c, { x: L * (E + 3 + rec), y: 4.75, z: zc, vary: 0.12 });
-  }
-  // v5s27: in fondo solo un muretto basso con un orto (al posto delle case alte che coprivano la cappella)
+  // v5s45 (17): tolta la casa alta color sabbia col grande portone ad arco verde-azzurro sul lato SINISTRO (prima del
+  // monumento): al suo posto un muretto basso d'orto, arretrato, con siepi e due alberi bassi. Niente muri alti a corridoio,
+  // il Monumento ai Caduti (z -21) si vede gia' da lontano. I numeri casuali della vecchia casa si consumano lo stesso.
+  const L = -1, r2 = rng(5145);
+  for (let z0 = 0; z0 > -len; z0 -= 3.25) { r.pick([0, 1, 2, 3]); const zc = z0 - 1.6; if (zc < -10) continue; r.range(-0.4, 0.4); }
+  k.add(G.box(0.5, 0.9, 15.5), '#a89a86', { x: L * (E + 0.25), y: 0.45, z: -7.75, vary: 0.2 });          // muretto d'orto sul filo del marciapiede
+  k.add(G.box(0.6, 0.12, 15.5), '#8e8272', { x: L * (E + 0.25), y: 0.94, z: -7.75 });                    // copertina
   for (const [za, zb] of [[-22.5, -len]]) k.add(G.box(0.5, 0.9, za - zb), '#a89a86', { x: L * (E + 0.25), y: 0.45, z: (za + zb) / 2, vary: 0.2 });
+  k.add(G.box(9, 0.08, 15.5), '#5d6b3c', { x: L * (E + 5), y: 0.0, z: -7.75 });                          // orto (terra erbosa)
+  for (let i = 0; i < 14; i++) k.add(G.ico(r2.range(0.45, 0.85), 0), r2.pick(['#4f7a2c', '#5f8a34', '#3f6a28']), { x: L * (E + r2.range(1.2, 3.2)), y: r2.range(0.5, 0.9), z: -r2.range(0.5, 15), flat: true, vary: 0.2 });   // siepe dietro il muretto
+  tree(k, r2, L * (E + 6.5), 0, -3.5, 1.1);
+  tree(k, r2, L * (E + 8.5), 0, -11.5, 1.25);
   for (let i = 0; i < 6; i++) k.add(G.ico(r.range(0.5, 0.9), 0), r.pick(['#4f7a2c', '#5f8a34', '#3f6a28']), { x: L * (E + r.range(1.5, 6)), y: r.range(0.4, 0.8), z: -r.range(23.5, len - 1), flat: true, vary: 0.2 });
-  // portone verde a due ante sotto l'arco di pietra, su un risvolto di muro di sbieco verso chi arriva
-  const dz = -8, dw = 3.4, dh = 4.6;
-  { const F = slanted(k, -8.6, dz, -1);
-    F(-0.4, 0, 4.6, G.box(0.8, 9.2, 5.6), '#b39b7c', { vary: 0.1 });                 // risvolto di muro consumato
-    F(0.02, 0, (dh + 0.3) / 2, G.box(0.1, dh + 0.3, dw + 0.4), '#3a2e24');          // vano
-    for (const sd of [-1, 1]) F(0.12, sd * (dw / 2 + 0.3), (dh + 0.4) / 2, G.box(0.3, dh + 0.4, 0.4), '#c2b6a2');   // stipiti di pietra
-    for (const sd of [-1, 1]) {
-      F(0.1, sd * dw / 4, dh / 2, G.box(0.1, dh, dw / 2 - 0.05), '#1d8a76', { unlit: true });
-      for (const [py, ph] of [[0.8, 1.1], [2.5, 1.5]]) F(0.17, sd * dw / 4, py, G.box(0.05, ph, dw / 2 - 0.4), '#27a088', { unlit: true });
-    }
-    F(0.2, 0.2, 1.6, G.box(0.06, 0.06, 0.3), '#c8b070');                              // maniglia
-    F(0.12, 0, dh + 0.08, G.box(0.2, 0.18, dw + 0.4), '#4a3a2c');                    // traversa
-    F(0.1, 0, dh + 0.17, new THREE.CylinderGeometry(dw / 2, dw / 2, 0.1, 14, 1, false, 0, Math.PI), '#3a2a1e', { rz: Math.PI / 2 });   // lunetta
-    for (let i = 1; i < 8; i++) for (const rr of [0.35, 0.65, 0.95]) { const a = (i / 8) * Math.PI; F(0.18, Math.cos(a) * rr * dw / 2, dh + 0.17 + Math.sin(a) * rr * dw / 2, G.box(0.05, 0.12, 0.12), '#9a7a50'); }
-    F(0.15, 0, dh + 0.17, arcGeo(dw / 2 + 0.3, 0.3, Math.PI), '#c2b6a2', { ry: (-Math.PI / 4) + Math.PI / 2 });
-    F(0.1, -dw / 2 - 0.9, 2.5, G.box(0.06, 0.3, 0.3), '#2a5a50'); }
-  windowFace(k, L * (E + 4), 6.3, -3, -L, '#6b5a44', true);   // v5s27: tolta la finestra della casa in fondo (non c'e' piu')
   // --- muro destro: casa rosata scrostata con porta azzurra e balcone di ferro azzurro
   const R = 1;
   for (let z0 = 0; z0 > -len; z0 -= 3.25) {

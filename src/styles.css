@@ -473,3 +473,13 @@ svg { display: block; }
 .up-lv i.on { background: linear-gradient(#fff2a8, #f5a623); }
 
 #scr-howto .items svg.ico { width: 34px; height: 34px; flex: none; }
+
+/* v5s45 (18): banner di Ciccio: grande, su due righe, lampeggia per tutto l'avviso (~2.2 s) */
+.pop.ciccio { white-space: normal; width: 92%; text-align: center; top: 22% !important; color: #ffe94a; font-size: calc(var(--u) * 34); line-height: 1.08;
+  letter-spacing: 0.5px; -webkit-text-stroke: 2px #6a0a0a; paint-order: stroke fill; background: rgba(170, 16, 16, 0.78); padding: 10px 12px; border-radius: 14px;
+  box-shadow: 0 0 0 3px #ffe94a, 0 6px 22px rgba(0,0,0,0.45); text-shadow: 0 3px 0 #4a0606; animation: popCiccio 2.4s ease-out forwards; z-index: 5; }
+@keyframes popCiccio { 0% { opacity: 0; transform: translate(-50%, -50%) scale(1.35); } 8% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  20%, 40%, 60% { filter: brightness(1.35); } 30%, 50%, 70% { filter: brightness(0.9); } 85% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -50%) scale(0.98); } }
+
+.go-reason { display: block; margin: 0 auto 6px; font-family: var(--f-disp); font-size: calc(var(--u) * 22); color: #ffe94a; -webkit-text-stroke: 1.5px #6a0a0a; paint-order: stroke fill; text-align: center; }
+.go-reason.hidden { display: none; }

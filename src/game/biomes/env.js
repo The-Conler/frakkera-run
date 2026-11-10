@@ -9,7 +9,7 @@
 import { buildSantaMarta, santaMartaLamps, santaMartaAisleLamps, burraRunner, frescoes } from './builders/santamarta.js';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { BIOMES, CYCLE, biomeAt, nextBoundary, byId, LAP_NIGHT, NIGHT_MOOD, mapFromURL } from './config.js';
+import { BIOMES, CYCLE, biomeAt, nextBoundary, byId, LAP_NIGHT, NIGHT_MOOD, mapFromURL, RAIL_X } from './config.js';
 import * as M from '../models.js';
 import * as BT from './textures.js';
 import * as N from './builders/nature.js';
@@ -276,7 +276,8 @@ export class Env {
     }
     if (g.right === 'water') one(80, 0.1, (6.2 + 40) * (g.mirrorWater ? -1 : 1), -3.2, '#0e6e58');   // v5s28: fiume a sinistra (Sa Stiddiosa)
     if (g.right === 'river') one(80, 0.1, 12 + 40, -6.0, '#5a5a48');
-    if (g.rails) for (const lx of [0, 3.4]) for (const s of [-0.52, 0.52]) { one(0.1, 0.12, lx + s, 0.06, '#6a4a32'); one(0.05, 0.03, lx + s, 0.135, g.wet ? '#c4cfee' : '#9a7a62'); }
+    if (g.rails) for (const lx of RAIL_X)   // v5s45 (13): binario anche sulla corsia sinistra
+      for (const s of [-0.52, 0.52]) { one(0.1, 0.12, lx + s, 0.06, '#6a4a32'); one(0.05, 0.03, lx + s, 0.135, g.wet ? '#c4cfee' : '#9a7a62'); }
     const geom = k.build();
     this.miscGeo.set(bid, geom);
     return geom;
@@ -531,6 +532,10 @@ export class Env {
       () => this.markGeom('cappellaL', () => buildCappellaLeft()),
       () => this.markGeom('vicolo', () => buildVicolo(32)),
       () => this.warmShaders(),
+      () => { try { this.world.warmViews && this.world.warmViews(); } catch (e) { /* solo anticipo */ } },   // v5s45
+      // v5s45 (QA10 #5/#8): Sa Stiddiosa (parete GLB a istanze, cascate e foschia con shader propri, tende di felci) si costruiva
+      // ~450 m prima, cioe' a ~50 m di ogni giro: i suoi 4 programmi si compilavano in corsa. Costruita e disegnata una volta qui.
+      () => this.warmMark('pool@0'),
       () => this.warmGPU(),
       () => { const p = loadTower(); if (p && p.then) p.then(() => idle(() => this.warmGPU())); },
     ];
@@ -559,8 +564,7 @@ export class Env {
       const tm = towerModel(); if (tm) { const c = tm.clone(); c.traverse((o) => { o.frustumCulled = false; }); grp.add(c); }
       for (const mat of [this.fallMat, this.mistMat, this.shaftMat]) { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 0.1), mat); m.frustumCulled = false; grp.add(m); }
       this.scene.add(grp);
-      const rt = this._warmRT || (this._warmRT = new THREE.WebGLRenderTarget(4, 4));
-      const prev = r.getRenderTarget(); r.setRenderTarget(rt); r.render(this.scene, this.world.camera); r.setRenderTarget(prev);
+      r.render(this.scene, this.world.camera);   // v5s45: sul canvas (prima su un render target: varianti 'srgb-linear' inutili, in corsa si ricompilava tutto)
       this.scene.remove(grp);
     } catch (e) { /* solo ottimizzazione */ }
   }
@@ -928,6 +932,17 @@ export class Env {
     }
     this.scene.add(root);
     this.marks.set(key, { root, own, lamps, gpu: m_gpu, ms: performance.now() - t0, feet });
+  }
+  warmMark(key) {
+    const r = this.world.renderer; if (!r || this.marks.has(key)) return;
+    try {
+      this.buildMark(key);
+      const m = this.marks.get(key); const fc = [];
+      m.root.traverse((o) => { fc.push([o, o.frustumCulled]); o.frustumCulled = false; });
+      r.render(this.scene, this.world.camera);
+      for (const [o, f] of fc) o.frustumCulled = f;
+    } catch (e) { /* solo anticipo */ }
+    this.freeMark(key); this.falls = [];
   }
   freeMark(key) {
     const m = this.marks.get(key); if (!m) return;

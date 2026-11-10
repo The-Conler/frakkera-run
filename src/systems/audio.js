@@ -311,6 +311,13 @@ class AudioSys {
     if (!this.ok) return;
     [0, 7, 12].forEach((s, i) => this._tone({ t: i * 0.09, f: 392 * Math.pow(2, s / 12), dur: 0.22, type: 'triangle', vol: 0.15 }));
   }
+  // v5s45 (18): clacson del pickup di Ciccio (due colpi, accordo di due note un po' stonate)
+  horn() {
+    if (!this.ok) return;
+    for (const [t, d] of [[0, 0.22], [0.3, 0.5]]) { this._tone({ t, f: 392, dur: d, type: 'sawtooth', vol: 0.12 }); this._tone({ t, f: 466, dur: d, type: 'sawtooth', vol: 0.1 }); this._tone({ t, f: 196, dur: d, type: 'square', vol: 0.05 }); }
+  }
+  // v5s45 (15): urto col telaio: legno che sbatte + filo
+  weaverHit() { if (!this.ok) return; this.hit(); this._tone({ t: 0.05, f: 300, fEnd: 180, dur: 0.18, type: 'triangle', vol: 0.16 }); this._burst({ t: 0.08, dur: 0.25, type: 'bandpass', f: 1800, fEnd: 900, q: 2, vol: 0.12 }); }
   gameOver() {
     if (!this.ok) return;
     this._burst({ dur: 1.4, type: 'lowpass', f: 1600, fEnd: 120, vol: 0.35 }); // fiamma che si spegne

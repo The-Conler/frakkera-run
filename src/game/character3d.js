@@ -15,6 +15,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { stramaHoodGeom, stramaCloakGeom } from './collect3d.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { buildMascot, MASCOT } from './mascot3d.js';
+import { stepCarrySpring } from './carrySpring.js';
 
 export const MODEL_URL = `${import.meta.env.BASE_URL}models/frakkera-man.glb`;
 export const CHAR_SCALE = 1.6;         // il mondo e' "cartoon": uomo ~2.8 u, frakkera ~5.4 u
@@ -421,8 +422,7 @@ export class Character3D {
     // molla sull'osso della presa: la frakkera arriva in ritardo nei cambi di corsia
     const sg = this.spring;
     const tgt = this.state === 'run' ? -(st.vx || 0) * 0.16 : 0;
-    sg.v += ((tgt - sg.a) * 70 - sg.v * 7.5) * dt; sg.a += sg.v * dt;
-    sg.pv += ((0 - sg.p) * 55 - sg.pv * 6) * dt; sg.p += sg.pv * dt;
+    stepCarrySpring(sg, tgt, dt);   // v5s45 (QA10 #6): passo fisso 1/120 s (a pochi fps la molla esplodeva e la frakkera si ribaltava)
     const c = this.bones.carry;
     this.raiseK = (this.raiseK || 0) + ((st.raise ? 1 : 0) - (this.raiseK || 0)) * Math.min(1, dt * 4);
     if (c && (Math.abs(sg.a) > 1e-4 || Math.abs(sg.p) > 1e-4 || k > 1e-3 || this.raiseK > 1e-3)) {

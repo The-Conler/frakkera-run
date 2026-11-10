@@ -306,10 +306,9 @@ export function buildChurchSquare(seed = 1) {
   // tanti fili di luci a raggiera dalla cima del campanile: attraverso la via verso la chiesa, la capanna,
   // le case dei due lati prima e dopo la piazza
   // v5s12: fili di luci a zig-zag ATTRAVERSO la via (target4), da una facciata all'altra
-  for (let z = 30; z > -70; z -= 4.5) {
-    const y1 = 10.6 + r.range(-0.3, 0.3), y2 = 10.6 + r.range(-0.3, 0.3);   // v5s26: sopra i tetti
-    catenary(k, new THREE.Vector3(7.0, y1, z), new THREE.Vector3(-7.0, y2, z - 2.2), r.range(0.8, 1.2), true, lamps, 0.9, 7);
-  }
+  // v5s45 (20): tolti i fili a zig-zag con le lampadine bianche sopra la via ("bandierine bianche" davanti al ballo):
+  // si consumano comunque i numeri casuali per non cambiare il resto della piazza
+  for (let z = 30; z > -70; z -= 4.5) { r.range(-0.3, 0.3); r.range(-0.3, 0.3); r.range(0.8, 1.2); }
   // v5s12: pergolato di legno con bancarella, botti e vasi di fiori sul bordo della piazza (target4, a destra)
   {
     const px = -10.5, pz = -6, PW = 4.2, PL = 7;
@@ -342,9 +341,7 @@ export function buildChurchSquare(seed = 1) {
     { seed: 3, x: -14.5, z: 0.2, ry: Math.PI / 2 },
     { seed: 7, x: -22.5, z: 0.2, ry: Math.PI / 2 },
     { seed: 11, x: -30.5, z: 0.2, ry: Math.PI / 2 },
-    { seed: 5, x: -14.5, z: -LEN - 6.2, ry: -Math.PI / 2, flipZ: true },
-    { seed: 9, x: -22.5, z: -LEN - 6.2, ry: -Math.PI / 2, flipZ: true },
-    { seed: 13, x: -30.5, z: -LEN - 6.2, ry: -Math.PI / 2, flipZ: true },
+    // v5s45 (16a): tolte le tre case in fondo alla piazza (tetti di coppi rossi visti da lontano dalla via, ~131 m)
     // fondale della piazzetta del campanile: case con la facciata verso la via (lato opposto)
     { seed: 15, x: PX1, z: PZ0, road: true }, { seed: 17, x: PX1, z: null, road: true }, { seed: 19, x: PX1, z: null, road: true },
   ];

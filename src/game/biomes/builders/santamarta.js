@@ -16,6 +16,7 @@ const C = { schist: '#7d7a72', schistL: '#9a978e', schistD: '#5f5d58', schistB: 
   stone: '#5e5a52', stoneL: '#736c60', plaster: '#ece6da', floor: '#b5603f', floorL: '#c8724c', runner: '#e8b52c', runnerD: '#c28d18',
   pew: '#7a5434', pewD: '#5a3a22', door: '#3a2618', doorD: '#2a1a10', step: '#a8442e', stepT: '#bf5a3e', marble: '#f2eee6', gold: '#d8b050' };
 const tor = (r, t, rs, ts, arc = Math.PI * 2) => new THREE.TorusGeometry(r, t, rs, ts, arc);
+export const SM_DOOR_W = 9.6;
 export const SM = { HW: 7.2, H: 13, RIDGE: 16.6, STEPS: 5, WALL: 0.8, AW: 11.8, AH: 7.2 };   // v5s26: navatelle vere (AW = muro esterno, AH = altezza)
 
 // pezzi di pietra irregolari su una parete piana (normale +z o -z) nel rettangolo [x0,x1]x[y0,y1]
@@ -54,10 +55,10 @@ export function buildSantaMarta(seed = 1) {
     k.add(G.box(w, h, 0.8), C.step, { y: h / 2, z, vary: 0.04 });
     k.add(G.box(w + 0.06, 0.05, 0.86), C.stepT, { y: h, z });
   }
-  for (const s of [-1, 1]) {
-    k.add(G.cyl(0.18, 0.28, 0.5, 10), C.marble, { x: s * 4.2, y: 0.8, z: 0.5 });
-    k.add(G.cyl(0.55, 0.22, 0.5, 12), C.marble, { x: s * 4.2, y: 1.3, z: 0.5 });
-    k.add(G.sph(0.45, 8, 6), '#4f7a3a', { x: s * 4.2, y: 1.7, z: 0.5, sy: 0.7 });
+  for (const s of [-1, 1]) {   // v5s45: vasi fuori dal passaggio della corsia (erano a 4.2 m, sfioravano chi corre a sinistra/destra)
+    k.add(G.cyl(0.18, 0.28, 0.5, 10), C.marble, { x: s * 5.3, y: 0.8, z: 0.5 });
+    k.add(G.cyl(0.55, 0.22, 0.5, 12), C.marble, { x: s * 5.3, y: 1.3, z: 0.5 });
+    k.add(G.sph(0.45, 8, 6), '#4f7a3a', { x: s * 5.3, y: 1.7, z: 0.5, sy: 0.7 });
   }
 
   // ---- pavimento in cotto a quadri e passatoia gialla intrecciata
@@ -128,7 +129,7 @@ export function buildSantaMarta(seed = 1) {
     for (let j = 0; j < 6; j++) { const a = j / 6 * Math.PI * 2; k.add(G.sph(0.09, 6, 4), '#fff0c0', { x: Math.cos(a) * 0.7, y: y + 0.15, z: z + Math.sin(a) * 0.7, unlit: true }); } }
 
   // ---- facciata (davanti) e parete di fondo (abside), con portale ad arco
-  const DOOR_W = 7.6, DOOR_H = 7.4, DR = DOOR_W / 2;
+  const DOOR_W = SM_DOOR_W, DOOR_H = 7.4, DR = DOOR_W / 2;   // v5s45 (QA10 #4): portale piu largo (era 7.6), la frakkera in corsia 0 non attraversa lo stipite
   const inDoor = (x, y) => (Math.abs(x) < DR + 1.1 && y < DOOR_H - DR + 0.2) || Math.hypot(x, y - (DOOR_H - DR)) < DR + 1.1;
   const tri = new THREE.ExtrudeGeometry(new THREE.Shape([new THREE.Vector2(-OW, 0), new THREE.Vector2(OW, 0), new THREE.Vector2(0, RIDGE - H)]), { depth: 0.8, bevelEnabled: false });
   for (const front of [true, false]) {

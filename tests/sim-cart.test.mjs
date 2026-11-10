@@ -38,7 +38,8 @@ function play(seed, smart = true) {
   ok('scambi superati tutti (giocatore attento)', a.sim.stats.junctions >= 3 && a.sim.stats.deadends === 0 && a.hitsInCart === 0, `${a.sim.stats.junctions} scambi`);
   ok('punti degli scambi nel log (T)', ev(a.sim, 'T').every((e) => e[2] === CART.PTS_JUNCTION));
   ok('deterministico: stesso log', JSON.stringify(a.sim.events) === JSON.stringify(b.sim.events) && JSON.stringify(a.sim.inputs) === JSON.stringify(b.sim.inputs));
-  const c = play(77, false);
+  // v5s45: il primo scambio ora interrompe un solo binario (grazia dopo la salita): si cerca il primo seme che urta
+  let c = play(77, false); for (let sd = 78; sd < 100 && c.sim.stats.deadends < 1; sd++) c = play(sd, false);
   ok('fermo sul binario: prima o poi un binario interrotto', c.sim.stats.deadends >= 1, `${c.sim.stats.deadends}`);
   ok('il registro della discesa conta gli scambi ok', ev(c.sim, 'r')[0]?.[2] < ev(c.sim, 'T').length);
 }

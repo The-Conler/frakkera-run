@@ -9,6 +9,8 @@ import { World } from './world3d.js';
 import { audio } from '../systems/audio.js';
 import { getBest, addCarpets, getCarpetTotal, spendCarpets, addCollectible, getSkin, getUpgrades, setUpgrade } from '../systems/storage.js';
 import { bus } from '../bus.js';
+import { classifySwipe, SWIPE_PX } from '../systems/swipe.js';
+
 
 export class Game {
   constructor(container) {
@@ -121,32 +123,39 @@ export class Game {
 
   // ---------------------------------------------------- input
   bindInput() {
+    // v5s45 (#10 "a volte non salta"): gli swipe si leggono su tutta la finestra (anche se partono sopra un banner o
+    // l'offerta di Pinu), la direzione si decide solo dopo SWIPE_PX di movimento con l'asse dominante (prima un piccolo
+    // scarto laterale all'inizio di uno swipe su lo trasformava in cambio corsia), e uno swipe veloce chiuso senza
+    // pointermove intermedi viene letto al rilascio. Pulsanti con stopPropagation (spara, pausa) restano esclusi.
     const el = this.container;
-    el.addEventListener('pointerdown', (p) => { this.ptr = { x: p.clientX, y: p.clientY, t: performance.now(), swiped: false, id: p.pointerId }; });
-    el.addEventListener('pointermove', (p) => {
+    const isBtn = (t) => !!(t && t.closest && t.closest('button, .dn-pad'));
+    window.addEventListener('pointerdown', (p) => { this.ptr = { x: p.clientX, y: p.clientY, t: performance.now(), swiped: false, id: p.pointerId, btn: isBtn(p.target) }; });
+    const swipe = (q, dx, dy, min) => {
+      const dir = classifySwipe(dx, dy, min);
+      if (!dir) return false;
+      if (this.sim.mode === 'dance') this.sim.danceInput(dir);
+      else if (dir === 'left' || dir === 'right') this.sim.move(dir === 'right' ? 1 : -1);
+      else if (dir === 'up') this.jump();
+      else this.duck();
+      q.swiped = true; return true;
+    };
+    window.addEventListener('pointermove', (p) => {
       const q = this.ptr;
       if (!q || q.swiped || q.id !== p.pointerId) return;
-      const dx = p.clientX - q.x, dy = p.clientY - q.y;
-      if (this.sim.mode === 'dance') {             // v5s11: nel ballo ogni swipe e' una freccia
-        if (Math.max(Math.abs(dx), Math.abs(dy)) < 22) return;
-        this.sim.danceInput(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up')); q.swiped = true; return;
-      }
-      if (Math.abs(dx) >= 20 && Math.abs(dx) > Math.abs(dy) * 1.1) { this.sim.move(dx > 0 ? 1 : -1); q.swiped = true; }
-      else if (dy <= -26 && Math.abs(dy) > Math.abs(dx) * 1.3) { this.jump(); q.swiped = true; }   // v5s25: swipe su = salto (si spara col pulsante)
-      else if (dy >= 26 && Math.abs(dy) > Math.abs(dx) * 1.3) { this.duck(); q.swiped = true; }
+      swipe(q, p.clientX - q.x, p.clientY - q.y, SWIPE_PX);
     });
     const up = (p) => {
       const q = this.ptr;
       if (!q || q.id !== p.pointerId) return;
-      const dt = performance.now() - q.t;
-      if (!q.swiped && dt < 350 && Math.abs(p.clientX - q.x) < 20 && this.sim.mode !== 'dance') {
+      const dt = performance.now() - q.t, dx = p.clientX - q.x, dy = p.clientY - q.y;
+      if (!q.swiped && !swipe(q, dx, dy, SWIPE_PX * 0.75) && !q.btn && dt < 350 && Math.abs(dx) < 20 && this.sim.mode !== 'dance' && el.contains(p.target) !== false) {
         const r = el.getBoundingClientRect();
         this.sim.move(p.clientX < r.left + r.width / 2 ? -1 : 1);
       }
       this.ptr = null;
     };
-    el.addEventListener('pointerup', up);
-    el.addEventListener('pointercancel', () => { this.ptr = null; });
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', () => { this.ptr = null; });
     window.addEventListener('keydown', (e) => {
       if (e.target && e.target.tagName === 'INPUT') return;
       if (this.paused) return;

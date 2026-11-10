@@ -16,7 +16,7 @@ const genAll = (seed, m) => { const g = new Generator(seed), out = []; g.fillUnt
     for (const e of a) {
       counts[e.kind]++;
       if (biomeIdAt(e.d) !== 'village') inVillage = false;
-      if (e.kind === 'tessitrice' && !(e.side && (e.lane === 0 || e.lane === 2))) side = false;
+      if (e.kind === 'tessitrice' && !(e.side === 0 && e.lane === 1)) side = false;   // v5s45 (15): in mezzo alla via
       if (e.kind === 'processione') { const k = s + ':' + biomeAt(e.d / 10).lap; laps[k] = (laps[k] || 0) + 1; }
     }
     all.push(...a);
@@ -24,7 +24,7 @@ const genAll = (seed, m) => { const g = new Generator(seed), out = []; g.fillUnt
   ok('deterministico (flusso vrng)', same);
   ok('tutti e tre presenti', counts.panni > 0 && counts.tessitrice > 0 && counts.processione > 0, JSON.stringify(counts));
   ok('solo nel paese', inVillage);
-  ok('tessitrice sul marciapiede', side);
+  ok('tessitrice in mezzo alla via (corsia 1)', side);
   ok('processione rara: al massimo una per giro', Object.values(laps).every((n) => n === 1), `${counts.processione} su 40 seed x 6000 m`);
   ok('panni e processione non fermano (SOLID false)', SOLID.panni === false && SOLID.processione === false);
   // lo stesso seed senza la vita del paese ha la stessa strada fuori dal paese
@@ -42,15 +42,15 @@ const run = (sim, n, f) => { for (let i = 0; i < n; i++) { if (f) f(i); sim.tick
   run(sim, 200);
   ok('panni: in pieno = urto', sim.stats.hits === 1 && sim.events.some((e) => e[1] === 'h' && e[2] === FUEL.HIT_BEAM));
 }
-{ // tessitrice: nella corsia laterale lancia un tappeto
+{ // v5s45 (15): tessitrice schivata (corsia laterale): applauso e un tappeto
   const { sim, fx } = base(); sim.targetLane = 0; sim.lane = 0; sim.px = -WORLD.LANE_W;
-  const w = put(sim, { kind: 'tessitrice', lane: 0, side: -1, len: 16 }, 80); const c0 = sim.carpetTotal, s0 = sim.score;
+  const w = put(sim, { kind: 'tessitrice', lane: 1, side: 0, len: VILLAGE.WEAVER_LEN }, 80); const c0 = sim.carpetTotal, s0 = sim.score;
   run(sim, 200);
   ok('tessitrice: tappeto bonus (log vW)', w.thrown && sim.stats.weaverCarpets === 1 && sim.stats.carpets === 1 && sim.events.some((e) => e[1] === 'vW') && sim.score - s0 >= VILLAGE.WEAVER_PTS);
   ok('tessitrice: effetto e nessun urto', fx.some((x) => x[0] === 'weaverThrow') && sim.stats.hits === 0);
 }
-{ const { sim } = base(); const w = put(sim, { kind: 'tessitrice', lane: 2, side: 1, len: 16 }, 80); run(sim, 200);
-  ok('tessitrice: dalla corsia centrale niente tappeto', !w.thrown && w.done); }
+{ const { sim } = base(); sim.carpetTotal = 12; const w = put(sim, { kind: 'tessitrice', lane: 1, side: 0, len: VILLAGE.WEAVER_LEN }, 80); run(sim, 200);
+  ok('tessitrice: in pieno dalla corsia centrale niente tappeto, se ne perdono', !w.thrown && w.hit && sim.stats.carpetsLost === 3 && sim.carpetTotal === 9); }
 { // processione: urto = fuoco, non morte, niente frenata
   const { sim } = base(); const p = put(sim, { kind: 'processione', lane: 1, len: VILLAGE.PROC_LEN }, 60);
   let minF = 99; run(sim, 220, () => { if (!p.hit) sim.fuel = 5; else minF = Math.min(minF, sim.fuel + 0.5); if (p.hit && minF < 99) sim.fuel = Math.max(sim.fuel, 0.95); });
