@@ -176,7 +176,7 @@ function caduti(k, r, cx, cz, yaw = -0.72) {
   k.add(G.ico(0.16, 0), MS[0], { x: cx - 0.15, y: 2.35, z: cz + 0.2, flat: true });
   k.add(G.ico(0.12, 0), MS[1], { x: cx + 0.3, y: 2.7, z: cz - 0.15, flat: true });
   // stivali a y locale ~0: il fondo tocca la cima del masso
-  figurePair(k, cx + 0.1, 3.32, cz, 0);
+  figurePair(k, cx + 0.1, 2.95, cz, 0);
   italianFlag(k, cx + 0.15, cz + 1.7);
   // asta dei Quattro Mori (il telo e' una lastra dipinta, cadutiDecals): sull'altro lato, non davanti alla statua
   k.add(G.cyl(0.04, 0.055, 6.3, 6), '#e4e0d8', { x: cx - 0.2, y: 3.15, z: cz - 1.85 });
@@ -203,46 +203,51 @@ function caduti(k, r, cx, cz, yaw = -0.72) {
 
 function figurePair(k, ox, oy, oz, faceRy) {
   const c = Math.cos(faceRy), s = Math.sin(faceRy);
-  // patina chiara sul busto (si stacca dagli alberi); i verdi-grigi restano nel campione della QA
-  const BZ = '#8faf9c', BD = '#5d7a6c', BL = '#c4b48a', BH = '#3e564c';
-  const SC = 1.9; // ~1.4 volte il gruppo di prima
+  // un solo bronzo: scuro nelle pieghe, piu' chiaro sulle superfici. Niente pelle, niente tessuti.
+  const HI = '#8a9a84', MID = '#6a7d68', PAT = '#455e52', DARK = '#3a4c42';
+  const SC = 1.9;
   const P = (lx, ly, lz, geo, col, o = {}) => {
     k.add(geo, col, {
       x: ox + lx * SC * c + lz * SC * s, y: oy + ly * SC, z: oz - lx * SC * s + lz * SC * c,
       ry: (o.ry || 0) + faceRy, rx: o.rx, rz: o.rz,
       sx: (o.sx ?? 1) * SC, sy: (o.sy ?? 1) * SC, sz: (o.sz ?? 1) * SC,
-      vary: o.vary ?? 0.03, flat: o.flat
+      vary: 0.035,
     });
   };
-  // entrambi gli stivali a terra, sulla cima del masso
-  P(-0.04, 0.06, -0.06, G.box(0.28, 0.1, 0.36), BH);
-  P(-0.02, 0.5, -0.04, G.cyl(0.11, 0.13, 0.78, 8), BD);
-  P(0.02, 0.98, 0, G.box(0.38, 0.26, 0.34), BD);
-  P(0.28, 1.12, 0.08, G.cyl(0.12, 0.13, 0.46, 7), BZ, { rz: -1.15 }); // coscia alzata
-  P(0.46, 0.5, 0.1, G.cyl(0.1, 0.11, 0.72, 7), BD);                    // stinco giu' fino al masso
-  P(0.46, 0.06, 0.12, G.box(0.28, 0.1, 0.36), BH);                     // stivale avanti, stessa quota
-  P(0.06, 1.5, 0.02, G.box(0.46, 0.7, 0.36), BZ);                      // giubba chiara
-  P(0.1, 1.55, 0.16, G.box(0.16, 0.22, 0.08), BL);                     // spallina calda
-  P(0.1, 1.22, 0.1, G.box(0.5, 0.09, 0.38), BH);
-  P(0.28, 1.45, 0.24, G.cyl(0.08, 0.09, 0.42, 6), BZ, { rz: -0.85 });
-  P(0.24, 1.42, -0.22, G.cyl(0.08, 0.09, 0.4, 6), BD, { rz: -0.7 });
-  P(0.48, 1.22, 0.18, G.box(0.16, 0.1, 0.14), BL);
-  P(0.08, 1.95, 0.04, G.cyl(0.09, 0.1, 0.14, 6), BD);
-  P(0.1, 2.14, 0.08, G.sph(0.16, 10, 8), BL);                          // volto caldo
-  P(0.1, 2.28, 0.05, G.sph(0.18, 10, 8), BH, { sy: 0.68 });
-  P(0.12, 2.16, 0.08, G.cyl(0.3, 0.3, 0.045, 10), BH);
-  // compagno di traverso sul petto, piu' chiaro: testa e gambe che pendono
-  P(0.55, 1.42, 0.02, G.box(0.72, 0.32, 0.3), '#a8c4b0', { rz: 0.15 });
-  P(0.92, 1.28, 0.32, G.sph(0.15, 8, 6), BL);                          // testa china di lato
-  P(0.96, 1.38, 0.34, G.sph(0.16, 8, 6), BH, { sy: 0.6, rz: 0.7 });
-  P(0.78, 0.78, 0.36, G.cyl(0.065, 0.07, 0.78, 6), BD);                // braccio giu'
-  P(0.78, 0.36, 0.36, G.box(0.12, 0.08, 0.14), BL);
-  P(0.28, 0.85, 0.08, G.cyl(0.08, 0.085, 0.7, 6), BD, { rz: 0.15 });   // gambe sotto il busto
-  P(0.22, 0.42, 0.1, G.cyl(0.07, 0.075, 0.5, 6), BZ);
-  P(0.2, 0.14, 0.1, G.box(0.2, 0.08, 0.28), BH);
-  P(0.42, 0.82, -0.16, G.cyl(0.075, 0.08, 0.66, 6), BD, { rz: -0.2 });
-  P(0.5, 0.4, -0.18, G.cyl(0.065, 0.07, 0.48, 6), BZ);
-  P(0.54, 0.14, -0.16, G.box(0.18, 0.08, 0.26), BH);
+  // capsula lungo Y: total = parte cilindrica + due calotte
+  const limb = (r, total) => new THREE.CapsuleGeometry(r, Math.max(0.03, total - 2 * r), 2, 6);
+  const ball = (r) => new THREE.SphereGeometry(r, 10, 8);
+  // statura ~2.05 fino alla cima del capo (testa ~1/7.5), elmo Adrian sopra
+  // piedi a y=0: affondano nella cima del masso, non restano sospesi
+  P(-0.02, 0.05, -0.05, limb(0.08, 0.14), DARK, { sx: 1.2, sz: 1.7 });
+  P(-0.02, 0.46, -0.04, limb(0.09, 0.84), PAT);
+  P(0.02, 0.96, 0, ball(0.14), MID, { sy: 0.7, sx: 1.08 });
+  P(0.22, 1.05, 0.08, limb(0.09, 0.42), MID, { rz: -1.0 });
+  P(0.4, 0.46, 0.1, limb(0.08, 0.84), PAT);
+  P(0.42, 0.05, 0.12, limb(0.08, 0.14), DARK, { sx: 1.2, sz: 1.65 });
+  P(0.04, 1.4, 0.02, limb(0.15, 0.48), HI, { sx: 1.12, sz: 0.82 });                // torace
+  P(0.04, 1.66, 0, limb(0.07, 0.42), MID, { rz: Math.PI / 2 });                    // spalle
+  P(0.16, 1.48, 0.2, limb(0.06, 0.32), MID, { rz: -0.9 });                         // braccio che regge
+  P(0.34, 1.32, 0.14, limb(0.055, 0.3), PAT, { rz: -0.25 });
+  P(0.46, 1.22, 0.1, ball(0.055), HI);                                             // mano
+  P(0.12, 1.46, -0.2, limb(0.06, 0.3), MID, { rz: -0.75 });
+  P(0.3, 1.3, -0.12, limb(0.055, 0.28), PAT, { rz: -0.15 });
+  P(0.4, 1.2, -0.06, ball(0.05), HI);
+  P(0.06, 1.9, 0.04, ball(0.125), MID);                                            // testa (diametro ~1/8 della statura)
+  // elmo Adrian: cupola, cresta bassa, tesa stretta (non un fedora)
+  P(0.06, 2.0, 0.03, ball(0.145), DARK, { sy: 0.78 });
+  P(0.07, 2.1, 0.02, limb(0.018, 0.16), HI, { rx: Math.PI / 2, sy: 0.7 });         // cresta
+  P(0.08, 1.94, 0.04, new THREE.TorusGeometry(0.15, 0.016, 5, 12), DARK, { rx: Math.PI / 2 });
+  // compagno esanime di traverso: la testa cade all'indietro, un braccio pende, le gambe dall'altra parte
+  P(0.36, 1.36, 0.02, limb(0.11, 0.55), MID, { rx: Math.PI / 2 });                 // busto orizzontale
+  P(0.3, 1.18, 0.4, ball(0.1), HI);                                                // testa rovesciata
+  P(0.3, 1.26, 0.4, ball(0.11), DARK, { sy: 0.7 });                                // elmetto del compagno
+  P(0.42, 0.82, 0.32, limb(0.045, 0.62), PAT);                                     // braccio che pende
+  P(0.42, 0.48, 0.32, ball(0.04), MID);                                            // mano
+  P(0.32, 0.62, -0.26, limb(0.055, 0.7), PAT, { rz: 0.12 });                       // gambe che scendono sul masso
+  P(0.28, 0.22, -0.24, limb(0.045, 0.4), MID);
+  P(0.46, 0.58, -0.34, limb(0.05, 0.66), PAT, { rz: -0.18 });
+  P(0.5, 0.18, -0.34, limb(0.042, 0.36), MID);
 }
 
 // tricolore verticale, verde all'asta. Il telo va di lato (+z), non davanti al gruppo.
