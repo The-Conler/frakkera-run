@@ -42,8 +42,11 @@ void main() {
     float s2 = vn(vec2(u * W * 6.5 + 7.0 * L, v * 1.5 - uT * sp * 1.5));
     float n = s1 * 0.62 + s2 * 0.38;
     float eb = smoothstep(0.0, 0.32, edge - (1.0 - n) * 0.28);     // bordi sfrangiati, non una striscia
-    if (L < 0.5) { a = 0.34 + 0.4 * n; col = mix(vec3(0.42, 0.6, 0.64), vec3(0.86, 0.95, 0.97), n); }
-    else { a = smoothstep(0.36, 0.72, n) * 0.85 + 0.1; col = mix(vec3(0.6, 0.76, 0.8), vec3(0.98, 1.0, 1.0), smoothstep(0.42, 0.82, n)); }
+    // v5s46d (259): rivoli verticali, non un lenzuolo bianco continuo
+    float stream = smoothstep(0.28, 0.62, vn(vec2(floor(u * W * 1.7) * 0.73, 1.7)));
+    float rib = 0.45 + 0.55 * smoothstep(0.35, 0.7, vn(vec2(u * W * 4.0, 3.0)));
+    if (L < 0.5) { a = (0.22 + 0.34 * n) * rib; col = mix(vec3(0.28, 0.48, 0.52), vec3(0.72, 0.86, 0.88), n * stream); }
+    else { a = (smoothstep(0.42, 0.78, n) * 0.7 + 0.06) * stream; col = mix(vec3(0.45, 0.64, 0.68), vec3(0.9, 0.96, 0.97), smoothstep(0.55, 0.9, n) * stream); }
     float f = vInfo.y, fb = vn(vec2(u * W * 9.0, v * 3.2 - uT * 6.0));
     col = mix(col, vec3(1.0), f * 0.85); a = mix(a, 0.25 + 0.7 * fb, f * 0.75);
     a *= eb;

@@ -9,7 +9,7 @@ export const PAL = {
   roof: ['#c8643c', '#b9532f', '#d6774a', '#bf5d3a'],
   shutter: ['#3f7d5b', '#3d6f9e', '#7a4a2a', '#5b8f6b', '#2f6476', '#8c3b2f'],
   glass: '#2f3d5c', lit: '#ffd682', frame: '#f1e4c9',
-  door: ['#6e4426', '#5a3720', '#7c4e2b', '#3f5f7a'],
+  door: ['#6e4426', '#5a3720', '#7c4e2b', '#3f5f7a', '#2f6a4a', '#8a3030', '#3a4a6a', '#c45a32'],
   leaf: ['#4f9a3a', '#3f8233', '#64ae46', '#377a35', '#5aa040'],
   flower: ['#e8457f', '#ff86b0', '#c84bd6', '#ffffff', '#ff6a3d', '#ffd23f'],
   iron: '#2b2a33', pot: '#c06a3f',
@@ -115,6 +115,26 @@ export function buildHouse(seed) {
     const top = r.range(h * 0.45, h * 0.85);
     for (let y = 0.3; y < top; y += 0.45) k.add(G.ico(r.range(0.35, 0.6), 0), r.pick(PAL.leaf), { x: 0.22, y, z: z0 + Math.sin(y * 1.3) * 0.5 + r.range(-0.3, 0.3), flat: true, vary: 0.25 });
     if (r.chance(0.6)) for (let i = 0; i < 9; i++) k.add(G.ico(0.13), r.pick(['#d6338a', '#e04f9b', '#b42f7a']), { x: 0.45, y: r.range(1, top), z: z0 + r.range(-0.6, 0.6), flat: true });
+  }
+  // v5s46d (273, 274, 290, 291): la casa non e' un prefabbricato nudo
+  const doorZ = -sp * (doorSlot + 0.5);
+  k.add(G.torus(0.07, 0.018, 4, 8), r.pick(['#c8a24a', '#2a2a2a', '#8a3030']), { x: 0.18, y: 1.2, z: doorZ + (r.chance(0.5) ? 0.28 : -0.28) });
+  if (r.chance(0.4)) k.add(G.box(0.08, 2.05, 0.55), r.pick(PAL.door), { x: 0.02, y: 1.1, z: doorZ + 0.55, ry: r.range(0.25, 0.7) });
+  if (r.chance(0.28)) {
+    k.add(G.box(0.35, 0.12, 0.16), '#3a322c', { x: 0.2, y: 2.15, z: doorZ + 1.1 });
+    k.add(G.sph(0.1, 6, 5), r.pick(['#e8c8a0', '#3a3a3a', '#c45a32']), { x: 0.32, y: 2.32, z: doorZ + 1.1 });
+  }
+  if (r.chance(0.22)) {
+    k.add(G.box(0.16, 0.28, 0.16), '#c8a050', { x: 0.22, y: 2.4, z: -sp * 0.5 });
+    for (const o of [-0.05, 0.05]) k.add(G.box(0.015, 0.26, 0.015), '#2a2418', { x: 0.3, y: 2.45, z: -sp * 0.5 + o });
+  }
+  if (r.chance(0.35)) {
+    k.add(G.box(0.06, 1.3, 0.9), '#f4efe4', { x: 0.08, y: h * 0.45, z: -w * 0.72 });
+    k.add(G.box(0.04, 0.7, 0.55), r.pick(['#8a1e2a', '#1f4a32', '#2f4a7a', '#e0b030']), { x: 0.12, y: h * 0.48, z: -w * 0.72 });
+  }
+  if (r.chance(0.4)) {
+    for (let y = 0.4; y < h * 0.7; y += 0.35) k.add(G.ico(r.range(0.16, 0.28), 0), r.pick(PAL.leaf), { x: 0.2, y, z: -w * 0.3 + Math.sin(y) * 0.2, flat: true });
+    if (r.chance(0.5)) for (let i = 0; i < 4; i++) k.add(G.sph(0.06, 5, 4), r.pick(['#c8283a', '#6a8a32', '#e0a030']), { x: 0.28, y: 0.8 + i * 0.35, z: -w * 0.3 });
   }
   return { geom: k.build({ ao: 0.32 }), w, h, lamps };
 }
@@ -254,18 +274,37 @@ function stalkBundle(k, r, cols, n, rad, len, tip) {
 }
 export function buildAsphodel() {
   const r = rng(77); const k = new Kit(77);
-  stalkBundle(k, r, ['#c9b27a', '#b89c62', '#d9c690', '#a99060'], 9, 0.2, 1.7, (x, y, z) => {
-    for (let j = 0; j < 3; j++) k.add(G.ico(0.1), j ? '#fbf6ee' : '#f2c6d2', { x: x + r.range(-0.1, 0.1), y: y - 0.05 - j * 0.16, z: z + r.range(-0.1, 0.1), flat: true });
+  // rosetta di foglie a nastro a terra, poi lo scapo con i fiori bianchi aperti dal basso
+  for (let i = 0; i < 7; i++) {
+    const a = (i / 7) * Math.PI * 2;
+    k.add(G.box(0.08, 0.02, 0.55), r.pick(['#6a8a3a', '#7a9a48', '#5a7a32']), { x: Math.cos(a) * 0.22, y: 0.06, z: Math.sin(a) * 0.22, rx: 0.7, ry: -a });
+  }
+  stalkBundle(k, r, ['#c9b27a', '#b89c62', '#d9c690', '#a99060'], 5, 0.08, 1.55, (x, y, z) => {
+    for (let j = 0; j < 5; j++) {
+      const open = j > 1;
+      k.add(G.box(0.05, open ? 0.16 : 0.1, 0.02), open ? '#fbf6ee' : '#f2c6d2', { x, y: y - 0.04 - j * 0.14, z, rx: open ? 0.9 : 0.2 });
+      if (open) k.add(G.box(0.05, 0.16, 0.02), '#f7f1e4', { x, y: y - 0.04 - j * 0.14, z, rx: -0.9, rz: 1.2 });
+    }
   });
-  for (const y of [0.45, 1.0]) k.add(G.torus(0.24, 0.05, 5, 12), '#8a3a26', { y, rx: Math.PI / 2 });
+  k.add(G.torus(0.22, 0.035, 5, 10), '#6a3a22', { y: 0.35, rx: Math.PI / 2 });
   return k.build();
 }
 export function buildFerula() {
   const r = rng(91); const k = new Kit(91);
-  stalkBundle(k, r, ['#a3b864', '#87a04a', '#b9c97a'], 7, 0.24, 1.9, (x, y, z) => {
-    for (let j = 0; j < 4; j++) k.add(G.sph(0.09, 5, 4), j % 2 ? '#f5d53a' : '#e8b92a', { x: x + r.range(-0.14, 0.14), y: y + r.range(0, 0.12), z: z + r.range(-0.14, 0.14) });
+  // foglie finemente divise (felce alta) e ombrella gialla di ferula
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    k.add(G.box(0.5, 0.015, 0.08), '#6a8a38', { x: Math.cos(a) * 0.2, y: 0.35, z: Math.sin(a) * 0.2, ry: a, rz: 0.5 });
+    k.add(G.box(0.28, 0.012, 0.05), '#7a9a44', { x: Math.cos(a) * 0.28, y: 0.55, z: Math.sin(a) * 0.28, ry: a + 0.4, rz: -0.6 });
+  }
+  stalkBundle(k, r, ['#8aa05a', '#6e8a40', '#9aaa62'], 3, 0.06, 1.7, (x, y, z) => {
+    for (let j = 0; j < 8; j++) {
+      const a = (j / 8) * Math.PI * 2;
+      k.add(G.box(0.22, 0.012, 0.012), '#c6a040', { x: x + Math.cos(a) * 0.12, y: y + 0.02, z: z + Math.sin(a) * 0.12, ry: a, rz: 0.4 });
+      k.add(G.sph(0.035, 5, 4), j % 2 ? '#f5d53a' : '#e8b92a', { x: x + Math.cos(a) * 0.22, y: y + 0.06, z: z + Math.sin(a) * 0.22 });
+    }
   });
-  for (const y of [0.5, 1.15]) k.add(G.torus(0.27, 0.05, 5, 12), '#8a3a26', { y, rx: Math.PI / 2 });
+  k.add(G.torus(0.2, 0.03, 4, 10), '#5a3a22', { y: 0.4, rx: Math.PI / 2 });
   return k.build();
 }
 

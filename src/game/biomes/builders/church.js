@@ -121,11 +121,14 @@ export function buildBellTower(k, r, T = TOWER) {
     // targa bianca sotto la cella
     k.add(G.box(f.nx ? 0.08 : 0.9, 0.5, f.nz ? 0.08 : 0.9), '#e9e4da', { x: fx, y: belfry.y0 - 1.05, z: fz });
   }
-  // vano interno scuro e campana
+  // vano interno scuro e due campane visibili nelle aperture (v5s46d 275: solo la vista, il suono e' un altro lavoro)
   k.add(G.box(W - 0.5, belfry.y1 - belfry.y0 + 0.6, W - 0.5), C.dark, { x, y: by + 0.2, z });
   const bell = new THREE.LatheGeometry([[0.05, 0.9], [0.22, 0.85], [0.3, 0.6], [0.34, 0.25], [0.46, 0.02], [0.47, 0]].map(([a, b]) => new THREE.Vector2(a, b)), 12);
-  k.add(bell, C.bronze, { x, y: by - 0.75, z, vary: 0.05 });
-  k.add(G.box(0.12, 0.5, 0.12), '#2a2a2a', { x, y: by + 0.45, z });
+  for (const [bx, bz] of [[0, h2 * 0.32], [h2 * 0.32, 0]]) {
+    k.add(bell.clone(), C.bronze, { x: x + bx, y: by - 0.62, z: z + bz, vary: 0.05 });
+    k.add(G.box(0.045, 0.42, 0.045), '#2a2a2a', { x: x + bx, y: by + 0.05, z: z + bz });
+    k.add(G.sph(0.07, 6, 5), '#1c1c1c', { x: x + bx, y: by - 1.12, z: z + bz });
+  }
   // cornice aggettante rosa (sotto la cella dell'orologio)
   k.add(G.box(W + 0.55, 0.42, W + 0.55), C.pink, { x, y: 16.0, z });
   k.add(G.box(W + 0.3, 0.2, W + 0.3), C.pinkD, { x, y: 15.7, z });
@@ -138,11 +141,7 @@ export function buildBellTower(k, r, T = TOWER) {
     k.add(G.cyl(0.98, 0.98, 0.1, 24), C.pink, { x: fx, y: cy, z: fz, ...rot });
     k.add(G.cyl(0.82, 0.82, 0.14, 24), '#f4f1ea', { x: fx + f.nx * 0.03, y: cy, z: fz + f.nz * 0.03, ...rot });
     for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; const along = f.nz ? [Math.cos(a), 0] : [0, -Math.cos(a)]; k.add(G.box(f.nx ? 0.05 : 0.08, 0.08, f.nz ? 0.05 : 0.08), '#2a2a30', { x: fx + f.nx * 0.1 + along[0] * 0.68, y: cy + Math.sin(a) * 0.68, z: fz + f.nz * 0.1 + along[1] * 0.68 }); }
-    // lancette (circa le 10 e 10)
-    for (const [len, a] of [[0.5, 2.2], [0.68, 0.95]]) {
-      const dx = Math.cos(a) * len / 2, dy = Math.sin(a) * len / 2;
-      k.add(G.box(f.nx ? 0.04 : len, 0.06, f.nz ? 0.04 : len), '#1e1e24', { x: fx + f.nx * 0.12 + (f.nz ? dx : 0), y: cy + dy, z: fz + f.nz * 0.12 + (f.nx ? -dx : 0), rz: f.nz ? a : 0, rx: f.nx ? a : 0 });
-    }
+    // lancette: mesh a parte (vistaClockFaces), cosi' si muovono
   }
   // cornice di coronamento rosa
   k.add(G.box(W + 0.3, 0.22, W + 0.3), C.pinkD, { x, y: H - 0.35, z });
@@ -363,6 +362,13 @@ export function buildChurchSquare(seed = 1) {
 // suo fianco DESTRO. L'insieme e' piu' indietro sulla via (AT_M 58) cosi' si vede da
 // lontano all'inizio della corsa, da punto di riferimento e non addosso al corridore.
 export const VISTA = { S: 1.05, AT_M: 58, EDGE: -6.9, RY: 0.42, CS: 0.58, X: 0 };
+// Quadranti dell'orologio nello spazio locale della vista (dopo scala e rotazione del campanile).
+export function vistaClockFaces() {
+  const S = VISTA.S, h2 = TOWER.W / 2, cy = 18.7 * S, face = (h2 + 0.2) * S;
+  const ry = VISTA.RY, c = Math.cos(ry), s = Math.sin(ry);
+  const raw = [{ x: 0, y: cy, z: face, nx: 0, nz: 1 }, { x: face, y: cy, z: 0, nx: 1, nz: 0 }];
+  return raw.map((f) => ({ x: f.x * c + f.z * s, y: f.y, z: -f.x * s + f.z * c, nx: f.nx * c + f.nz * s, nz: -f.nx * s + f.nz * c }));
+}
 export function buildVista(seed = 1) {
   const r = rng(seed * 131 + 7);
   const kt = new Kit(seed + 501);

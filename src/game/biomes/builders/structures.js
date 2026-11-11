@@ -155,6 +155,7 @@ export function tunnelProps(W0, len, type, lamps, o = {}) {
       const s = r.chance(0.5) ? 1 : -1;
       if (r.chance(0.45)) { const n = 1 + r.int(2); for (let q = 0; q < n; q++) { k.add(G.cyl(0.42, 0.42, 1.05, 10), r.pick(['#6b4426', '#5a3820', '#7a5030']), { x: s * (5.1 + q * 0.2), y: 0.53, z: z - q * 0.95, vary: 0.12 }); k.shadow(s * (5.1 + q * 0.2), z - q * 0.95, 0.7); } }
       else { const rr = r.range(0.4, 0.8); k.add(G.ico(rr, 0), r.pick(['#14205e', '#1c2f86', '#0f1748']), { x: s * r.range(4.9, 5.6), y: 0.25, z, sy: 0.7, flat: true, vary: 0.2 }); }
+      if (r.chance(0.55)) { const cx = s * r.range(5.0, 5.7); k.add(G.cone(0.08, 0.28, 4), '#9eb6ff', { x: cx, y: 1.3 + r.range(0, 0.6), z, rx: r.range(-0.4, 0.4), unlit: true }); k.add(G.cone(0.06, 0.2, 4), '#d6e2ff', { x: cx + 0.12, y: 1.5, z: z + 0.1, unlit: true }); }   // v5s46d (297)
     }
   }
   if (o.frames) for (let z = -r.range(2, 5); z > -len; z -= o.frames) {   // centine di legno
@@ -282,6 +283,10 @@ export function buildMineCartDecor() {
   k.add(G.box(1.4, 0.15, 2.1), dark, { y: 1.72 });
   for (const [x, z] of [[-0.75, 0.75], [0.75, 0.75], [-0.75, -0.75], [0.75, -0.75]]) k.add(G.cyl(0.35, 0.35, 0.16, 12), dark, { x, y: 0.4, z, rz: Math.PI / 2 });
   k.add(G.box(1.2, 0.5, 0.2), rust2, { y: 0.7, z: 1.25 });
+  for (let i = 0; i < 6; i++) k.add(G.ico(0.16 + (i % 3) * 0.04, 0), '#2a2a2a', { x: (i % 3) * 0.28 - 0.28, y: 1.95, z: (i > 2 ? 0.3 : -0.2), flat: true });
+  k.add(G.box(0.06, 0.28, 0.4), '#f4e27a', { x: 0.9, y: 1.5, z: 0.2 });
+  k.add(G.box(0.04, 0.16, 0.06), '#2a2418', { x: 0.94, y: 1.5, z: 0.1 });
+  k.add(G.cyl(0.03, 0.03, 0.7, 5), '#6a4a28', { x: -0.7, y: 1.3, z: 0.9, rz: 0.7 });
   k.shadow(0, 0, 1.25, 1.7);   // v5s46c (41): ombra sotto il carrello
   return k.build();
 }

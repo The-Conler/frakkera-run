@@ -105,13 +105,15 @@ export function gravelTexture({ floor = false, blue = false } = {}) {
   stones(ctx, S, r, 120, cols, 2, 5, 'rgba(20,20,20,0.35)');
   // traversine sotto i binari (corsia centrale e destra), passo 1 m
   ctx.globalAlpha = blue ? 0.8 : 0.9;
-  for (const u of [0.5, 0.809]) for (let y = 0; y < S; y += S / 11) {
-    ctx.fillStyle = 'rgba(20,15,10,0.5)'; ctx.fillRect(S * u - 30, y + 3, 62, 16);
-    ctx.fillStyle = r.pick(blue ? ['#4a3a2c', '#3f3226'] : ['#6b5136', '#5e4630', '#77593a']); ctx.fillRect(S * u - 31, y, 62, 14);
+  for (const u of [0.5, 0.809]) for (let i = 0, y = 0; y < S; i++, y += S / 11) {
+    const j = ((i * 17 + Math.floor(u * 10)) % 5) - 2;   // v5s46d (296): traversine non a passo perfetto
+    const yy = y + j * 3, hh = 12 + (i % 3);
+    ctx.fillStyle = 'rgba(20,15,10,0.5)'; ctx.fillRect(S * u - 30, yy + 3, 62, hh + 2);
+    ctx.fillStyle = r.pick(blue ? ['#4a3a2c', '#3f3226'] : ['#6b5136', '#5e4630', '#77593a']); ctx.fillRect(S * u - 31, yy, 62, hh);
   }
   ctx.globalAlpha = 1;
-  if (floor || blue) { // v5s34: chiazze di polvere asciutta (prima pozze bagnate: in miniera non c'e' acqua)
-    for (let i = 0; i < 10; i++) { ctx.fillStyle = blue ? 'rgba(70,62,58,0.22)' : 'rgba(96,86,74,0.25)'; const x = r() * S, y = r() * S; wrapDraw(S, x, y, (X, Y) => blob(ctx, X, Y, r.range(20, 60), r.range(10, 26), r() * 3)); }
+  if (floor || blue) {
+    for (let i = 0; i < 8; i++) { ctx.fillStyle = blue ? 'rgba(40,48,70,0.28)' : 'rgba(28,26,24,0.35)'; const x = r() * S, y = r() * S; wrapDraw(S, x, y, (X, Y) => blob(ctx, X, Y, r.range(18, 50), r.range(8, 18), r() * 3)); }
   }
   if (blue) { speckle(ctx, S, r, 400, ['#6f8cff', '#9db0ff', '#c59a52'], 1, 3, 0.7); }
   return tex(c);

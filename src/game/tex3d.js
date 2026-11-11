@@ -18,36 +18,33 @@ function rr(ctx, x, y, w, h, r) {
 
 // acciottolato chiaro con due "guide" di lastre tra le corsie
 export function cobbleTexture() {
+  // v5s46d (253): ciottoli sparsi, non una griglia di file uguali che si legge da lontano
   const S = 512;
   const [c, ctx] = cv(S, S);
   const r = rng(11);
-  ctx.fillStyle = '#857b70'; ctx.fillRect(0, 0, S, S);
-  const cols = ['#cfc7bb', '#c3bbaf', '#d8d1c5', '#b9b0a4', '#cdbfa9', '#c6b49c', '#d2cabd'];
-  const rows = 22, rh = S / rows;
-  for (let j = 0; j < rows; j++) {
-    let x = (j % 2) * -12 - r() * 8;
-    while (x < S) {
-      const w = r.range(20, 34);
-      const y = j * rh;
-      const col = r.pick(cols);
-      for (const ox of [0, S]) { // tile orizzontale continuo
-        const X = x - ox + (x < 0 ? S : 0);
-        ctx.fillStyle = 'rgba(60,50,40,0.35)'; rr(ctx, X + 2, y + 3, w - 2, rh - 2, 8); ctx.fill();
-        ctx.fillStyle = col; rr(ctx, X + 1, y + 1, w - 3, rh - 3, 8); ctx.fill();
-        ctx.fillStyle = 'rgba(255,255,255,0.22)'; rr(ctx, X + 4, y + 3, w - 10, rh * 0.35, 5); ctx.fill();
-      }
-      x += w;
-    }
+  ctx.fillStyle = '#6e655c'; ctx.fillRect(0, 0, S, S);
+  const cols = ['#cfc7bb', '#c3bbaf', '#d8d1c5', '#b9b0a4', '#cdbfa9', '#c6b49c', '#d2cabd', '#b7aa98', '#ddd4c6'];
+  const stones = [];
+  for (let i = 0; i < 420; i++) stones.push([r() * S, r() * S, r.range(16, 38), r.range(12, 28), r() * 0.6]);
+  const drawOne = (x, y, w, h, rot, col) => {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
+    ctx.fillStyle = 'rgba(48,40,32,0.45)'; rr(ctx, -w / 2 + 1.5, -h / 2 + 2, w, h, 7); ctx.fill();
+    ctx.fillStyle = col; rr(ctx, -w / 2, -h / 2, w - 1, h - 1, 7); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.16)'; rr(ctx, -w * 0.32, -h * 0.38, w * 0.4, h * 0.28, 4); ctx.fill();
+    ctx.restore();
+  };
+  for (const [x, y, w, h, rot] of stones) {
+    const col = r.pick(cols);
+    for (const ox of [-S, 0, S]) for (const oy of [-S, 0, S]) drawOne(x + ox, y + oy, w, h, rot, col);
   }
-  // lastre tra le corsie (aiutano a leggere le 3 corsie)
+  // guida di corsia appena piu' chiara, spezzata, non una riga continua
   for (const u of [S / 3, (2 * S) / 3]) {
-    for (let y = 0; y < S; y += 32) {
-      ctx.fillStyle = 'rgba(60,50,40,0.35)'; rr(ctx, u - 9, y + 2, 20, 30, 4); ctx.fill();
-      ctx.fillStyle = r.pick(['#ddd4c6', '#e2dacd', '#d6ccbc']); rr(ctx, u - 10, y + 1, 20, 29, 4); ctx.fill();
+    for (let y = r() * 18; y < S; y += r.range(36, 58)) {
+      const h = r.range(16, 26);
+      ctx.fillStyle = r.pick(['#ddd4c6', '#e2dacd', '#d0c6b6']);
+      rr(ctx, u - 8 + r.range(-3, 3), y, 16, h, 4); ctx.fill();
     }
   }
-  // bordi (canaletta)
-  ctx.fillStyle = 'rgba(70,60,50,0.45)'; ctx.fillRect(0, 0, 8, S); ctx.fillRect(S - 8, 0, 8, S);
   return tex(c, { repeat: true, aniso: 8 });
 }
 

@@ -388,11 +388,17 @@ export class Sim {
       this.fx('sound', 'speedUp');
     }
     // v5s7: offerta del Garag di Pinu a ogni ritorno al paese (giro >= 1)
-    if (this.shopOffer > 0) { this.shopOffer = Math.max(0, this.shopOffer - dt); if (this.shopOffer === 0) { this.log('Q', 0); this.fx('shopOfferEnd'); } }
+    // v5s46d (251): solo davanti alla bottega, all'inizio del paese. Si chiude superata la facciata,
+    // cosi' il banner non resta al centro dello schermo fino a Santa Marta (giro 2, ~177 m).
+    if (this.shopOffer > 0) {
+      this.shopOffer = Math.max(0, this.shopOffer - dt);
+      const here = biomeAt(rd / PX_PER_METER + this.mapOffsetM);
+      if (here.b.id !== 'village' || here.lap !== this.shopLap || here.local > SHOP.OFFER_UNTIL_M) this.shopOffer = 0;
+      if (this.shopOffer === 0) { this.log('Q', 0); this.fx('shopOfferEnd'); }
+    }
     { const bi = biomeAt(rd / PX_PER_METER + this.mapOffsetM);
-      const cicWait = bi.lap === CICCIO.LAP && !(this.cicLap === bi.lap && (!this.cic || this.cic.passed));   // v5s45: nel giro di Ciccio l'offerta arriva dopo il camion
-      if (bi.b.id === 'village' && bi.lap >= 1 && bi.lap > this.shopLap && bi.local >= SHOP.OFFER_AT_M && !cicWait && !this.danceCue) {
-        this.shopLap = bi.lap; this.shopOffer = SHOP.OFFER_S; this.log('O', bi.lap); this.fx('shopOffer', { lap: bi.lap, s: SHOP.OFFER_S });
+      if (bi.b.id === 'village' && bi.lap >= 1 && bi.lap > this.shopLap && bi.local >= SHOP.OFFER_AT_M && bi.local <= SHOP.OFFER_UNTIL_M && !this.danceCue) {
+        this.shopLap = bi.lap; this.shopOffer = SHOP.OFFER_S; this.log('O', bi.lap); this.fx('shopOffer', { lap: bi.lap, s: SHOP.OFFER_S, at: SHOP.AT_M });
       } }
     // v5s11: ballu tundu una volta per giro nella piazza della chiesa (launeddas e coro qualche secondo prima)
     { const bi = biomeAt(rd / PX_PER_METER + this.mapOffsetM);

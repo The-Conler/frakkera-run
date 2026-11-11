@@ -284,8 +284,13 @@ export const DANCE = {
 // registrata nel log), gli acquisti passano dalla sim e dal log (convalida futura sul server).
 export const SHOP = {
   NAME: 'Garag di Pinu',
-  OFFER_AT_M: 90,          // v5s45 (19): dopo il ballu tundu (prima 6 m: si sovrapponeva al cue del ballo); nel giro di Ciccio dopo il camion
-  OFFER_S: 5,              // secondi (di corsa) per decidere
+  // v5s46d (251): il negozio sta all'INIZIO del paese, sul marciapiede destro, prima di Su Nascimentu,
+  // del ballu tundu e di Ciccio. La scritta resta solo mentre gli si passa davanti (non viaggia fino a Santa Marta).
+  OFFER_AT_M: 8,
+  OFFER_UNTIL_M: 24,
+  FACADE_FROM: 8, FACADE_TO: 20,   // buco delle case di destra: ci sta la facciata del Garag
+  AT_M: 14,                        // centro della facciata (metri locali del paese)
+  OFFER_S: 5,              // tetto di tempo, ma si chiude anche superato il negozio
   MAX_PER_VISIT: 3,        // acquisti al massimo per visita
   AMMO_CAP: 9,
   ITEMS: [

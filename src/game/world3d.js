@@ -5,7 +5,7 @@
 // =====================================================================
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { WORLD, BIOME_OBST, FIRE, MINE, FESTA, WEATHER, ANIMALS, LANE_FEEL, CAM_SPEED, RUN_SHADOW, FUEL } from '../config.js';
+import { WORLD, BIOME_OBST, FIRE, MINE, FESTA, WEATHER, ANIMALS, LANE_FEEL, CAM_SPEED, RUN_SHADOW, FUEL, SHOP, PX_PER_METER } from '../config.js';
 const LOW_FUEL_F = FUEL.LOW_WARNING / FUEL.MAX;   // v5s46 (165)
 const FADE_IN_M = 16, FADE_OP = [0, 0.18, 0.45, 0.75, 1];   // v5s46 (169): metri di dissolvenza d'ingresso, opacita' per gradino
 import { laneX, isMoving, ROAD_HALF, VIEW_AHEAD } from './sim.js';
@@ -36,13 +36,52 @@ import { sheepGeom, pigGeom, dogGeom, shepherdGeom } from './animals3d.js';
 import { Env } from './biomes/env.js';
 import { buildShopRoom } from './shop3d.js';
 import { loadPinuGeometry } from './shop/pinu.js';
-import { MENU_MOOD, OVER_TINT, CYCLE } from './biomes/config.js';
-import { buildVista, VISTA } from './biomes/builders/church.js';
+import { MENU_MOOD, OVER_TINT, CYCLE, biomeAt } from './biomes/config.js';
+import { buildVista, VISTA, vistaClockFaces } from './biomes/builders/church.js';
+import { starOpacity, clockHandAngles } from './polish46d.js';
 import { buildNascimentu } from './nascimentu3d.js';
 import { ciccioGeom } from './ciccio3d.js';
 import { SKINS, SHARDS, outcropGeometry } from './biomes/builders/skins.js';
 
 const FLAME_FIT = 0.7;   // v5s42: la fiamma (alta ~3.4 m) era sproporzionata e sembrava staccata dalla frakkera
+function carpetSheet(w, h) {
+  const g = new THREE.PlaneGeometry(w, h, 8, 6);
+  const p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const x = Math.abs(p.getX(i)) / (w / 2), y = Math.abs(p.getY(i)) / (h / 2);
+    const curl = Math.pow(Math.max(x, y), 5) * 0.11;
+    p.setZ(i, curl);
+  }
+  g.computeVertexNormals();
+  g.rotateZ(Math.PI / 2);
+  return g;
+}
+function carpetFringe(len) {
+  const kN = 14, g = new THREE.PlaneGeometry(len, 0.16, kN, 1);
+  const p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) if (p.getY(i) < 0) p.setY(i, p.getY(i) - 0.05 * (i % 3));
+  g.rotateZ(Math.PI / 2);
+  return g;
+}
+function buildClockRig() {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshBasicMaterial({ color: '#1c1c22' });
+  const hourG = new THREE.BoxGeometry(0.07, 0.42, 0.025); hourG.translate(0, 0.2, 0);
+  const minG = new THREE.BoxGeometry(0.045, 0.62, 0.02); minG.translate(0, 0.3, 0);
+  g.userData.hands = [];
+  for (const f of vistaClockFaces()) {
+    const face = new THREE.Group();
+    face.position.set(f.x, f.y, f.z);
+    const n = new THREE.Vector3(f.nx, 0, f.nz);
+    if (n.lengthSq() > 1e-6) face.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), n.normalize());
+    const hour = new THREE.Mesh(hourG, mat), minute = new THREE.Mesh(minG, mat);
+    minute.position.z = 0.02;
+    face.add(hour, minute);
+    g.add(face);
+    g.userData.hands.push({ hour, minute });
+  }
+  return g;
+}
 const RESET_POSE = { goat: 1, caprarupe: 1, pecora: 1, maialetto: 1, trave: 1, ramo: 1, bottecoricata: 1, rollbarrel: 1, sasso: 1, botte: 1, botti: 1, muretto: 1 };   // v5s40
 const U = 0.1;                    // 1 px del mondo 2D = 0.1 unita' 3D (1 m = 1 unita')
 const ROAD_W = 11.0;
@@ -53,10 +92,10 @@ const CARPET_Y = 0.05;              // v5s29d: tappeto steso sulla strada (sopra
 // v5s27p: crinali lontani
 const RIDGE_VS = `attribute vec2 aK; varying vec2 vK; void main(){ vK = aK; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
 const RIDGE_FS = `uniform vec3 uTop; uniform vec3 uMid; uniform vec3 uHor; uniform vec3 uFog; varying vec2 vK;
-void main(){ vec3 rock = mix(uMid, uTop, 0.35) * 0.72 + uFog * 0.08;            // crinale vicino: piu' scuro e saturo
-  float layer = vK.x;                                                                   // 0 lontano .. 1 vicino
-  vec3 c = mix(mix(uHor, uFog, 0.4), rock, 0.4 + 0.45 * layer);
-  c = mix(c, uHor, (1.0 - vK.y) * 0.45 * (1.0 - 0.5 * layer));                          // foschia alla base
+void main(){ vec3 rock = mix(uMid, uTop, 0.35) * 0.55;            // v5s46d (255): crinale scuro, non una sagoma slavata nella foschia
+  float layer = vK.x;
+  vec3 c = mix(mix(uHor, uFog, 0.22) * 0.72, rock, 0.55 + 0.4 * layer);
+  c = mix(c, uHor * 0.75, (1.0 - vK.y) * 0.28 * (1.0 - 0.5 * layer));
   gl_FragColor = vec4(c, 1.0); }`;
 function buildRidges() {
   const pos = [], k = [];
@@ -201,7 +240,8 @@ export class World {
     this.geo.asfodelo = M.buildAsphodel();
     this.geo.ferula = M.buildFerula();
     this.geo.pistol = M.buildPistol();
-    this.geo.carpet = new THREE.PlaneGeometry(2.7, 2.7 / T3.CARPET_ASPECT).rotateZ(Math.PI / 2);   // proporzioni del tappeto vero
+    this.geo.carpet = carpetSheet(2.7, 2.7 / T3.CARPET_ASPECT);   // v5s46d (282): angoli che si arricciano
+    this.geo.fringe = carpetFringe(2.7 / T3.CARPET_ASPECT);
     this.geo.chock = new THREE.BoxGeometry(0.3, 0.3, 0.9);
     this.geo.ring = new THREE.TorusGeometry(0.95, 0.06, 6, 28);
     this.geo.shot = new THREE.SphereGeometry(0.16, 8, 6);
@@ -275,6 +315,7 @@ export class World {
     this.scene.add(this.far);
     // v5s12: campanile + chiesa rosa centrati in fondo alla via del paese (segue la camera come il fondale)
     this.vista = new THREE.Mesh(buildVista(1), this.mats2); this.scene.add(this.vista);
+    this.clockRig = buildClockRig(); this.vista.add(this.clockRig);
     if (!/[?&]xmas=0/.test(typeof location !== 'undefined' ? location.search : '')) {
       const tree = buildBurraTree();
       tree.frustumCulled = false;
@@ -468,6 +509,8 @@ export class World {
       v.body = new THREE.Group();
       v.poses = mg.poses.map((g) => { const m = new THREE.Mesh(g, this.minerMats); v.body.add(m); return m; });
       v.arm = new THREE.Group(); v.arm.position.set(0.36, 1.68, 0); v.arm.add(new THREE.Mesh(mg.wave, this.minerMats)); v.body.add(v.arm);
+      v.pick = new THREE.Group(); v.pick.position.set(0.32, 1.72, 0.08); v.pick.add(new THREE.Mesh(mg.pick, this.minerMats)); v.body.add(v.pick);
+      v.handCart = new THREE.Mesh(mg.cart, this.minerMats); v.handCart.position.set(0.15, 0, 0.85); v.body.add(v.handCart);
       v.glow = this.glowSprite('#fff0c0', 1.1, 0.75); v.glow.position.set(HEADLAMP.x, HEADLAMP.y, HEADLAMP.z + 0.05); v.body.add(v.glow);
       v.halo = this.glowSprite('#ffb060', 4.2, 0.28); v.halo.position.set(0, 1.3, 0.4); v.body.add(v.halo);
       v.shadow = this.blob(1.2, 1.0);
@@ -537,6 +580,8 @@ export class World {
       v.body = new THREE.Mesh(this.geo[key] || (this.geo[key] = branchGeom(0)), this.mats2); v.shadow = this.blob(12.8, 1.3);
     } else if (kind === 'tappeto') {
       v.body = new THREE.Mesh(this.geo.carpet, this.mat.carpet[(e.variant || 0) % 4]);
+      if (!this.mat.fringe) this.mat.fringe = new THREE.MeshLambertMaterial({ color: '#efe6d4' });
+      for (const s of [-1, 1]) { const f = new THREE.Mesh(this.geo.fringe, this.mat.fringe); f.position.y = s * 1.15; v.body.add(f); }
       v.glow = this.glowSprite('#ff7a5a', 2.6, 0.32);
       v.shadow = this.blob(2.3, 3.0);   // v5s29d: ombra di contatto sotto il tappeto steso
     } else if (kind === 'pistola') {
@@ -758,7 +803,7 @@ export class World {
         continue;
       }
       if (e.kind === 'bancarella' || e.kind === 'festone') { if (v.shadow) v.shadow.visible = true; continue; }
-      if (e.kind === 'panni') { if (v.shadow) v.shadow.visible = true; v.body.rotation.x = Math.sin(t * 1.7 + e.d) * 0.025; continue; }
+      if (e.kind === 'panni') { if (v.shadow) v.shadow.visible = true; v.body.rotation.x = Math.sin(t * 1.6 + e.d) * 0.05; v.body.rotation.z = Math.sin(t * 0.85 + e.d * 0.2) * 0.035; continue; }   // v5s46d (272): i panni ondeggiano; l'urto resta quello della trave
       if (e.kind === 'ciccio') {
         if (v.shadow) v.shadow.visible = true;
         // striscia rossa sulla corsia davanti al camion (fino al giocatore) finche' non e' passato
@@ -804,6 +849,8 @@ export class World {
         v.body.scale.y = 1.5 * (1 + Math.sin(t * 2.1 + e.id) * 0.012);
         v.glow.material.opacity = 0.6 + Math.sin(t * 13 + e.id) * 0.08;
         if (e.variant === 3) { if (e.seen) v.waveT += dt; v.arm.rotation.z = e.seen ? -0.5 + Math.sin(v.waveT * 9) * 0.4 : Math.PI + 0.12; }
+        if (v.pick) { v.pick.visible = (e.variant || 0) === 0; v.pick.rotation.z = -0.35 + Math.sin(t * 3.1 + e.id) * 0.95; }   // v5s46d (294): piccone
+        if (v.handCart) { v.handCart.visible = e.variant === 1; v.handCart.position.z = 0.55 + Math.sin(t * 1.3 + e.id) * 0.28; if (e.variant === 1) v.body.position.z = Math.sin(t * 1.3 + e.id) * 0.12; }
         if (v.shadow) v.shadow.visible = true;
       } else if (e.kind === 'lampada') {
         if (e.lit && v.litT < 0) v.litT = 0;
@@ -987,14 +1034,14 @@ export class World {
           const c = COL.carpet[i % COL.carpet.length];
           (i % 2 ? this.add : this.norm).emit(p.x, 0.7, p.z, (Math.random() - 0.5) * 6, Math.random() * 5 + 2, (Math.random() - 0.5) * 6, 0.7, 0.35, 0.1, c, 1, 7, 1.5);
         }
-        this.popWorld(`+${d.pts}`, p.x, 1.8, p.z, 'carpet');
+        this.popWorld(`+${d.pts}`, p.x, 3.5, p.z, 'carpet');   // v5s46d (264): sopra i tappeti, non a terra
         break;
       }
       case 'fuel': {
         const p = this.views.get(d.e.id)?.root.position || _v.set(sim.px * U, 0, pz);
         this.burst(p.x, 1.0, p.z, d.e.kind === 'ferula' ? COL.green : COL.white, 24, 5);
         this.burst(p.x, 1.0, p.z, COL.spark, 14, 3);
-        this.popWorld(`+${d.pts}`, p.x, 2.2, p.z, 'fuel');
+        this.popWorld(`+${d.pts}`, p.x, 3.3, p.z, 'fuel');
         break;
       }
       case 'fireBonus': {         // v5s16: scintille dalla frakkera accesa alla tua, la fiamma cresce
@@ -1174,9 +1221,10 @@ export class World {
       const lg = lum(this.hemi.groundColor), gnd = 0.16 * out + 0.22 * tun;
       if (lg < gnd) this.hemi.groundColor.lerp(this.hemi.color, Math.min(0.55, (gnd - lg) * 3)); }
     this.dir.color.copy(m.dirC); this.dir.intensity = Math.max(m.dirI, (L.tunnel || 0) * 0.62);
-    this.far.material.color.copy(m.far);
-    this.moon.material.opacity = m.moon; this.moon.visible = m.moon > 0.02 && L.tunnel < 0.98;
-    this.stars.material.opacity = m.moon * 0.9;
+    this.dir.intensity *= 0.86 + 0.14 * (0.5 + 0.5 * Math.sin((this.clock || 0) * 0.05));   // v5s46d (299): ombre di nuvole lente sulle colline
+    this.far.material.color.copy(m.far).multiplyScalar(0.62);   // v5s46d (255): fondale piu' scuro del cielo, non una sagoma pallida
+    this.moon.material.opacity = m.moon; this.moon.visible = m.moon > 0.02 && L.tunnel < 0.98 && m.sun < 0.55;
+    this.stars.material.opacity = starOpacity(m.moon, m.sun);   // v5s46d (256): niente stelle col sole alto
     this.sunGlow.material.opacity = 0.5 * m.sun; this.sunGlow.visible = L.tunnel < 0.98;
     for (const c of this.clouds) { c.material.color.copy(m.hor).lerp(_c2.set('#ffffff'), 0.35); c.visible = L.tunnel < 0.98; }
   }
@@ -1299,6 +1347,7 @@ export class World {
       const key = sim.mode === 'run' && sim.T * U > 3 ? at + '|' + sim.genOffset : null;   // v5s27: non fissarlo coi metri del menu   // in corsa: fissato una volta per giro e mai piu' spostato
       if (!key || this.vistaAt !== key) { this.vistaAt = key; this.vistaZ = -sim.T * U - ahead; }   // fissato una volta: poi mai piu' spostato
       this.vista.position.set(VISTA.X, 0, this.vistaZ);
+      if (this.clockRig) { const ang = clockHandAngles(this.clock); for (const h of this.clockRig.userData.hands) { h.hour.rotation.z = ang.hour; h.minute.rotation.z = ang.minute; } }
       if (this.nasc) { this.nasc.root.position.copy(this.vista.position); this.nasc.root.visible = this.vista.visible; if (this.vista.visible) this.nasc.update(performance.now() / 1000); }
       if (this.burraTree) { this.burraTree.position.set(-7.6, 0, this.vistaZ + 8); this.burraTree.visible = this.vista.visible; } }
     // v5s28: spruzzi al piede delle cascatelle di Sa Stiddiosa (poche particelle, solo quelle vicine)
@@ -1317,7 +1366,8 @@ export class World {
         if (r.visible) { const u = r.material.uniforms; u.uT.value = this.clock; u.uCam.value.copy(this.camera.position); u.uA.value = ra; u.uPR.value = this.renderer.getPixelRatio(); }
         for (const key in this.env.roadMat) { const m = this.env.roadMat[key]; if (!m.emissive) continue; if (!m.userData.e0) m.userData.e0 = m.emissive.clone(); m.emissive.copy(m.userData.e0).lerp(_c.set('#2a3a5a'), ra * 0.55); } }
       // fiato condensato davanti al viso quando fa freddo
-      if (this.snow.ground > 0.45 && out > 0.5 && sim.mode === 'run') { this.breathT -= dt; if (this.breathT <= 0) { this.breathT = 1.3; this.breath?.(sim); } } }
+      const cold = this.snow.ground > 0.45 || (this.mood && this.mood.sun < 0.2) || (this.env.cur.b.id || '').startsWith('mine');
+      if (cold && out > 0.2 && sim.mode === 'run') { this.breathT -= dt; if (this.breathT <= 0) { this.breathT = 1.3; this.breath?.(sim); } } }   // v5s46d (298)
     this.moon.position.set(this.camera.position.x - 70, 150, camZ - 300);
     { const L = this.light || {}; this.sunGlow.position.set(this.camera.position.x + 60 + (L.glowX || 0), 16 + (L.glowY || 0), camZ - 360);   // v5s32: sole per ambiente (Sa Stiddiosa: basso a sinistra)
       this.skyU.uSunDir.value.set(0.25 + (L.skySunX || 0), 0.08, -1).normalize(); }
@@ -1390,16 +1440,23 @@ export class World {
     this.fireKick = Math.max(0, (this.fireKick || 0) - dt * 1.6);
     this.flame3d.update(dt, this.camera, this.tipW, Math.min(1.6, fuelF + this.fireKick * 0.6), use3d && lit, this.burnT >= 0 ? 0 : Math.max(0, Math.min(1, 1 - fuelF / LOW_FUEL_F)), -(view.char.vx || 0) * 0.5, use3d ? this.tipAxW : null);
     this.flame3d.group.scale.setScalar((use3d && this.char3d.flameScale || 1) * FLAME_FIT);   // v5s42: piu' piccola, base sulla punta | v5s29b: fiamma in proporzione alla frakkera della mascotte
-    this.flameLight.position.copy(this.tipW); if (use3d) this.flameLight.position.y += 0.9;
+    this.flameLight.position.copy(this.tipW);
+    if (use3d) { this.flameLight.position.y -= 0.15; this.flameLight.position.x += (px - this.tipW.x) * 0.45; this.flameLight.position.z += (pz - this.tipW.z) * 0.25; }   // v5s46d (270): luce sulla guancia e sul gilet, non solo in punta
     const L = this.light, dark = L.darkByFuel * (1 - fuelF);
-    this.flameLight.distance = L.flameDist * (1 - dark * 0.45);
-    this.flameLight.intensity = lit ? (10 + 18 * fuelF) * L.flameK * (1 + flick) + (this.flashBoost || 0) * 40 + this.fireKick * 14 : 0;
+    this.flameLight.distance = Math.max(L.flameDist, 14) * (1 - dark * 0.35);
+    this.flameLight.intensity = lit ? (16 + 26 * fuelF) * L.flameK * (1 + flick) + (this.flashBoost || 0) * 40 + this.fireKick * 14 : 0;
+    this.flameI = lit ? 0.55 + 0.9 * fuelF * (0.45 + 0.55 * (1 - Math.min(1, this.mood.sun || 0))) : 0;   // v5s46d (266, 271): muri, selciato, acqua
     for (const k in this.env.tunnelMat) { const u = this.env.tunnelMat[k].userData.u; u.uLamp.value = L.lamp; u.uMineral.value = L.mineral * (0.92 + Math.sin(this.clock * 1.3) * 0.08); }
-    this.renderer.toneMappingExposure = L.exposure * (0.15 + 0.85 * this.env.fade);
+    { const id = this.env.cur.b.id;
+      if (id === 'mine-int' && this._eyeFrom === 'mine-ext') this.eyeT = 0.85;   // v5s46d (293): l'occhio si abitua entrando dal piazzale
+      this._eyeFrom = id; this.eyeT = Math.max(0, (this.eyeT || 0) - dt);
+      const eye = this.eyeT > 0 ? 0.5 + 0.5 * (1 - this.eyeT / 0.85) : 1;
+      this.renderer.toneMappingExposure = L.exposure * (0.15 + 0.85 * this.env.fade) * eye; }
+    this.nightK = this.mood.sun < 0.45 && (this.light.tunnel || 0) < 0.5 ? Math.max(0, Math.min(1, (0.45 - this.mood.sun) / 0.35)) * (this.mood.moon || 0) : 0;
     this.flashBoost = Math.max(0, (this.flashBoost || 0) - dt * 10);
     this.flameGlow.visible = lit;
     this.flameGlow.position.copy(this.tipW); if (use3d) this.flameGlow.position.y += 0.9;
-    this.flameGlow.scale.setScalar((2.2 + 1.8 * fuelF) * (1 + flick));
+    this.flameGlow.scale.setScalar((1.05 + 0.7 * fuelF) * (1 + flick));   // v5s46d (252): l'alone non copre la via
     this.groundGlow.visible = lit;
     this.groundGlow.position.set(dpos ? dpos.x : px, 0.04, (dpos ? dpos.z : pz) - 0.5);
     this.groundGlow.material.opacity = (0.18 + 0.2 * fuelF) * (1 + L.tunnel * 0.9);
@@ -1410,8 +1467,9 @@ export class World {
         this.sparkAcc -= 1;
         const t = this.tipW;
         const hot = Math.random() < 0.5;
-        this.add.emit(t.x + (Math.random() - 0.5) * 0.4, t.y + 0.4 + Math.random() * 0.5, t.z, (Math.random() - 0.5) * 1.6, 1.5 + Math.random() * 2.5, (Math.random() - 0.3) * 1.2 + (view.speed || 0) * U * 0.25,
-          0.6 + Math.random() * 0.7, hot ? 0.2 : 0.14, 0.03, hot ? COL.spark : COL.ember, 1, -0.6, 0.8);
+        const sp = (view.speed || 0) * U;
+        this.add.emit(t.x + (Math.random() - 0.5) * 0.4, t.y + 0.4 + Math.random() * 0.5, t.z, (Math.random() - 0.5) * 1.6 - sp * 0.15, 1.5 + Math.random() * 2.5, (Math.random() - 0.3) * 1.2 + sp * 0.35,
+          0.6 + Math.random() * 0.7, hot ? 0.2 : 0.14, 0.03, hot ? COL.spark : COL.ember, 1, hot ? -0.6 : 1.4, 0.8);   // v5s46d (268): le braci ricadono
       }
     }
     if (!lit && view.smoke) {
@@ -1427,6 +1485,22 @@ export class World {
       this.add.emit(x + (Math.random() - 0.5) * 0.1, s.mesh.position.y, z + 0.4, 0, 0, 0, 0.25, 0.3, 0.02, COL.spark2, 0.9, 0, 0);
     }
     if (this.flashT > 0) { this.flashT -= dt; this.flash.position.copy(this.muzzleW); this.flash.scale.setScalar(1.4 + (0.09 - this.flashT) * 8); if (this.flashT <= 0) this.flash.visible = false; }
+    if (lit && sim.mode === 'run') {
+      this.smokeAcc = (this.smokeAcc || 0) + dt * (1.2 + (view.speed || 0) * 0.012);
+      if (this.smokeAcc > 1) { this.smokeAcc = 0; const t = this.tipW, sp = (view.speed || 0) * U; this.norm.emit(t.x, t.y + 0.5, t.z + 0.15, (Math.random() - 0.5) * 0.25, 0.35 + Math.random() * 0.3, 0.25 + sp * 0.45, 1.8, 0.2, 0.65, COL.smoke, 0.28, -0.04, 0.35); }   // v5s46d (269)
+    }
+    { const road = this.env.cur.b.ground && this.env.cur.b.ground.road;
+      if (sim.mode === 'run' && (road === 'trail' || road === 'earthTrail' || road === 'gravel' || road === 'stoneTrail') && Math.random() < dt * 10) this.norm.emit(px + (Math.random() - 0.5) * 0.25, 0.08, pz + 0.1, (Math.random() - 0.5) * 0.4, 0.3, 0.2, 0.7, 0.12, 0.4, COL.dust, 0.4, 0.4, 0.2); }   // v5s46d (287)
+    this.shopSign = null;
+    if (sim.shopOffer > 0) {
+      const meters = sim.runD / PX_PER_METER + (sim.mapOffsetM || 0);
+      const bi = biomeAt(meters);
+      const W = bi.lap * CYCLE + SHOP.AT_M;
+      const out = this._shopP || (this._shopP = { x: 0, y: 0, vis: false });
+      this.project(6.45, 3.45, -W, out);
+      if (!out.vis) { out.x = 0.8; out.y = 0.34; }   // gia' passato il negozio: il tasto resta a destra, non al centro sulla chiesa
+      this.shopSign = out;
+    }
     this.add.update(dt); this.norm.update(dt); this.shards.update(dt);
     if (this.pendingPR) this.applyPixelRatio();
     if (this.shopView) {   // v5s7: dentro il Garag di Pinu (scena a parte)

@@ -6,7 +6,7 @@
 // Convenzione dei pezzi laterali (come le case): facciata sul piano x = 0,
 // esterno verso -x, strada verso +x, z da 0 a -len.
 import * as THREE from 'three';
-import { Kit, G, rng, fbm, noise3, rockGeom, addRock, tree, cypress, shrub, fern, grassTuft, dryWall, fence, gridSurface, addColored, LEAF, ROCK } from './common.js';
+import { Kit, G, rng, fbm, noise3, rockGeom, addRock, tree, cypress, shrub, fern, grassTuft, dryWall, fence, gridSurface, addColored, LEAF, ROCK, fico } from './common.js';
 
 const _c = new THREE.Color(), _c2 = new THREE.Color();
 const pickN = (pal, t) => pal[Math.max(0, Math.min(pal.length - 1, Math.floor(t * pal.length)))];
@@ -24,8 +24,10 @@ export function cliffPiece(W0, len, o = {}) {
     const y = v * H;
     const rough = 1.4 * (fbm(W / 5.5, y / 4.5, sd * 3, 3) + 0.45) + 0.6 * noise3(W / 1.7, y / 1.9, sd);
     let x = -0.35 - lean * y - Math.max(0, rough) * Math.min(1, y / 1.2);
+    // v5s46d (257): le cenge non sono lastre grigie impilate: ogni strato entra ed esce
+    x += Math.sin(y * 0.72 + W * 0.11) * 0.85 + noise3(W / 2.4, y / 1.7, sd + 3) * 0.9;
     if (v === 1) x -= 3.5;                         // cima che rientra (pianoro)
-    return [x, v === 1 ? H + 0.6 : y, -u * len];
+    return [x, v === 1 ? H + 0.6 : y + Math.sin(W * 0.4) * 0.15, -u * len];
   };
   const g = gridSurface(nu, nv, surf, (x, y, z) => {
     const W = W0 - z;
@@ -68,6 +70,7 @@ export function cliffPiece(W0, len, o = {}) {
     if (r.chance(0.55)) addRock(k, r, r.range(0.1, 1.0), 0.15, z, r.range(0.25, 0.6), pal, { squash: 0.6 });
     else grassTuft(k, r, r.range(0.2, 1.1), 0, z, 1, o.grass);
   }
+  if (o.wall) dryWall(k, r, 0.45, 0, len, 0.72, ['#8a7a62', '#6e7a48', '#a39484', '#7a8a52'], 0.55);   // v5s46d (288): muretto a secco sul bordo del sentiero
   return k.build({ ao: 0.28 });
 }
 
@@ -111,8 +114,11 @@ export function slopePiece(W0, len, o = {}) {
       zl = -r() * len; x = -r.range(3.5, D * 0.95); W = W0 - zl; y = hAt(x, W);
       const sGuess = 1.5;
       if (hitsFoot(x, zl, sGuess * 1.85)) continue;
-      if (o.conifers && r.chance(0.25)) cypress(k, r, x, y, zl, r.range(0.8, 1.1));
-      else tree(k, r, x, y - 0.2, zl, r.range(1.1, 1.8), r.chance(0.5) ? (o.leaf || LEAF.holm) : LEAF.fresh);
+      // v5s46d (286): leccio, sughera (tronco piu' grosso) e pino, non una chioma sola
+      const kind = r();
+      if ((o.conifers && r.chance(0.25)) || kind < 0.28) cypress(k, r, x, y, zl, r.range(0.75, 1.15));
+      else if (kind < 0.55) tree(k, r, x, y - 0.2, zl, r.range(1.15, 1.7), LEAF.holm, '#6a5340', 1.55);
+      else tree(k, r, x, y - 0.2, zl, r.range(1.05, 1.6), kind < 0.8 ? LEAF.pine : (o.leaf || LEAF.holm), '#4a3828', 1);
       placed = true;
     }
   }
@@ -142,6 +148,7 @@ export function slopePiece(W0, len, o = {}) {
     for (const [y, t] of [[0.55, 0.14], [1.05, 0.14], [1.55, 0.16]]) k.add(G.box(0.13, t, len + 0.2), r.pick(wc), { x: 0.62, y, z: -len / 2, rz: r.range(-0.03, 0.03), vary: 0.1 });
   } else if (o.fence) fence(k, r, 0.9, 0, len);
   if (o.wall) dryWall(k, r, 0.9, 0, len, o.wallH || 0.8, o.wallPal || ROCK.granite, 0.7);
+  if (o.fichi) for (let z = -r() * 2; z > -len; z -= r.range(3.2, 5.5)) fico(k, r, 0.7, 0, z, r.range(0.85, 1.15));   // v5s46d (289): fichi d'India sul muretto, fuori dalle corsie
   return k.build({ ao: 0.2 });
 }
 
@@ -451,6 +458,7 @@ export function stiddiosaBankPiece(W0, len, o = {}) {
     (x, y, z) => { const t = Math.min(1, (-0.6 - x) / (-0.6 - CL)); _c.set('#5a7a5a').lerp(_c2.set('#1e5a4c'), Math.min(1, t * 2.2)).lerp(_c2.set('#0c3a34'), Math.max(0, t * 1.5 - 0.5)); return _c.getHex(); }));
   // massi tondi muschiati nel fiume
   const rc = ['#8a877c', '#9a968a', '#7a786e', '#a8a496', '#6f7a5a'];
+  for (let i = 0; i < len * 0.55; i++) { const v = Math.pow(r(), 1.4), x = -1.2 - v * 12, s = r.range(0.12, 0.45); addRock(k, r, x, -0.62 - v * 0.25, -r() * len, s, ['#8a877c', '#6a6860', '#9a968a'], { squash: 0.45 }); }   // v5s46d (284): ciottoli nel letto
   for (let i = 0; i < len * 0.42; i++) { const v = Math.pow(r(), 1.6), x = -0.9 - v * 15, s = r.range(0.35, 1.0) * (1 + v * 0.8);
     addRock(k, r, x, -0.45 - v * 0.4, -r() * len, s, rc, { squash: 0.58, rough: 0.18, detail: s > 0.8 ? 1 : 0 });
     if (r.chance(0.4)) k.add(G.ico(s * 0.75, 0), r.pick(['#5a7a30', '#6a8a3a', '#4e6a2a']), { x, y: -0.45 - v * 0.4 + s * 0.42, z: -r() * len, sy: 0.32, vary: 0.15 }); }

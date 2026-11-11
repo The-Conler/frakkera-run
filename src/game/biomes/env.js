@@ -10,6 +10,8 @@ import { buildSantaMarta, santaMartaLamps, santaMartaAisleLamps, burraRunner, fr
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { BIOMES, CYCLE, biomeAt, nextBoundary, byId, LAP_NIGHT, NIGHT_MOOD, mapFromURL, RAIL_X } from './config.js';
+import { SHOP } from '../../config.js';
+import { buildPinuFacade } from '../village3d.js';
 import * as M from '../models.js';
 import * as BT from './textures.js';
 import * as N from './builders/nature.js';
@@ -42,7 +44,7 @@ const AMB_KEYS = ['wind', 'water', 'drips', 'birds', 'bells', 'cave'];
 function groundMat(map, o = {}) {
   const P = o.phong ? THREE.MeshPhongMaterial : THREE.MeshLambertMaterial;
   const m = new P({ map, color: o.color || '#ffffff', ...(o.phong ? { specular: o.specular || '#8890a0', shininess: o.shininess || 60 } : {}) });
-  const u = { uMapF: { value: o.feather || map }, uWet: { value: 1 }, uMapB: { value: o.mapB || map }, uZ0: { value: 0 }, uZ1: { value: 1 }, uSX: { value: o.sx ?? 1 / 11 }, uSZ: { value: o.sz ?? 1 / 11 }, uX0: { value: o.x0 ?? -5.5 }, uAbs: { value: o.abs ? 1 : 0 } };
+  const u = { uMapF: { value: o.feather || map }, uWet: { value: 1 }, uMapB: { value: o.mapB || map }, uZ0: { value: 0 }, uZ1: { value: 1 }, uSX: { value: o.sx ?? 1 / 11 }, uSZ: { value: o.sz ?? 1 / 11 }, uX0: { value: o.x0 ?? -5.5 }, uAbs: { value: o.abs ? 1 : 0 }, uFlame: { value: new THREE.Vector3() }, uFlameI: { value: 0 } };
   m.userData.u = u;
   if (o.mapB) m.defines = { BLEND: '' };
   if (o.wet) m.defines = { ...(m.defines || {}), WET: '' };
@@ -50,7 +52,7 @@ function groundMat(map, o = {}) {
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, u);
     sh.vertexShader = 'varying vec3 vWP;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n  vWP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
-    sh.fragmentShader = 'varying vec3 vWP;\nuniform sampler2D uMapB; uniform sampler2D uMapF; uniform float uZ0, uZ1, uSX, uSZ, uX0, uAbs;\n' + sh.fragmentShader.replace('#include <map_fragment>', `
+    sh.fragmentShader = 'varying vec3 vWP;\nuniform sampler2D uMapB; uniform sampler2D uMapF; uniform float uZ0, uZ1, uSX, uSZ, uX0, uAbs;\nuniform vec3 uFlame; uniform float uFlameI;\n' + sh.fragmentShader.replace('#include <map_fragment>', `
       vec2 wuv = vec2((mix(vWP.x, abs(vWP.x), uAbs) - uX0) * uSX, -vWP.z * uSZ);
       vec4 sA = texture2D(map, wuv);
       #ifdef BLEND
@@ -67,7 +69,9 @@ function groundMat(map, o = {}) {
         float kf = 1.0 - smoothstep(5.55, 6.45, ax + jag);
         sA = mix(sA, sF, kf * 0.92);
       #endif
-      diffuseColor *= sA;`);
+      diffuseColor *= sA;
+      float fdL = length(vWP - uFlame);
+      diffuseColor.rgb += vec3(1.0, 0.46, 0.14) * uFlameI * exp(-fdL * 0.28);`);
     if (o.wet) {
       // pavimento bagnato: pozze lucide che riflettono il blu delle pareti (fresnel) + riflesso caldo dalla fiamma (specular Phong)
       sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
@@ -85,27 +89,47 @@ function groundMat(map, o = {}) {
       sh.fragmentShader = 'uniform float uWet;\n' + sh.fragmentShader;
     }
   };
-  m.customProgramCacheKey = () => (o.mapB ? 'gb' : 'g') + (o.phong ? 'p' : 'l') + (o.wet ? 'w' : '') + (o.feather ? 'f' : '');
+  m.customProgramCacheKey = () => (o.mapB ? 'gb' : 'g') + (o.phong ? 'p' : 'l') + (o.wet ? 'w' : '') + (o.feather ? 'f' : '') + 'fl';
   return m;
+}
+// v5s46d (258): solo i colori dei piloni (strisce di pioggia, muschio in basso). La forma di buildViaduct non si tocca.
+function weatherViaduct(geom) {
+  if (!geom || !geom.getAttribute) return geom;
+  const g = geom.clone();
+  const col = g.getAttribute('color'), pos = g.getAttribute('position');
+  if (!col || !pos) return geom;
+  for (let i = 0; i < pos.count; i++) {
+    const y = pos.getY(i);
+    if (y > 44) continue;
+    const streak = 0.58 + 0.42 * Math.abs(Math.sin(pos.getX(i) * 2.4 + pos.getZ(i) * 0.35 + y * 0.17));
+    const foot = y < 6 ? 0.82 : 1;
+    col.setXYZ(i, col.getX(i) * streak * foot, col.getY(i) * streak * foot * (y < 4 ? 0.95 : 1), col.getZ(i) * streak * foot * 0.88);
+  }
+  col.needsUpdate = true;
+  return g;
 }
 function waterMat(normalMap, color, opacity = 0.84, deep = null) {
   const m = new THREE.MeshPhongMaterial({ color, specular: '#fff0d0', shininess: 110, normalMap, normalScale: new THREE.Vector2(0.45, 0.45), transparent: true, opacity, depthWrite: false });
-  const u = { uFlow: { value: new THREE.Vector2() } };
+  const u = { uFlow: { value: new THREE.Vector2() }, uT: { value: 0 }, uFlame: { value: new THREE.Vector3() }, uFlameI: { value: 0 } };
   m.userData.u = u;
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, u);
-    sh.vertexShader = 'uniform vec2 uFlow;\nvarying float vWX;\n' + sh.vertexShader.replace('#include <uv_vertex>', '#include <uv_vertex>\n  vNormalMapUv = (modelMatrix * vec4(position, 1.0)).xz * 0.09 + uFlow; vWX = (modelMatrix * vec4(position, 1.0)).x;');
-    sh.fragmentShader = 'varying float vWX;\n' + sh.fragmentShader;
+    sh.vertexShader = 'uniform vec2 uFlow;\nvarying float vWX; varying float vWZ;\n' + sh.vertexShader.replace('#include <uv_vertex>', '#include <uv_vertex>\n  vec3 wpx = (modelMatrix * vec4(position, 1.0)).xyz; vNormalMapUv = wpx.xz * 0.09 + uFlow; vWX = wpx.x; vWZ = wpx.z;');
+    sh.fragmentShader = 'varying float vWX; varying float vWZ;\nuniform float uT; uniform vec3 uFlame; uniform float uFlameI;\n' + sh.fragmentShader;
     if (deep) sh.fragmentShader = sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
       { float t = smoothstep(${deep.x0.toFixed(1)}, ${deep.x1.toFixed(1)}, abs(vWX));
         diffuseColor.rgb = mix(vec3(${deep.a}), vec3(${deep.b}), t); diffuseColor.a = mix(${opacity.toFixed(2)}, 0.97, t); }`);
-    // un po' di cielo riflesso ai bordi (fresnel) + verde smeraldo in profondita'
+    // corrente, schiuma e riflesso della fiamma (v5s46d 283)
     sh.fragmentShader = sh.fragmentShader.replace('#include <opaque_fragment>', `
       float fr = pow(1.0 - clamp(dot(normalize(vViewPosition), -normal), 0.0, 1.0), 3.0);
       outgoingLight = mix(outgoingLight, outgoingLight * 0.6 + vec3(0.55, 0.62, 0.6) * 0.35, fr * ${deep ? '0.18' : '0.6'});
+      float foam = smoothstep(0.62, 0.92, sin(vWZ * 1.6 + uT * 2.4) * 0.5 + 0.5 + sin(vWX * 0.7 + uT) * 0.15);
+      outgoingLight += vec3(0.9, 0.96, 0.95) * foam * 0.22;
+      float fd = length(vec2(vWX - uFlame.x, vWZ - uFlame.z));
+      outgoingLight += vec3(1.0, 0.45, 0.12) * exp(-fd * 0.18) * uFlameI;
       #include <opaque_fragment>`);
   };
-  m.customProgramCacheKey = () => 'water' + (deep ? 'D' : '');
+  m.customProgramCacheKey = () => 'water46d' + (deep ? 'D' : '');
   return m;
 }
 function tunnelMat(blue) {
@@ -431,6 +455,21 @@ export class Env {
       const gaps = (i.b.gaps && i.b.gaps[sd.s < 0 ? 'left' : 'right']) || [];
       let skip = 0, gapA = null, gapZ = null;
       for (const [a, z] of gaps) if (i.local >= a - 0.01 && i.local < z) { skip = z - i.local; gapA = a; gapZ = z; }
+      // v5s46d (251): il buco a destra all'inizio del paese e' il Garag di Pinu, non un versante vuoto
+      if (skip > 0 && i.b.id === 'village' && sd.s > 0 && gapA != null && gapA < 30) {
+        const w = Math.min(skip, Math.max(4, maxLen));
+        const lod = W - this.lastPW > LOD_D;
+        Kit.lodMin = lod ? LOD_MIN : 0;
+        const make = () => buildPinuFacade();
+        let geom; try { geom = make(); } finally { Kit.lodMin = 0; }
+        this.stats.built++;
+        let piece;
+        if (lod) { piece = { W0: W, W1: W + w, w, mesh: null, geom, owned: true, lamps: [], make, lod, pinu: true }; this.batchAdd(sd, piece); }
+        else { const mesh = new THREE.Mesh(geom, this.mats2); mesh.position.set(sd.s * FACADE, 0, -W); mesh.scale.x = -1; this.scene.add(mesh); piece = { W0: W, W1: W + w, w, mesh, owned: true, lamps: [], make, lod, pinu: true }; }
+        piece.lamps.push(this.lamp(sd.s * (FACADE - 0.4), 3.2, -W - w * 0.5, '#ffb060', 2.4, 0.75));
+        piece.foot = this.addHouseFoot(sd.s, W, w, 1.2);
+        sd.list.push(piece); sd.cur = W + w; continue;
+      }
       // v5s37: piazzetta della chiesa a sinistra — non lasciare il vuoto nudo (si vedeva il cielo a ~28 m).
       // Riempie con un versante chiuso in fondo; la chiesa (vista) resta davanti, aperta sulla via.
       if (skip > 0 && i.b.id === 'village' && sd.s < 0 && gapA != null && gapA < 80) {
@@ -473,7 +512,7 @@ export class Env {
         // e una collina piu' alta/lontana cosi' il vuoto resta nascosto e Santa Marta si vede.
         const make = () => N.slopePiece(W, w, {
           Hs: 14, dist: 52, trees: sd.s < 0 && i.b.id === 'village' && i.local > 140 && i.local < 230 ? 0 : 0.28, wall: true, wallH: 0.95, rocks: 0.1, ferns: 0.16,   // v5s46b: niente alberi a sinistra davanti al Monumento ai Caduti
-          seed: 91 + (Math.floor(W) % 997), flowers: 0.36,
+          seed: 91 + (Math.floor(W) % 997), flowers: 0.36, fichi: !(sd.s < 0 && i.local > 140 && i.local < 230),
           ground: ['#7d8a4e', '#6e7a3e', '#8a9a56', '#5f6a40', '#9a8f6a'], skirt: -90, footprints: feet,
         });
         let geom; try { geom = make(); } finally { Kit.lodMin = 0; }
@@ -509,16 +548,21 @@ export class Env {
         if (nearEnd || lim < 5.1) {   // fine del paese: orti, muretti, alberi
           const w = fit(5, 9);
           const feet = this.feetFor(s, W, w, 6);
-          return own(() => N.slopePiece(W, w, { Hs: 3, dist: 16, trees: 0.25, wall: true, wallH: 1.1, rocks: 0.1, ferns: 0, seed: 40 + i.lap, flowers: 0.3, ground: ['#7d8a4e', '#6e7a3e', '#8a9a56'], footprints: feet }), w);
+          return own(() => N.slopePiece(W, w, { Hs: 3, dist: 16, trees: 0.25, wall: true, wallH: 1.1, rocks: 0.1, ferns: 0, seed: 40 + i.lap, flowers: 0.3, fichi: true, ground: ['#7d8a4e', '#6e7a3e', '#8a9a56'], footprints: feet }), w);
         }
-        const pf = r.chance(0.14) ? this.prefab('garden', r.int(5), () => M.buildGarden(r.lastInt + 1)) : this.prefab('house', r.int(26), () => M.buildHouse(r.lastInt + 1));
+        // v5s46d (254): niente due facciate uguali di fila; piu' semi cosi' il lato destro non si ripete
+        const span = 36;
+        let idx = r.int(span);
+        if (sd.prevHouse === idx) idx = (idx + 11) % span;
+        sd.prevHouse = idx;
+        const pf = r.chance(0.12) ? this.prefab('garden', r.int(8), () => M.buildGarden(r.lastInt + 1)) : this.prefab('house', idx, () => M.buildHouse(idx + 1));
         if (pf.w > lim) { const w = Math.min(lim, 6); const feet = this.feetFor(s, W, w, 6); return own(() => N.slopePiece(W, w, { Hs: 2, dist: 12, trees: 0.2, wall: true, wallH: 1.1, ferns: 0, rocks: 0.1, footprints: feet }), w); }
         return this.placePrefab(sd, W, pf);
       }
       case 'mountain': {        // parete di roccia a destra, muretto e strapiombo sulla valle a sinistra
         if (s > 0) {
           if (loc < 28) { const w = fit(6, 10); return own(() => N.slopePiece(W, w, { Hs: 6 + loc * 0.3, dist: 22, trees: 0.3, rocks: 0.3, wall: loc < 12, seed: 5 }), w); }
-          const w = fit(8, 14); return own(() => N.cliffPiece(W, w, { H0: 15, Hamp: 9, lean: 0.16, pal: ROCK.granite, moss: 0.55, ochre: true, seed: 7 }), w);
+          const w = fit(8, 14); return own(() => N.cliffPiece(W, w, { H0: 15, Hamp: 9, lean: 0.22, pal: ['#8f877a', '#9a8c74', '#7a8a52', '#a39484', '#6e7a48', '#b7a48c'], moss: 0.72, ochre: true, seed: 7 + (Math.floor(W) % 97), wall: true }), w);
         }
         const w = fit(8, 12); return own(() => N.parapetPiece(W, w, { drop: 7 }), w);
       }
@@ -563,7 +607,7 @@ export class Env {
       () => { loadTower(); },
       () => { loadCliffModels(); },   // v5s33: moduli della parete di Sa Stiddiosa
       () => this.markGeom('valley', () => valleyRock(250)),
-      () => this.markGeom('viaduct', () => S.buildViaduct((x) => (x < 0 ? -2 : -5))),
+      () => this.markGeom('viaduct', () => weatherViaduct(S.buildViaduct((x) => (x < 0 ? -2 : -5)))),
       () => this.markGeom('valleyRiverR', () => N.valleyTerrain(750 - 150, 460, { side: 1, x0: 70, topY: -4.4, floorY: -4.4, dropW: 2, floorW: 30, far: 340, mtnH: 85, seed: 11, trees: 520, relief: 38 })),
       () => this.markGeom('valleyRiverL', () => N.valleyTerrain(750 - 150, 460, { side: -1, x0: 36, topY: 14, floorY: 14, dropW: 2, floorW: 8, far: 320, mtnH: 70, seed: 12, trees: 420, relief: 38 })),
       () => this.prefab('portal', 0, () => ({ geom: S.buildMinePortal(5), w: 0, lamps: [] })),
@@ -956,6 +1000,7 @@ export class Env {
       }
     } else if (id === 'vicolo') {
       cached('vicolo', () => buildVicolo(32));
+      lamps.push(this.lamp(-7.4, 1.25, -W - 20.4, '#ffc080', 1.5, 0.65));   // v5s46d (276): lumino ai piedi del monumento, non sulla statua
       // v5s44e: impronta del Monumento ai Caduti (lato sinistro, z locale -21 → W+21, ora di sbieco)
       feet.push(this.addHouseFoot(-1, W + 17.5, 9, 1.6));
     } else if (id === 'cappella') {
@@ -974,6 +1019,8 @@ export class Env {
       mesh(this.burra.geo, this.burra.mat, true);   // v5s26: tappeto sa burra lungo la navata
       if (!this.fresc) this.fresc = frescoes();
       mesh(this.fresc.geo, this.fresc.mat, true);   // v5s26: affreschi dipinti
+      lamps.push(this.lamp(0, 10.6, -W - 0.4, '#ff6644', 5.5, 0.4));   // v5s46d (261): alone del rosone, senza una luce dinamica in piu' (niente ricompilazione shader)
+      lamps.push(this.lamp(0, 1.4, -W - 6, '#ff8866', 3.2, 0.22));
     } else if (id === 'pinnacle') {
       const m = cached('pinnacle', () => N.buildPinnacle(3)); m.position.set(-25, 0, 0); m.rotation.y = 0.4; fitTower(m, root);   /* v5s27n: modello 3D al posto della procedurale (che resta se il modello manca) */   // v5s27k: un po' piu' vicina alla via    // nella valle a SINISTRA del sentiero: a destra c'e' la fiamma che la coprirebbe
     } else if (id === 'valley') {
@@ -1003,7 +1050,7 @@ export class Env {
         const sh = mesh(sg, this.shaftMat, true); sh.position.set(sx, 24, -lz); sh.rotation.set(0, -0.6, rz);
       }
     } else if (id === 'viaduct') {
-      cached('viaduct', () => S.buildViaduct((x) => (x < 0 ? -2 : -5)));
+      cached('viaduct', () => weatherViaduct(S.buildViaduct((x) => (x < 0 ? -2 : -5))));
     } else if (id === 'valleyRiver') {
       cached('valleyRiverR', () => N.valleyTerrain(Bm - 150, 460, { side: 1, x0: 70, topY: -4.4, floorY: -4.4, dropW: 2, floorW: 30, far: 340, mtnH: 85, seed: 11, trees: 520, relief: 38 })).position.z = Bm;
       cached('valleyRiverL', () => N.valleyTerrain(Bm - 150, 460, { side: -1, x0: 36, topY: 14, floorY: 14, dropW: 2, floorW: 8, far: 320, mtnH: 70, seed: 12, trees: 420, relief: 38 })).position.z = Bm;
@@ -1086,7 +1133,14 @@ export class Env {
     // animazioni leggere
     for (const p of this.decor) if (p.mesh && p.mesh.userData.sway) p.mesh.rotation.x = Math.sin(clock * 1.3 + p.W0) * 0.04;
     for (const sd of this.sides) for (const p of sd.list) for (const g of p.lamps) g.material.opacity = g.userData.op * (0.85 + Math.sin(clock * 3 + g.userData.ph) * 0.12);
-    for (const k in this.waterMat) { const u = this.waterMat[k].userData.u.uFlow.value; u.set(clock * 0.012, -clock * (k === 'river' ? 0.05 : 0.018)); }
+    for (const k in this.waterMat) {
+      const uu = this.waterMat[k].userData.u;
+      uu.uFlow.value.set(clock * 0.02, -clock * (k === 'river' ? 0.11 : 0.028));
+      if (uu.uT) uu.uT.value = clock;
+      const fl = this.world.tipW, fi = this.world.flameI || 0;
+      if (uu.uFlame && fl) { uu.uFlame.value.copy(fl); uu.uFlameI.value = fi * (k === 'river' ? 0.55 : 0.35); }
+    }
+    for (const key in this.roadMat) { const uu = this.roadMat[key].userData.u; if (uu && uu.uFlame && this.world.tipW) { uu.uFlame.value.copy(this.world.tipW); uu.uFlameI.value = (this.world.flameI || 0) * (key === 'cobble' ? 1 : 0.45); } }
     if (this.fallMat.map) this.fallMat.map.offset.y = -clock * 1.6;
     FERN_U.uT.value = clock;   // v5s33: felci che ondeggiano
     WATER_U.uT.value = clock;  // v5s37: acqua delle cascate

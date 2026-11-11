@@ -34,12 +34,21 @@ void main(){
 
 // strato esterno con blending normale (si legge anche contro il cielo chiaro), interni additivi
 // v5s42: basi abbassate: la parte visibile della fiamma (il fondo dello shader e' trasparente) parte sulla punta della frakkera
+// v5s46d (252): lingue strette e incrociate, non un foglio largo rivolto alla camera che copre la via
 const LAYERS = [
-  { w: 2.5, h: 4.4, a: '#8a1a08', b: '#d8400e', c: '#ff8a22', i: 0.95, y: -0.75, normal: true },
-  { w: 1.8, h: 3.4, a: '#c2300a', b: '#ff7a18', c: '#ffc04a', i: 1.0, y: -0.62 },
-  { w: 1.2, h: 2.3, a: '#ff6a12', b: '#ffc23a', c: '#fff2c8', i: 1.1, y: -0.45 },
-  { w: 0.6, h: 1.1, a: '#ffb02a', b: '#fff0b0', c: '#ffffff', i: 1.0, y: -0.28 },
+  { w: 1.05, h: 3.15, a: '#8a1a08', b: '#d8400e', c: '#ff8a22', i: 0.9, y: -0.55, normal: true },
+  { w: 0.78, h: 2.45, a: '#c2300a', b: '#ff7a18', c: '#ffc04a', i: 1.0, y: -0.42 },
+  { w: 0.5, h: 1.7, a: '#ff6a12', b: '#ffc23a', c: '#fff2c8', i: 1.05, y: -0.28 },
+  { w: 0.28, h: 0.85, a: '#ffb02a', b: '#fff0b0', c: '#ffffff', i: 1.0, y: -0.16 },
 ];
+const SHIM_FS = `
+uniform float uTime; varying vec2 vUv;
+void main(){
+  float y = vUv.y;
+  float w = sin(vUv.x * 18.0 + uTime * 7.0) * sin(y * 9.0 - uTime * 5.0);
+  float a = smoothstep(0.15, 0.85, y) * (1.0 - smoothstep(0.55, 1.0, y)) * smoothstep(0.55, 0.9, w) * 0.22;
+  gl_FragColor = vec4(1.0, 0.72, 0.4, a);
+}`;
 
 export class Flame3D {
   constructor(scene) {
@@ -55,7 +64,14 @@ export class Flame3D {
       const m = new THREE.Mesh(geo, mat);
       m.scale.set(L.w, L.h, 1); m.position.y = L.y; m.renderOrder = 16 + k; m.frustumCulled = false;
       this.group.add(m); this.layers.push({ m, mat, L });
+      const m2 = new THREE.Mesh(geo, mat);
+      m2.scale.set(L.w * 0.72, L.h * 0.92, 1); m2.position.y = L.y; m2.rotation.y = 0.95; m2.renderOrder = 16 + k; m2.frustumCulled = false;
+      this.group.add(m2); this.layers.push({ m: m2, mat, L, cross: true });
     });
+    const shim = new THREE.ShaderMaterial({ vertexShader: VS, fragmentShader: SHIM_FS, transparent: true, depthWrite: false, blending: THREE.NormalBlending, fog: false, toneMapped: false, uniforms: { uTime: { value: 0 } } });
+    this.shimmer = new THREE.Mesh(geo, shim);
+    this.shimmer.scale.set(0.7, 2.2, 1); this.shimmer.position.y = 0.9; this.shimmer.frustumCulled = false; this.shimmer.renderOrder = 15;
+    this.group.add(this.shimmer);
     this.group.visible = false;
     scene.add(this.group);
     this.t = 0; this.fade = 0;
@@ -80,13 +96,15 @@ export class Flame3D {
     // v5s46 (165): col fuoco basso la fiamma cala piano (niente piu' lampeggio acceso/spento): lk 0..1 da 25% a 0%
     const lk = typeof flickerLow === 'number' ? Math.max(0, Math.min(1, flickerLow)) : (flickerLow ? 1 : 0);
     const fl = 1 - lk * (0.4 + 0.08 * Math.sin(this.t * 6.5));
-    for (const { m, mat, L } of this.layers) {
+    for (const { m, mat, L, cross } of this.layers) {
       const wob = 1 + Math.sin(this.t * (9 + L.i * 4)) * 0.05 + Math.sin(this.t * 17.3 + L.i) * 0.04;
-      m.scale.set(L.w * s * (2 - wob), L.h * s * wob, 1);
+      const cw = cross ? 0.72 : 1;
+      m.scale.set(L.w * s * (2 - wob) * cw, L.h * s * wob * (cross ? 0.92 : 1), 1);
       mat.uniforms.uTime.value = this.t;
       mat.uniforms.uI.value = L.i * this.fade * fl;
       mat.uniforms.uLean.value = lean;
     }
+    if (this.shimmer) { this.shimmer.material.uniforms.uTime.value = this.t; this.shimmer.visible = this.fade > 0.2; }
   }
 }
 

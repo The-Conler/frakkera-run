@@ -66,9 +66,18 @@ function buildHut(k, r) {
   for (let x = -W / 2 - 0.4; x < W / 2 + 0.4; x += 0.42) k.add(G.cyl(0.15, 0.15, 0.5, 6, 1, true), r.pick(['#c9773a', '#bf6c34', '#d48544', '#b8622e']), { x, y: H + 0.3, z: D / 2 + 0.75, rx: 0.15, vary: 0.1 });
   // presepe nella nicchia centrale: Maria (azzurro), Giuseppe (bruno), mangiatoia col Bambino, bue e asinello
   const nz = -D / 2 + 0.75;
-  const fig = (x, col, h) => { k.add(G.cone(0.32, h, 8), col, { x, y: 0.35 + h / 2, z: nz, unlit: true }); k.add(G.sph(0.16, 8, 6), '#f3dcc0', { x, y: 0.35 + h + 0.1, z: nz, unlit: true }); };
-  fig(-0.62, '#e8eef8', 1.05); fig(0.62, '#e2d2b8', 1.2);
+  const fig = (x, col, h, staff) => {
+    k.add(G.cone(0.32, h, 8), col, { x, y: 0.35 + h / 2, z: nz, unlit: true });
+    k.add(G.sph(0.16, 8, 6), '#f3dcc0', { x, y: 0.35 + h + 0.1, z: nz, unlit: true });
+    k.add(G.box(0.08, 0.4, 0.08), col, { x: x - 0.22, y: 0.7 + h * 0.35, z: nz + 0.05, rz: 0.5, unlit: true });
+    k.add(G.box(0.08, 0.4, 0.08), col, { x: x + 0.22, y: 0.7 + h * 0.35, z: nz + 0.05, rz: -0.4, unlit: true });
+    if (staff) k.add(G.box(0.05, 1.3, 0.05), '#6a4a28', { x: x + 0.38, y: 0.85, z: nz, unlit: true });
+  };
+  fig(-0.62, '#e8eef8', 1.05, false); fig(0.62, '#e2d2b8', 1.2, true);
+  k.add(G.torus(0.2, 0.025, 4, 10), '#f6e2a0', { x: -0.62, y: 1.7, z: nz, unlit: true });
   k.add(G.box(0.62, 0.3, 0.36), '#b08a5a', { y: 0.5, z: nz + 0.15, unlit: true }); k.add(G.sph(0.14, 8, 6), '#fff6e6', { y: 0.72, z: nz + 0.15, sx: 1.5, unlit: true });
+  k.add(G.cone(0.1, 0.22, 5), '#6a5030', { x: -0.55, y: 0.95, z: nz - 0.45, unlit: true });
+  k.add(G.cone(0.1, 0.28, 5), '#8a8a8a', { x: 0.55, y: 0.95, z: nz - 0.45, unlit: true });
   k.add(G.box(0.55, 0.42, 0.3), '#cfc6b8', { x: -0.45, y: 0.6, z: nz - 0.45, unlit: true }); k.add(G.box(0.5, 0.42, 0.3), '#a8a0a0', { x: 0.45, y: 0.6, z: nz - 0.45, unlit: true });
   // statuine nelle nicchie laterali (pastori)
   for (const sx of [-2.45, 2.45]) { k.add(G.cone(0.22, 0.75, 7), '#d8d0c4', { x: sx - 0.2, y: 0.72, z: nz, unlit: true }); k.add(G.sph(0.11, 7, 5), '#efd8bc', { x: sx - 0.2, y: 1.18, z: nz, unlit: true }); k.add(G.box(0.38, 0.28, 0.24), '#e8e2d8', { x: sx + 0.3, y: 0.5, z: nz + 0.2, unlit: true }); }

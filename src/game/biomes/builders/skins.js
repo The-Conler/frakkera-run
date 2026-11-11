@@ -76,6 +76,10 @@ function cart(seed, big) {
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) k.add(G.cyl(0.32, 0.32, 0.14, 12), dark, { x: sx * (W / 2 - 0.1), y: 0.34, z: sz * (L / 2 - 0.35), rz: Math.PI / 2 });
   for (const sz of [-1, 1]) k.add(G.box(W * 0.6, 0.3, 0.16), rust2, { y: 0.6, z: sz * (L / 2 + 0.1) });
   for (let i = 0; i < (big ? 14 : 6); i++) addRock(k, r, r.range(-W / 2.6, W / 2.6), 0.45 + H + r.range(-0.1, 0.15), r.range(-L / 2.6, L / 2.6), r.range(0.2, 0.38), ore, { squash: 0.7 });
+  k.add(G.box(0.08, 0.32, 0.42), '#f4e27a', { x: W / 2 + 0.02, y: 0.7 + H * 0.35, z: 0.1 });   // v5s46d (295): numero dipinto
+  k.add(G.box(0.04, 0.2, 0.06), '#2a2418', { x: W / 2 + 0.06, y: 0.7 + H * 0.35, z: 0.02 });
+  k.add(G.box(0.04, 0.2, 0.06), '#2a2418', { x: W / 2 + 0.06, y: 0.7 + H * 0.35, z: 0.18 });
+  k.add(G.cyl(0.03, 0.03, 0.8, 5), '#6a4a28', { x: -W / 2 + 0.15, y: H * 0.6, z: L / 2 - 0.1, rz: 0.6 });
   return k.build({ ao: 0.2 });
 }
 // travi di legno accatastate di traverso (corsia), su due zeppe

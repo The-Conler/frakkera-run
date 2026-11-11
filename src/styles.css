@@ -263,12 +263,14 @@ svg { display: block; }
 
 /* v5s7: Garag di Pinu */
 /* v5s34: pulsante compatto e piu' in alto (prima copriva meta' della strada e del paese) */
-#shop-offer { position: absolute; left: 50%; top: 27%;   /* v5s29 (QA M7): sotto la scritta PIU' VELOCE */ transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 14px 7px; min-height: 44px; border: 0; border-radius: 14px; cursor: pointer;
+#shop-offer { position: absolute; left: 50%; top: 27%;   /* v5s46d (251): la UI lo sposta sulla facciata del Garag */ transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 14px 7px; min-height: 44px; border: 0; border-radius: 14px; cursor: pointer; z-index: 6;
   background: linear-gradient(rgba(122,74,42,0.9), rgba(90,52,32,0.9)); box-shadow: inset 0 1px 0 rgba(255,220,160,0.35), 0 3px 0 #3a2010, 0 5px 10px rgba(0,0,0,0.35); color: #ffe7b0; animation: shopPulse 0.9s ease-in-out infinite alternate; touch-action: none; }
 #shop-offer .so-sign { font-family: var(--f-disp); font-size: max(10px, calc(var(--u) * 10));   /* v5s46c (47): leggibile sui telefoni piccoli */ color: var(--gold1); letter-spacing: 0.5px; }
 #shop-offer .so-q { font-family: var(--f-disp); font-size: calc(var(--u) * 16); color: #fff; -webkit-text-stroke: 1px #3a1a10; paint-order: stroke fill; }
 #shop-offer .so-bar { width: 100%; height: 4px; border-radius: 3px; background: rgba(0,0,0,0.35); overflow: hidden; } #shop-offer .so-bar i { display: block; height: 100%; width: 100%; background: var(--gold1); transform-origin: left; }
-@keyframes shopPulse { from { transform: translateX(-50%) scale(1); } to { transform: translateX(-50%) scale(1.04); } }
+@keyframes shopPulse { from { transform: translate(-50%, -50%) scale(1); } to { transform: translate(-50%, -50%) scale(1.04); } }
+#night-vig { position: absolute; inset: 0; pointer-events: none; z-index: 4; opacity: 0;
+  background: radial-gradient(ellipse at 46% 68%, rgba(0,0,0,0) 22%, rgba(12,8,20,0.22) 55%, rgba(4,2,12,0.72) 100%); }
 #scr-shop { padding-top: max(12px, env(safe-area-inset-top)); }
 .shop-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .shop-title { margin: 0; font-family: var(--f-disp); font-weight: 400; font-size: calc(var(--u) * 30); color: var(--gold1); -webkit-text-stroke: 1.5px #3a1a10; paint-order: stroke fill; text-shadow: 0 3px 0 rgba(40,15,5,0.6); }

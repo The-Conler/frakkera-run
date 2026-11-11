@@ -61,10 +61,12 @@ export function buildSantaMarta(seed = 1) {
     k.add(G.sph(0.45, 8, 6), '#4f7a3a', { x: s * 5.3, y: 1.7, z: 0.5, sy: 0.7 });
   }
 
-  // ---- pavimento in cotto a quadri e passatoia gialla intrecciata
-  k.add(G.box(AW * 2, 0.08, L), C.floor, { y: 0.04, z: zc, vary: 0.08 });
-  for (let z = -0.6; z > -L; z -= 1.5) k.add(G.box(AW * 2, 0.085, 0.04), '#8a4a34', { y: 0.045, z });
-  for (let x = -AW + 1.5; x < AW; x += 3.0) k.add(G.box(0.04, 0.085, L), '#8a4a34', { x, y: 0.045, z: zc });
+  // ---- pavimento in cotto a quadri (non un piano rosso unico) e passatoia gialla intrecciata
+  k.add(G.box(AW * 2, 0.05, L), '#7a3828', { y: 0.025, z: zc });
+  { const tw = 2.4, td = 2.2;
+    for (let ix = 0, x = -AW + tw / 2; x < AW; x += tw, ix++) for (let iz = 0, z = -td / 2; z > -L; z -= td, iz++) {
+      k.add(G.box(tw - 0.08, 0.035, td - 0.08), (ix + iz) % 2 ? C.floor : C.floorL, { x, y: 0.06, z });
+    } }
   // v5s26: la passatoia e' un grande tappeto sa burra (texture, vedi burraRunner); qui solo le frange alle due teste
   for (const zf of [-0.45, -L + 0.45]) k.add(G.box(7.6, 0.03, 0.5), '#efe3c6', { y: 0.1, z: zf });
 
@@ -115,12 +117,15 @@ export function buildSantaMarta(seed = 1) {
     for (let j = 0; j < ix.length; j += 3) { const t = ix[j]; ix[j] = ix[j + 2]; ix[j + 2] = t; } for (let j = 0; j < n.length; j++) n[j] = -n[j];
     k.add(v, C.plaster, { y: H - PX + 0.2, z: zc, rx: Math.PI / 2 }); }
   k.add(G.box(OW * 2, 0.3, L), '#6a5a4a', { y: H + 0.15, z: zc });
-  // ---- banchi di legno ai lati della passatoia
-  for (let z = -2.6; z > -L + 5; z -= 1.6) for (const s of [-1, 1]) {
+  // ---- banchi di legno ai lati della passatoia (legno diverso, qualche libro e inginocchiatoio; la navata resta libera)
+  for (let z = -2.6, n = 0; z > -L + 5; z -= 1.6, n++) for (const s of [-1, 1]) {
     const x = s * 4.95;
-    k.add(G.box(1.7, 0.08, 0.42), C.pew, { x, y: 0.48, z, vary: 0.05 });
-    k.add(G.box(1.7, 0.4, 0.07), C.pew, { x, y: 0.82, z: z - 0.22, vary: 0.05 });
+    const wood = ['#7a5434', '#6a482c', '#8a6844', '#5c3c26'][n % 4];
+    k.add(G.box(1.7, 0.08, 0.42), wood, { x, y: 0.48 + (n % 3) * 0.015, z, vary: 0.06 });
+    k.add(G.box(1.7, 0.36 + (n % 2) * 0.06, 0.07), wood, { x, y: 0.82, z: z - 0.22, vary: 0.06 });
     k.add(G.box(1.74, 0.42, 0.5), C.pewD, { x, y: 0.22, z });
+    if (n % 2 === 0) k.add(G.box(0.22, 0.035, 0.16), n % 4 ? '#6a2a22' : '#2a3a55', { x: x + s * 0.25, y: 0.55, z });
+    if (n % 3 === 1) k.add(G.box(1.45, 0.05, 0.26), '#4a301c', { x, y: 0.3, z: z + 0.16 });
   }
   // ---- lampadari in ottone con candele accese
   for (let i = 0; i < 5; i += 2) { const z = -i * bay - bay / 2, y = H - 3.4;
@@ -190,9 +195,12 @@ export function buildSantaMarta(seed = 1) {
       const oy = H - 2.0;   // v5s26: piu' in alto, muro libero sopra l'arco del portale
       k.add(G.torus(1.25, 0.22, 6, 22), C.brick, { y: oy, z: zf + 0.08 });
       k.add(G.torus(1.65, 0.2, 6, 24), C.brickD, { y: oy, z: zf + 0.05 });
-      k.add(G.cyl(1.05, 1.05, 0.1, 18), '#3e3a36', { y: oy, z: zf + 0.06, rx: Math.PI / 2 });
-      k.add(G.torus(0.45, 0.06, 4, 14), '#77706a', { y: oy, z: zf + 0.12 });
-      for (let j = 0; j < 4; j++) k.add(G.box(2.0, 0.08, 0.08), '#77706a', { y: oy, z: zf + 0.12, rz: j * Math.PI / 4 });
+      // v5s46d (261): vetri colorati, non un disco dipinto; la luce cade sulla passatoia (lampada in env)
+      const GL = ['#c4323a', '#2f6fb0', '#e0b030', '#3a8a4a', '#f4efe4', '#6a3a8a', '#d86a28', '#3a6a8a'];
+      for (let j = 0; j < 8; j++) k.add(G.box(0.62, 0.26, 0.05), GL[j], { y: oy, z: zf + 0.1, rz: (j / 8) * Math.PI * 2, unlit: true });
+      k.add(G.cyl(0.26, 0.26, 0.07, 10), '#f6e2a4', { y: oy, z: zf + 0.12, rx: Math.PI / 2, unlit: true });
+      k.add(G.torus(0.42, 0.035, 4, 12), '#3a342e', { y: oy, z: zf + 0.14 });
+      for (let j = 0; j < 4; j++) k.add(G.box(1.7, 0.045, 0.04), '#3a342e', { y: oy, z: zf + 0.14, rz: j * Math.PI / 4 });
       // croce in ferro con statuina azzurra
       k.add(G.box(0.12, 1.6, 0.12), '#2e2a28', { y: RIDGE + 1.0, z: zz }); k.add(G.box(1.1, 0.12, 0.12), '#2e2a28', { y: RIDGE + 1.3, z: zz });
       k.add(G.cyl(0.12, 0.18, 0.6, 8), '#5a9ac8', { y: RIDGE + 1.6, z: zz + 0.12 }); k.add(G.sph(0.1, 6, 5), '#e8c8a8', { y: RIDGE + 2.0, z: zz + 0.12 });

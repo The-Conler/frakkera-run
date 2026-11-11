@@ -200,6 +200,13 @@ export function buildShopRoom() {
   for (let i = 0; i < 7; i++) { const w = 0.7 - i * 0.095; const g = plank(w, 0.1, w * 0.8, i % 2 ? '#c8945a' : '#a8743e', r, { bend: 0, twist: 0, taper: 0 }); B.wood.add(place(g, { x: TX + 1.15, y: TH + 0.06 + i * 0.1, z: TZ - 0.15, ry: 0.2 + i * 0.03 })); }
   B.smooth.add(solid(place(turned([[0.04, 0], [0.05, 0.05], [0.02, 0.12], [0.03, 0.17], [0.001, 0.24]], 10, r), { x: TX + 1.15, y: TH + 0.76, z: TZ - 0.15 }), '#8a5a2a'));
   B.wood.add(place(plank(0.42, 0.13, 0.3, '#c49058', r), { x: TX - 1.15, y: TH + 0.08, z: TZ + 0.05, ry: 0.15 }));
+  // v5s46d (280): calendario, radio e attrezzi appesi, oltre al bancone e agli scaffali
+  B.plaster.add(place(plank(0.42, 0.55, 0.02, '#f6efe2', r), { x: -2.4, y: 2.15, z: ZB + 0.16 }));
+  B.wood.add(place(plank(0.28, 0.28, 0.02, '#c8283a', r), { x: -2.4, y: 2.28, z: ZB + 0.18 }));
+  B.wood.add(place(plank(0.46, 0.28, 0.18, '#2a2420', r), { x: TX - 0.4, y: TH + 0.2, z: TZ + 0.15 }));
+  B.smooth.add(solid(place(turned([[0.001, 0], [0.08, 0], [0.08, 0.02], [0.001, 0.02]], 10, r), { x: TX - 0.22, y: TH + 0.36, z: TZ + 0.22 }), '#c8b070'));
+  B.wood.add(place(beam(0.04, 0.04, 0.7, WOOD[3], r), { x: 2.55, y: 1.7, z: ZB + 0.2, rx: 0.4 }));
+  B.smooth.add(solid(place(new THREE.BoxGeometry(0.22, 0.06, 0.06), { x: 2.7, y: 1.95, z: ZB + 0.22, rz: 0.3 }), '#4a4a4c'));
   B.wood.add(place(plank(0.46, 0.04, 0.34, '#8a5a2a', r), { x: TX - 1.15, y: TH + 0.16, z: TZ + 0.05, ry: 0.15 }));
   // cassa coperta dal tappeto sardo a sinistra
   B.wood.add(place(plank(1.45, 0.95, 0.85, WOOD[3], r), { x: -2.05, y: 0.47, z: -0.95 }));

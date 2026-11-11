@@ -77,8 +77,10 @@ export function loomGeom(v = 0) {
     k.add(G.cyl(0.075, 0.075, W + 0.12, 8), woodL, { y: 0.86, z: -L / 2 + 0.16, rz: Math.PI / 2 });  // subbio
     for (let i = 0; i < 11; i++) k.add(G.box(0.012, 0.012, L - 0.42), '#f4eee4', { x: -0.42 + i * 0.084, y: 0.88, z: 0 });
     const PAT = [['#c8283a', '#f0b030', '#2a2a2a'], ['#2f6fb0', '#f3ead6', '#c8283a'], ['#2f8a4a', '#e0a52a', '#c8283a']][v % 3];
-    k.add(G.box(0.72, 0.035, 0.42), PAT[0], { y: 0.83, z: L / 2 - 0.38 });
-    for (let j = 0; j < 3; j++) k.add(G.box(0.72, 0.03, 0.08), PAT[j % 3], { y: 0.86, z: L / 2 - 0.28 - j * 0.09 });
+    // v5s46d (279): meta' ordito gia' tessuto a rombi, come una Sa Burra lasciata sul telaio
+    k.add(G.box(0.72, 0.035, 0.55), PAT[2], { y: 0.83, z: L / 2 - 0.42 });
+    for (let j = 0; j < 5; j++) k.add(G.box(0.72, 0.028, 0.07), PAT[j % 3], { y: 0.86, z: L / 2 - 0.18 - j * 0.08 });
+    for (let j = 0; j < 4; j++) k.add(G.box(0.1, 0.03, 0.1), PAT[0], { y: 0.88, z: L / 2 - 0.3 - j * 0.1, x: (j % 2 ? 0.12 : -0.12) });
     k.add(G.box(0.07, 0.07, 1.35), woodD, { x: W / 2, y: 1.05, z: 0.05, rx: 0.52 });   // saetta
     k.add(G.box(W, 0.09, 0.11), wood, { y: 0.12, z: L / 2 });
     k.add(G.box(W, 0.09, 0.11), wood, { y: 0.12, z: -L / 2 });
@@ -168,12 +170,23 @@ export function buildProcession(mats, v = 0) {
     const w = buildDancer(mats, true, (x > 0 ? 1 : 0)); w.root.position.set(x, 0, -2.9); w.root.rotation.y = PROC_FACE; w.ph = x * 3; root.add(w.root); figs.push(w);
     w.arms[1].rotation.x = -1.3;
   }
+  const lanterns = [];
+  const glass = new THREE.MeshBasicMaterial({ color: '#ffd9a0' });
+  for (const x of [-0.55, 0.55]) {
+    const L = new THREE.Group();
+    L.add(new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.28, 6), glass));
+    L.add(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.35, 0.02), new THREE.MeshLambertMaterial({ color: '#3a2a1a' })));
+    L.position.set(x, 1.55, -2.7);
+    root.add(L); lanterns.push(L);
+  }
   root.scale.setScalar(1.25);
-  return { root, figs, statue };
+  return { root, figs, statue, lanterns };
 }
 export function animateProcession(p, t) {
   for (const d of p.figs) { const s = Math.sin(t * 3.2 + (d.ph || 0)); d.legs[0].rotation.x = s * 0.35; d.legs[1].rotation.x = -s * 0.35; d.fig.position.y = Math.abs(s) * 0.04; }
   p.statue.position.y = Math.abs(Math.sin(t * 3.2)) * 0.05; p.statue.rotation.z = Math.sin(t * 1.6) * 0.02;
+  // v5s46d (277): i ceri dondolano e la lanterna illumina la via
+  if (p.lanterns) for (const L of p.lanterns) { L.rotation.z = Math.sin(t * 2.4 + L.position.x * 4) * 0.22; const g = L.children[0]; if (g && g.material) g.material.color.setRGB(1, 0.75 + Math.sin(t * 13 + L.position.x) * 0.12, 0.45); }
 }
 
 // paesani affacciati: figura con un davanzale/balcone sotto, per i lati della via
@@ -236,4 +249,60 @@ export function buildBurraTree(tex) {
     }
   }
   return g;
+}
+
+// v5s46d (251, 280): facciata del Garag di Pinu sul marciapiede destro, all'inizio del paese.
+// Convenzione case: facciata su x = 0 (verso la via), corpo verso -x, da z = 0 a z = -w.
+// Porta a due ante socchiusa, insegna, bancone visibile, scaffali, attrezzi, calendario, radio.
+export function buildPinuFacade() {
+  const k = new Kit(251), r = rng(251);
+  const w = 11.2, D = 5.4, H = 4.6;
+  const plaster = '#e7c9a2', stone = '#b7a48c', wood = '#6b4428', woodD = '#4a2e1c';
+  k.add(G.box(D, H, w), plaster, { x: -D / 2, y: H / 2, z: -w / 2, vary: 0.04 });
+  k.add(G.box(0.28, 0.7, w), stone, { x: 0.02, y: 0.35, z: -w / 2, vary: 0.12 });
+  k.add(G.box(D + 0.8, 0.28, w + 0.5), '#c45a32', { x: -D / 2 + 0.3, y: H + 0.35, z: -w / 2, rz: -0.18 });
+  k.add(G.box(D + 0.5, 0.16, w + 0.3), '#a84828', { x: -D / 2 + 0.15, y: H + 0.62, z: -w / 2, rz: -0.18 });
+  // portone da garage, ante di legno socchiuse verso l'interno (si vede il bancone)
+  const dw = 3.4, dh = 3.1;
+  k.add(G.box(0.22, dh + 0.3, dw + 0.5), stone, { x: 0.04, y: (dh + 0.3) / 2, z: -w / 2 });
+  for (const s of [-1, 1]) {
+    k.add(G.box(0.1, dh, dw / 2 - 0.08), wood, { x: -0.35, y: dh / 2, z: -w / 2 + s * (dw / 4), ry: s * 0.55 });
+    for (let i = 0; i < 3; i++) k.add(G.box(0.04, 0.08, dw / 2 - 0.3), woodD, { x: -0.42, y: 0.6 + i * 0.85, z: -w / 2 + s * (dw / 4), ry: s * 0.55 });
+  }
+  // insegna (il testo vero e' il banner HTML proiettato qui)
+  k.add(G.box(0.12, 0.7, 3.6), '#3a2418', { x: 0.16, y: 3.55, z: -w / 2 });
+  k.add(G.box(0.08, 0.52, 3.3), '#f3e2b8', { x: 0.22, y: 3.55, z: -w / 2 });
+  k.add(G.box(0.04, 0.08, 2.4), '#8a1e2a', { x: 0.26, y: 3.62, z: -w / 2 });
+  k.add(G.box(0.04, 0.08, 1.6), '#1f4a32', { x: 0.26, y: 3.46, z: -w / 2 });
+  // finestre ai lati, una socchiusa, gatto sul davanzale, gabbia, brocche
+  for (const z of [-1.5, -w + 1.5]) {
+    k.add(G.box(0.12, 1.3, 1.15), '#f1e4c9', { x: 0.06, y: 2.5, z });
+    k.add(G.box(0.08, 1.05, 0.85), z < -w / 2 ? '#ffd682' : '#2f3d5c', { x: 0.1, y: 2.5, z, unlit: z < -w / 2 });
+  }
+  k.add(G.box(0.08, 1.15, 0.42), '#3f7d5b', { x: 0.2, y: 2.5, z: -1.15, ry: 0.7 });
+  k.add(G.box(0.22, 0.16, 0.7), '#c06a3f', { x: 0.28, y: 1.85, z: -w + 1.5 });
+  k.add(G.box(0.28, 0.16, 0.16), '#3a322c', { x: 0.42, y: 2.05, z: -w + 1.35 });
+  k.add(G.sph(0.11, 6, 5), '#e8c8a0', { x: 0.42, y: 2.22, z: -w + 1.35 });
+  k.add(G.box(0.16, 0.22, 0.16), '#c8a050', { x: 0.38, y: 2.15, z: -1.7 });
+  for (const o of [-0.06, 0.06]) k.add(G.box(0.02, 0.2, 0.02), '#2a2418', { x: 0.46, y: 2.2, z: -1.7 + o });
+  for (const [zz, h] of [[-2.6, 0.55], [-3.1, 0.4], [-3.5, 0.7]]) {
+    k.add(G.cyl(0.16, 0.2, h, 8), '#8a5a32', { x: 0.45, y: h / 2, z: zz });
+    k.add(G.cyl(0.22, 0.16, 0.08, 8), '#6a4424', { x: 0.45, y: h, z: zz });
+  }
+  // interno visibile dalla via: bancone, scaffali, attrezzi, calendario, radio
+  k.add(G.box(1.4, 0.9, 2.4), wood, { x: -1.6, y: 0.5, z: -w / 2 });
+  k.add(G.box(1.5, 0.08, 2.5), '#c49058', { x: -1.6, y: 0.98, z: -w / 2 });
+  for (const y of [1.7, 2.5, 3.3]) {
+    k.add(G.box(0.45, 0.08, 3.2), woodD, { x: -D + 0.35, y, z: -w / 2 });
+    for (let i = 0; i < 4; i++) k.add(G.box(0.28, 0.32, 0.28), r.pick(['#a8182a', '#2f6a38', '#c8a24a', '#3a4a6a']), { x: -D + 0.55, y: y + 0.22, z: -w / 2 - 1.2 + i * 0.7 });
+  }
+  k.add(G.box(0.08, 1.1, 0.08), wood, { x: -2.4, y: 1.5, z: -w / 2 + 1.6, rz: 0.4 });
+  k.add(G.box(0.28, 0.08, 0.08), '#4a4a4c', { x: -2.15, y: 2.05, z: -w / 2 + 1.6, rz: 0.4 });
+  k.add(G.box(0.35, 0.5, 0.04), '#f6efe0', { x: -D + 0.2, y: 2.3, z: -w / 2 - 2.2 });
+  k.add(G.box(0.28, 0.28, 0.02), '#c8283a', { x: -D + 0.22, y: 2.55, z: -w / 2 - 2.2 });
+  k.add(G.box(0.42, 0.28, 0.22), '#2a2420', { x: -1.15, y: 1.2, z: -w / 2 + 0.7 });
+  k.add(G.cyl(0.1, 0.1, 0.04, 8), '#c8b070', { x: -0.95, y: 1.2, z: -w / 2 + 0.82, rz: Math.PI / 2 });
+  k.add(G.box(0.5, 0.08, 0.08), '#2a2420', { x: 0.15, y: 2.05, z: -2.2 });
+  k.add(G.box(0.08, 0.35, 0.08), '#2a2420', { x: 0.38, y: 1.9, z: -2.2 });
+  return k.build({ ao: 0.28 });
 }

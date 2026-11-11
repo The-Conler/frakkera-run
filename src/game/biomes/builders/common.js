@@ -58,11 +58,27 @@ export const ROCK = {
 };
 
 // leccio / albero a chioma tondeggiante
-export function tree(k, r, x, y, z, s = 1, leaf = LEAF.holm, trunk = '#5a4430') {
-  const h = s * r.range(2.4, 3.4);
-  k.add(G.cyl(0.14 * s, 0.24 * s, h, 6), trunk, { x, y: y + h / 2, z, rz: r.range(-0.15, 0.15), flat: true });
+export function tree(k, r, x, y, z, s = 1, leaf = LEAF.holm, trunk = '#5a4430', bark = 1) {
+  const h = s * r.range(2.4, 3.4), lean = r.range(-0.12, 0.12);
+  k.add(G.cyl(0.14 * s * bark, 0.22 * s * bark, h, 7), trunk, { x, y: y + h / 2, z, rz: lean, flat: true });
+  // v5s46d (285): costolature di corteccia, non un cilindro liscio
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI * 2;
+    k.add(G.box(0.035 * s * bark, h * 0.72, 0.05 * s), '#3a2c22', { x: x + Math.cos(a) * 0.16 * s * bark, y: y + h * 0.48, z: z + Math.sin(a) * 0.16 * s * bark, ry: a, rz: lean });
+  }
   const n = 5 + Math.floor(r() * 3);
   for (let i = 0; i < n; i++) k.add(G.ico(s * r.range(0.9, 1.5), 1), r.pick(leaf), { x: x + r.range(-1, 1) * s, y: y + h + r.range(-0.3, 1.3) * s, z: z + r.range(-1, 1) * s, flat: true, vary: 0.25, sy: 0.85 });
+}
+// fico d'India: pale ovali una sull'altra, fuori dalla carreggiata
+export function fico(k, r, x, y, z, s = 1) {
+  k.add(G.cyl(0.06 * s, 0.08 * s, 0.28 * s, 5), '#4a5a28', { x, y: y + 0.14 * s, z });
+  let py = y + 0.28 * s;
+  for (let i = 0; i < 4; i++) {
+    const a = i * 0.9 + r();
+    k.add(G.box(0.28 * s, 0.07 * s, 0.18 * s), r.pick(['#3d6a2a', '#4e7a32', '#2f5520', '#5a8a38']), { x: x + Math.cos(a) * 0.08 * s, y: py, z: z + Math.sin(a) * 0.06 * s, rz: 0.35 * (i % 2 ? 1 : -1), ry: a });
+    if (i === 3 && r.chance(0.6)) k.add(G.sph(0.07 * s, 6, 5), '#c4562a', { x: x + 0.12 * s, y: py + 0.08 * s, z });
+    py += 0.16 * s;
+  }
 }
 export function cypress(k, r, x, y, z, s = 1) {
   k.add(G.cyl(0.12 * s, 0.16 * s, 1.2 * s, 5), '#4a3a28', { x, y: y + 0.6 * s, z });

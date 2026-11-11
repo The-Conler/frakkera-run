@@ -74,8 +74,23 @@ function wallLamp() {
   for (let i = 0; i < 4; i++) { const a = i / 4 * Math.PI * 2 + 0.4; k.add(G.box(0.015, 0.34, 0.015), iron, { x: 0.42 + Math.cos(a) * 0.1, y: 0.01, z: Math.sin(a) * 0.1 }); }
   return k.build();
 }
+function pickSwing() {
+  const k = new Kit(181);
+  k.add(G.cyl(0.08, 0.07, 0.55, 6), JACKETS[0], { y: -0.22 });
+  k.add(G.cyl(0.03, 0.03, 1.05, 5), '#7a5530', { y: -0.15, z: 0.05, rx: 0.9 });
+  k.add(G.box(0.55, 0.06, 0.06), '#4a4a4c', { y: 0.28, z: 0.42, rz: 0.2 });
+  return k.build();
+}
+function handCart() {
+  const k = new Kit(182);
+  k.add(G.box(0.7, 0.45, 0.9), '#6a3a22', { y: 0.55 });
+  k.add(G.box(0.8, 0.08, 1.0), '#4a2a18', { y: 0.8 });
+  for (const [x, z] of [[-0.28, 0.3], [0.28, 0.3], [-0.28, -0.3], [0.28, -0.3]]) k.add(G.cyl(0.12, 0.12, 0.06, 8), '#222', { x, y: 0.14, z, rz: Math.PI / 2 });
+  for (let i = 0; i < 4; i++) k.add(G.ico(0.12, 0), '#3a3a3a', { x: (i % 2) * 0.2 - 0.1, y: 0.95, z: (i > 1 ? 0.15 : -0.1), flat: true });
+  return k.build();
+}
 export function minerGeoms() {
-  if (!cache) cache = { poses: [0, 1, 2, 3].map(miner), wave: waveArm(), lamp: wallLamp() };
+  if (!cache) cache = { poses: [0, 1, 2, 3].map(miner), wave: waveArm(), lamp: wallLamp(), pick: pickSwing(), cart: handCart() };
   return cache;
 }
 export const HEADLAMP = { x: 0, y: 2.26, z: 0.32 };

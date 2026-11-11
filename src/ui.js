@@ -167,7 +167,9 @@ export function initUI(game) {
     if (p.x != null) {
       const now = performance.now(); recentPops = recentPops.filter((q) => now - q.t < 900);
       let x = parseFloat(el.style.left), y = parseFloat(el.style.top);
-      for (let k = 0; k < 5 && recentPops.some((q) => Math.abs(q.x - x) < 16 && Math.abs(q.y - y) < 6); k++) y = Math.min(90, y + 6.5);   // sotto: quello vecchio sta gia salendo
+      if (p.style === 'carpet' || p.style === 'fuel') y = Math.max(10, y - 12);   // v5s46d (264): il +20 non resta sui tappeti
+      const up = p.style === 'carpet' || p.style === 'fuel';
+      for (let k = 0; k < 5 && recentPops.some((q) => Math.abs(q.x - x) < 16 && Math.abs(q.y - y) < 6); k++) y = up ? Math.max(8, y - 6.5) : Math.min(90, y + 6.5);
       el.style.top = `${y}%`; recentPops.push({ x, y, t: now });
     }
   });
@@ -302,6 +304,12 @@ export function initUI(game) {
   const offerBtn = $('#shop-offer');
   let offerT0 = 0, offerDur = 0, offerRaf = 0;
   const hideOffer = () => { offerBtn.classList.add('hidden'); cancelAnimationFrame(offerRaf); };
+  bus.on('shopAnchor', (a) => {
+    if (!a.on) { offerBtn.style.left = ''; offerBtn.style.top = ''; return; }
+    offerBtn.style.left = `${Math.max(14, Math.min(86, a.x * 100))}%`;
+    offerBtn.style.top = `${Math.max(12, Math.min(48, a.y * 100))}%`;
+  });
+  bus.on('night', (k) => { const v = $('#night-vig'); if (v) v.style.opacity = String(Math.max(0, Math.min(0.9, k || 0))); });
   bus.on('shopOffer', (d) => {
     if (state !== 'play') return;
     // v5s44: al rientro in paese PIÙ VELOCE! e l'offerta di Pinu stavano nello stesso punto

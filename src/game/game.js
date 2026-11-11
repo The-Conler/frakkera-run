@@ -220,6 +220,10 @@ export class Game {
     view.cam = mode === 'attract' ? 'menu' : mode === 'dance' ? 'dance' : (mode === 'run' || mode === 'shop') ? 'run' : 'over';   // v5s7b: in negozio/3-2-1 resta la camera di corsa
     view.char = ch; view.fuelF = mode === 'attract' ? 1 : fuelF; view.speed = sim.currentSpeed; view.smoke = mode === 'dying' || mode === 'over';
     this.world.render(sim, dt, view);
+    if (this.world.shopSign) bus.emit('shopAnchor', { on: true, x: this.world.shopSign.x, y: this.world.shopSign.y });
+    else if (this._shopAnch) bus.emit('shopAnchor', { on: false });
+    this._shopAnch = !!this.world.shopSign;
+    if (this._nightK !== this.world.nightK) { this._nightK = this.world.nightK || 0; bus.emit('night', this._nightK); }
     // passi
     const fr = this.world.stepFrame();
     if (fr !== this.lastFrame && (fr === 1 || fr === 3) && mode === 'run' && !this.paused && !sim.cart) audio.step(fr === 3);

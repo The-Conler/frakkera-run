@@ -16,6 +16,19 @@ export class DanceRing {
   build() {
     const g = new THREE.Group(); this.dancers = [];
     for (let i = 1; i < N; i++) { const d = buildDancer(this.w.mats2, i % 2 === 1, i); g.add(d.root); this.dancers.push({ ...d, slot: i }); }
+    // v5s46d (278): suonatore di launeddas sul marciapiede, fuori dal cerchio e dalle corsie
+    { const laun = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.22, 0.7, 3, 6), new THREE.MeshLambertMaterial({ color: '#1a1a1a' }));
+      body.position.y = 0.85; laun.add(body);
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6), new THREE.MeshLambertMaterial({ color: '#e0b48e' }));
+      head.position.y = 1.45; laun.add(head);
+      const cap = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.28, 6), new THREE.MeshLambertMaterial({ color: '#111' }));
+      cap.position.y = 1.62; laun.add(cap);
+      for (const [dx, col] of [[-0.06, '#c8a46a'], [0, '#e8d2a0'], [0.06, '#8a5a32']]) {
+        const p = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.03, 0.7, 5), new THREE.MeshLambertMaterial({ color: col }));
+        p.position.set(dx, 1.15, 0.2); p.rotation.x = 0.4; laun.add(p);
+      }
+      laun.position.set(-5.6, 0, 0.2); g.add(laun); this.laun = laun; }
     this.ring = new THREE.Mesh(new THREE.TorusGeometry(R0 + 0.2, 0.14, 8, 40), new THREE.MeshBasicMaterial({ color: '#e8c060' }));
     this.ring.rotation.x = -Math.PI / 2; this.ring.position.y = 0.06; g.add(this.ring);
     this.floor = new THREE.Mesh(new THREE.CircleGeometry(R0 + 0.15, 28), new THREE.MeshBasicMaterial({ color: '#c44a2a', transparent: true, opacity: 0.42 }));

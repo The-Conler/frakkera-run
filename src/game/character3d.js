@@ -319,6 +319,16 @@ export class Character3D {
     this.state = st;
   }
 
+  // v5s46d (263): la punta ruota in appoggio, cosi' il piede non scivola piatto sull'acciottolato
+  plantFeet() {
+    if (this.state !== 'run' || !this.feet || (this.cartK || 0) > 0.4) return;
+    const ph = this.phase || 0;
+    this.feet.forEach((b, i) => {
+      if (!b || i > 1) return;
+      const s = Math.sin((ph + (i ? 0.5 : 0)) * Math.PI * 2);
+      b.rotation.x += s * 0.45;
+    });
+  }
   stumble() {
     if (!this.ready || this.state !== 'run') return;
     this.stumbleT = 0; this.rec.stumbles++;
@@ -378,7 +388,7 @@ export class Character3D {
     if (R.states[R.states.length - 1] !== this.state) R.states.push(this.state);
     // velocita' della corsa e sincronia del passo
     const sp = st.speed || 0;
-    const ts = this.state === 'run' ? 0.95 + Math.max(0, Math.min(1, (sp - 82) / 158)) * 0.55 : 1;
+    const ts = this.state === 'run' ? 0.9 + Math.max(0, Math.min(1, (sp - 70) / 120)) * 0.85 : 1;   // v5s46d (263): il passo tiene il passo della strada
     const run = this.actions.run;
     run.timeScale = st.raise ? 0.62 : ts;          // v5s11: nel ballo passo lento
     for (const k of ['left', 'right']) { const a = this.actions[k]; if (a) { a.timeScale = ts; a.time = run.time; } }
@@ -386,6 +396,7 @@ export class Character3D {
     this.phase = run.time / run.getClip().duration;
     this.runK += ((this.state === 'run' ? 1 : 0) - this.runK) * Math.min(1, dt * 4);
     this.mascotPre(this.runK);
+    this.plantFeet();
     this.frame = Math.floor(((this.phase + 0.75) % 1) * 4);
     // posizione e orientamento
     let fTarget = this.state === 'idle' ? -0.45 : this.state === 'over' ? Math.PI + 0.3 : Math.PI;   /* v5s42c: prima PI+1.15 dopo 1 s: di taglio la frakkera in spalla sembrava piantata dritta */
