@@ -20,7 +20,7 @@ import { loadCliffModels, cliffModels, buildCliffInstances, buildCurtains, fernM
 import { buildFalls, makeFaceX, stiddiosaFallSpecs, waterMaterial, fxMaterial, WATER_U } from './stiddiosaFalls.js';
 import * as S from './builders/structures.js';
 import { buildChurchSquare, VISTA } from './builders/church.js';
-import { buildVicolo, buildCappella, buildCappellaLeft } from './builders/gadoni5.js';
+import { buildVicolo, buildCappella, buildCappellaLeft, cadutiDecals } from './builders/gadoni5.js';
 import { buildBanner } from '../masks/figures.js';
 import { Kit, G, rng, ROCK, LEAF } from './builders/common.js';
 
@@ -751,7 +751,26 @@ export class Env {
     const out = { W0: W, W1: W + pf.w, w: pf.w, mesh, key: pf.key, lamps };
     // v5s39: solo le case (non i giardini) bloccano alberi/cespugli
     if (pf.key && pf.key.startsWith('house')) out.foot = this.addHouseFoot(sd.s, W, pf.w);
+    this.attachMural(sd, out);
     return out;
+  }
+  // murale di Gadoni (l'uomo con la frakkera) sul timpano della casa a sinistra, prima del monumento.
+  // Quella faccia guarda chi arriva: si legge dalla via, e non e' la casa dietro il monumento (quella e' tolta).
+  attachMural(sd, p) {
+    if (sd.s >= 0 || !p.mesh || !p.key || !p.key.startsWith('house')) return;
+    const i = this.info(p.W0 + 0.3);
+    if (i.b.id !== 'village' || i.local < 170 || i.local > 186) return;
+    if (!this.muralMat) {
+      const tex = new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}textures/gadoni-mural.webp`);
+      tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+      this.muralMat = new THREE.MeshLambertMaterial({ map: tex, emissive: new THREE.Color('#3a2820'), emissiveMap: tex, emissiveIntensity: 0.32 });
+    }
+    const mh = 5.15, mw = mh * (768 / 1010);
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(mw, mh), this.muralMat);
+    m.position.set(p.mesh.position.x - 3, 0.72 + mh / 2, -p.W0 + 0.12);
+    m.userData.ownGeo = true;
+    this.scene.add(m);
+    p.extra = p.extra || []; p.extra.push(m);
   }
   // tutte le luci decorative (lanterne, lampadine, lampade di miniera) in UN solo draw call:
   // ogni "lamp" e' un handle leggero; ogni frame gli handle visibili vengono scritti in un THREE.Points
@@ -1015,6 +1034,7 @@ export class Env {
       }
     } else if (id === 'vicolo') {
       cached('vicolo', () => buildVicolo(32));
+      for (const m of cadutiDecals()) { root.add(m); own.push(m.geometry); }
       lamps.push(this.lamp(-7.4, 1.25, -W - 20.4, '#ffc080', 1.5, 0.65));   // v5s46d (276): lumino ai piedi del monumento, non sulla statua
       // v5s44e: impronta del Monumento ai Caduti (lato sinistro, z locale -21 → W+21, ora di sbieco)
       feet.push(this.addHouseFoot(-1, W + 17.5, 9, 1.6));

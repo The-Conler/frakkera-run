@@ -160,15 +160,14 @@ export function buildProcession(mats, v = 0) {
   root.add(statue);
   for (const [x, z] of [[-0.75, -1.4], [0.75, -1.4], [-0.75, 1.4], [0.75, 1.4]]) {
     const d = buildDancer(mats, false, (figs.length + v) % 3); d.root.position.set(x, 0, z); d.root.rotation.y = PROC_FACE; d.ph = figs.length * 1.6;
-    d.arms[0].rotation.x = d.arms[1].rotation.x = -2.6; root.add(d.root); figs.push(d);
+    d.role = 'bearer'; root.add(d.root); figs.push(d);
   }
   // davanti (verso chi arriva): il prete con lo stendardo e due donne col cero
-  const pr = buildDancer(mats, false, 2); pr.root.position.set(0, 0, 2.9); pr.root.rotation.y = PROC_FACE; pr.ph = 0.5; root.add(pr.root); figs.push(pr);
+  const pr = buildDancer(mats, false, 2); pr.root.position.set(0, 0, 2.9); pr.root.rotation.y = PROC_FACE; pr.ph = 0.5; pr.role = 'priest'; root.add(pr.root); figs.push(pr);
   const ban = new Kit(460); ban.add(G.box(0.06, 3.2, 0.06), '#5a3220', { y: 1.6 }); ban.add(G.box(0.9, 1.1, 0.04), '#8a1e2a', { y: 2.7 }); ban.add(G.box(0.5, 0.06, 0.05), '#d9b44a', { y: 2.7, z: 0.03 }); ban.add(G.box(0.06, 0.5, 0.05), '#d9b44a', { y: 2.7, z: 0.03 }); ban.add(G.box(0.5, 0.06, 0.05), '#d9b44a', { y: 2.7, z: -0.03 }); ban.add(G.box(0.06, 0.5, 0.05), '#d9b44a', { y: 2.7, z: -0.03 });
-  const bm = new THREE.Mesh(once('banner', () => ban.build()), mats); bm.position.set(0.45, 0, 2.9); root.add(bm);
+  const bm = new THREE.Mesh(once('banner', () => ban.build()), mats); bm.position.set(0.45, 0, 0); pr.root.add(bm);
   for (const x of [-0.6, 0.6]) {
-    const w = buildDancer(mats, true, (x > 0 ? 1 : 0)); w.root.position.set(x, 0, -2.9); w.root.rotation.y = PROC_FACE; w.ph = x * 3; root.add(w.root); figs.push(w);
-    w.arms[1].rotation.x = -1.3;
+    const w = buildDancer(mats, true, (x > 0 ? 1 : 0)); w.root.position.set(x, 0, -2.9); w.root.rotation.y = PROC_FACE; w.ph = x * 3; w.role = 'candle'; root.add(w.root); figs.push(w);
   }
   const lanterns = [];
   const glass = new THREE.MeshBasicMaterial({ color: '#ffd9a0' });
@@ -183,8 +182,32 @@ export function buildProcession(mats, v = 0) {
   return { root, figs, statue, lanterns };
 }
 export function animateProcession(p, t) {
-  for (const d of p.figs) { const s = Math.sin(t * 3.2 + (d.ph || 0)); d.legs[0].rotation.x = s * 0.35; d.legs[1].rotation.x = -s * 0.35; d.fig.position.y = Math.abs(s) * 0.04; }
-  p.statue.position.y = Math.abs(Math.sin(t * 3.2)) * 0.05; p.statue.rotation.z = Math.sin(t * 1.6) * 0.02;
+  // passo vero, sempre: gambe in opposizione, busto che sale sul battere. Mai fermi, mai a T.
+  const step = t * 5.4;
+  for (const d of p.figs) {
+    const s = Math.sin(step + (d.ph || 0));
+    d.root.rotation.y = PROC_FACE;
+    if (d.legs && d.legs[0] && d.legs[1]) {
+      d.legs[0].rotation.x = s * 0.85;
+      d.legs[1].rotation.x = -s * 0.85;
+      d.legs[0].rotation.z = Math.max(0, s) * 0.08;
+      d.legs[1].rotation.z = -Math.max(0, -s) * 0.08;
+    }
+    if (d.fig) d.fig.position.y = Math.max(0, Math.abs(s) - 0.15) * 0.09;
+    if (d.arms && d.arms[0] && d.arms[1]) {
+      if (d.role === 'bearer') {
+        d.arms[0].rotation.x = -1.05 + s * 0.08; d.arms[1].rotation.x = -1.05 - s * 0.08;
+        d.arms[0].rotation.z = 0.18; d.arms[1].rotation.z = -0.18;
+      } else if (d.role === 'candle') {
+        d.arms[0].rotation.x = -s * 0.45; d.arms[1].rotation.x = -0.9;
+        d.arms[0].rotation.z = 0.08; d.arms[1].rotation.z = -0.12;
+      } else {
+        d.arms[0].rotation.x = -s * 0.65; d.arms[1].rotation.x = s * 0.65;
+        d.arms[0].rotation.z = 0.12; d.arms[1].rotation.z = -0.12;
+      }
+    }
+  }
+  p.statue.position.y = Math.abs(Math.sin(step)) * 0.06; p.statue.rotation.z = Math.sin(step * 0.5) * 0.025;
   // v5s46d (277): i ceri dondolano e la lanterna illumina la via
   if (p.lanterns) for (const L of p.lanterns) { L.rotation.z = Math.sin(t * 2.4 + L.position.x * 4) * 0.22; const g = L.children[0]; if (g && g.material) g.material.color.setRGB(1, 0.75 + Math.sin(t * 13 + L.position.x) * 0.12, 0.45); }
 }

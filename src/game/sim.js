@@ -569,10 +569,9 @@ export class Sim {
         if (e.d + e.len < T - 260) { e.done = true; }
         continue;
       }
-      if (e.kind === 'processione' && !e.done && e.d - T < MOVE_AHEAD) {
-        // v5s44f: il corteo avanza verso il giocatore (passo lento, corsa massima limitata)
-        if (e.d0 == null) e.d0 = e.d;
-        e.d = Math.max(e.d0 - VILLAGE.PROC_WALK_MAX_PX, e.d - VILLAGE.PROC_WALK_PX_S * dt);
+      if (e.kind === 'processione' && !e.done && e.d + (e.len || 0) > T - 80) {
+        // il corteo cammina sempre verso chi corre, dovunque sia sulla mappa: non si ferma dopo pochi metri
+        e.d -= VILLAGE.PROC_WALK_PX_S * dt;
       }
       if (e.kind === 'rollin' && !e.done && e.d - T < MOVE_AHEAD) {
         // botte / carrello che rotola verso il giocatore lungo la corsia (velocita' proporzionale alla corsa)
