@@ -28,7 +28,7 @@ function applyFrame({ w, h }) {
 async function boot() {
   try {
     await Promise.race([
-      Promise.all([document.fonts.load('40px "Lilita One"'), document.fonts.load('600 16px "Baloo 2"'), document.fonts.load('800 16px "Baloo 2"')]),
+      Promise.all([document.fonts.load('italic 800 48px Fraunces'), document.fonts.load('500 16px Outfit'), document.fonts.load('600 16px Outfit'), document.fonts.load('700 16px Outfit')]),
       new Promise((r) => setTimeout(r, 2500)),
     ]);
   } catch { /* font di sistema */ }

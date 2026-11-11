@@ -1,7 +1,9 @@
-Font inclusi in FRAKKERA RUN v3 (sottoinsieme latino, woff2, da @fontsource):
+Font inclusi in FRAKKERA RUN (sottoinsieme latino, woff2, da @fontsource):
 
 - Lilita One (Juan Montoreano) - SIL Open Font License 1.1
 - Baloo 2 (Ek Type) - SIL Open Font License 1.1
+- Fraunces (The Fraunces Project Authors) - SIL Open Font License 1.1
+- Outfit (The Outfit Project Authors) - SIL Open Font License 1.1
 
 Testo integrale delle licenze:
 
@@ -194,3 +196,15 @@ INCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL
 DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
 OTHER DEALINGS IN THE FONT SOFTWARE.
+
+===== Fraunces =====
+Copyright 2020 The Fraunces Project Authors (https://github.com/undercasetype/Fraunces)
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+The full license text is included above.
+
+===== Outfit =====
+Copyright 2021 The Outfit Project Authors (https://github.com/Outfitio/Outfit-Fonts)
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+The full license text is included above.
