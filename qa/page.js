@@ -133,26 +133,28 @@
     }
     return out;
   };
-  // ---------- 5) monumento ai caduti visibile (160-200 m): i raggi dalla camera arrivano al gruppo di bronzo/piedistallo
+  // ---------- 5) monumento ai caduti visibile (160-200 m): i raggi dalla camera arrivano alla statua e al piedistallo
   qa.memorial = () => {
     const key = [...E.marks.keys()].find((k) => k.startsWith('vicolo@')); if (!key) return { skip: 'no-mark' };
     const mk = E.marks.get(key), mesh = mk.root.children[0]; mk.root.updateMatrixWorld(true);
-    const A = mesh.geometry.attributes.position, C = mesh.geometry.attributes.color, P = V(0, 0, 0), sets = { statue: [], base: [] };
-    // solo il monumento (posa -8.8, -21): il gruppo bronzeo si riconosce dalla patina verde-grigia, cosi' la bandiera e i lecci dietro non spostano il campione
+    const A = mesh.geometry.attributes.position, P = V(0, 0, 0), base = [];
     for (let i = 0; i < A.count; i += 3) {
       P.fromBufferAttribute(A, i);
       if (P.x <= -11 || P.x >= -6.5 || P.z >= -18 || P.z <= -24) continue;
-      if (P.y > 2.2 && P.y < 5.2) sets.base.push(P.clone());
-      if (C && P.y > 5.0) {
-        const r = C.getX(i), g = C.getY(i), b = C.getZ(i);
-        if (r > 0.02 && r < 0.7 && g >= r * 0.9 && g <= r * 1.6 && b > r * 0.7 && b < g * 1.15) sets.statue.push(P.clone());
-      }
+      if (P.y > 2.2 && P.y < 5.2) base.push(P.clone());
     }
     const objs = qa.scenery(), cam = Wd.camera.position, res = {};
-    for (const k in sets) {
-      const L = sets[k]; if (!L.length) continue; const c = L.reduce((a, b) => a.add(b), V(0, 0, 0)).multiplyScalar(1 / L.length).applyMatrix4(mesh.matrixWorld);
-      const d = c.clone().sub(cam), dist = d.length(), hh = hitFirst(cam.clone(), d, dist + 2, objs);
-      res[k] = { dist: +dist.toFixed(1), hit: hh ? +hh.distance.toFixed(1) : null, ok: !!hh && hh.distance > dist - 1.6, by: hh && hh.object !== mesh ? (hh.object.name || 'other') : 'self' };
+    const aim = (name, worldPt, self) => {
+      const d = worldPt.clone().sub(cam), dist = d.length(), hh = hitFirst(cam.clone(), d, dist + 2, objs);
+      res[name] = { dist: +dist.toFixed(1), hit: hh ? +hh.distance.toFixed(1) : null, ok: !!hh && hh.distance > dist - 1.6, by: hh ? (hh.object === self ? 'self' : (hh.object.name || 'other')) : 'miss' };
+    };
+    if (base.length) aim('base', base.reduce((a, b) => a.add(b), V(0, 0, 0)).multiplyScalar(1 / base.length).applyMatrix4(mesh.matrixWorld), mesh);
+    const statue = mk.root.getObjectByName('memorial-statue');
+    if (!statue) res.statue = { ok: false, by: 'missing' };
+    else {
+      statue.updateMatrixWorld(true);
+      aim('statue', statue.getWorldPosition(V(0, 0, 0)), statue);
+      if (res.statue.by !== 'self' && res.statue.by !== 'memorial-statue') res.statue.ok = false;
     }
     return res;
   };

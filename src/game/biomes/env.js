@@ -20,7 +20,7 @@ import { loadCliffModels, cliffModels, buildCliffInstances, buildCurtains, fernM
 import { buildFalls, makeFaceX, stiddiosaFallSpecs, waterMaterial, fxMaterial, WATER_U } from './stiddiosaFalls.js';
 import * as S from './builders/structures.js';
 import { buildChurchSquare, VISTA } from './builders/church.js';
-import { buildVicolo, buildCappella, buildCappellaLeft, cadutiDecals } from './builders/gadoni5.js';
+import { buildVicolo, buildCappella, buildCappellaLeft, cadutiDecals, cadutiStatue } from './builders/gadoni5.js';
 import { buildBanner } from '../masks/figures.js';
 import { Kit, G, rng, ROCK, LEAF } from './builders/common.js';
 
@@ -772,6 +772,35 @@ export class Env {
     this.scene.add(m);
     p.extra = p.extra || []; p.extra.push(m);
   }
+  // statua vera del monumento (ritaglio con alfa). Stessa convenzione del murale, cosi' il file
+  // si trova anche sotto /frakkera-run/v5/. Lambert con una tinta calda: prende il tramonto,
+  // non si accende da sola e di notte resta leggibile (il cielo non scende mai a zero).
+  statueMaterial() {
+    if (this.statueMat) return this.statueMat;
+    const tex = new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}textures/memorial-statue.webp`);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 8;
+    tex.generateMipmaps = true;
+    tex.minFilter = THREE.LinearMipmapLinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    // il cartellone guarda la via, quindi il sole (dietro) non lo colpisce: un po' di emissive
+    // tiene il bronzo della foto, il Lambert ci aggiunge il tramonto. Niente luce additiva.
+    this.statueMat = new THREE.MeshLambertMaterial({
+      map: tex, color: '#fff0e4', emissive: '#fff0e4', emissiveMap: tex, emissiveIntensity: 0.38, alphaTest: 0.5,
+    });
+    return this.statueMat;
+  }
+  // cartellone cilindrico: ruota solo intorno a Y, verso la camera
+  faceBillboards() {
+    const cam = this.world.camera.position;
+    for (const [, m] of this.marks) {
+      const s = m.statue;
+      if (!s || !s.parent) continue;
+      const wx = s.position.x + (s.parent.position.x || 0);
+      const wz = s.position.z + (s.parent.position.z || 0);
+      s.rotation.y = Math.atan2(cam.x - wx, cam.z - wz);
+    }
+  }
   // tutte le luci decorative (lanterne, lampadine, lampade di miniera) in UN solo draw call:
   // ogni "lamp" e' un handle leggero; ogni frame gli handle visibili vengono scritti in un THREE.Points
   glowLayer() {
@@ -1011,6 +1040,7 @@ export class Env {
     const cached = (name, make) => { const g = this.markGeom(name, make); m_gpu.push(g); return mesh(g, this.mats2, true); };
     const m_gpu = [];
     const feet = [];
+    let statue = null;
     const t0 = performance.now();
     if (id === 'church') {
       const sq = this.prefab('church', 0, () => { const s = buildChurchSquare(1); return { geom: s.geom, w: 0, lamps: s.lamps, houses: s.houses }; });
@@ -1035,6 +1065,8 @@ export class Env {
     } else if (id === 'vicolo') {
       cached('vicolo', () => buildVicolo(32));
       for (const m of cadutiDecals()) { root.add(m); own.push(m.geometry); }
+      statue = cadutiStatue(this.statueMaterial());
+      root.add(statue); own.push(statue.geometry);
       lamps.push(this.lamp(-7.4, 1.25, -W - 20.4, '#ffc080', 1.5, 0.65));   // v5s46d (276): lumino ai piedi del monumento, non sulla statua
       // v5s44e: impronta del Monumento ai Caduti (lato sinistro, z locale -21 → W+21, ora di sbieco)
       feet.push(this.addHouseFoot(-1, W + 17.5, 9, 1.6));
@@ -1101,7 +1133,7 @@ export class Env {
     }
     this.scene.add(root);
     const pool = id === 'pool' ? { root, own, gpu: m_gpu, falls: this.falls, lampSpec: lamps.map((g) => [g.position.x, g.position.y, g.position.z + W, '#' + g.material.color.getHexString(), g.scale.x, g.userData.op]) } : null;
-    this.marks.set(key, { root, own, lamps, gpu: m_gpu, ms: performance.now() - t0, feet, pool });
+    this.marks.set(key, { root, own, lamps, gpu: m_gpu, ms: performance.now() - t0, feet, pool, statue });
   }
   warmMark(key) {
     const r = this.world.renderer; if (!r || this.marks.has(key)) return;
@@ -1164,6 +1196,7 @@ export class Env {
     cull(this.center, (p) => this.freePiece(p)); cull(this.decor, (p) => this.freePiece(p));
     this.updateMarks(back, Math.max(front, playerW + AHEAD + 160));
     this.revealMarks(playerW);
+    this.faceBillboards();
     // animazioni leggere
     for (const p of this.decor) if (p.mesh && p.mesh.userData.sway) p.mesh.rotation.x = Math.sin(clock * 1.3 + p.W0) * 0.04;
     for (const sd of this.sides) for (const p of sd.list) for (const g of p.lamps) g.material.opacity = g.userData.op * (0.85 + Math.sin(clock * 3 + g.userData.ph) * 0.12);

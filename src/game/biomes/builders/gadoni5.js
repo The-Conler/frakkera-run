@@ -172,11 +172,9 @@ function caduti(k, r, cx, cz, yaw = -0.72) {
   boulder(-0.45, 2.05, -0.28, 0.85, 0.62, 0.72, ROCK[1]);
   boulder(0.5, 2.02, 0.22, 0.8, 0.58, 0.68, ROCK[2]);
   boulder(0.08, 2.72, 0.02, 0.78, 0.55, 0.66, ROCK[4]);
-  boulder(0.32, 3.15, 0.04, 1.05, 0.46, 0.62, ROCK[5]); // cima larga: ci stanno entrambi gli stivali (tetto ~3.61)
+  boulder(0.32, 3.15, 0.04, 1.05, 0.46, 0.62, ROCK[5]); // cima del masso ~3.60: ci si appoggia la lastra della statua
   k.add(G.ico(0.16, 0), MS[0], { x: cx - 0.15, y: 2.35, z: cz + 0.2, flat: true });
   k.add(G.ico(0.12, 0), MS[1], { x: cx + 0.3, y: 2.7, z: cz - 0.15, flat: true });
-  // stivali a y locale ~0: il fondo tocca la cima del masso
-  figurePair(k, cx + 0.1, 2.95, cz, 0);
   italianFlag(k, cx + 0.15, cz + 1.7);
   // asta dei Quattro Mori (il telo e' una lastra dipinta, cadutiDecals): sull'altro lato, non davanti alla statua
   k.add(G.cyl(0.04, 0.055, 6.3, 6), '#e4e0d8', { x: cx - 0.2, y: 3.15, z: cz - 1.85 });
@@ -201,56 +199,22 @@ function caduti(k, r, cx, cz, yaw = -0.72) {
   cannon(k, cx - 0.25, 0.2, cz + 2.4);
 }
 
-function figurePair(k, ox, oy, oz, faceRy) {
-  const c = Math.cos(faceRy), s = Math.sin(faceRy);
-  // un solo bronzo: scuro nelle pieghe, piu' chiaro sulle superfici. Niente pelle, niente tessuti.
-  const HI = '#8a9a84', MID = '#6a7d68', PAT = '#455e52', DARK = '#3a4c42';
-  const SC = 1.9;
-  const P = (lx, ly, lz, geo, col, o = {}) => {
-    k.add(geo, col, {
-      x: ox + lx * SC * c + lz * SC * s, y: oy + ly * SC, z: oz - lx * SC * s + lz * SC * c,
-      ry: (o.ry || 0) + faceRy, rx: o.rx, rz: o.rz,
-      sx: (o.sx ?? 1) * SC, sy: (o.sy ?? 1) * SC, sz: (o.sz ?? 1) * SC,
-      vary: 0.035,
-    });
-  };
-  // capsula lungo Y: total = parte cilindrica + due calotte
-  const limb = (r, total) => new THREE.CapsuleGeometry(r, Math.max(0.03, total - 2 * r), 2, 6);
-  const ball = (r) => new THREE.SphereGeometry(r, 10, 8);
-  // statura ~2.05 fino alla cima del capo (testa ~1/7.5), elmo Adrian sopra
-  // piedi a y=0: affondano nella cima del masso, non restano sospesi
-  P(-0.02, 0.05, -0.05, limb(0.08, 0.14), DARK, { sx: 1.2, sz: 1.7 });
-  P(-0.02, 0.46, -0.04, limb(0.09, 0.84), PAT);
-  P(0.02, 0.96, 0, ball(0.14), MID, { sy: 0.7, sx: 1.08 });
-  P(0.22, 1.05, 0.08, limb(0.09, 0.42), MID, { rz: -1.0 });
-  P(0.4, 0.46, 0.1, limb(0.08, 0.84), PAT);
-  P(0.42, 0.05, 0.12, limb(0.08, 0.14), DARK, { sx: 1.2, sz: 1.65 });
-  P(0.04, 1.4, 0.02, limb(0.15, 0.48), HI, { sx: 1.12, sz: 0.82 });                // torace
-  P(0.04, 1.66, 0, limb(0.07, 0.42), MID, { rz: Math.PI / 2 });                    // spalle
-  P(0.16, 1.48, 0.2, limb(0.06, 0.32), MID, { rz: -0.9 });                         // braccio che regge
-  P(0.34, 1.32, 0.14, limb(0.055, 0.3), PAT, { rz: -0.25 });
-  P(0.46, 1.22, 0.1, ball(0.055), HI);                                             // mano
-  P(0.12, 1.46, -0.2, limb(0.06, 0.3), MID, { rz: -0.75 });
-  P(0.3, 1.3, -0.12, limb(0.055, 0.28), PAT, { rz: -0.15 });
-  P(0.4, 1.2, -0.06, ball(0.05), HI);
-  P(0.06, 1.9, 0.04, ball(0.125), MID);                                            // testa (diametro ~1/8 della statura)
-  // elmo Adrian: cupola, cresta bassa, tesa stretta (non un fedora)
-  P(0.06, 2.0, 0.03, ball(0.145), DARK, { sy: 0.78 });
-  P(0.07, 2.1, 0.02, limb(0.018, 0.16), HI, { rx: Math.PI / 2, sy: 0.7 });         // cresta
-  P(0.08, 1.94, 0.04, new THREE.TorusGeometry(0.15, 0.016, 5, 12), DARK, { rx: Math.PI / 2 });
-  // compagno esanime di traverso: la testa cade all'indietro, un braccio pende, le gambe dall'altra parte
-  P(0.36, 1.36, 0.02, limb(0.11, 0.55), MID, { rx: Math.PI / 2 });                 // busto orizzontale
-  P(0.3, 1.18, 0.4, ball(0.1), HI);                                                // testa rovesciata
-  P(0.3, 1.26, 0.4, ball(0.11), DARK, { sy: 0.7 });                                // elmetto del compagno
-  P(0.42, 0.82, 0.32, limb(0.045, 0.62), PAT);                                     // braccio che pende
-  P(0.42, 0.48, 0.32, ball(0.04), MID);                                            // mano
-  P(0.32, 0.62, -0.26, limb(0.055, 0.7), PAT, { rz: 0.12 });                       // gambe che scendono sul masso
-  P(0.28, 0.22, -0.24, limb(0.045, 0.4), MID);
-  P(0.46, 0.58, -0.34, limb(0.05, 0.66), PAT, { rz: -0.18 });
-  P(0.5, 0.18, -0.34, limb(0.042, 0.36), MID);
+// Cartellone della statua vera (texture con alfa). Altezza come il gruppo di prima (~1.3 volte
+// quello piccolo): la lastra di bronzo in fondo all'immagine poggia sulla cima del masso.
+const STATUE_H = 3.85;
+const STATUE_ASPECT = 348 / 595;
+export function cadutiStatue(material) {
+  const h = STATUE_H, w = h * STATUE_ASPECT;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), material);
+  // 12 px trasparenti sotto la lastra (immagine 595): il bordo geometrico scende quel tanto
+  const plate = 3.15 - h * (12 / 595);
+  const p = cadutiWorld(0.59, plate + h / 2, -0.18);
+  m.position.set(p.x, p.y, p.z);
+  m.name = 'memorial-statue';
+  return m;
 }
 
-// tricolore verticale, verde all'asta. Il telo va di lato (+z), non davanti al gruppo.
+// tricolore verticale, verde all'asta. Il telo va di lato (+z), non davanti alla statua.
 function italianFlag(k, x, z) {
   const H = 6.55;
   k.add(G.cyl(0.045, 0.065, H, 6), '#e7e2da', { x, y: H / 2, z });
