@@ -155,30 +155,38 @@ function caduti(k, r, cx, cz, yaw = -0.72) {
   k.add(G.ico(0.16, 0), '#c8283a', { x: cx + 0.55, y: 1.62, z: cz, flat: true });
   k.add(G.ico(0.12, 0), '#f4f0e6', { x: cx + 0.62, y: 1.7, z: cz + 0.08, flat: true });
   k.add(G.ico(0.12, 0), '#2f8a4a', { x: cx + 0.6, y: 1.58, z: cz - 0.08, flat: true });
-  // mucchio di roccia: gli stessi sorteggi di colore di prima (le rose non si spostano), forma nuova
+  // stessi sorteggi di colore di prima (le rose non si spostano)
   const RS = ['#8a8680', '#7a766e', '#949088', '#6e6a64', '#5f5b54'];
   const MS = ['#4a6a32', '#3f5a2c', '#5a7a3a'];
   for (let i = 0; i < 13; i++) r.pick(RS);
   for (let i = 0; i < 4; i++) r.pick(MS);
   const look = rng(5488);
-  const mound = [
-    [0.05, 0.55, 0.0, 0.95], [0.42, 0.38, 0.28, 0.62], [-0.38, 0.42, -0.22, 0.7],
-    [0.22, 0.95, -0.18, 0.58], [-0.18, 1.15, 0.16, 0.55], [0.08, 1.55, 0.02, 0.5],
-    [0.32, 1.25, 0.3, 0.42], [-0.28, 0.85, 0.32, 0.4], [0.02, 1.95, -0.08, 0.46],
-    [-0.08, 2.25, 0.06, 0.38], [0.12, 2.5, 0.02, 0.32],
-  ];
-  for (const [dx, dy, dz, s] of mound) {
-    k.add(G.ico(s, 1), look.pick(['#9a968e', '#8b877f', '#aea89e', '#7a766e', '#b3aea4']), {
-      x: cx + 0.1 + dx, y: 1.5 + dy, z: cz + dz, flat: true, vary: 0.16, sy: 0.78
+  const ROCK = ['#c4baa8', '#a89e90', '#d5cbb8', '#8f867a', '#b3a894', '#9a8e80'];
+  // mucchio di rocce naturali: lastre e blocchi irregolari, larghi in basso, non sfere impilate
+  // lastre angolari, schiacciate: un mucchio di roccia, non sfere
+  const chunk = (x, y, z, s) => {
+    k.add(G.box(1.2, 0.22, 0.86), look.pick(ROCK), {
+      x: cx + x, y, z: cz + z,
+      sx: s * look.range(1.05, 1.7), sy: s * look.range(0.7, 1.35), sz: s * look.range(0.85, 1.45),
+      rx: look.range(-0.7, 0.7), ry: look.range(0, Math.PI), rz: look.range(-0.65, 0.65),
+      flat: true, vary: 0.05,
     });
+  };
+  for (const [x, y, z, s] of [
+    [-0.7, 1.62, -0.55, 1.15], [0.65, 1.58, -0.4, 1.05], [0.2, 1.7, 0.6, 1.2],
+    [-0.15, 1.78, 0.0, 1.35], [0.55, 1.68, 0.35, 0.95], [-0.75, 1.88, 0.45, 0.85],
+    [0.35, 1.95, -0.55, 0.8], [-0.45, 2.15, -0.2, 0.9], [0.15, 2.25, 0.25, 1.0],
+    [-0.2, 2.55, 0.05, 0.85], [0.4, 2.6, -0.15, 0.7], [-0.05, 2.95, -0.08, 0.72],
+    [0.1, 3.25, 0.05, 0.55], [-0.15, 3.45, 0.0, 0.42],
+  ]) chunk(x, y, z, s);
+  for (const [x, y, z] of [[-0.2, 2.1, 0.15], [0.25, 2.55, -0.1], [0.0, 1.95, -0.3]]) {
+    k.add(G.ico(0.12, 0), look.pick(MS), { x: cx + x, y, z: cz + z, flat: true });
   }
-  for (const [dx, dy, dz, s] of [[0.2, 0.7, 0.3, 0.16], [-0.3, 0.9, -0.1, 0.14], [0.05, 1.6, 0.2, 0.12], [-0.1, 2.0, -0.15, 0.1]]) {
-    k.add(G.ico(s, 0), look.pick(MS), { x: cx + 0.1 + dx, y: 1.5 + dy, z: cz + dz, flat: true });
-  }
-  // gruppo bronzeo sui massi. Le figure guardano +x locale (verso la via e chi arriva).
-  figurePair(k, cx + 0.22, 4.4, cz, 0);
-  // una bandiera, di lato e un po' indietro: non passa davanti alla statua
-  flagPole(k, cx - 0.15, cz + 1.55, 'mori');
+  // gruppo bronzeo in piedi sui massi, rivolto verso la via. I piedi poggiano sulla cima (~3.7).
+  figurePair(k, cx + 0.12, 3.78, cz + 0.02, 0);
+  // tricolore verso chi arriva (lato +z), Quattro Mori piu' indietro sull'altro lato: nessuno dei due copre la statua
+  italianFlag(k, cx + 0.2, cz + 1.55);
+  flagPole(k, cx - 0.35, cz - 1.7);
   // niente casa alle spalle. Due lecci ben dietro il gruppo (le chiome non arrivano davanti alla statua).
   // I due alberi vecchi restano su un kit scartato: consumano gli stessi numeri casuali delle rose.
   { const kx = new Kit(1); tree(kx, r, cx - 2.45, 0, cz - 1.25, 1.55, LEAF.holm); tree(kx, r, cx - 2.25, 0, cz + 1.3, 1.7, LEAF.holm); }
@@ -193,67 +201,86 @@ function caduti(k, r, cx, cz, yaw = -0.72) {
       x: cx + 1.85 + r.range(-0.18, 0.18), y: 0.22 + r.range(0, 0.22), z: cz + tz + r.range(-0.18, 0.18), flat: true
     });
   }
+  for (let i = 0; i < 10; i++) k.add(G.sph(0.1, 6, 5), look.pick(['#d01228', '#e23840', '#9a1020']), {
+    x: cx + 1.65 + look.range(-0.2, 0.4), y: 0.2 + look.range(0, 0.28), z: cz + look.range(-1.15, 1.15),
+  });
   // vecchio cannone da campagna, un lato
   cannon(k, cx - 0.25, 0.2, cz + 2.4);
 }
 
 function figurePair(k, ox, oy, oz, faceRy) {
   const c = Math.cos(faceRy), s = Math.sin(faceRy);
-  // patina di bronzo (verde-grigio), non il marrone di un manichino
-  const BZ = '#8eaea0', BD = '#6a8c80', BL = '#d5e4dc', BH = '#3e564c';
-  const SC = 1.55;
+  // patina verde-grigia: la QA del monumento riconosce il gruppo da questi colori
+  const BZ = '#6f8778', BD = '#4c655a', BL = '#93a494', BH = '#3d5248';
+  const SC = 1.38;
   const P = (lx, ly, lz, geo, col, o = {}) => {
     k.add(geo, col, {
       x: ox + lx * SC * c + lz * SC * s, y: oy + ly * SC, z: oz - lx * SC * s + lz * SC * c,
       ry: (o.ry || 0) + faceRy, rx: o.rx, rz: o.rz,
       sx: (o.sx ?? 1) * SC, sy: (o.sy ?? 1) * SC, sz: (o.sz ?? 1) * SC,
-      vary: o.vary, flat: o.flat
+      vary: o.vary ?? 0.04, flat: o.flat
     });
   };
-  // soldato in piedi: gamba indietro dritta, ginocchio avanti alzato, elmetto
-  P(-0.02, 0.42, -0.1, G.box(0.16, 0.78, 0.16), BD);                 // gamba d'appoggio
-  P(-0.02, 0.06, -0.04, G.box(0.18, 0.1, 0.32), BH);                  // stivale
-  P(0.22, 0.72, 0.04, G.box(0.46, 0.16, 0.16), BZ, { rz: -0.55 });    // coscia alzata
-  P(0.4, 0.42, 0.06, G.box(0.15, 0.5, 0.15), BD);                     // stinco
-  P(0.42, 0.12, 0.12, G.box(0.18, 0.1, 0.3), BH);
-  P(0.02, 0.98, 0, G.box(0.34, 0.26, 0.28), BD);                      // fianchi
-  P(0.04, 1.42, 0.02, G.box(0.4, 0.62, 0.3), BZ);                     // giubba
-  P(0.06, 1.15, 0.04, G.box(0.42, 0.08, 0.32), BH);                   // cintura
-  P(0.08, 1.15, 0.16, G.box(0.1, 0.16, 0.08), BD);                    // giberna
-  P(0.06, 1.88, 0.02, G.sph(0.15, 10, 8), BL);                        // volto
-  P(0.06, 2.0, 0.0, G.sph(0.18, 10, 8), BH, { sy: 0.72 });            // elmetto
-  P(0.08, 1.9, 0.02, G.cyl(0.22, 0.22, 0.05, 10), BH);            // tesa
-  // braccia che reggono il compagno, in avanti
-  P(0.28, 1.38, 0.18, G.box(0.42, 0.12, 0.12), BZ, { rz: -0.35 });
-  P(0.26, 1.32, -0.16, G.box(0.4, 0.12, 0.12), BD, { rz: -0.25 });
-  // compagno esanime di traverso sulle braccia: testa reclinata, braccio e gambe a penzoloni
-  P(0.48, 1.28, 0.02, G.box(0.62, 0.26, 0.24), BZ, { rz: 0.15 });     // busto abbandonato
-  P(0.72, 1.42, 0.16, G.sph(0.13, 8, 6), BL);                         // testa china
-  P(0.74, 1.52, 0.16, G.sph(0.14, 8, 6), BH, { sy: 0.7, rz: 0.4 });   // elmetto inclinato
-  P(0.55, 0.95, 0.2, G.box(0.1, 0.52, 0.1), BD);                      // braccio che pende
-  P(0.55, 0.66, 0.2, G.box(0.09, 0.1, 0.12), BL);                     // mano
-  P(0.22, 0.95, -0.02, G.box(0.12, 0.55, 0.13), BD, { rz: 0.35 });    // gamba che pende
-  P(0.12, 0.58, -0.06, G.box(0.12, 0.42, 0.12), BZ, { rz: 0.15 });
-  P(0.1, 0.34, -0.04, G.box(0.16, 0.08, 0.24), BH);
-  P(0.38, 0.88, -0.12, G.box(0.12, 0.48, 0.12), BD, { rz: -0.2 });
-  P(0.46, 0.55, -0.14, G.box(0.11, 0.38, 0.11), BZ);
-  P(0.5, 0.34, -0.12, G.box(0.16, 0.08, 0.24), BH);
+  // soldato: gamba dietro piantata, ginocchio avanti alto, elmetto, braccia che reggono
+  P(-0.1, 0.07, -0.12, G.box(0.26, 0.1, 0.36), BH);                         // stivale dietro
+  P(-0.08, 0.52, -0.1, G.cyl(0.1, 0.12, 0.82, 7), BD);                       // gamba d'appoggio
+  P(0.02, 1.02, 0, G.box(0.36, 0.24, 0.32), BD);                             // fianchi
+  P(0.26, 1.18, 0.1, G.cyl(0.11, 0.12, 0.48, 7), BZ, { rz: -1.05 });         // coscia alzata
+  P(0.48, 0.82, 0.12, G.cyl(0.09, 0.1, 0.52, 7), BD);                        // stinco
+  P(0.5, 0.5, 0.16, G.box(0.24, 0.1, 0.34), BH);                             // stivale sul masso avanti
+  P(0.04, 1.48, 0.02, G.box(0.42, 0.62, 0.32), BZ);                          // giubba
+  P(0.08, 1.22, 0.08, G.box(0.46, 0.08, 0.34), BH);                          // cintura
+  P(0.12, 1.28, 0.2, G.box(0.14, 0.16, 0.08), BD);                           // giberna
+  P(0.22, 1.55, 0.22, G.cyl(0.07, 0.08, 0.36, 6), BZ, { rz: -0.7 });         // braccio che regge
+  P(0.18, 1.5, -0.2, G.cyl(0.07, 0.08, 0.34, 6), BD, { rz: -0.55 });
+  P(0.38, 1.32, 0.16, G.box(0.16, 0.1, 0.12), BL);                           // mano
+  P(0.06, 1.92, 0.04, G.cyl(0.08, 0.09, 0.12, 6), BD);                       // collo
+  P(0.08, 2.08, 0.06, G.sph(0.15, 10, 8), BL);                               // volto
+  P(0.08, 2.2, 0.04, G.sph(0.17, 10, 8), BH, { sy: 0.7 });                   // calotta
+  P(0.1, 2.1, 0.06, G.cyl(0.28, 0.28, 0.04, 10), BH);                        // tesa dell'elmetto
+  // compagno esanime davanti al petto, ben staccato: testa china, braccio e gambe lunghe
+  P(0.52, 1.32, 0.04, G.box(0.78, 0.3, 0.28), BD, { rz: 0.35 });             // busto reclinato
+  P(0.88, 1.48, 0.28, G.sph(0.14, 8, 6), BL);                                // testa che pende verso chi guarda
+  P(0.92, 1.58, 0.3, G.sph(0.15, 8, 6), BH, { sy: 0.62, rz: 0.6 });          // elmetto storto
+  P(0.7, 0.85, 0.32, G.cyl(0.06, 0.065, 0.7, 6), BZ);                        // braccio a penzoloni
+  P(0.7, 0.46, 0.32, G.box(0.11, 0.08, 0.14), BL);
+  P(0.22, 0.95, 0.02, G.cyl(0.075, 0.08, 0.62, 6), BD, { rz: 0.4 });         // gambe del compagno
+  P(0.08, 0.55, 0.0, G.cyl(0.065, 0.07, 0.5, 6), BZ);
+  P(0.04, 0.26, 0.02, G.box(0.2, 0.09, 0.28), BH);
+  P(0.38, 0.9, -0.18, G.cyl(0.07, 0.075, 0.58, 6), BD, { rz: -0.5 });
+  P(0.55, 0.52, -0.22, G.cyl(0.06, 0.065, 0.48, 6), BZ);
+  P(0.62, 0.24, -0.2, G.box(0.18, 0.09, 0.26), BH);
+}
+
+// tricolore verticale, verde all'asta. Il telo va di lato (+z), non davanti al gruppo.
+function italianFlag(k, x, z) {
+  const H = 6.55;
+  k.add(G.cyl(0.045, 0.065, H, 6), '#e7e2da', { x, y: H / 2, z });
+  k.add(G.cyl(0.11, 0.13, 0.1, 6), '#c9c4bc', { x, y: 0.06, z });
+  k.add(G.sph(0.05, 6, 5), '#f6f2ea', { x, y: H + 0.03, z });
+  const fh = 1.28, sw = 0.52, fy = H - 0.95;
+  const cols = ['#009246', '#f4f5f0', '#ce2b37'];
+  for (let i = 0; i < 3; i++) {
+    const wave = Math.sin((i + 1) * 0.9) * 0.07;
+    k.add(G.box(0.035, fh, sw), cols[i], {
+      x: x + 0.04 + wave * 0.15, y: fy - i * 0.04, z: z + (i + 0.5) * sw,
+      rz: wave * 0.25,
+    });
+  }
 }
 
 function flagPole(k, x, z) {
-  // bandiera dei Quattro Mori, di lato: il telo va lungo z, non davanti alla statua
-  const H = 7.15;
-  k.add(G.cyl(0.05, 0.07, H, 6), '#e4e0d8', { x, y: H / 2, z });
-  k.add(G.cyl(0.12, 0.14, 0.1, 6), '#c8c4bc', { x, y: 0.06, z });
-  k.add(G.sph(0.055, 6, 5), '#f2eee6', { x, y: H + 0.03, z });
-  const fy = H - 0.72, fh = 0.92, fw = 1.25;
-  const zz = z + fw / 2 + 0.04;
-  k.add(G.box(0.03, fh, fw), '#f7f4ee', { x, y: fy, z: zz });
-  k.add(G.box(0.045, fh * 0.14, fw * 0.92), '#c41e3a', { x: x + 0.02, y: fy, z: zz });
-  k.add(G.box(0.045, fh * 0.9, fw * 0.12), '#c41e3a', { x: x + 0.02, y: fy, z: zz });
-  for (const [dz, dy] of [[-0.26, 0.22], [0.26, 0.22], [-0.26, -0.22], [0.26, -0.22]]) {
-    k.add(G.cyl(0.09, 0.09, 0.04, 7), '#1a1a1a', { x: x + 0.03, y: fy + dy * fh, z: zz + dz * fw, rx: Math.PI / 2 });
-    k.add(G.box(0.04, 0.03, 0.16), '#f7f4ee', { x: x + 0.04, y: fy + dy * fh + 0.03, z: zz + dz * fw });
+  // Quattro Mori, piu' piccola e sull'altro lato: non copre ne' la statua ne' il tricolore
+  const H = 6.15;
+  k.add(G.cyl(0.04, 0.055, H, 6), '#e4e0d8', { x, y: H / 2, z });
+  k.add(G.sph(0.045, 6, 5), '#f2eee6', { x, y: H + 0.02, z });
+  const fy = H - 0.62, fh = 0.78, fw = 1.05;
+  const zz = z - fw / 2 - 0.02;
+  k.add(G.box(0.025, fh, fw), '#f7f4ee', { x, y: fy, z: zz });
+  k.add(G.box(0.035, fh * 0.14, fw * 0.9), '#c41e3a', { x: x - 0.02, y: fy, z: zz });
+  k.add(G.box(0.035, fh * 0.88, fw * 0.12), '#c41e3a', { x: x - 0.02, y: fy, z: zz });
+  for (const [dz, dy] of [[-0.24, 0.22], [0.24, 0.22], [-0.24, -0.22], [0.24, -0.22]]) {
+    k.add(G.cyl(0.07, 0.07, 0.03, 6), '#1a1a1a', { x: x - 0.03, y: fy + dy * fh, z: zz + dz * fw, rx: Math.PI / 2 });
   }
 }
 
