@@ -114,7 +114,7 @@ test('utente 2026-11-11: niente cane che segue, niente facciola, istruzioni nuov
   assert.doesNotMatch(html, /FACCIOLE|facciole/);
   assert.doesNotMatch(sim, /UN AMICO!|FACCIOLA!/);
   const how = html.slice(html.indexOf('id="scr-howto"'), html.indexOf('</section>', html.indexOf('id="scr-howto"')));
-  for (const k of ['I comandi', 'Le corsie', 'SPARA', 'La fiamma e il carburante', 'I tappeti Sa Burra', 'Il Garag di Pinu', 'Ciccio']) assert.ok(how.includes(k), k);
+  for (const k of ['I comandi', 'Le corsie', 'Spara', 'La fiamma e il carburante', 'I tappeti Sa Burra', 'Il Garag di Pinu', 'Ciccio']) assert.ok(how.includes(k), k);
   assert.match(src('../src/styles.css'), /#scr-shop \.shop-items \{ display: flex; flex-direction: row;/);
   assert.match(src('../src/game/shop3d.js'), /sBot - sTop < 0\.3/);
   assert.match(src('../src/game/masks/figures.js'), /sa facciola/);   // il velo nero di sa Grastula resta

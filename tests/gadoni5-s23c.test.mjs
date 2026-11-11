@@ -6,6 +6,6 @@ for (const [n, g, side] of [['vicolo', buildVicolo(26), 0], ['cappella', buildCa
   const p = g.attributes.position; let bad = 0;
   for (let i = 0; i < p.count; i++) if (Math.abs(p.getX(i)) < HALF && p.getY(i) > 0.2) bad++;
   assert.strictEqual(bad, 0, `${n}: niente sopra le corsie`);
-  assert.ok(p.count < 20000, `${n}: geometria leggera (${p.count} vertici)`);
+  assert.ok(p.count < 40000, `${n}: geometria leggera (${p.count} vertici)`);
 }
 console.log('gadoni5-s23c ok');

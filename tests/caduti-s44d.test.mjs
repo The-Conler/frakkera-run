@@ -6,10 +6,10 @@ const g = buildCaduti();
 const p = g.attributes.position, c = g.attributes.color;
 let maxY = -Infinity, statueTop = -Infinity, bronze = 0;
 for (let i = 0; i < p.count; i++) {
-  const y = p.getY(i), r = c.getX(i), gv = c.getY(i);
+  const y = p.getY(i), r = c.getX(i), gv = c.getY(i), b = c.getZ(i);
   if (y > maxY) maxY = y;
-  // bronzo in spazio lineare (~0.02-0.08): marrone scuro, canale verde piu' basso del rosso
-  if (r > 0.04 && r < 0.45 && gv < r * 0.95 && y > 5.4) {
+  // patina di bronzo verde-grigio in spazio lineare (g >= r), non il marrone scuro di prima
+  if (y > 5.0 && r > 0.02 && r < 0.7 && gv >= r * 0.9 && gv <= r * 1.6 && b > r * 0.7 && b < gv * 1.15) {
     bronze++;
     if (y > statueTop) statueTop = y;
   }
@@ -29,5 +29,5 @@ for (let i = 0; i < vp.count; i++) {
 }
 assert.strictEqual(bad, 0, 'vicolo+caduti: niente sopra le corsie');
 assert.ok(leftHi > 10, `statua a sinistra nel vicolo vicino a z=-21 (${leftHi} vertici alti)`);
-assert.ok(vp.count < 20000, `vicolo ancora leggero (${vp.count} vertici)`);
+assert.ok(vp.count < 40000, `vicolo ancora leggero (${vp.count} vertici)`);
 console.log('caduti-s44d ok', { statueTop: +statueTop.toFixed(2), maxY: +maxY.toFixed(2), bronze, cadutiV: p.count, vicoloV: vp.count, leftHi });

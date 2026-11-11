@@ -138,7 +138,8 @@
     const key = [...E.marks.keys()].find((k) => k.startsWith('vicolo@')); if (!key) return { skip: 'no-mark' };
     const mk = E.marks.get(key), mesh = mk.root.children[0]; mk.root.updateMatrixWorld(true);
     const A = mesh.geometry.attributes.position, P = V(0, 0, 0), sets = { statue: [], base: [] };
-    for (let i = 0; i < A.count; i += 3) { P.fromBufferAttribute(A, i); if (P.x < -6 && P.z < -14 && P.z > -28) { if (P.y > 5.8) sets.statue.push(P.clone()); else if (P.y > 2.2 && P.y < 5.2) sets.base.push(P.clone()); } }
+    // solo il monumento (posa -8.8, -21): i lecci messi ben dietro restano fuori dal campione
+    for (let i = 0; i < A.count; i += 3) { P.fromBufferAttribute(A, i); if (P.x > -11 && P.x < -6.5 && P.z < -18 && P.z > -24) { if (P.y > 5.8) sets.statue.push(P.clone()); else if (P.y > 2.2 && P.y < 5.2) sets.base.push(P.clone()); } }
     const objs = qa.scenery(), cam = Wd.camera.position, res = {};
     for (const k in sets) {
       const L = sets[k]; if (!L.length) continue; const c = L.reduce((a, b) => a.add(b), V(0, 0, 0)).multiplyScalar(1 / L.length).applyMatrix4(mesh.matrixWorld);

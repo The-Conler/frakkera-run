@@ -243,7 +243,7 @@ svg { display: block; }
 .chip-score { padding: 6px 14px 5px 8px; min-width: calc(var(--u) * 120); }
 .chip-txt { display: flex; flex-direction: column; align-items: flex-end; }
 #hud-score { font-size: calc(var(--u) * 25); }
-.chip-txt small { font-size: calc(var(--u) * 11); color: #f0a24a; font-family: var(--f-disp); font-weight: 600; margin-top: 2px; letter-spacing: 0.04em; }
+.chip-txt small { font-size: max(10px, calc(var(--u) * 11)); color: #f0a24a; font-family: var(--f-disp); font-weight: 600; margin-top: 2px; letter-spacing: 0.04em; }
 .chip-txt small b { color: #f0a24a; font-weight: 600; }
 #hud-carpets-cell.bump { animation: bumpChip 0.22s ease-out; }
 @keyframes bumpChip { 40% { transform: scale(1.14); } }
