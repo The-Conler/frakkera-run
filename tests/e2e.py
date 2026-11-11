@@ -118,7 +118,7 @@ async def run_profile(p, name, mobile):
     check('v4 budget triangoli personaggio <= 20k', 0 < d['stats']['triangles'] <= 20000, str(d['stats']['triangles']))
     check('v4 clip richieste presenti', all(k in d['stats']['clips'] for k in ['idle', 'run', 'left', 'right', 'stumble', 'gameover']), ','.join(d['stats']['clips']))
     txt = await page.inner_text('#scr-menu')
-    check('titolo e sottotitolo', 'FRAKKERA' in txt and 'Quanto lontano riuscirai a portare il fuoco?' in txt)
+    check('titolo e sottotitolo', 'Frakkera' in txt and 'Run' in txt and 'Quanto lontano riuscirai a portare il fuoco?' in txt)
     no_emoji = await page.evaluate("!/[\\u{1F300}-\\u{1FAFF}\\u{2600}-\\u{27BF}]/u.test(document.body.innerText)")
     check('nessuna emoji nel testo', no_emoji)
     sw = await page.evaluate('[document.documentElement.scrollWidth, document.documentElement.clientWidth, document.documentElement.scrollHeight, document.documentElement.clientHeight]')
@@ -135,7 +135,7 @@ async def run_profile(p, name, mobile):
         await page.wait_for_timeout(150)
         check(f'indietro da {act}', await visible('#scr-menu'))
     board_txt = await page.evaluate("document.querySelector('#scr-board').innerText")
-    check('classifica etichettata DEMO', 'DEMO' in board_txt and 'LA CLASSIFICA' in board_txt)
+    check('classifica etichettata DEMO', 'DEMO' in board_txt and 'La classifica' in board_txt)
 
     # impostazioni: audio e musica
     await page.click('#scr-menu [data-act=settings]')

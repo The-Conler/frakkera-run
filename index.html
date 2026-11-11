@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-  <meta name="theme-color" content="#1b1f4a" />
+  <meta name="theme-color" content="#100e0c" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="description" content="FRAKKERA RUN - Quanto lontano riuscirai a portare il fuoco? Minigioco arcade ispirato a Is Frakkeras di Gadoni." />
-  <title>FRAKKERA RUN</title>
+  <title>Frakkera Run</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
 </head>
 <body>
@@ -48,7 +48,7 @@
       <div id="night-vig" aria-hidden="true"></div>
       <!-- v5s11: BALLU TUNDU (minigioco a ritmo, facoltativo) -->
       <section id="dance-ui" class="hidden" aria-label="Sa Danza">
-        <div class="dn-head"><b>SA DANZA</b><span id="dn-round">GIRO 1</span></div>
+        <div class="dn-head"><b>Sa Danza</b><span id="dn-round">Giro 1</span></div>
         <canvas id="dn-canvas"></canvas>
         <div id="dn-judge"></div>
         <div id="dn-combo"></div>
@@ -57,7 +57,7 @@
         </div>
         <p class="dn-hint">Scorri o tocca la freccia sul battito</p>
       </section>
-      <button id="dance-skip" class="hidden" aria-label="Salta il ballo">SALTA <small>il ballo</small></button>
+      <button id="dance-skip" class="hidden" aria-label="Salta il ballo">Salta <small>il ballo</small></button>
 
       <!-- HUD -->
       <div id="hud" class="hidden">
@@ -86,67 +86,78 @@
       </div>
       <button id="fire-btn" class="hidden" aria-label="Spara">
         <svg class="fire-ico"><use href="#i-pistol"/></svg>
-        <span class="fire-lbl">SPARA</span>
+        <span class="fire-lbl">Spara</span>
         <span class="pips"><i></i><i></i><i></i></span>
         <span class="fire-key">SPAZIO</span>
       </button>
 
       <!-- MENU -->
       <section class="screen" id="scr-menu">
-        <div class="record-plate menu-top">
-            <div class="rp-cell"><svg><use href="#i-crown"/></svg><div><small>RECORD</small><b id="menu-best">0</b></div></div>
-            <div class="rp-sep"></div>
-            <div class="rp-cell"><svg><use href="#i-carpet"/></svg><div><small>SA BURRA</small><b id="menu-carpets">0</b></div></div>
+        <div class="menu-stats">
+          <div class="stat-pill">
+            <svg class="stat-ico" aria-hidden="true"><use href="#i-crown"/></svg>
+            <div class="stat-txt"><small>Record</small><b id="menu-best">0</b></div>
           </div>
+          <div class="stat-pill">
+            <svg class="stat-ico" aria-hidden="true"><use href="#i-carpet"/></svg>
+            <div class="stat-txt"><small>Sa Burra</small><b id="menu-carpets">0</b></div>
+          </div>
+        </div>
         <div class="logo-wrap">
-          <h1 class="logo" aria-label="FRAKKERA RUN">
-            <span class="logo-l1">FRAKKERA</span>
-            <span class="logo-banner"><span class="logo-l2">RUN</span></span>
+          <h1 class="logo" aria-label="Frakkera Run">
+            <span class="logo-l1">Frakkera</span>
+            <span class="logo-l2">Run<sup class="tm">TM</sup></span>
           </h1>
           <p class="subtitle">Quanto lontano riuscirai a portare il fuoco?</p>
         </div>
-        <div class="menu-bottom">
-          <button class="btn btn-primary btn-xl" data-act="play"><svg class="btn-ico"><use href="#i-play"/></svg> GIOCA ORA</button>
-          <div class="menu-grid">
-            <button class="tile" data-act="board"><svg><use href="#i-trophy"/></svg><span>CLASSIFICA</span></button>
-            <button class="tile" data-act="howto"><svg><use href="#i-book"/></svg><span>COME SI GIOCA</span></button>
-            <button class="tile" data-act="info"><svg><use href="#i-carpet"/></svg><span>IS FRAKKERAS</span></button>
-            <button class="tile" data-act="skins"><svg><use href="#i-mask"/></svg><span>COSTUMI</span></button>
-            <button class="tile" data-act="settings"><svg><use href="#i-gear"/></svg><span>IMPOSTA&shy;ZIONI</span></button>
+        <div class="menu-hero">
+          <div class="menu-mark-wrap">
+            <span class="flame-glow" aria-hidden="true"></span>
+            <img class="menu-mark" src="./src/assets/ui/mark.webp" width="1024" height="1028" alt="" />
           </div>
+        </div>
+        <div class="menu-bottom">
+          <button class="btn btn-primary btn-xl" data-act="play"><svg class="btn-ico" aria-hidden="true"><use href="#i-play"/></svg> Gioca ora</button>
+          <nav class="menu-grid" aria-label="Altre schermate">
+            <button class="tile" data-act="board"><span class="tile-ico" aria-hidden="true"><svg><use href="#i-trophy"/></svg></span><span>Classifica</span></button>
+            <button class="tile" data-act="howto"><span class="tile-ico" aria-hidden="true"><svg><use href="#i-book"/></svg></span><span>Come si gioca</span></button>
+            <button class="tile" data-act="info"><span class="tile-ico" aria-hidden="true"><svg><use href="#i-carpet"/></svg></span><span>Frakkeras</span></button>
+            <button class="tile" data-act="skins"><span class="tile-ico" aria-hidden="true"><svg><use href="#i-mask"/></svg></span><span>Costumi</span></button>
+            <button class="tile" data-act="settings"><span class="tile-ico" aria-hidden="true"><svg><use href="#i-gear"/></svg></span><span>Impostazioni</span></button>
+          </nav>
         </div>
       </section>
 
       <!-- IMPOSTAZIONI -->
       <section class="screen panel-screen hidden" id="scr-settings">
         <div class="sheet">
-          <h2 class="sheet-title">IMPOSTAZIONI</h2>
+          <h2 class="sheet-title">Impostazioni</h2>
           <div class="opt-list">
             <button class="opt" id="menu-audio" data-act="audio"><svg class="opt-ico"><use href="#i-sound"/></svg><span>Audio</span><span class="switch"><i></i></span></button>
             <button class="opt" id="menu-music" data-act="music"><svg class="opt-ico"><use href="#i-music"/></svg><span>Musica</span><span class="switch"><i></i></span></button>
           </div>
           <p class="note">Il gioco si mette in pausa da solo quando cambi app o scheda.</p>
-          <button class="btn btn-navy" data-act="back"><svg class="btn-ico"><use href="#i-back"/></svg> INDIETRO</button>
+          <button class="btn btn-navy" data-act="back"><svg class="btn-ico"><use href="#i-back"/></svg> Indietro</button>
         </div>
       </section>
 
       <!-- v5s19: COSTUMI -->
       <section class="screen panel-screen hidden" id="scr-skins">
         <div class="sheet">
-          <h2 class="sheet-title">COSTUMI</h2>
+          <h2 class="sheet-title">Costumi</h2>
           <div class="coll-bar">
-            <div class="coll-cell"><svg><use href="#i-bell"/></svg><div><small>CAMPANACCI</small><b id="coll-bell">0</b></div></div>
+            <div class="coll-cell"><svg><use href="#i-bell"/></svg><div><small>Campanacci</small><b id="coll-bell">0</b></div></div>
           </div>
           <div class="skin-list" id="skin-list"></div>
           <p class="note">I campanacci sono rari: raccoglili lungo la strada, restano salvati su questo dispositivo.</p>
-          <button class="btn btn-navy" data-act="back"><svg class="btn-ico"><use href="#i-back"/></svg> INDIETRO</button>
+          <button class="btn btn-navy" data-act="back"><svg class="btn-ico"><use href="#i-back"/></svg> Indietro</button>
         </div>
       </section>
 
       <!-- COME SI GIOCA -->
       <section class="screen panel-screen hidden" id="scr-howto">
         <div class="sheet tall">
-          <h2 class="sheet-title">COME SI GIOCA</h2>
+          <h2 class="sheet-title">Come si gioca</h2>
           <div class="scroll">
             <!-- v5s46d (utente 2026-11-11): istruzioni riscritte, brevi e nell'ordine in cui le incontri -->
             <p class="howto-lead">Porti la <b>frakkera</b> accesa sulla spalla per le vie di Santu Lussurgiu. Corri da solo, sempre pi&ugrave; veloce: tu scegli la corsia, salti e ti abbassi. <b>Se la fiamma si spegne, la corsa finisce.</b></p>
@@ -156,7 +167,7 @@
               <div><span class="key wide">SCORRI</span> o <span class="key wide">TOCCA</span><br/>a sinistra / a destra</div>
               <div><span class="key">&uarr;</span> o <span class="key">W</span> o <span class="key wide">SCORRI SU</span><br/>salta</div>
               <div><span class="key">&darr;</span> o <span class="key">S</span> o <span class="key wide">SCORRI GI&Ugrave;</span><br/>abbassati</div>
-              <div><span class="key wide">SPARA</span> o <span class="key">SPAZIO</span><br/>solo se hai la pistola</div>
+              <div><span class="key wide">Spara</span> o <span class="key">SPAZIO</span><br/>solo se hai la pistola</div>
               <div><span class="key">P</span> o <span class="key">Esc</span><br/>pausa</div>
             </div>
             <h3>Le corsie</h3>
@@ -179,10 +190,10 @@
               <li class="txt"><span><b>Il telaio:</b> in paese la tessitrice lavora in mezzo alla via: se urti il telaio perdi qualche tappeto, se lo schivi te ne regala uno.</span></li>
               <li><svg class="ico"><use href="#i-bell"/></svg> <span>I <b>campanacci</b> sono rari: servono per sbloccare i costumi.</span></li>
             </ul>
-            <h3>La pistola e SPARA</h3>
+            <h3>La pistola e Spara</h3>
             <ul class="items">
               <li><img data-icon="pistola" alt="" /> <span>Raccogli la rara <b>pistola Broccu</b>: hai <b data-pistol="AMMO"></b> colpi.</span></li>
-              <li class="txt"><span><b>SPARA:</b> il pulsante in basso (o <span class="key">SPAZIO</span>) fa saltare botti, massi, pietre bagnate e carrelli davanti a te e d&agrave; punti. Muretti e case non si rompono.</span></li>
+              <li class="txt"><span><b>Spara:</b> il pulsante in basso (o <span class="key">SPAZIO</span>) fa saltare botti, massi, pietre bagnate e carrelli davanti a te e d&agrave; punti. Muretti e case non si rompono.</span></li>
               <li><img data-icon="botte" alt="" /> <span>Ogni luogo ha il suo pericolo: in paese <b>botti che rotolano</b> verso di te, sulla roccia <b>massi che cadono</b> (guarda l'ombra), alla piscina <b>pietre bagnate</b> che fanno scivolare, in miniera <b>carrelli</b> sui binari.</span></li>
             </ul>
             <h3>Potenziamenti</h3>
@@ -192,7 +203,7 @@
               <li><svg class="ico"><use href="#i-boots"/></svg> <span><b>Scarponi del calzolaio</b>: corri pi&ugrave; veloce e fai punti extra.</span></li>
             </ul>
             <h3>Il Garag di Pinu</h3>
-            <p>Dal secondo giro, appena entri in paese, a destra c'&egrave; il <b>Garag di Pinu</b>. Mentre ci passi davanti compare <b>Entra da Pinu?</b>: toccalo per entrare. Dentro paghi in tappeti Sa Burra (fino a 3 acquisti): pistola, asfodelo, scudo di sughero, e i potenziamenti da migliorare per sempre. Poi premi <b>ESCI</b> e la corsa riparte.</p>
+            <p>Dal secondo giro, appena entri in paese, a destra c'&egrave; il <b>Garag di Pinu</b>. Mentre ci passi davanti compare <b>Entra da Pinu?</b>: toccalo per entrare. Dentro paghi in tappeti Sa Burra (fino a 3 acquisti): pistola, asfodelo, scudo di sughero, e i potenziamenti da migliorare per sempre. Poi premi <b>Esci</b> e la corsa riparte.</p>
             <h3>Il paese</h3>
             <ul class="items">
               <li class="txt"><span><b>Ballu tundu:</b> nel cerchio scorri o tocca la freccia giusta a tempo di musica. Puoi anche saltarlo.</span></li>
@@ -203,16 +214,16 @@
             </ul>
             <h3>Punti</h3>
             <table class="pts" id="pts-table"></table>
-            <p class="note">Pausa: tasto P / Esc o il pulsante in alto. A fine corsa: RIGIOCA, oppure Invio / R.</p>
+            <p class="note">Pausa: tasto P / Esc o il pulsante in alto. A fine corsa: Rigioca, oppure Invio / R.</p>
           </div>
-          <button class="btn btn-navy" data-act="back"><svg class="btn-ico"><use href="#i-back"/></svg> INDIETRO</button>
+          <button class="btn btn-navy" data-act="back"><svg class="btn-ico"><use href="#i-back"/></svg> Indietro</button>
         </div>
       </section>
 
       <!-- INFO -->
       <section class="screen panel-screen hidden" id="scr-info">
-        <div class="sheet tall">
-          <h2 class="sheet-title">IS FRAKKERAS</h2>
+        <div class="sheet">
+          <h2 class="sheet-title">Is Frakkeras</h2>
           <div class="scroll">
             <div class="info-band"></div>
             <p><b>Is Frakkeras</b> è un rito tradizionale di <b>Gadoni</b>, paese dell'entroterra della Sardegna, legato alla commemorazione dei defunti.</p>
@@ -220,64 +231,64 @@
             <p>Il fuoco, la notte, il movimento e le scintille tra le case di pietra sono l'anima di questo gioco: un piccolo omaggio a un rito da vivere dal vero.</p>
             <p>I tappeti che raccogli si ispirano alla tessitura sarda <b>Sa Burra</b>, con i suoi rombi e zig-zag nei colori del rosso, del senape e del crema.</p>
           </div>
-          <button class="btn btn-navy" data-act="back"><svg class="btn-ico"><use href="#i-back"/></svg> INDIETRO</button>
+          <button class="btn btn-navy" data-act="back"><svg class="btn-ico"><use href="#i-back"/></svg> Indietro</button>
         </div>
       </section>
 
       <!-- CLASSIFICA -->
       <section class="screen panel-screen hidden" id="scr-board">
         <div class="sheet tall">
-          <h2 class="sheet-title"><svg class="title-ico"><use href="#i-trophy"/></svg> LA CLASSIFICA<br/>DEL FUOCO</h2>
+          <h2 class="sheet-title"><svg class="title-ico"><use href="#i-trophy"/></svg> La classifica del fuoco</h2>
           <p class="demo-badge">DEMO &middot; classifica locale su questo dispositivo, non valida per i premi</p>
           <div class="scroll"><table class="board" id="board-table"></table></div>
           <div class="row-btns">
-            <button class="btn btn-navy" data-act="back"><svg class="btn-ico"><use href="#i-back"/></svg> INDIETRO</button>
-            <button class="btn btn-ghost small" data-act="reset-board">AZZERA DEMO</button>
+            <button class="btn btn-navy" data-act="back"><svg class="btn-ico"><use href="#i-back"/></svg> Indietro</button>
+            <button class="btn btn-ghost small" data-act="reset-board">Azzera demo</button>
           </div>
         </div>
       </section>
 
       <!-- PAUSA -->
       <section class="screen panel-screen hidden" id="scr-pause">
-        <div class="sheet">
-          <h2 class="sheet-title">PAUSA</h2>
-          <p class="center">La fiamma ti aspetta.</p>
-          <button class="btn btn-primary" data-act="resume"><svg class="btn-ico"><use href="#i-play"/></svg> RIPRENDI</button>
-          <button class="btn btn-navy" data-act="audio"><svg class="btn-ico"><use href="#i-sound"/></svg> <span class="audio-label">AUDIO: SI</span></button>
-          <button class="btn btn-ghost" data-act="quit"><svg class="btn-ico"><use href="#i-home"/></svg> ESCI AL MENU</button>
+        <div class="pause-card">
+          <h2 class="pause-title">Pausa</h2>
+          <p class="pause-sub">La fiamma ti aspetta.</p>
+          <button class="btn btn-gold" data-act="resume"><svg class="btn-ico" aria-hidden="true"><use href="#i-play"/></svg> Riprendi</button>
+          <button class="row-act" data-act="audio"><svg class="btn-ico" aria-hidden="true"><use href="#i-sound"/></svg> <span class="audio-label">Audio: Sì</span></button>
+          <button class="row-act" data-act="quit"><svg class="btn-ico" aria-hidden="true"><use href="#i-home"/></svg> Esci al menu</button>
         </div>
       </section>
 
       <!-- GAME OVER (v5s15: stile menu) -->
       <section class="screen hidden" id="scr-over">
         <div class="go-head">
-          <h2 class="logo over-logo"><span class="logo-l1">FIAMMA SPENTA</span></h2>
+          <h2 class="logo over-logo"><span class="logo-l1">Fiamma spenta</span></h2>
           <div class="go-band" aria-hidden="true"></div>
         </div>
         <div class="over-spacer"></div>
         <div class="over-panel">
           <div class="go-confetti" id="go-confetti" aria-hidden="true"></div>
           <span class="go-reason hidden" id="go-reason"></span>
-          <small class="go-label">PUNTEGGIO</small>
+          <small class="go-label">Punteggio</small>
           <span class="final-score" id="go-score">0</span>
-          <span class="new-rec hidden" id="go-newrec"><svg><use href="#i-crown"/></svg>NUOVO RECORD!</span>
+          <span class="new-rec hidden" id="go-newrec"><svg><use href="#i-crown"/></svg>Nuovo record!</span>
           <div class="go-tiles">
-            <div class="go-tile t-best"><svg><use href="#i-crown"/></svg><small>RECORD</small><b id="go-best">0</b></div>
-            <div class="go-tile t-carp"><svg><use href="#i-carpet"/></svg><small>TAPPETI</small><b id="go-carpets">0</b></div>
-            <div class="go-tile"><svg><use href="#i-road"/></svg><small>DISTANZA</small><b id="go-dist">0 m</b></div>
-            <div class="go-tile"><svg><use href="#i-flame"/></svg><small>ZONA</small><b id="go-biome" class="go-biome">Gadoni</b></div>
+            <div class="go-tile t-best"><svg><use href="#i-crown"/></svg><small>Record</small><b id="go-best">0</b></div>
+            <div class="go-tile t-carp"><svg><use href="#i-carpet"/></svg><small>Tappeti</small><b id="go-carpets">0</b></div>
+            <div class="go-tile"><svg><use href="#i-road"/></svg><small>Distanza</small><b id="go-dist">0 m</b></div>
+            <div class="go-tile"><svg><use href="#i-flame"/></svg><small>Zona</small><b id="go-biome" class="go-biome">Gadoni</b></div>
           </div>
           <p class="go-meta"><span><svg><use href="#i-barrel"/></svg> Botti distrutte <b id="go-barrels">0</b></span> &middot; <span id="go-rank"></span></p>
           <form class="nick-form" id="nick-form" autocomplete="off">
-            <input id="nick" maxlength="12" placeholder="IL TUO NICKNAME" spellcheck="false" autocapitalize="characters" enterkeyhint="done" />
-            <button class="btn btn-navy small" type="submit">SALVA</button>
+            <input id="nick" maxlength="12" placeholder="Il tuo nickname" spellcheck="false" autocapitalize="characters" enterkeyhint="done" />
+            <button class="btn btn-navy small" type="submit">Salva</button>
           </form>
           <p class="nick-msg" id="nick-msg"></p>
         </div>
-        <button class="btn btn-primary btn-xl" data-act="retry" id="btn-retry"><svg class="btn-ico"><use href="#i-retry"/></svg> RIGIOCA</button>
+        <button class="btn btn-primary btn-xl" data-act="retry" id="btn-retry"><svg class="btn-ico"><use href="#i-retry"/></svg> Rigioca</button>
         <div class="row-btns">
-          <button class="btn btn-navy" data-act="board"><svg class="btn-ico gold"><use href="#i-trophy"/></svg> CLASSIFICA</button>
-          <button class="btn btn-navy" data-act="quit"><svg class="btn-ico"><use href="#i-home"/></svg> MENU</button>
+          <button class="btn btn-navy" data-act="board"><svg class="btn-ico gold"><use href="#i-trophy"/></svg> Classifica</button>
+          <button class="btn btn-navy" data-act="quit"><svg class="btn-ico"><use href="#i-home"/></svg> Menu</button>
         </div>
         <p class="go-total">Collezione: <b id="go-total">0</b> tappeti Sa Burra<span class="go-hint"> &middot; Invio / R per rigiocare</span></p>
       </section>
@@ -298,12 +309,12 @@
           <div class="shop-bubble" id="shop-say">Bentornato, piccioc&ugrave;! Cosa ti serve per la strada?</div>
           <div class="shop-items" id="shop-items"></div>
           <p class="shop-meta"><span class="shop-pips" id="shop-pips"><i></i><i></i><i></i></span> Acquisti <b id="shop-count">0</b>/<b id="shop-max">3</b> &middot; si paga in tappeti Sa Burra</p>
-          <button class="btn btn-primary btn-xl" id="shop-exit"><svg class="btn-ico"><use href="#i-play"/></svg> ESCI</button>
+          <button class="btn btn-gold btn-xl" id="shop-exit"><svg class="btn-ico"><use href="#i-play"/></svg> Esci</button>
         </div>
       </section>
 
       <div id="countdown" class="hidden"></div>
-      <div id="loading"><div class="ld-flame"><svg><use href="#i-flame"/></svg></div><span>ACCENSIONE...</span></div>
+      <div id="loading"><div class="ld-flame"><svg><use href="#i-flame"/></svg></div><span>Accensione…</span></div>
     </div>
   </div>
   <noscript>FRAKKERA RUN richiede JavaScript.</noscript>

@@ -53,7 +53,11 @@ export function initUI(game) {
     ma.setAttribute('aria-pressed', String(!muted));
     $('#menu-music').classList.toggle('on', music);
     $('#menu-music').setAttribute('aria-pressed', String(music));
-    $$('.audio-label').forEach((l) => { l.textContent = muted ? 'AUDIO: NO' : 'AUDIO: SI'; });
+    $$('.audio-label').forEach((l) => { l.textContent = muted ? 'Audio: No' : 'Audio: Sì'; });
+    const pauseAudio = $('#scr-pause [data-act="audio"]');
+    const pauseUse = pauseAudio && pauseAudio.querySelector('use');
+    if (pauseUse) pauseUse.setAttribute('href', muted ? '#i-mute' : '#i-sound');
+    if (pauseAudio) pauseAudio.setAttribute('aria-pressed', String(!muted));
   };
   const toggleAudio = () => {
     muted = !muted;
@@ -289,7 +293,7 @@ export function initUI(game) {
       const bt = 60 / ((d.rounds[d.round] || d.rounds[0]).bpm), k = 1 - ((d.t - DANCE.INTRO_S + 99 * bt) % bt) / bt;
       x.globalAlpha = 0.25 * k * k; x.fillStyle = '#ffcc66'; x.fillRect(0, py - 2, W, 4); x.globalAlpha = 1;
       cb.textContent = d.combo >= 2 ? `COMBO x${d.combo}  \u00b7  ${d.pts}` : d.pts ? `${d.pts}` : '';
-      $('#dn-round').textContent = d.t < DANCE.INTRO_S ? 'ENTRA NEL CERCHIO...' : `GIRO ${d.round + 1} / ${d.rounds.length}  \u00b7  ${Math.round(d.rounds[d.round].bpm)} BPM`;
+      $('#dn-round').textContent = d.t < DANCE.INTRO_S ? 'Entra nel cerchio…' : `Giro ${d.round + 1} / ${d.rounds.length}  \u00b7  ${Math.round(d.rounds[d.round].bpm)} BPM`;
     };
     bus.on('danceCue', () => { if (state === 'play') skip.classList.remove('hidden'); });
     bus.on('danceStart', () => { ui.classList.remove('hidden'); skip.classList.remove('hidden'); jd.textContent = ''; cb.textContent = ''; if (!raf) draw(); });
@@ -345,10 +349,10 @@ export function initUI(game) {
       const full = (it.id === 'pistola' && st.ammo >= SHOP.AMMO_CAP) || (it.id === 'asfodelo' && st.fuel >= FUEL.MAX - 0.5) || (it.id === 'scudo' && st.shield > 0);
       const poor = st.carpetTotal < it.price;
       let tag = '', cls = '';
-      if (left <= 0) { tag = 'PRESO'; cls = 'owned'; }
-      else if (limit) { tag = 'LIMITE'; cls = 'limit'; }
-      else if (full) { tag = it.id === 'scudo' ? 'ATTIVO' : 'PIENO'; cls = 'full'; }
-      else if (poor) { tag = `MANCANO ${it.price - st.carpetTotal}`; cls = 'poor'; }
+      if (left <= 0) { tag = 'Preso'; cls = 'owned'; }
+      else if (limit) { tag = 'Limite'; cls = 'limit'; }
+      else if (full) { tag = it.id === 'scudo' ? 'Attivo' : 'Pieno'; cls = 'full'; }
+      else if (poor) { tag = `Mancano ${it.price - st.carpetTotal}`; cls = 'poor'; }
       if (cls) b.classList.add(cls);
       b.innerHTML = `<span class="si-ico">${icon(it.id)}${got ? `<i class="si-own">${got}/${it.max}</i>` : ''}</span>`
         + `<span class="si-text"><span class="si-name">${it.name}</span><span class="si-desc">${DESC[it.id] ? DESC[it.id]() : it.desc}</span></span>`
@@ -371,7 +375,7 @@ export function initUI(game) {
       box.appendChild(b);
     }
     // v5s25: migliorie permanenti (3 livelli, salvate in locale, fuori dal tetto per visita)
-    const h = document.createElement('div'); h.className = 'up-head'; h.textContent = 'MIGLIORIE PER SEMPRE'; box.appendChild(h);
+    const h = document.createElement('div'); h.className = 'up-head'; h.textContent = 'Migliorie per sempre'; box.appendChild(h);
     const UPICO = { calamita: 'i-magnet', finocchio: 'i-fennel', scarponi: 'i-boots', fiamma: 'i-flame' };
     const BASE = { calamita: POWER.MAGNET_S, finocchio: POWER.FENNEL_S, scarponi: POWER.BOOTS_S };
     for (const u of UPGRADES) {
@@ -382,7 +386,7 @@ export function initUI(game) {
       if (max) b.classList.add('owned'); else if (poor) b.classList.add('poor');
       b.innerHTML = `<span class="si-ico">${use(UPICO[u.id])}</span>`
         + `<span class="si-text"><span class="si-name">${u.name}</span><span class="si-desc">${now} <span class="up-lv">${[0, 1, 2].map((i) => `<i class="${i < lvl ? 'on' : ''}"></i>`).join('')}</span></span></span>`
-        + (max ? '<span class="si-tag">MAX</span>' : poor ? `<span class="si-tag">MANCANO ${price - st.carpetTotal}</span>` : `<span class="si-price">${price}<svg><use href="#i-carpet"/></svg></span>`);
+        + (max ? '<span class="si-tag">Max</span>' : poor ? `<span class="si-tag">Mancano ${price - st.carpetTotal}</span>` : `<span class="si-price">${price}<svg><use href="#i-carpet"/></svg></span>`);
       if (max || poor) b.disabled = true;
       b.addEventListener('click', (e) => {
         e.preventDefault(); e.stopPropagation();
@@ -528,7 +532,7 @@ export function initUI(game) {
       return `<tr class="${cls}"><td><span class="medal">${i + 1}</span></td><td>${escapeHtml(e.name)}</td><td>${fmt(e.score)}</td><td>${date}</td></tr>`;
     });
     if (!rows.length) rows.push('<tr class="empty"><td colspan="4">Nessun punteggio: accendi la prima frakkera!</td></tr>');
-    $('#board-table').innerHTML = `<thead><tr><th>POS</th><th>NICKNAME</th><th>PUNTI</th><th>DATA</th></tr></thead><tbody>${rows.join('')}</tbody>`;
+    $('#board-table').innerHTML = `<thead><tr><th>Pos</th><th>Nickname</th><th>Punti</th><th>Data</th></tr></thead><tbody>${rows.join('')}</tbody>`;
   }
   const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -539,12 +543,13 @@ export function initUI(game) {
     $('#skin-list').innerHTML = SKINS.map((k) => {
       const owned = un.includes(k.id), can = c.bell >= k.cost.bell;
       let btn;
-      if (cur === k.id) btn = '<span class="skin-tag on">IN USO</span>';
-      else if (owned) btn = `<button class="btn btn-primary small" data-skin="${k.id}" data-op="use">SCEGLI</button>`;
-      else if (can) btn = `<button class="btn btn-primary small" data-skin="${k.id}" data-op="buy">SBLOCCA</button>`;
-      else { const mb = Math.max(0, k.cost.bell - c.bell), ms = Math.max(0, k.cost.sweet - c.sweet); btn = `<span class="skin-tag">MANCANO ${mb ? `${mb}${use('i-bell')}` : ''} </span>`; void ms; }   // v5s20: solo quello che manca
+      if (cur === k.id) btn = '<span class="skin-tag on">In uso</span>';
+      else if (owned) btn = `<button class="btn btn-primary small" data-skin="${k.id}" data-op="use">Scegli</button>`;
+      else if (can) btn = `<button class="btn btn-primary small" data-skin="${k.id}" data-op="buy">Sblocca</button>`;
+      else { const mb = Math.max(0, k.cost.bell - c.bell), ms = Math.max(0, k.cost.sweet - c.sweet); btn = `<span class="skin-tag">Mancano ${mb ? `${mb}${use('i-bell')}` : ''} </span>`; void ms; }   // v5s20: solo quello che manca
       const cost = owned ? '' : `<div class="skin-cost">${k.cost.bell}${use('i-bell')}</div>`;
-      return `<div class="skin-card ${cur === k.id ? 'sel' : ''} ${owned ? '' : 'locked'}" data-id="${k.id}"><div class="skin-ico skin-${k.id}">${use(k.id === 'base' || k.id === 'classico' ? 'i-flame' : 'i-mask')}</div><div class="skin-txt"><b>${k.name}</b><p>${k.desc}</p>${cost}</div><div class="skin-act">${btn}</div></div>`;
+      const skinName = { base: 'Il portatore', stramaioni: 'Su Stramaioni', classico: 'Il portatore classico' }[k.id] || k.name;
+      return `<div class="skin-card ${cur === k.id ? 'sel' : ''} ${owned ? '' : 'locked'}" data-id="${k.id}"><div class="skin-ico skin-${k.id}">${use(k.id === 'base' || k.id === 'classico' ? 'i-flame' : 'i-mask')}</div><div class="skin-txt"><b>${skinName}</b><p>${k.desc}</p>${cost}</div><div class="skin-act">${btn}</div></div>`;
     }).join('');
   }
   $('#skin-list').addEventListener('click', (e) => {
