@@ -884,7 +884,7 @@ export class World {
         v.glow.material.opacity = 0.42 * (1 + this.light.tunnel);
         if (v.shadow) v.shadow.visible = true;
       } else if (e.kind === 'asfodelo' || e.kind === 'ferula') {
-        v.body.position.y = 0.9 + Math.sin(t * 3 + e.d) * 0.15;
+        v.body.position.y = 1.0 + Math.sin(t * 3 + e.d) * 0.15;   // v5s46d-QA: +10 cm, sopra le rotaie anche nel punto piu' basso
         v.body.rotation.y = t * 1.4 + e.d;
         v.glow.position.y = 1.2;
       } else if (e.kind === 'pistola') {

@@ -268,7 +268,7 @@ function stalkBundle(k, r, cols, n, rad, len, tip) {
   for (let i = 0; i < n; i++) {
     const a = (i / n) * Math.PI * 2 + r() * 0.4;
     const rr = rad * (i === 0 ? 0 : r.range(0.5, 1));
-    k.add(G.cyl(0.05, 0.065, len, 5), r.pick(cols), { x: Math.cos(a) * rr, y: len / 2 + r.range(-0.08, 0.08), z: Math.sin(a) * rr, rz: r.range(-0.08, 0.08) });
+    k.add(G.cyl(0.05, 0.065, len, 5), r.pick(cols), { x: Math.cos(a) * rr, y: len / 2 + r.range(0, 0.08), z: Math.sin(a) * rr, rz: r.range(-0.08, 0.08) });
     tip(Math.cos(a) * rr, len, Math.sin(a) * rr);
   }
 }
