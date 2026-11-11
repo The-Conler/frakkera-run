@@ -137,9 +137,17 @@
   qa.memorial = () => {
     const key = [...E.marks.keys()].find((k) => k.startsWith('vicolo@')); if (!key) return { skip: 'no-mark' };
     const mk = E.marks.get(key), mesh = mk.root.children[0]; mk.root.updateMatrixWorld(true);
-    const A = mesh.geometry.attributes.position, P = V(0, 0, 0), sets = { statue: [], base: [] };
-    // solo il monumento (posa -8.8, -21): i lecci messi ben dietro restano fuori dal campione
-    for (let i = 0; i < A.count; i += 3) { P.fromBufferAttribute(A, i); if (P.x > -11 && P.x < -6.5 && P.z < -18 && P.z > -24) { if (P.y > 5.8) sets.statue.push(P.clone()); else if (P.y > 2.2 && P.y < 5.2) sets.base.push(P.clone()); } }
+    const A = mesh.geometry.attributes.position, C = mesh.geometry.attributes.color, P = V(0, 0, 0), sets = { statue: [], base: [] };
+    // solo il monumento (posa -8.8, -21): il gruppo bronzeo si riconosce dalla patina verde-grigia, cosi' la bandiera e i lecci dietro non spostano il campione
+    for (let i = 0; i < A.count; i += 3) {
+      P.fromBufferAttribute(A, i);
+      if (P.x <= -11 || P.x >= -6.5 || P.z >= -18 || P.z <= -24) continue;
+      if (P.y > 2.2 && P.y < 5.2) sets.base.push(P.clone());
+      if (C && P.y > 5.0) {
+        const r = C.getX(i), g = C.getY(i), b = C.getZ(i);
+        if (r > 0.02 && r < 0.7 && g >= r * 0.9 && g <= r * 1.6 && b > r * 0.7 && b < g * 1.15) sets.statue.push(P.clone());
+      }
+    }
     const objs = qa.scenery(), cam = Wd.camera.position, res = {};
     for (const k in sets) {
       const L = sets[k]; if (!L.length) continue; const c = L.reduce((a, b) => a.add(b), V(0, 0, 0)).multiplyScalar(1 / L.length).applyMatrix4(mesh.matrixWorld);
