@@ -100,7 +100,7 @@ export function festaAt(m) {
   if (bi.b.id !== FESTA.BIOME || bi.local < FESTA.FROM_M || bi.local >= FESTA.TO_M) return null;
   return { lap: bi.lap, local: bi.local - FESTA.FROM_M };
 }
-export const PICKUP_KINDS = { asfodelo: 'fuel', ferula: 'fuel', tappeto: 'carpet', pistola: 'pistol', calamita: 'power', finocchio: 'power', scarponi: 'power', campanaccio: 'collect', facciola: 'collect' };
+export const PICKUP_KINDS = { asfodelo: 'fuel', ferula: 'fuel', tappeto: 'carpet', pistola: 'pistol', calamita: 'power', finocchio: 'power', scarponi: 'power', campanaccio: 'collect' };   // v5s46d: facciola tolta
 
 const SHORT_LEN = { muretto: 14, botte: 18, bottecoricata: 14, pozza: 13 };
 
@@ -378,7 +378,7 @@ export class Generator {
     if (!free.length) { this.nextCollectRow = r + 1; return; }
     this.nextCollectRow = r + cr.int(COLLECT.GAP_ROWS[0], COLLECT.GAP_ROWS[1]);
     const lane = free[cr.int(0, free.length - 1)]; used[lane] = true; this.collects++;
-    emit({ kind: cr() < COLLECT.P_FACCIOLA ? 'facciola' : 'campanaccio', lane, d: D + 9, len: 12, pickup: true, collect: this.collects });
+    cr(); emit({ kind: 'campanaccio', lane, d: D + 9, len: 12, pickup: true, collect: this.collects });
   }
 
   // v5s24: potenziamenti rari in una corsia libera; ramo caduto (tutte le corsie, ci si abbassa) solo su file vuote
@@ -463,8 +463,8 @@ export class Generator {
     if (!opts.length) return false;
     const ev = opts[Math.floor(pick * opts.length)], id = ++this.animals, dir = ar() < 0.5 ? 1 : -1;
     this.nextAnimalRow = r + ar.int(A.GAP_ROWS[0], A.GAP_ROWS[1]);
-    if (ev === 'dog') {               // aiutante: non occupa le corsie, il generatore prosegue normalmente
-      emit({ kind: 'cane', lane: dir > 0 ? 0 : L - 1, side: -dir, d: D + 6, len: 10, animal: id });
+    if (ev === 'dog') {               // v5s46d (utente 2026-11-11): niente piu' cane che segue il corridore; il sorteggio resta uguale, non nasce nulla
+      void dir; void id;
       return false;
     }
     this.calmUntil = r + 6; this.nextMovingAt = Math.max(this.nextMovingAt, r + 14);

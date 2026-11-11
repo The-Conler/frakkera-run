@@ -496,3 +496,26 @@ svg { display: block; }
 
 .go-reason { display: block; margin: 0 auto 6px; font-family: var(--f-disp); font-size: calc(var(--u) * 22); color: #ffe94a; -webkit-text-stroke: 1.5px #6a0a0a; paint-order: stroke fill; text-align: center; }
 .go-reason.hidden { display: none; }
+/* v5s46d (utente 2026-11-11): dentro il Garag di Pinu si deve VEDERE il negozio (bancone, scaffali, attrezzi,
+   calendario, radio). Il menu resta in basso, piu' basso: una sola fila di schede che si scorre di lato. */
+#scr-shop .shop-panel { max-height: 46vh; display: flex; flex-direction: column; }
+#scr-shop .shop-items { display: flex; flex-direction: row; gap: 6px; overflow-x: auto; overflow-y: hidden; touch-action: pan-x; scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch; padding: 2px 2px 6px; margin: 0 -2px; scrollbar-width: none; }
+#scr-shop .shop-items::-webkit-scrollbar { display: none; }
+#scr-shop .shop-item { flex: 0 0 calc((100% - 14px) / 3.25); scroll-snap-align: start; min-width: 0; }
+#scr-shop .shop-item .si-ico { width: calc(var(--u) * 46); height: calc(var(--u) * 46); }
+#scr-shop .shop-item .si-desc { font-size: calc(var(--u) * 9.5); line-height: 1.1; }
+#scr-shop .shop-item .si-price, #scr-shop .shop-item .si-tag { font-size: calc(var(--u) * 13); padding: 3px 7px; }
+#scr-shop .up-head { flex: 0 0 auto; align-self: stretch; display: flex; align-items: center; justify-content: center; writing-mode: vertical-rl; transform: rotate(180deg);
+  margin: 0 1px; padding: 4px 2px; font-size: 10px; border-radius: 10px; background: rgba(255,226,160,0.12); }
+#scr-shop .shop-bubble { margin-bottom: 5px; font-size: calc(var(--u) * 12); padding: 5px 9px; }
+#scr-shop .shop-meta { margin: 3px 0; }
+#scr-shop #shop-exit { padding-top: 8px; padding-bottom: 8px; }
+@media (max-height: 700px) {
+  #scr-shop .shop-item .si-ico { width: calc(var(--u) * 40); height: calc(var(--u) * 40); }
+  #scr-shop .shop-item .si-desc { display: none; }
+  #scr-shop .si-text { min-height: 0; }
+}
+/* v5s46d: righe di testo nelle istruzioni (al posto delle etichette tagliate) */
+.items li.txt { position: relative; padding-left: 16px; }
+.items li.txt::before { content: ''; position: absolute; left: 3px; top: 0.5em; width: 7px; height: 7px; border-radius: 50%; background: var(--gold1); }

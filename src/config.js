@@ -304,13 +304,13 @@ export const SHOP = {
 export const COLLECT = {
   FROM_M: 60,               // niente collezionabili nei primi metri
   GAP_ROWS: [38, 70],       // file tra un collezionabile e l'altro (flusso RNG separato)
-  P_FACCIOLA: 0.5,          // quota di facciole (il resto campanacci)
+  P_FACCIOLA: 0,            // v5s46d (utente): sa facciola tolta come oggetto da raccogliere (resta il velo di sa Grastula)
   PTS: 40,
-  KINDS: { campanaccio: 'bell', facciola: 'sweet' },
+  KINDS: { campanaccio: 'bell' },   // v5s46d (utente): niente piu' facciole da raccogliere
 };
 export const SKINS = [
   { id: 'base', name: 'IL PORTATORE', desc: 'La mascotte di Frakkera Run: berritta nera, gilet della festa e la frakkera in spalla.', cost: { bell: 0, sweet: 0 }, speedK: 1 },   // v5c: nuovo personaggio di default
-  { id: 'stramaioni', name: 'SU STRAMAIONI', desc: 'Viso nero di fuliggine e mantello scuro di orbace. Corre piu veloce (+8%).', cost: { bell: 5, sweet: 5 }, speedK: 1.08 },
+  { id: 'stramaioni', name: 'SU STRAMAIONI', desc: 'Viso nero di fuliggine e mantello scuro di orbace. Corre piu veloce (+8%).', cost: { bell: 10, sweet: 0 }, speedK: 1.08 },   // v5s46d: solo campanacci (facciole tolte)
   { id: 'classico', name: 'IL PORTATORE CLASSICO', desc: 'Il portatore di prima, vestito della festa.', cost: { bell: 0, sweet: 0 }, speedK: 1 },   // v5c: il personaggio di prima resta come costume (gratis)
 ];
 

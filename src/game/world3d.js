@@ -147,7 +147,7 @@ const COL = {
 };
 
 const _vf = new THREE.Vector3();
-export const WARM_KINDS = ['festone', 'botte', 'bancarella', 'falo', 'tappeto', 'asfodelo', 'folla', 'bottecoricata', 'ferula', 'facciola', 'muretto', 'tessitrice', 'pistola', 'finocchio', 'processione', 'sasso', 'pastore', 'pecora', 'canepastore', 'ramo', 'pozza', 'campanaccio', 'trave', 'bagnato', 'rollbarrel', 'scarponi', 'goat', 'botti', 'minatore', 'calamita', 'rollin', 'lampada', 'carrello', 'deadend', 'scambio', 'narrow', 'cane', 'caprarupe', 'maialetto', 'panni', 'fune', 'fuso', 'maimoni', 'ciccio'];
+export const WARM_KINDS = ['festone', 'botte', 'bancarella', 'falo', 'tappeto', 'asfodelo', 'folla', 'bottecoricata', 'ferula', 'muretto', 'tessitrice', 'pistola', 'finocchio', 'processione', 'sasso', 'pastore', 'pecora', 'canepastore', 'ramo', 'pozza', 'campanaccio', 'trave', 'bagnato', 'rollbarrel', 'scarponi', 'goat', 'botti', 'minatore', 'calamita', 'rollin', 'lampada', 'carrello', 'deadend', 'scambio', 'narrow', 'cane', 'caprarupe', 'maialetto', 'panni', 'fune', 'fuso', 'maimoni', 'ciccio'];
 export const HIT_KICK = { a: 0.6, p: 0.5 };   // v5s45: spinta sulla molla della frakkera quando si urta
 export const NARROW_FADE = 0.25;   // v5s45: opacita' della strettoia rocciosa quando sta tra camera e corridore
 export const RIDE_HIDE_M = 6.0;   // v5s45: sotto questa distanza dalla camera il carrello lasciato non si disegna
@@ -558,10 +558,10 @@ export class World {
       v.crowd = buildCrowd(this.mats2, e.n || 4, e.variant || 0);
       v.body = v.crowd.root; v.body.rotation.y = e.side < 0 ? Math.PI / 2 : -Math.PI / 2;
       v.cheerT = -1; v.shadow = this.blob(1.8, 3.0);
-    } else if (kind === 'campanaccio' || kind === 'facciola') {   // v5s19: collezionabili rari
+    } else if (kind === 'campanaccio') {   // v5s19: collezionabili rari
       v.body = new THREE.Group();
       const m = new THREE.Mesh(kind === 'campanaccio' ? bellGeom() : sweetGeom(), this.mats2);
-      m.scale.setScalar(kind === 'campanaccio' ? 1.15 : 1.35); if (kind === 'facciola') m.rotation.x = 1.1;
+      m.scale.setScalar(1.15);
       v.spin = m; v.body.add(m);
       const ring = new THREE.Mesh(this.geo.ring, this.mat.ring); ring.rotation.x = Math.PI / 2; ring.position.y = -0.75; v.body.add(ring);
       v.glow = this.glowSprite(kind === 'campanaccio' ? '#ffd27a' : '#ffe9b0', 4.2, 0.8);
@@ -748,22 +748,21 @@ export class World {
     if (v.floorY != null && v.floorY > y) y = v.floorY;   // v5s46d-QA: sopra la piazzetta/gradino misurato
     v.root.position.set(x, y, zc);
   }
-  // v5s24: cane randagio che corre al tuo fianco e cane pastore che ti insegue
+  // v5s24: cane pastore che ti insegue (v5s46d: il cane randagio che correva al tuo fianco e' stato tolto)
   animateCompanions(sim, dt) {
     if (!this.comp) {
-      this.comp = [0, 1].map((v) => { const m = new THREE.Mesh(dogGeom(v), this.mats2); m.scale.setScalar(1.3); m.visible = false; this.scene.add(m); return { m, k: 0, barkT: 0 }; });
+      this.comp = [1].map((v) => { const m = new THREE.Mesh(dogGeom(v), this.mats2); m.scale.setScalar(1.3); m.visible = false; this.scene.add(m); return { m, k: 0, barkT: 0 }; });
     }
     const t = this.clock, pz = -sim.T * U, px = sim.px * U;
-    const on = [sim.mode === 'run' && sim.dogT > 0, sim.mode === 'run' && !!sim.chase];
+    const on = [sim.mode === 'run' && !!sim.chase];
     this.comp.forEach((c, i) => {
       c.k = Math.max(0, Math.min(1, c.k + (on[i] ? dt * 2 : -dt * 2)));
       c.m.visible = c.k > 0.01;
       if (!c.m.visible) return;
       c.barkT = Math.max(0, c.barkT - dt);
-      const bob = Math.abs(Math.sin(t * 16 + i)) * 0.25;
-      if (i === 0) { const side = sim.dogSide || -1; c.m.position.set(px + side * ANIMALS.DOG_X * U * c.k + side * (1 - c.k) * 6, bob + (c.barkT > 0 ? 0.3 : 0), pz + 1.0 - (1 - c.k) * 4); }
-      else c.m.position.set(px + 1.3 + Math.sin(t * 3) * 0.3, bob, pz + 1.8 - Math.sin(t * 5) * 0.5 + (1 - c.k) * 5);
-      c.m.rotation.y = Math.PI / 2; c.m.rotation.z = Math.sin(t * 16 + i) * 0.08;
+      const bob = Math.abs(Math.sin(t * 16 + 1)) * 0.25;
+      c.m.position.set(px + 1.3 + Math.sin(t * 3) * 0.3, bob, pz + 1.8 - Math.sin(t * 5) * 0.5 + (1 - c.k) * 5);
+      c.m.rotation.y = Math.PI / 2; c.m.rotation.z = Math.sin(t * 16 + 1) * 0.08;
     });
   }
   animateViews(sim, dt) {
@@ -832,7 +831,7 @@ export class World {
         animateWeaver(v.weaver, t, k); continue;
       }
       if (e.kind === 'processione') { animateProcession(v.proc, t); if (v.shadow) v.shadow.visible = true; continue; }
-      if (e.kind === 'campanaccio' || e.kind === 'facciola') {
+      if (e.kind === 'campanaccio') {
         v.body.position.y = 1.5 + Math.sin(t * 3 + e.d * 0.05) * 0.15; v.spin.rotation.y = t * 2.2;
         v.glow.position.y = 1.5;
       } else if (e.kind === 'calamita' || e.kind === 'finocchio' || e.kind === 'scarponi') {
@@ -1105,8 +1104,7 @@ export class World {
       case 'die': this.smokeAtTip(30); this.burnT = 0; this.burnKeep = this.char3d.keep ?? 1; break;
       case 'cheer': { const p = this.views.get(d.e.id)?.root.position; if (p) this.burst(p.x, 3.2, p.z, COL.spark2, 14, 3); break; }
       case 'crowdRoar': this.roarT = 0.5; break;
-      case 'dogBark': if (this.comp) this.comp[0].barkT = 0.35; break;
-      case 'dogNip': this.addShake(0.2, 0.15); if (this.comp) this.comp[1].barkT = 0.35; break;
+      case 'dogNip': this.addShake(0.2, 0.15); if (this.comp) this.comp[0].barkT = 0.35; break;
       case 'weaverHit': { this.char3d.stumble(); const p = this.views.get(d.e.id)?.root.position; if (p) { this.dustPuff(p.x, p.z + 1.5, 12); this.burst(p.x, 1.2, p.z + 1.4, COL.spark2, 14, 4); } this.addShake(0.25, 0.2); break; }
       case 'ciccioHit': this.addShake(0.8, 0.5); break;
       case 'weaverThrow': { const p = this.views.get(d.e.id)?.root.position; if (p) this.burst(p.x * 0.6, 2.2, p.z, COL.spark2, 16, 4); break; }

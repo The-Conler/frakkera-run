@@ -535,15 +535,15 @@ export function initUI(game) {
   // --------------------------------------------------------- v5s19: costumi
   function renderSkins() {
     const c = store.getCollection(), un = store.getUnlocked(), cur = store.getSkin();
-    $('#coll-bell').textContent = c.bell; $('#coll-sweet').textContent = c.sweet;
+    $('#coll-bell').textContent = c.bell;
     $('#skin-list').innerHTML = SKINS.map((k) => {
-      const owned = un.includes(k.id), can = c.bell >= k.cost.bell && c.sweet >= k.cost.sweet;
+      const owned = un.includes(k.id), can = c.bell >= k.cost.bell;
       let btn;
       if (cur === k.id) btn = '<span class="skin-tag on">IN USO</span>';
       else if (owned) btn = `<button class="btn btn-primary small" data-skin="${k.id}" data-op="use">SCEGLI</button>`;
       else if (can) btn = `<button class="btn btn-primary small" data-skin="${k.id}" data-op="buy">SBLOCCA</button>`;
-      else { const mb = Math.max(0, k.cost.bell - c.bell), ms = Math.max(0, k.cost.sweet - c.sweet); btn = `<span class="skin-tag">MANCANO ${mb ? `${mb}${use('i-bell')}` : ''} ${ms ? `${ms}${use('i-sweet')}` : ''}</span>`; }   // v5s20: solo quello che manca
-      const cost = owned ? '' : `<div class="skin-cost">${k.cost.bell}${use('i-bell')} ${k.cost.sweet}${use('i-sweet')}</div>`;
+      else { const mb = Math.max(0, k.cost.bell - c.bell), ms = Math.max(0, k.cost.sweet - c.sweet); btn = `<span class="skin-tag">MANCANO ${mb ? `${mb}${use('i-bell')}` : ''} </span>`; void ms; }   // v5s20: solo quello che manca
+      const cost = owned ? '' : `<div class="skin-cost">${k.cost.bell}${use('i-bell')}</div>`;
       return `<div class="skin-card ${cur === k.id ? 'sel' : ''} ${owned ? '' : 'locked'}" data-id="${k.id}"><div class="skin-ico skin-${k.id}">${use(k.id === 'base' || k.id === 'classico' ? 'i-flame' : 'i-mask')}</div><div class="skin-txt"><b>${k.name}</b><p>${k.desc}</p>${cost}</div><div class="skin-act">${btn}</div></div>`;
     }).join('');
   }
@@ -551,7 +551,7 @@ export function initUI(game) {
     const b = e.target.closest('[data-skin]'); if (!b) return;
     const k = SKINS.find((x) => x.id === b.dataset.skin); if (!k) return;
     if (b.dataset.op === 'buy') {
-      const c = store.getCollection(); if (c.bell < k.cost.bell || c.sweet < k.cost.sweet) return;
+      const c = store.getCollection(); if (c.bell < k.cost.bell) return;
       store.unlockSkin(k.id); audio.pistolPickup?.();
     } else audio.click();
     store.setSkin(k.id); game.setSkin(k.id); renderSkins();

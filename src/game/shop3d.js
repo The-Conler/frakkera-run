@@ -295,6 +295,9 @@ export function buildShopRoom() {
   const fit = (aspect, ui) => {
     camera.fov = 52; camera.aspect = aspect; camera.updateProjectionMatrix();
     const sBot = 1 - ui.bottom - 0.01, sTop = ui.top + 0.01;
+    // v5s46d (utente): se la fascia libera e' troppo bassa per tutta la bancarella, si inquadra almeno
+    // bancone, Pinu, scaffali e muro di fondo (calendario, radio, attrezzi) invece di finire sul tetto
+    if (sBot - sTop < 0.3) { camera.fov = 50; camera.updateProjectionMatrix(); camera.position.set(0.35, 2.6, 6.2); camera.lookAt(0.35, 1.55, -1.2); camera.updateMatrixWorld(); return; }
     for (let zc = 6; zc < 40; zc += 0.1) {
       let lo = -5, hi = 15;
       for (let k = 0; k < 24; k++) { const cy = (lo + hi) / 2; setCam(zc, cy); if (proj(...FOOT)[1] > sBot) hi = cy; else lo = cy; }

@@ -15,7 +15,7 @@ const genAll = (seed, rows) => { const g = new Generator(seed), out = []; g.fill
   const ca = a.filter((e) => COLLECT.KINDS[e.kind]), cb = b.filter((e) => COLLECT.KINDS[e.kind]);
   ok('stesso seed: stessi collezionabili', JSON.stringify(ca) === JSON.stringify(cb), ca.length);
   ok('rari: tra 15 e 45 in 1500 file', ca.length >= 15 && ca.length <= 45, ca.length);
-  ok('entrambi i tipi', ca.some((e) => e.kind === 'campanaccio') && ca.some((e) => e.kind === 'facciola'));
+  ok('solo campanacci, nessuna facciola (v5s46d)', ca.every((e) => e.kind === 'campanaccio') && !a.some((e) => e.kind === 'facciola'));
   // non sovrapposti ad altro nella stessa corsia e fila
   const clash = ca.filter((c) => a.some((e) => e !== c && e.lane === c.lane && !e.side && Math.abs(e.d - c.d) < 10 && !['falo', 'minatore', 'lampada', 'scambio', 'carrello'].includes(e.kind)));
   ok('mai sopra un altro oggetto', clash.length === 0, clash.length);
@@ -32,11 +32,11 @@ const genAll = (seed, rows) => { const g = new Generator(seed), out = []; g.fill
   sim.startRun(9); for (let i = 0; i < 60; i++) sim.tick(DT);
   sim.entities = []; sim.gen.fillUntil = () => {};
   sim.spawn({ kind: 'campanaccio', lane: 1, d: sim.T - sim.genOffset + 60, len: 12, pickup: true });
-  sim.spawn({ kind: 'facciola', lane: 1, d: sim.T - sim.genOffset + 140, len: 12, pickup: true });
+  sim.spawn({ kind: 'campanaccio', lane: 1, d: sim.T - sim.genOffset + 140, len: 12, pickup: true });
   const s0 = sim.score;
   for (let i = 0; i < 300; i++) sim.tick(DT);
-  ok('campanaccio e facciola raccolti', sim.stats.bells === 1 && sim.stats.sweets === 1);
-  ok('salvati subito', saved.bell === 1 && saved.sweet === 1);
+  ok('due campanacci raccolti', sim.stats.bells === 2 && !(sim.stats.sweets > 0));
+  ok('salvati subito', saved.bell === 2 && saved.sweet === 0);
   ok('log k', sim.events.filter((e) => e[1] === 'k').length === 2);
   ok('punti', sim.score - s0 >= 2 * COLLECT.PTS);
   ok('effetti', fx.some((x) => x[0] === 'collectible') && fx.some((x) => x[0] === 'popup' && x[1].text === 'CAMPANACCIO!'));

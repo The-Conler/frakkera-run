@@ -6,7 +6,7 @@ import { WORLD, PX_PER_METER, ANIMALS } from '../src/config.js';
 const DT = WORLD.FIXED_DT;
 let fail = 0; const ok = (n, c, info = '') => { console.log((c ? '  PASS ' : '  FAIL ') + n + (info ? `  [${info}]` : '')); if (!c) fail++; };
 const genAll = (seed, rows) => { const g = new Generator(seed), out = []; g.fillUntil(WORLD.LEAD_IN + rows * WORLD.ROW, (e) => out.push({ ...e })); return out; };
-const AK = { pastore: 1, pecora: 1, maialetto: 1, cane: 1, canepastore: 1, caprarupe: 1 };
+const AK = { pastore: 1, pecora: 1, maialetto: 1, canepastore: 1, caprarupe: 1 };   // v5s46d: il cane randagio che seguiva il corridore e' stato tolto
 {
   let all = [];
   for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) all = all.concat(genAll(seed, 1500).filter((e) => AK[e.kind]));
@@ -18,20 +18,16 @@ const AK = { pastore: 1, pecora: 1, maialetto: 1, cane: 1, canepastore: 1, capra
   ok('capre dalla roccia solo nella roccia', all.filter((e) => e.kind === 'caprarupe').every((e) => bid(e) === 'rock'));
   const flocks = {}; for (const e of all.filter((e) => e.kind === 'pecora')) (flocks[e.flock + ':' + e.d] ||= []).push(e);
   ok('ogni gregge ha un varco', all.filter((e) => e.kind === 'pecora').length > 0);
+  { let dogs = 0; for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) dogs += genAll(seed, 1500).filter((e) => e.kind === 'cane').length; ok('nessun cane randagio che segue (v5s46d)', dogs === 0, dogs); }
   ok('cane e cani pastore non solidi', !SOLID.cane && !SOLID.canepastore && !SOLID.pastore && SOLID.pecora && SOLID.caprarupe);
 }
 function base() { const fx = []; const sim = new Sim((t, d) => fx.push([t, d])); sim.startRun(5); for (let i = 0; i < 60; i++) sim.tick(DT); sim.entities = []; sim.gen.fillUntil = () => {}; return { sim, fx }; }
 const put = (sim, e, ahead) => { sim.spawn({ ...e, d: sim.T - sim.genOffset + ahead }); return sim.entities[sim.entities.length - 1]; };
-{ // cane randagio: si unisce, abbaia prima di un ostacolo nella tua corsia, nessuna collisione
+{ // v5s46d: un 'cane' rimasto in una partita salvata non si unisce piu' e non abbaia
   const { sim, fx } = base(); sim.fuel = 100;
   put(sim, { kind: 'cane', lane: 0, side: -1, len: 10 }, 20);
-  const m = put(sim, { kind: 'muretto', lane: 1, len: 14 }, 300);
-  for (let i = 0; i < 40; i++) sim.tick(DT);
-  sim.dogT = 30; ok('cane: si unisce (log aD)', sim.dogT > 0 && sim.events.some((e) => e[1] === 'aD'));
-  let barkedBefore = false;
-  for (let i = 0; i < 1500 && !m.done; i++) { sim.tick(DT); if (m.barked && m.d > sim.T) barkedBefore = true; }
-  ok('cane: abbaia prima dell\'ostacolo (log aB)', barkedBefore && sim.events.some((e) => e[1] === 'aB'));
-  ok('cane: nessun urto col cane', sim.stats.hits <= 1 && fx.some((x) => x[0] === 'dogBark'));
+  for (let i = 0; i < 200; i++) sim.tick(DT);
+  ok('cane: non si unisce, nessun UN AMICO!', !(sim.dogT > 0) && !sim.events.some((e) => e[1] === 'aD') && !fx.some((x) => x[0] === 'dogJoin' || (x[0] === 'popup' && x[1] && x[1].text === 'UN AMICO!')));
 }
 { // cane pastore: corsa pulita -> seminato
   const { sim } = base(); put(sim, { kind: 'canepastore', lane: 1, len: 8 }, 10);

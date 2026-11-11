@@ -625,8 +625,7 @@ export class Sim {
         continue;
       }
       if (e.kind === 'cane') {
-        if (overlapD) { e.done = true; this.stats.dogs++; this.dogT = ANIMALS.DOG_S; this.dogSide = e.side; this.log('aD', e.side); this.fx('dogJoin', { e, side: e.side }); this.fx('sound', 'bark'); this.fx('popup', { text: 'UN AMICO!', style: 'small' }); }
-        else if (e.d + e.len < pBack) e.done = true;
+        if (overlapD || e.d + e.len < pBack) e.done = true;   // v5s46d (utente): il cane che seguiva il corridore e' tolto
         continue;
       }
       if (e.kind === 'canepastore') {
@@ -808,15 +807,15 @@ export class Sim {
   collect(e) {
     e.done = true;
     const type = PICKUP_KINDS[e.kind];
-    if (type === 'collect') {          // v5s19: campanaccio o facciola, salvati subito
+    if (type === 'collect') {          // v5s19: campanaccio, salvato subito
       const c = COLLECT.KINDS[e.kind];
-      if (c === 'bell') this.stats.bells++; else this.stats.sweets++;
+      this.stats.bells++;
       const total = this.addCollectible(c, 1);
       const pts = this.addBonus(COLLECT.PTS);
-      this.log('k', c === 'bell' ? 1 : 2);
+      this.log('k', 1);
       this.fx('collectible', { e, kind: c, total, pts });
-      this.fx('popup', { text: c === 'bell' ? 'CAMPANACCIO!' : 'FACCIOLA!', style: 'gold' });
-      this.fx('sound', c === 'bell' ? 'collectBell' : 'collectSweet');
+      this.fx('popup', { text: 'CAMPANACCIO!', style: 'gold' });   // v5s46d: sa facciola non si raccoglie piu'
+      this.fx('sound', 'collectBell');
       return;
     }
     if (type === 'carpet') {
@@ -980,16 +979,7 @@ export class Sim {
 
   // v5s24: cane randagio (abbaia prima degli ostacoli nella tua corsia) e cane pastore (morde se rallenti o urti)
   updateAnimals(dt) {
-    if (this.dogT > 0) {
-      this.dogT = Math.max(0, this.dogT - dt);
-      const ahead = (this.currentSpeed || 0) * ANIMALS.DOG_BARK_S + 20, T = this.T;
-      for (const e of this.entities) {
-        if (e.barked || e.done || !SOLID[e.kind] || e.d - T > ahead || e.d < T) continue;
-        const x = this.entX(e); if (Math.abs(x - laneX(this.targetLane)) > WORLD.LANE_W / 2 + (HALF_W[e.kind] || 10)) continue;
-        e.barked = true; this.stats.barks++; this.log('aB', e.lane); this.fx('dogBark', { e }); this.fx('sound', 'bark'); break;
-      }
-      if (this.dogT === 0) this.fx('dogLeave', {});
-    }
+    // v5s46d (utente): tolto il cane randagio che seguiva il corridore e abbaiava prima degli ostacoli
     const c = this.chase;
     if (c) {
       c.t -= dt;
