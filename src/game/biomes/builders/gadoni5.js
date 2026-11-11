@@ -94,38 +94,10 @@ export function buildCappella() {
   k.add(G.box(13, 0.12, 22), '#a9a49a', { x: 13.5, y: 0.03, z: -9 });
   for (let i = 0; i < 40; i++) k.add(G.box(r.range(0.5, 0.9), 0.04, r.range(0.4, 0.7)), r.pick(['#9a958b', '#b7b2a6', '#8d887f']), { x: r.range(7.2, 19.5), y: 0.1, z: -r.range(-1.5, 19.5), ry: r.range(-0.3, 0.3) });
   for (const z of [-1.2, -17]) k.add(G.box(10, 0.06, 0.45), '#d8d4ca', { x: 13, y: 0.11, z });
-  // cappella tonda: corpo ocra arrotondato (mezzo cilindro + parte dritta), gronda di coppi scuri
-  const cx = 11.4, cz = -9, rad = 4.6, H = 7.0, OCHRE = '#f9d488';
-  k.add(G.cyl(rad, rad, H, 22), OCHRE, { x: cx, y: H / 2, z: cz, vary: 0.04 });
-  k.add(G.cyl(rad + 0.05, rad + 0.05, 0.45, 22), '#c69a58', { x: cx, y: 0.22, z: cz });                          // zoccolo
-  k.add(G.cyl(rad + 0.45, rad + 0.3, 0.32, 22), '#3e2a20', { x: cx, y: H + 0.1, z: cz });                        // gronda
-  for (let i = 0; i < 26; i++) { const a = (i / 26) * Math.PI * 2; k.add(G.box(0.18, 0.12, 0.5), '#2c1f18', { x: cx + Math.cos(a) * (rad + 0.4), y: H - 0.1, z: cz + Math.sin(a) * (rad + 0.4), ry: -a }); }   // mensole
-  k.add(G.cone(rad + 0.35, 1.3, 22), '#5a3a2a', { x: cx, y: H + 0.9, z: cz });                                   // tetto di coppi
-  for (let i = 0; i < 22; i++) { const a = (i / 22) * Math.PI * 2; k.add(G.box(0.12, 0.08, rad * 0.95), '#6e4632', { x: cx + Math.cos(a) * rad * 0.5, y: H + 0.95, z: cz + Math.sin(a) * rad * 0.5, ry: -a + Math.PI / 2, rx: 0.32 }); }
-  // fronte di sbieco verso chi arriva (+z) e verso la via (-x): porta di legno, architrave scuro, gradino, croce di ferro
-  const NX = -Math.SQRT1_2, NZ = Math.SQRT1_2, TX = Math.SQRT1_2, TZ = Math.SQRT1_2, RY = Math.PI / 4;
-  const F = (d, t, y, geo, col, o = {}) => k.add(geo, col, { x: cx + NX * (rad + d) + TX * t, y, z: cz + NZ * (rad + d) + TZ * t, ry: RY, ...o });
-  F(0.04, 0, 1.5, G.box(0.1, 2.6, 1.7), '#c9c1b0');                      // cornice chiara
-  F(0.1, 0, 1.4, G.box(0.14, 2.6, 1.4), '#7a4a26', { vary: 0.05 });      // porta di legno
-  for (let j = 0; j < 3; j++) for (const sd of [-1, 1]) F(0.18, sd * 0.32, j ? 2.3 - (j - 1) * 0.5 : 0.75, G.box(0.05, j ? 0.42 : 0.7, 0.44), j ? '#3d4a50' : '#6a3e20');
-  F(0.14, 0, 2.95, G.box(0.24, 0.26, 2.1), '#3a2a20');                    // architrave
-  F(0.4, 0, 0.1, G.box(0.8, 0.2, 2.4), '#8a7a66');                       // gradino
-  const ct = -2.1;                                                       // croce di ferro battuto accanto alla porta
-  F(0.06, ct, 3.4, G.box(0.06, 1.4, 0.1), '#1e1b1a'); F(0.06, ct, 3.7, G.box(0.06, 0.1, 0.9), '#1e1b1a');
-  for (const [dy, dt] of [[0, 0.5], [0, -0.5], [0.72, 0], [-0.7, 0]]) F(0.06, ct + dt, 3.7 + dy, G.box(0.05, 0.2, 0.2), '#1e1b1a', { rx: Math.PI / 4 });
-  F(0.03, 2.3, 2.6, G.box(0.08, 1.1, 0.35), '#ece6d8');                  // finestrella stretta
-  // lampioni di ferro
-  // v5s26: niente lampioni davanti alla cappella (la coprivano)
-  // case bianche con balconi dietro, e di la' dal ramo
-  for (const [x, z, w, h, d] of [[21, -4, 7, 8.5, 7], [21, -13.5, 7, 9.5, 8]]) {
-    k.add(G.box(d, h, w), r.pick(['#eeeae2', '#e6e2d8', '#f2efe8']), { x, y: h / 2, z, vary: 0.05 });
-    k.add(G.box(d + 0.4, 0.3, w + 0.4), '#b3593c', { x, y: h + 0.15, z });
-    k.add(G.cone(Math.max(w, d) * 0.72, 1.4, 4), '#a8503a', { x, y: h + 1, z, ry: Math.PI / 4, sz: w / d });
-    for (const yy of [2.2, 5.2]) for (const zz of [-w / 4, w / 4]) windowFace(k, x - d / 2, yy, z + zz, -1, '#8a7a5e', yy > 4);
-    balcony(k, x - d / 2, 4.3, z, w * 0.55, -1, '#2a2d31');
-  }
-  // camino rosso
-  k.add(G.cyl(0.3, 0.3, 1.8, 8), '#c0402a', { x: 21, y: 10.2, z: -2 });
+  // Cappella tonda ocra (porta scura, croce, tetto di coppi) e le due case bianche col tetto rosso
+  // stavano subito dietro il Monumento ai Caduti. Non ci sono piu': dietro la statua resta il cielo.
+  // Il sorteggio del colore delle case si consuma lo stesso.
+  r.pick(['#eeeae2', '#e6e2d8', '#f2efe8']); r.pick(['#eeeae2', '#e6e2d8', '#f2efe8']);
   return k.build({ ao: 0.22 });
 }
 
