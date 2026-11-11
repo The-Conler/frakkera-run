@@ -95,6 +95,7 @@
       const box = qa.visBox(body); if (box.isEmpty()) continue;
       const c = box.getCenter(V(0, 0, 0)); if (c.z > cz - 4 || c.z < cz - range) continue;
       if (isFinite(e.my) && e.my) continue;                       // in aria per scelta (salto, volo)
+      if (kind === 'sasso' && e.landed && !(v.fallT >= 0.45)) continue;   // v5s46d: masso che sta cadendo dal costone (0.4 s, voluto): in aria per scelta
       n++;
       const qx = (box.max.x - box.min.x) * 0.25, qz = (box.max.z - box.min.z) * 0.25;
       const pts = [[c.x, c.z], [c.x - qx, c.z], [c.x + qx, c.z], [c.x, c.z - qz], [c.x, c.z + qz]];
