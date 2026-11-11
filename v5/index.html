@@ -9,8 +9,8 @@
   <meta name="description" content="FRAKKERA RUN - Quanto lontano riuscirai a portare il fuoco? Minigioco arcade ispirato a Is Frakkeras di Gadoni." />
   <title>FRAKKERA RUN</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-  <script type="module" crossorigin src="/frakkera-run/v5/assets/index-BAPfTAxc.js"></script>
-  <link rel="stylesheet" crossorigin href="/frakkera-run/v5/assets/index-Cjok7SYy.css">
+  <script type="module" crossorigin src="/frakkera-run/v5/assets/index-D4jRiig2.js"></script>
+  <link rel="stylesheet" crossorigin href="/frakkera-run/v5/assets/index-BHZhRX9V.css">
 </head>
 <body>
   <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -47,6 +47,7 @@
     <div id="game"></div>
     <div id="ui">
       <div id="popups" aria-hidden="true"></div>
+      <div id="night-vig" aria-hidden="true"></div>
       <!-- v5s11: BALLU TUNDU (minigioco a ritmo, facoltativo) -->
       <section id="dance-ui" class="hidden" aria-label="Sa Danza">
         <div class="dn-head"><b>SA DANZA</b><span id="dn-round">GIRO 1</span></div>
@@ -137,10 +138,9 @@
           <h2 class="sheet-title">COSTUMI</h2>
           <div class="coll-bar">
             <div class="coll-cell"><svg><use href="#i-bell"/></svg><div><small>CAMPANACCI</small><b id="coll-bell">0</b></div></div>
-            <div class="coll-cell"><svg><use href="#i-sweet"/></svg><div><small>FACCIOLE</small><b id="coll-sweet">0</b></div></div>
           </div>
           <div class="skin-list" id="skin-list"></div>
-          <p class="note">Campanacci e facciole sono rari: raccoglili lungo la strada, restano salvati su questo dispositivo.</p>
+          <p class="note">I campanacci sono rari: raccoglili lungo la strada, restano salvati su questo dispositivo.</p>
           <button class="btn btn-navy" data-act="back"><svg class="btn-ico"><use href="#i-back"/></svg> INDIETRO</button>
         </div>
       </section>
@@ -150,54 +150,62 @@
         <div class="sheet tall">
           <h2 class="sheet-title">COME SI GIOCA</h2>
           <div class="scroll">
-            <p>Corri per i vicoli del paese tenendo accesa la <b>frakkera</b>. La corsa è automatica e accelera sempre di più.</p>
+            <!-- v5s46d (utente 2026-11-11): istruzioni riscritte, brevi e nell'ordine in cui le incontri -->
+            <p class="howto-lead">Porti la <b>frakkera</b> accesa sulla spalla per le vie di Santu Lussurgiu. Corri da solo, sempre pi&ugrave; veloce: tu scegli la corsia, salti e ti abbassi. <b>Se la fiamma si spegne, la corsa finisce.</b></p>
+            <h3>I comandi</h3>
             <div class="controls">
-              <div><span class="key">&larr;</span><span class="key">&rarr;</span> o <span class="key">A</span><span class="key">D</span><br/>cambia corsia</div>
-              <div><span class="key wide">SCORRI</span> o <span class="key wide">TOCCA</span><br/>a sinistra / destra</div>
-              <div><span class="key">&darr;</span> o <span class="key">S</span> o <span class="key wide">SCORRI GI&Ugrave;</span><br/>abbassati</div>
+              <div><span class="key">&larr;</span><span class="key">&rarr;</span> o <span class="key">A</span><span class="key">D</span><br/>cambia corsia (sono 3)</div>
+              <div><span class="key wide">SCORRI</span> o <span class="key wide">TOCCA</span><br/>a sinistra / a destra</div>
               <div><span class="key">&uarr;</span> o <span class="key">W</span> o <span class="key wide">SCORRI SU</span><br/>salta</div>
+              <div><span class="key">&darr;</span> o <span class="key">S</span> o <span class="key wide">SCORRI GI&Ugrave;</span><br/>abbassati</div>
+              <div><span class="key wide">SPARA</span> o <span class="key">SPAZIO</span><br/>solo se hai la pistola</div>
+              <div><span class="key">P</span> o <span class="key">Esc</span><br/>pausa</div>
             </div>
-            <h3>Il salto</h3>
-            <p><b>Scorri verso l'alto</b> (o premi <span class="key">&uarr;</span> / <span class="key">W</span>) per saltare sopra gli ostacoli bassi: botti, muretti, massi, pozzanghere. Le funi dei Stramaionis si saltano oppure si passano abbassandosi; travi e rami invece solo abbassandosi. C'&egrave; sempre una strada libera anche senza saltare.</p>
+            <h3>Le corsie</h3>
+            <p>Ci sono sempre almeno <b>due corsie libere</b> su tre: guarda avanti e spostati per tempo. Non serve mai saltare o sparare per passare.</p>
+            <h3>Saltare e abbassarsi</h3>
+            <ul class="items">
+              <li class="txt"><span><b>Salta</b> sopra le cose basse: botti, muretti, massi, pozzanghere.</span></li>
+              <li class="txt"><span><b>Abbassati</b> sotto le cose alte: travi della miniera, archi e balconi, tronchi e rami caduti. Fallo un attimo prima.</span></li>
+              <li class="txt"><span><b>Funi:</b> le funi dei Stramaionis si saltano oppure ci si passa sotto.</span></li>
+            </ul>
+            <h3>La fiamma e il carburante</h3>
+            <p>La barra della fiamma cala di continuo e ogni urto ne toglie un pezzo (<b data-cfg="HIT_SOLID"></b> contro un ostacolo, <b data-cfg="HIT_PUDDLE"></b> in una pozzanghera). Raccogli i fasci per riaccenderla:</p>
+            <ul class="items">
+              <li><img data-icon="asfodelo" alt="" /> <span><b>Asfodelo</b>: ricarica <b data-cfg="ASFODELO"></b>.</span></li>
+              <li><img data-icon="ferula" alt="" /> <span><b>Ferula</b>, pi&ugrave; rara: ricarica <b data-cfg="FERULA"></b>.</span></li>
+            </ul>
+            <h3>I tappeti Sa Burra</h3>
+            <ul class="items">
+              <li><img data-icon="tappeto" alt="" /> <span>Lungo la strada trovi piccoli <b>tappeti tessuti</b>, in fila o a zig-zag. Restano salvati tra una partita e l'altra e sono la <b>moneta</b> per il Garag di Pinu.</span></li>
+              <li class="txt"><span><b>Il telaio:</b> in paese la tessitrice lavora in mezzo alla via: se urti il telaio perdi qualche tappeto, se lo schivi te ne regala uno.</span></li>
+              <li><svg class="ico"><use href="#i-bell"/></svg> <span>I <b>campanacci</b> sono rari: servono per sbloccare i costumi.</span></li>
+            </ul>
+            <h3>La pistola e SPARA</h3>
+            <ul class="items">
+              <li><img data-icon="pistola" alt="" /> <span>Raccogli la rara <b>pistola Broccu</b>: hai <b data-pistol="AMMO"></b> colpi.</span></li>
+              <li class="txt"><span><b>SPARA:</b> il pulsante in basso (o <span class="key">SPAZIO</span>) fa saltare botti, massi, pietre bagnate e carrelli davanti a te e d&agrave; punti. Muretti e case non si rompono.</span></li>
+              <li><img data-icon="botte" alt="" /> <span>Ogni luogo ha il suo pericolo: in paese <b>botti che rotolano</b> verso di te, sulla roccia <b>massi che cadono</b> (guarda l'ombra), alla piscina <b>pietre bagnate</b> che fanno scivolare, in miniera <b>carrelli</b> sui binari.</span></li>
+            </ul>
             <h3>Potenziamenti</h3>
             <ul class="items">
               <li><svg class="ico"><use href="#i-magnet"/></svg> <span><b>Calamita</b>: per 10 s attira i tappeti da tutte le corsie.</span></li>
               <li><svg class="ico"><use href="#i-fennel"/></svg> <span><b>Scudo di finocchio</b>: per 5 s para un urto.</span></li>
               <li><svg class="ico"><use href="#i-boots"/></svg> <span><b>Scarponi del calzolaio</b>: corri pi&ugrave; veloce e fai punti extra.</span></li>
-              <li><span class="key wide">PINU</span><span>Nel Garag di Pinu puoi migliorarli per sempre con i tappeti (3 livelli).</span></li>
             </ul>
-            <h3>Meteo</h3>
-            <p>Nelle <b>notti di pioggia</b> le pozzanghere ti rallentano un poco; sulla roccia la <b>nebbia</b> vela la strada per un tratto.</p>
-            <h3>Travi basse</h3>
-            <p>Travi della miniera, archi e balconi del paese, tronchi e rami caduti sul sentiero: non si possono distruggere. <b>Scorri verso il basso</b> (o premi <span class="key">&darr;</span> / <span class="key">S</span>) un attimo prima per abbassarti e passarci sotto con la frakkera.</p>
-            <h3>Pi&ugrave; veloce!</h3>
-            <p>Ogni volta che entri in un luogo nuovo la corsa accelera di un gradino: lo annuncia la scritta <b>PI&Ugrave; VELOCE!</b></p>
-            <h3>La fiamma</h3>
-            <p>Il fuoco si consuma di continuo: se si spegne la corsa finisce. Raccogli i fasci per alimentarlo.</p>
+            <h3>Il Garag di Pinu</h3>
+            <p>Dal secondo giro, appena entri in paese, a destra c'&egrave; il <b>Garag di Pinu</b>. Mentre ci passi davanti compare <b>Entra da Pinu?</b>: toccalo per entrare. Dentro paghi in tappeti Sa Burra (fino a 3 acquisti): pistola, asfodelo, scudo di sughero, e i potenziamenti da migliorare per sempre. Poi premi <b>ESCI</b> e la corsa riparte.</p>
+            <h3>Il paese</h3>
             <ul class="items">
-              <li><img data-icon="asfodelo" alt="" /> <span><b>Asfodelo</b> ricarica <b data-cfg="ASFODELO"></b></span></li>
-              <li><img data-icon="ferula" alt="" /> <span><b>Ferula</b>, più rara, ricarica <b data-cfg="FERULA"></b></span></li>
-            </ul>
-            <h3>I tappeti Sa Burra</h3>
-            <ul class="items">
-              <li><img data-icon="tappeto" alt="" /> <span>Lungo i vicoli trovi piccoli <b>tappeti tessuti</b>, in file e zig-zag. Sono la tua <b>collezione</b>: il totale resta salvato tra una partita e l'altra.</span></li>
-            </ul>
-            <h3>Le botti e la pistola</h3>
-            <ul class="items">
-              <li><img data-icon="botte" alt="" /> <span>Le <b>botti da vino</b> bloccano la corsia: un urto toglie <b data-cfg="HIT_SOLID"></b> di fiamma. C'è sempre una strada libera anche senza sparare.</span></li>
-              <li><span class="key wide">LUOGHI</span><span>Ogni luogo ha il suo pericolo, tutti si possono far saltare con la pistola: in paese <b>botti che rotolano verso di te</b>, sulla roccia <b>massi che cadono</b> (guarda l'ombra sulla corsia), alla piscina <b>pietre bagnate</b> che ti fanno scivolare, in miniera <b>carrelli</b> lanciati sui binari.</span></li>
-              <li><img data-icon="pistola" alt="" /> <span>Raccogli la rara <b>pistola Broccu</b>: hai <b data-pistol="AMMO"></b> colpi per far saltare le botti davanti a te e guadagnare punti.</span></li>
-              <li><span class="key wide">SPARA</span><span>Pulsante in basso oppure <span class="key">SPAZIO</span></span></li>
-            </ul>
-            <h3>Altri ostacoli</h3>
-            <ul class="items">
-              <li><img data-icon="muretto" alt="" /> <span>Muretti e case che sporgono: aggirali, la pistola non li rompe.</span></li>
-              <li><img data-icon="pozza" alt="" /> <span>Le pozzanghere spengono in parte il fuoco (<b data-cfg="HIT_PUDDLE"></b>).</span></li>
-              <li><img data-icon="goat" alt="" /> <span>Capre e botti che rotolano attraversano la strada: guardale muoversi.</span></li>
+              <li class="txt"><span><b>Ballu tundu:</b> nel cerchio scorri o tocca la freccia giusta a tempo di musica. Puoi anche saltarlo.</span></li>
+              <li class="txt"><span><b>Ciccio:</b> al secondo giro, quando leggi <b>STA PASSANDO CICCIO!</b>, levati dalla sua corsia: se il camion ti prende, la corsa finisce.</span></li>
+              <li><img data-icon="goat" alt="" /> <span>Capre, pecore, maialetti e botti attraversano la strada: guarda dove vanno. Se un cane pastore ti insegue, non rallentare e non urtare niente.</span></li>
+              <li class="txt"><span><b>Pi&ugrave; veloce:</b> ogni volta che entri in un luogo nuovo la corsa accelera: lo dice la scritta <b>PI&Ugrave; VELOCE!</b></span></li>
+              <li class="txt"><span><b>Meteo:</b> nelle notti di pioggia le pozzanghere rallentano; sulla roccia la nebbia copre la strada per un tratto.</span></li>
             </ul>
             <h3>Punti</h3>
             <table class="pts" id="pts-table"></table>
-            <p class="note">Pausa: tasto P / Esc o il pulsante in alto. Dopo il game over: RIGIOCA, oppure Invio / R.</p>
+            <p class="note">Pausa: tasto P / Esc o il pulsante in alto. A fine corsa: RIGIOCA, oppure Invio / R.</p>
           </div>
           <button class="btn btn-navy" data-act="back"><svg class="btn-ico"><use href="#i-back"/></svg> INDIETRO</button>
         </div>
