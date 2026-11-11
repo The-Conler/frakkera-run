@@ -304,6 +304,21 @@ export class Env {
     }
     return false;
   }
+  // v5s46d-QA: piano su cui poggia un oggetto di lato (piazzetta, gradino, marciapiede): il piu' alto fra 0 e maxH sotto i punti
+  sideFloor(x, W, maxH = 0.5, r = 0.6) {
+    const rc = this._rcF || (this._rcF = new THREE.Raycaster()), dn = new THREE.Vector3(0, -1, 0), o = new THREE.Vector3(), objs = [];
+    for (const sd of this.sides) for (const p of sd.list) if (p.mesh && p.W0 - 3 <= W && p.W1 + 3 >= W) objs.push(p.mesh);
+    for (const [, b] of this.batches) if (b.mesh && b.mesh.visible) objs.push(b.mesh);
+    if (!objs.length) return null;
+    rc.far = maxH + 0.6; const ys = [];
+    for (const [dx, dz] of [[0, 0], [-r, 0], [r, 0], [0, -r], [0, r]]) {
+      o.set(x + dx, maxH + 0.5, -W + dz); rc.set(o, dn);
+      const hh = rc.intersectObjects(objs, true).find((q) => q.object.visible && q.point.y <= maxH);
+      if (hh) ys.push(hh.point.y);
+    }
+    if (!ys.length) return null;
+    ys.sort((a, b) => a - b); return ys[Math.floor(ys.length / 2)];
+  }
   // v5s46c (13/41): ombre di contatto dichiarate dai Kit (k.shadow) -> macchie morbide del sistema di ombre del mondo
   attachShadows(mesh) {
     const sh = mesh.geometry && mesh.geometry.userData.shadows; if (!sh || !this.world.blob) return;
@@ -1020,7 +1035,6 @@ export class Env {
       if (!this.fresc) this.fresc = frescoes();
       mesh(this.fresc.geo, this.fresc.mat, true);   // v5s26: affreschi dipinti
       lamps.push(this.lamp(0, 10.6, -W - 0.4, '#ff6644', 5.5, 0.4));   // v5s46d (261): alone del rosone, senza una luce dinamica in piu' (niente ricompilazione shader)
-      lamps.push(this.lamp(0, 1.4, -W - 6, '#ff8866', 3.2, 0.22));
     } else if (id === 'pinnacle') {
       const m = cached('pinnacle', () => N.buildPinnacle(3)); m.position.set(-25, 0, 0); m.rotation.y = 0.4; fitTower(m, root);   /* v5s27n: modello 3D al posto della procedurale (che resta se il modello manca) */   // v5s27k: un po' piu' vicina alla via    // nella valle a SINISTRA del sentiero: a destra c'e' la fiamma che la coprirebbe
     } else if (id === 'valley') {

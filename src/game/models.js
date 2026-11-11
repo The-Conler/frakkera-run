@@ -61,7 +61,7 @@ export function buildHouse(seed) {
   if (stoneHouse) { // pietre a vista
     for (let i = 0; i < 26; i++) k.add(G.box(0.08, r.range(0.25, 0.4), r.range(0.4, 0.8)), r.pick(PAL.stone), { x: 0.03, y: r.range(1, h - 0.5), z: -r.range(0.3, w - 0.3), vary: 0.15 });
   }
-  k.add(G.box(0.3, 0.95, w), stone, { x: 0.02, y: 0.47, z: -w / 2, vary: 0.2 });
+  k.add(G.box(0.17, 0.95, w), stone, { x: 0.085, y: 0.47, z: -w / 2, vary: 0.2 });   // v5s46d-QA: zoccolo solo davanti al muro (prima meta' dentro la casa: il suo piano a 0.95 m tagliava bancarelle e folla)
   for (let y = 1.2, i = 0; y < h - 0.4; y += 0.62, i++) {
     const zz = i % 2 ? 0.45 : 0.3;
     k.add(G.box(0.1, 0.5, zz * 2), stone, { x: 0.05, y, z: -zz, vary: 0.2 });
@@ -133,8 +133,8 @@ export function buildHouse(seed) {
     k.add(G.box(0.04, 0.7, 0.55), r.pick(['#8a1e2a', '#1f4a32', '#2f4a7a', '#e0b030']), { x: 0.12, y: h * 0.48, z: -w * 0.72 });
   }
   if (r.chance(0.4)) {
-    for (let y = 0.4; y < h * 0.7; y += 0.35) k.add(G.ico(r.range(0.16, 0.28), 0), r.pick(PAL.leaf), { x: 0.2, y, z: -w * 0.3 + Math.sin(y) * 0.2, flat: true });
-    if (r.chance(0.5)) for (let i = 0; i < 4; i++) k.add(G.sph(0.06, 5, 4), r.pick(['#c8283a', '#6a8a32', '#e0a030']), { x: 0.28, y: 0.8 + i * 0.35, z: -w * 0.3 });
+    for (let y = 1.3; y < h * 0.7; y += 0.35) k.add(G.ico(r.range(0.14, 0.24), 0), r.pick(PAL.leaf), { x: 0.16, y, z: -w * 0.3 + Math.sin(y) * 0.2, flat: true });   // v5s46d-QA: rampicante sopra la testa (la folla e le bancarelle stanno sul marciapiede davanti)
+    if (r.chance(0.5)) for (let i = 0; i < 4; i++) k.add(G.sph(0.06, 5, 4), r.pick(['#c8283a', '#6a8a32', '#e0a030']), { x: 0.24, y: 1.45 + i * 0.35, z: -w * 0.3 });
   }
   return { geom: k.build({ ao: 0.32 }), w, h, lamps };
 }
@@ -277,7 +277,7 @@ export function buildAsphodel() {
   // rosetta di foglie a nastro a terra, poi lo scapo con i fiori bianchi aperti dal basso
   for (let i = 0; i < 7; i++) {
     const a = (i / 7) * Math.PI * 2;
-    k.add(G.box(0.08, 0.02, 0.55), r.pick(['#6a8a3a', '#7a9a48', '#5a7a32']), { x: Math.cos(a) * 0.22, y: 0.06, z: Math.sin(a) * 0.22, rx: 0.7, ry: -a });
+    k.add(G.box(0.08, 0.02, 0.55), r.pick(['#6a8a3a', '#7a9a48', '#5a7a32']), { x: Math.cos(a) * 0.22, y: 0.2, z: Math.sin(a) * 0.22, rx: 0.7, ry: -a });
   }
   stalkBundle(k, r, ['#c9b27a', '#b89c62', '#d9c690', '#a99060'], 5, 0.08, 1.55, (x, y, z) => {
     for (let j = 0; j < 5; j++) {

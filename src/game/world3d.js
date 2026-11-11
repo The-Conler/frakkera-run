@@ -57,10 +57,10 @@ function carpetSheet(w, h) {
   return g;
 }
 function carpetFringe(len) {
-  const kN = 14, g = new THREE.PlaneGeometry(len, 0.16, kN, 1);
+  const kN = 14, g = new THREE.PlaneGeometry(len, 0.1, kN, 1);
   const p = g.attributes.position;
-  for (let i = 0; i < p.count; i++) if (p.getY(i) < 0) p.setY(i, p.getY(i) - 0.05 * (i % 3));
-  g.rotateZ(Math.PI / 2);
+  for (let i = 0; i < p.count; i++) if (p.getY(i) > 0) p.setY(i, p.getY(i) + 0.03 * (i % 3));
+  g.translate(0, 0.05, 0);   // v5s46d-QA: frangia FUORI dai lati corti (prima una striscia per lungo appoggiata sul tappeto: z-fighting)
   return g;
 }
 function buildClockRig() {
@@ -580,8 +580,8 @@ export class World {
       v.body = new THREE.Mesh(this.geo[key] || (this.geo[key] = branchGeom(0)), this.mats2); v.shadow = this.blob(12.8, 1.3);
     } else if (kind === 'tappeto') {
       v.body = new THREE.Mesh(this.geo.carpet, this.mat.carpet[(e.variant || 0) % 4]);
-      if (!this.mat.fringe) this.mat.fringe = new THREE.MeshLambertMaterial({ color: '#efe6d4' });
-      for (const s of [-1, 1]) { const f = new THREE.Mesh(this.geo.fringe, this.mat.fringe); f.position.y = s * 1.15; v.body.add(f); }
+      if (!this.mat.fringe) this.mat.fringe = new THREE.MeshLambertMaterial({ color: '#efe6d4', side: THREE.DoubleSide });
+      for (const s of [-1, 1]) { const f = new THREE.Mesh(this.geo.fringe, this.mat.fringe); f.position.set(0, s * 1.3, 0.1); f.scale.y = s; v.body.add(f); }   // bordo corto arricciato (z 0.11)
       v.glow = this.glowSprite('#ff7a5a', 2.6, 0.32);
       v.shadow = this.blob(2.3, 3.0);   // v5s29d: ombra di contatto sotto il tappeto steso
     } else if (kind === 'pistola') {
@@ -717,14 +717,14 @@ export class World {
       v.litT = -1; v.bulb.material = this.lampMats.off; v.glow.material.opacity = 0; v.halo.material.opacity = 0;
     }
     if (e.kind === 'falo') {
-      v.sideChk = undefined;
+      v.sideChk = undefined; v.sideChkAt = undefined; v.floorY = undefined;
       const vil = e.variant === 1; v.bon.visible = !vil; v.vil.visible = vil;
       v.fa = FLAME_AT[vil ? 1 : 0]; v.litT = -1;
       v.body.rotation.y = vil ? (e.side < 0 ? 0.5 : -0.5) : e.id * 0.7;
       v.flame.position.set(0, 0, 0); v.glow.position.set(0, 0, 0);
     }
     if (e.kind === 'botte' || e.kind === 'muretto') v.body.rotation.y = (e.id * 1.37) % 6.28 * (e.kind === 'botte' ? 1 : 0.06);
-    v.sideChk = undefined;
+    v.sideChk = undefined; v.sideChkAt = undefined; v.floorY = undefined;
     this.views.set(e.id, v);
     this.placeView(e, v);
   }
@@ -745,6 +745,7 @@ export class World {
     // v5s46c (9/18): chi sta sul marciapiede del paese (falo', bancarelle, folla, tessitrice) poggia sulle lastre (alte 0.22), non dentro
     let y = e.my ? e.my * U : 0;
     if (!e.my && Math.abs(x) > 5.6 && Math.abs(x) < 6.95 && !isMoving(e.kind) && this.env.info(-zc).b.ground.shoulder === 'walk') y = 0.22;
+    if (v.floorY != null && v.floorY > y) y = v.floorY;   // v5s46d-QA: sopra la piazzetta/gradino misurato
     v.root.position.set(x, y, zc);
   }
   // v5s24: cane randagio che corre al tuo fianco e cane pastore che ti insegue
@@ -788,7 +789,16 @@ export class World {
       else if (v.root.visible) { const F = farCull && !(e.kind === 'processione' || e.kind === 'trave' || e.kind === 'panni') ? farCull : VIEW_AHEAD * U - 2; this.fadeView(v, (F - ahead * U) / FADE_IN_M); }
       if (e.offroad) v.root.visible = false;   // v5s40: animale/tronco uscito dalla carreggiata
       // v5s46c (10/18): falo' sul marciapiede dove a lato c'e' un muretto/gradino/casa: non si disegna dentro il muro
-      if ((e.kind === 'falo' || e.kind === 'bancarella' || e.kind === 'pastore' || e.kind === 'minatore') && v.root.visible) { if (v.sideChk === undefined && ahead * U < 75) v.sideChk = this.env.sideBlocked(v.root.position.x, -v.root.position.z, v.root.position.y + 0.3); if (v.sideChk) v.root.visible = false; }
+      if ((e.kind === 'falo' || e.kind === 'bancarella' || e.kind === 'folla' || e.kind === 'pastore' || e.kind === 'minatore') && v.root.visible) {
+        // v5s46d-QA: ricontrollo finche' si avvicina (le case a destra/sinistra possono essere costruite dopo il primo controllo)
+        const near = ahead * U;
+        if (v.sideChk !== true && near < 75 && (v.sideChkAt === undefined || v.sideChkAt - near > 4)) {
+          v.sideChkAt = near; v.sideChk = this.env.sideBlocked(v.root.position.x, -v.root.position.z, v.root.position.y + 0.3);
+          if (!v.sideChk && (e.kind === 'bancarella' || e.kind === 'folla') && Math.abs(v.root.position.x) > 6.95) {   // piazzetta o gradino: poggia sopra, non dentro
+            const fy = this.env.sideFloor(v.root.position.x, -v.root.position.z, 0.5); if (fy !== null && fy > v.root.position.y) { v.floorY = fy; v.root.position.y = fy; }
+          }
+        }
+        if (v.sideChk) v.root.visible = false; }
       // v5s41: le pecore in coda al gregge che aspettano lontano dalla via non si vedono dentro roccia/acqua/case
       if (isMoving(e.kind) && e.kind !== 'maimoni' && Math.abs(e.x) * U > ROAD_HALF * U + 2.0) v.root.visible = false;   // v5s41b: entro ~0.5 m oltre il marciapiede (prima 3.2: pecora dentro la roccia)
       if (e.done && !v.dead && (e.pickup || e.destroyed)) { v.dead = true; v.body.visible = false; if (v.glow) v.glow.visible = false; if (v.warn) v.warn.visible = false; if (v.shadow) v.shadow.visible = !e.pickup && !e.destroyed; }
