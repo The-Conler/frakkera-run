@@ -163,7 +163,8 @@
   // ---------- 7) binari continui nelle 3 corsie (miniera): sotto ogni rotaia c'e' un ferro sopra il piano
   // da a a b metri DAVANTI al corridore (coordinate del mondo: la z non conta il giro/la mappa di partenza)
   qa.rails = (a, b) => {
-    const objs = qa.scenery(), bad = [], z0 = S.T * 0.1; let n = 0;
+    const objs = qa.scenery(), bad = [], z0 = S.T * 0.1, lim = 1597.5 - qa.local(); let n = 0;   // il gioco corre tra una chiamata e l'altra: mai oltre la fine della miniera
+    b = Math.min(b, lim);
     for (const lx of [-3.4, 0, 3.4]) for (const off of [-0.55, 0.55]) for (let d = a; d < b; d += 0.5) {
       const z = z0 + d, hh = hitFirst(V(lx + off, 2.5, -z), V(0, -1, 0), 4, objs); n++;
       if (!hh || hh.point.y < 0.06) bad.push([lx + off, +(qa.local() + d).toFixed(1), hh ? +hh.point.y.toFixed(2) : null]);

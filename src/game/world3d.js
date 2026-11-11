@@ -618,16 +618,29 @@ export class World {
         made.push({ kind, v, fc });
       } catch (err) { /* solo anticipo */ }
     }
+    const fin = () => {
+      for (const { kind, v, fc } of made) {
+        for (const [o, f] of fc) o.frustumCulled = f;
+        v.root.visible = false;
+        if (kind === 'narrow') { this.scene.remove(v.root); continue; }
+        const pk = kind + '|'; v.poolKey = pk; (this.pools[pk] || (this.pools[pk] = [])).push(v);
+      }
+      return made.length;
+    };
+    if (this.env && this.env.mode === 'run' && this.renderer.compileAsync) {
+      // v5s46c (265): partenza rapida, in corsa: niente frame con tutti i personaggi; programmi compilati in parallelo
+      for (const { v } of made) v.root.visible = false;
+      const grp = new THREE.Group(), r = this.renderer, par = r.extensions.has('KHR_parallel_shader_compile');
+      const ca = () => { try { if (par) return r.compileAsync(grp, this.camera, this.scene).catch(() => {}); r.compile(grp, this.camera, this.scene); } catch (err) { /* solo anticipo */ } return Promise.resolve(); };
+      const roots = made.map(({ v }) => v.root), back = () => { for (const r of roots) this.scene.add(r); };
+      for (const r of roots) grp.add(r);
+      return ca().then(() => { for (const { kind, v } of made) if (kind !== 'narrow') this.fadeView(v, 0.5); return ca(); })
+        .then(() => { for (const { kind, v } of made) if (kind !== 'narrow') this.fadeView(v, 1); back(); return fin(); }, () => { back(); return fin(); });
+    }
     try { this.renderer.render(this.scene, this.camera); } catch (err) { /* solo anticipo */ }
     // v5s46 (169): anche le varianti trasparenti della dissolvenza (stesso disegno, un programma in piu' per materiale)
     try { for (const { kind, v } of made) if (kind !== 'narrow') this.fadeView(v, 0.5); this.renderer.render(this.scene, this.camera); for (const { kind, v } of made) if (kind !== 'narrow') this.fadeView(v, 1); } catch (err) { /* solo anticipo */ }
-    for (const { kind, v, fc } of made) {
-      for (const [o, f] of fc) o.frustumCulled = f;
-      v.root.visible = false;
-      if (kind === 'narrow') { this.scene.remove(v.root); continue; }
-      const pk = kind + '|'; v.poolKey = pk; (this.pools[pk] || (this.pools[pk] = [])).push(v);
-    }
-    return made.length;
+    return fin();
   }
   spawnView(e) {
     let v;

@@ -42,6 +42,18 @@ BOT = r'''
   }, 90);
 }
 '''
+# v5s46c (265): il box condiviso a volte si ferma tutto insieme (tutti i browser e questo script, 40-180 s): quel tempo non e'
+# colpa del gioco. Un battito ogni 0.5 s qui registra le pause dell'intero box; si tolgono SOLO quelle dal tempo senza progressi
+# e dai frame lunghi. Un blocco vero del gioco (frame fermi mentre il box gira) resta un errore come prima.
+PAUSES = []
+async def heartbeat():
+  t = time.time()
+  while True:
+    await asyncio.sleep(0.5); n = time.time()
+    if n - t > 10: PAUSES.append((t, n))
+    t = n
+def paused_in(a, b):
+  return sum(max(0, min(b, y) - max(a, x)) for x, y in PAUSES)
 async def run(p, i):
   seed = 1000 + i * 3571; style = STYLES[i % len(STYLES)]
   b = await p.chromium.launch(executable_path='/usr/bin/google-chrome', args=['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'])
@@ -59,22 +71,24 @@ async def run(p, i):
   await pg.wait_for_function("window.__frk.game.sim.mode==='run'", timeout=120000)
   await pg.evaluate("window.__god=setInterval(()=>{const s=window.__frk.game.sim; s.fuel=100; s.shield=1;},30)")
   await pg.evaluate(f"({BOT})('{style}')")
-  await pg.evaluate("(n)=>{const s=window.__frk.game.sim; const f=()=>{ window.__fr=(window.__fr|0)+1; if(s.mode==='run') for(let i=0;i<n;i++) s.tick(1/120); requestAnimationFrame(f);}; requestAnimationFrame(f);}", ACCEL)
-  t0 = time.time(); m = 0; last = (0, time.time()); modes = set(); stuck = False
+  await pg.evaluate("(n)=>{const s=window.__frk.game.sim; const f=()=>{ window.__fr=(window.__fr|0)+1; const nw=Date.now(); if(window.__lt&&s.mode==='run'){const gp=nw-window.__lt; if(gp>20000) (window.__gaps=window.__gaps||[]).push([window.__lt,nw,s.runD/10|0]);} window.__lt=nw; if(s.mode==='run') for(let i=0;i<n;i++) s.tick(1/120); requestAnimationFrame(f);}; requestAnimationFrame(f);}", ACCEL)
+  t0 = time.time(); m = 0; mg = 0; gaps = []; last = (0, time.time()); modes = set(); stuck = False
   while time.time() - t0 < 2400:
     await asyncio.sleep(3)
-    try: st = await asyncio.wait_for(pg.evaluate("(()=>{const g=window.__frk.game,s=g.sim;return {m:s.runD/10+(s.mapOffsetM||0),mode:s.mode,hits:s.stats.hits,paused:g.paused,spd:Math.round(s.currentSpeed||0),fr:window.__fr|0,lost:!!(g.world.renderer.getContext().isContextLost())}})()"), 30)
+    try: st = await asyncio.wait_for(pg.evaluate("(()=>{const g=window.__frk.game,s=g.sim;return {m:s.runD/10+(s.mapOffsetM||0),mode:s.mode,hits:s.stats.hits,paused:g.paused,spd:Math.round(s.currentSpeed||0),fr:window.__fr|0,lost:!!(g.world.renderer.getContext().isContextLost()),wd:!!g.world.env._warmDone,gaps:window.__gaps||[]}})()"), 30)
     except Exception as ex: st = {'m': m, 'mode': 'unresponsive:' + str(ex)[:80]}
-    m = st['m']; modes.add(st['mode'])
+    m = st['m']; modes.add(st['mode']); gaps = st.get('gaps', gaps)
     if m > last[0] + 1: last = (m, time.time())
-    elif time.time() - last[1] > 120: stuck = st; break
+    elif time.time() - last[1] - paused_in(last[1], time.time()) > 120: stuck = st; break
     if m >= TARGET: break
-  r = {'run': i, 'seed': seed, 'style': style, 'm': round(m, 1), 'secs': round(time.time() - t0), 'modes': sorted(modes), 'stuck': stuck, 'errors': errs[:10], 'warnings': warns[-5:]}
-  r['ok'] = m >= TARGET and not errs and not stuck
+  for a, b2, gm in gaps: mg = max(mg, round((b2 - a) - 1000 * paused_in(a / 1000, b2 / 1000)))
+  r = {'run': i, 'seed': seed, 'style': style, 'm': round(m, 1), 'secs': round(time.time() - t0), 'modes': sorted(modes), 'stuck': stuck, 'maxFrameGapMs': mg, 'longGaps': gaps[:8], 'boxPauses': [(round(x - t0), round(y - x)) for x, y in PAUSES if y > t0][:8], 'errors': errs[:10], 'warnings': warns[-5:]}
+  r['ok'] = m >= TARGET and not errs and not stuck and mg < 60000   # v5s46c (265): anche nessun frame congelato oltre 60 s
   print(json.dumps(r), flush=True)
   await b.close(); return r
 async def main():
   res = []
+  hb = asyncio.create_task(heartbeat())
   async with async_playwright() as p:
     for k in range(0, N, PAR): res += await asyncio.gather(*[run(p, i) for i in range(k, min(N, k + PAR))])
   json.dump(res, open(OUT, 'w'), indent=1)

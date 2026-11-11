@@ -577,12 +577,12 @@ export class Env {
       () => this.markGeom('cappellaL', () => buildCappellaLeft()),
       () => this.markGeom('vicolo', () => buildVicolo(32)),
       () => this.warmShaders(),
-      () => { try { this.world.warmViews && this.world.warmViews(); } catch (e) { /* solo anticipo */ } },   // v5s45
+      () => { try { return this.world.warmViews && this.world.warmViews(); } catch (e) { return null; } },   // v5s45
       // v5s45 (QA10 #5/#8): Sa Stiddiosa (parete GLB a istanze, cascate e foschia con shader propri, tende di felci) si costruiva
       // ~450 m prima, cioe' a ~50 m di ogni giro: i suoi 4 programmi si compilavano in corsa. Costruita e disegnata una volta qui.
-      () => { if (cliffModels()) this.warmMark('pool@0'); else Promise.resolve(loadCliffModels()).then(() => idle(() => { if (!this.marks.has('pool@0')) this.warmMark('pool@0'); })); },   // v5s46: con i moduli gia' arrivati (resta pronta per tutti i giri)
+      () => { if (cliffModels()) return this.warmMark('pool@0'); else Promise.resolve(loadCliffModels()).then(() => idle(() => { if (!this.marks.has('pool@0')) this.warmMark('pool@0'); })); },   // v5s46: con i moduli gia' arrivati (resta pronta per tutti i giri)
       () => this.warmGPU(),
-      () => { const p = loadTower(); if (p && p.then) p.then(() => idle(() => this.warmGPU())); },
+      () => { const p = loadTower(); if (p && p.then) return p.then(() => this.warmGPU()); return null; },
     ];
     // nel menu: un lavoro per ogni momento libero. In corsa (partenza rapida): un lavoro ogni 0.7 s, mai a ridosso
     // di un confine (li' il frame deve restare libero)
@@ -593,8 +593,12 @@ export class Env {
         const pW = this.lastPW ?? 0, Wb = this.boundaryAfter(pW + 0.01), Wp = this.boundaryBefore(pW + 0.01);
         if (performance.now() - (this._jobT || 0) < 700 || Wb - pW < 25 || pW - Wp < 15) { setTimeout(step, 120); return; }
       }
-      this._jobT = performance.now(); jobs.shift()(); idle(step);
+      // v5s46c (265): un lavoro puo' restituire una promessa (compilazione in parallelo): il successivo aspetta che finisca
+      this._jobT = performance.now(); let res; try { res = jobs.shift()(); } catch (e) { res = null; }
+      if (res && res.then) { let go = false; const next = () => { if (go) return; go = true; this._jobT = performance.now(); idle(step); }; res.then(next, next); setTimeout(next, 20000); }
+      else idle(step);
     };
+    this._warmJobs = jobs;
     idle(step);
   }
   // compila in anticipo TUTTI i materiali degli ambienti (anche i fondi di passaggio tra un ambiente e l'altro),
@@ -602,16 +606,44 @@ export class Env {
   // v5s29 (QA M1): disegna una volta, fuori schermo, ogni geometria pesante gia' costruita (buffer e shader pronti sulla GPU)
   warmGPU() {
     const r = this.world.renderer; if (!r) return;
+    const geos = new Set([...this.markCache.values()]); for (const p of this.prefabs.values()) if (p && p.geom) geos.add(p.geom);
+    const tm = towerModel();
+    if (this.mode === 'run') return this.warmGPURun([...geos], tm);
     try {
       const grp = new THREE.Group(); grp.position.set(0, -2000, 0);
-      const geos = new Set([...this.markCache.values()]); for (const p of this.prefabs.values()) if (p && p.geom) geos.add(p.geom);
       for (const g of geos) { if (!g || !g.attributes) continue; const m = new THREE.Mesh(g, this.mats2); m.frustumCulled = false; grp.add(m); }
-      const tm = towerModel(); if (tm) { const c = tm.clone(); c.traverse((o) => { o.frustumCulled = false; }); grp.add(c); }
+      if (tm) { const c = tm.clone(); c.traverse((o) => { o.frustumCulled = false; }); grp.add(c); }
       for (const mat of [this.fallMat, this.mistMat, this.shaftMat]) { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 0.1), mat); m.frustumCulled = false; grp.add(m); }
       this.scene.add(grp);
       r.render(this.scene, this.world.camera);   // v5s45: sul canvas (prima su un render target: varianti 'srgb-linear' inutili, in corsa si ricompilava tutto)
       this.scene.remove(grp);
     } catch (e) { /* solo ottimizzazione */ }
+  }
+  // v5s46c (265): partenza rapida: il riscaldamento capitava in corsa e disegnava TUTTO in un frame (~45 geometrie, 800k vertici,
+  // torre, piu' i programmi ancora da collegare). Sui telefoni lenti era uno scatto lungo, nel soak il frame non finiva piu'
+  // e la corsa restava ferma (46 m / 117-121 m). In corsa: prima i programmi in parallelo (compileAsync), poi una geometria per frame.
+  warmGPURun(geos, tm) {
+    const r = this.world.renderer;
+    const items = geos.filter((g) => g && g.attributes).map((g) => () => { const m = new THREE.Mesh(g, this.mats2); m.frustumCulled = false; return m; });
+    if (tm) items.push(() => { const c = tm.clone(); c.traverse((o) => { o.frustumCulled = false; }); return c; });
+    const pre = new THREE.Group(); if (tm) pre.add(tm.clone());
+    for (const mat of [this.fallMat, this.mistMat, this.shaftMat]) if (mat) pre.add(new THREE.Mesh(new THREE.PlaneGeometry(0.1, 0.1), mat));
+    return this.compileQuiet(pre).then(() => new Promise((done) => {
+      let cur = null;
+      const one = () => {
+        if (cur) { this.scene.remove(cur); cur = null; }
+        if (!items.length) return done();
+        try { cur = items.shift()(); cur.position.set(0, -2000, 0); this.scene.add(cur); } catch (e) { cur = null; }
+        setTimeout(() => requestAnimationFrame(one), 60);   // disegnata col frame normale, poi tolta
+      };
+      requestAnimationFrame(one);
+    }));
+  }
+  // compila i materiali di un gruppo staccato (luci e nebbia della scena) senza bloccare il frame
+  compileQuiet(obj) {
+    const r = this.world.renderer; if (!r) return Promise.resolve();
+    try { if (r.compileAsync && r.extensions.has('KHR_parallel_shader_compile')) return r.compileAsync(obj, this.world.camera, this.scene).catch(() => {}); r.compile(obj, this.world.camera, this.scene); } catch (e) { /* solo anticipo */ }
+    return Promise.resolve();
   }
   warmShaders() {
     const r = this.world.renderer; if (!r || !r.compile) return;
@@ -624,6 +656,9 @@ export class Env {
     geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(geo.attributes.position.count * 3).fill(1), 3));
     for (const m of mats) { const me = new THREE.Mesh(geo, m); me.frustumCulled = false; grp.add(me); }
     grp.position.set(0, -500, 0);
+    if (this.mode === 'run') {   // v5s46c (265): in corsa in parallelo, senza fermare il frame
+      return this.compileQuiet(grp).then(() => { geo.dispose(); this.uploadTextures([...mats, ...Object.values(this.world.mat || {})]); });
+    }
     this.scene.add(grp);
     try { r.compile(this.scene, this.world.camera); } catch (e) { /* solo ottimizzazione */ }
     this.scene.remove(grp); geo.dispose();
@@ -992,6 +1027,10 @@ export class Env {
     try {
       this.buildMark(key);
       const m = this.marks.get(key); const fc = [];
+      if (this.mode === 'run') {   // v5s46c (265): in corsa niente disegno forzato di tutta la parete: programmi in parallelo
+        m.root.visible = false; for (const g of m.lamps) g.visible = false;
+        return this.compileQuiet(m.root).then(() => { if (this.marks.get(key) === m) { m.root.visible = true; this.freeMark(key); this.falls = []; } });
+      }
       m.root.traverse((o) => { fc.push([o, o.frustumCulled]); o.frustumCulled = false; });
       r.render(this.scene, this.world.camera);
       for (const [o, f] of fc) o.frustumCulled = f;
