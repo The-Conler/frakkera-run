@@ -22,7 +22,7 @@ const genAll = (seed, m) => { const g = new Generator(seed), out = []; g.fillUnt
     all.push(...a);
   }
   ok('deterministico (flusso vrng)', same);
-  ok('tutti e tre presenti', counts.panni > 0 && counts.tessitrice > 0 && counts.processione > 0, JSON.stringify(counts));
+  ok('niente panni in paese, tessitrice e processione ci sono', counts.panni === 0 && counts.tessitrice > 0 && counts.processione > 0, JSON.stringify(counts));
   ok('solo nel paese', inVillage);
   ok('tessitrice in mezzo alla via (corsia 1)', side);
   ok('processione rara: al massimo una per giro', Object.values(laps).every((n) => n === 1), `${counts.processione} su 40 seed x 6000 m`);

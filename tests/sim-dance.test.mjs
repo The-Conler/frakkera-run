@@ -60,8 +60,11 @@ function play(sim, how) {
   const b = [0, 1, 2, 3].map((l) => s.danceChart(l).bpm);
   ok('il tempo sale a ogni giro', b[0] < b[1] && b[1] < b[2] && b[2] < b[3], b.join(','));
   ok('spartito deterministico', JSON.stringify(s.danceChart(2)) === JSON.stringify(s.danceChart(2)));
-  // il ballo al giro 1 (mappa saltata all'inizio del secondo paese)
-  const { sim } = toSquare(2 * CYCLE + DANCE.AT_M - 30); ok('ballo anche al giro successivo, piu\' veloce', sim.mode === 'dance' && sim.dance.lap === 2 && sim.dance.bpm > DANCE.BPM0 + DANCE.BPM_LAP * 1 - 0.01);
+  // ballo solo nei giri pari (2, 4, 6...): in codice lap 1, 3, 5 (il primo paese e' lap 0)
+  const skip = toSquare(2 * CYCLE + DANCE.AT_M - 30);
+  ok('niente ballo al giro dispari (lap 2)', skip.sim.mode !== 'dance' && !skip.fx.some((f) => f[0] === 'danceCue'));
+  const { sim } = toSquare(3 * CYCLE + DANCE.AT_M - 30);
+  ok('ballo al giro pari successivo, piu\' veloce', sim.mode === 'dance' && sim.dance.lap === 3 && sim.dance.bpm > DANCE.BPM0 + DANCE.BPM_LAP * 2 - 0.01);
 }
 {
   const go = () => { const { sim } = toSquare(CYCLE + DANCE.AT_M - 30, 7); play(sim, 'good'); return JSON.stringify([sim.events, sim.inputs]); };
