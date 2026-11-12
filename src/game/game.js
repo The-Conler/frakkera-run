@@ -167,35 +167,33 @@ export class Game {
       const t = e.touches[0]; if (!t || isBtn(e.target)) return;
       const r = el.getBoundingClientRect(); if (t.clientX < r.left + EDGE_PX || t.clientX > r.right - EDGE_PX) e.preventDefault();
     }, { passive: false });
-    const swipe = (q, x, y, min) => {
-      const dir = classifySwipe(x - q.x, y - q.y, min);
+    const swipe = (q, dx, dy, min) => {
+      const dir = classifySwipe(dx, dy, min);
       if (!dir) return false;
       if (this.sim.mode === 'dance') this.sim.danceInput(dir);
       else if (dir === 'left' || dir === 'right') this.sim.move(dir === 'right' ? 1 : -1);
       else if (dir === 'up') this.jump();
       else this.duck();
-      q.x = x; q.y = y; q.n = (q.n || 0) + 1;
-      q.swiped = q.n >= 3;
-      return true;
+      q.swiped = true; return true;
     };
     window.addEventListener('pointermove', (p) => {
       const q = this.ptr;
       if (!q || q.swiped || q.id !== p.pointerId) return;
       q.lx = p.clientX; q.ly = p.clientY;
-      swipe(q, p.clientX, p.clientY, q.edge ? SWIPE_PX * 0.65 : SWIPE_PX);
+      swipe(q, p.clientX - q.x, p.clientY - q.y, q.edge ? SWIPE_PX * 0.65 : SWIPE_PX);
     });
     const up = (p) => {
       const q = this.ptr;
       if (!q || q.id !== p.pointerId) return;
       const dt = performance.now() - q.t, dx = p.clientX - q.x, dy = p.clientY - q.y;
-      if (!q.n && !swipe(q, p.clientX, p.clientY, SWIPE_PX * 0.75) && !q.btn && dt < 350 && Math.abs(dx) < 20 && this.sim.mode !== 'dance' && el.contains(p.target) !== false) {
+      if (!q.swiped && !swipe(q, dx, dy, SWIPE_PX * 0.75) && !q.btn && dt < 350 && Math.abs(dx) < 20 && this.sim.mode !== 'dance' && el.contains(p.target) !== false) {
         const r = el.getBoundingClientRect();
         this.sim.move(p.clientX < r.left + r.width / 2 ? -1 : 1);
       }
       this.ptr = null;
     };
     window.addEventListener('pointerup', up);
-    window.addEventListener('pointercancel', (p) => { const q = this.ptr; if (q && q.id === p.pointerId && !q.n) swipe(q, q.lx, q.ly, SWIPE_PX * 0.6); this.ptr = null; });
+    window.addEventListener('pointercancel', (p) => { const q = this.ptr; if (q && q.id === p.pointerId && !q.swiped) swipe(q, q.lx - q.x, q.ly - q.y, SWIPE_PX * 0.6); this.ptr = null; });
     window.addEventListener('keydown', (e) => {
       if (e.target && e.target.tagName === 'INPUT') return;
       if (this.paused) return;

@@ -436,15 +436,10 @@ export class Character3D {
     this.danceK = (this.danceK || 0) + ((st.dancing ? 1 : 0) - (this.danceK || 0)) * Math.min(1, dt * 5);
     if (this.danceK < 1e-3) this.danceK = 0; else if (this.danceK > 0.999) this.danceK = 1;
     const ds = 1 + (DANCE_SCALE - 1) * this.danceK;
-    const sliding = k > 0.05 && !st.cart && (st.jumpH || 0) < 3;
-    if (sliding) this.rollP = Math.min(Math.PI * 0.92, (this.rollP || 0) + dt * 8);
-    else this.rollP = Math.max(0, (this.rollP || 0) - dt * 11);
-    const roll = this.rollP || 0;
-    if (roll > 0.04) this.root.position.y -= Math.sin(Math.min(roll, Math.PI * 0.5)) * 0.52;
-    this.model.rotation.x = roll > 0.04 ? roll : DUCK_LEAN * k;
-    this.root.scale.set((1 + 0.06 * k) * jx * ds, (1 - 0.18 * k) * jy * ds, (1 + 0.1 * k) * jx * ds);
+    this.root.scale.set((1 + 0.08 * k) * jx * ds, (1 - 0.34 * k) * jy * ds, (1 + 0.08 * k) * jx * ds);
     { const hide = !!st.dancing; if (hide !== this.frkHidden) { this.frkHidden = hide; for (const o of this.frkParts || []) o.visible = !hide; } }
-    R.duck = Math.max(R.duck || 0, Math.max(k, roll / Math.PI));
+    this.model.rotation.x = DUCK_LEAN * k;
+    R.duck = Math.max(R.duck || 0, k);
     // molla sull'osso della presa: la frakkera arriva in ritardo nei cambi di corsia
     const sg = this.spring;
     const tgt = this.state === 'run' ? -(st.vx || 0) * 0.16 : 0;

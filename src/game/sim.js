@@ -63,7 +63,7 @@ export class Sim {
     this.shopLap = 0; this.shopOffer = 0; this.shop = null; this.shield = 0;
     this.danceLap = -1; this.danceCue = null; this.dance = null; this.danceHintLap = -1; this._spdShown = 0;
     this.cart = null; this.cartLap = -1; this.cartSpK = 1;
-    this.duckT = 0; this.duckCd = 0; this.duckBuf = 0; this.fastFall = false; this.slipT = 0; this.speedStep = 0; this.beamHint = false;
+    this.duckT = 0; this.duckCd = 0; this.slipT = 0; this.speedStep = 0; this.beamHint = false;
     this.hitName = null; this.dieSpeed = 0; this.dieDur = WORLD.DYING_S;
     this.magnetT = 0; this.fennelT = 0; this.bootsT = 0; this.bootsTick = 0;
     this.jumpHint = false; this.jumpT = 0; this.jumpCd = 0; this.jumpBuf = 0; this.jumpH = 0; this.wetT = 0;
@@ -155,9 +155,9 @@ export class Sim {
       this.jumpBuf = Math.max(this.jumpBuf, JUMP.TIME_S + JUMP.COOLDOWN_S + 0.15);
       return this.jumpCd > 0 || this.jumpT <= JUMP.BUFFER_S;
     }
-    if (this.duckT > 0) { this.duckT = 0; this.duckCd = DUCK.COOLDOWN_S; this.duckBuf = 0; }
+    if (this.duckT > 0) { this.duckT = 0; this.duckCd = DUCK.COOLDOWN_S; }
     this.jumpBuf = 0;
-    this.jumpT = JUMP.TIME_S; this.fastFall = false; this.stats.jumps++;
+    this.jumpT = JUMP.TIME_S; this.stats.jumps++;
     this.inputs.push([this.step, 'J']);
     this.fx('jump'); this.fx('sound', 'jump');
     return true;
@@ -179,21 +179,9 @@ export class Sim {
     return { ok: true, total: left, level: lvl + 1 };
   }
 
-  // v5s6: abbassarsi (swipe giu', freccia giu', S) per passare sotto le travi basse.
-  // In aria lo stesso gesto e' una caduta rapida; se l'abbassata e' gia' in corso resta in memoria.
+  // v5s6: abbassarsi (swipe giu', freccia giu', S) per passare sotto le travi basse
   duck() {
-    if (this.mode !== 'run' || this.cart) return false;
-    if (this.jumpT > 0) {
-      this.fastFall = true;
-      this.duckBuf = DUCK.BUFFER_S;
-      this.inputs.push([this.step, 'F']);
-      return true;
-    }
-    if (this.duckCd > 0 || this.duckT > 0) { this.duckBuf = DUCK.BUFFER_S; return true; }
-    return this.startDuck();
-  }
-  startDuck() {
-    this.duckBuf = 0;
+    if (this.mode !== 'run' || this.duckCd > 0 || this.duckT > 0 || this.cart) return false;
     this.duckT = DUCK.TIME_S;
     this.inputs.push([this.step, 'D']);
     this.fx('duck');
@@ -451,14 +439,9 @@ export class Sim {
     if (this.duckT > 0) { this.duckT = Math.max(0, this.duckT - dt); if (this.duckT === 0) this.duckCd = DUCK.COOLDOWN_S; }
     else this.duckCd = Math.max(0, this.duckCd - dt);
     this.slipT = Math.max(0, this.slipT - dt);
-    const fallK = this.fastFall && this.jumpT > 0 ? 3.4 : 1;
-    if (this.jumpT > 0) { this.jumpT = Math.max(0, this.jumpT - dt * fallK); if (this.jumpT === 0) { this.fastFall = false; this.jumpCd = JUMP.COOLDOWN_S; this.fx('land'); } }
+    if (this.jumpT > 0) { this.jumpT = Math.max(0, this.jumpT - dt); if (this.jumpT === 0) { this.jumpCd = JUMP.COOLDOWN_S; this.fx('land'); } }
     else this.jumpCd = Math.max(0, this.jumpCd - dt);
     if (this.jumpBuf > 0) { this.jumpBuf = Math.max(0, this.jumpBuf - dt); if (this.jumpT === 0 && this.jumpCd === 0) { this.jumpBuf = 0; this.jump(); } }   // v5s45: salto in memoria
-    if (this.duckBuf > 0) {
-      if (this.jumpT === 0 && this.duckT === 0 && this.duckCd === 0 && !this.cart) this.startDuck();
-      else if (this.jumpT === 0 && this.duckT === 0) this.duckBuf = Math.max(0, this.duckBuf - dt);
-    }
     this.jumpH = this.jumpT > 0 ? Math.sin(Math.PI * (1 - this.jumpT / JUMP.TIME_S)) * JUMP.H_PX : 0;
     this.wetT = Math.max(0, this.wetT - dt);
     // v5s18: giro in carrello (salita / discesa decise dalla distanza: deterministico)

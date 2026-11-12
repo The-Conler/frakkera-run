@@ -250,7 +250,6 @@ export const BIOME_OBST = {
 export const DUCK = {
   TIME_S: 0.62,            // durata dell'abbassata
   COOLDOWN_S: 0.08,
-  BUFFER_S: 0.45,          // un secondo swipe giu' durante l'abbassata o in aria non si perde
   BEAM_FROM: 0.04,         // difficolta' minima per le travi
   BEAM_P_START: 0.05,      // prima 0.035
   BEAM_P_END: 0.10,        // prima 0.07; il minimo in secondi resta PACE.SAME_S

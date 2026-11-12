@@ -1,4 +1,4 @@
-// Giro fortunato una volta al giorno, caduta rapida, secondo swipe giu' in memoria, rallenty sull'urto.
+// Giro fortunato una volta al giorno, abbassata come in stage46g (niente caduta rapida ne' secondo swipe in memoria), rallenty sull'urto.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Sim } from '../src/game/sim.js';
@@ -22,25 +22,26 @@ test('lap heat makes lap 3 denser than lap 1', () => {
   assert.equal(lapHeat(12), LAP_HEAT_CAP);
 });
 
-test('swipe down in the air fast-falls and the slide is remembered', () => {
+test('swipe down in the air starts the crouch and does not fast-fall', () => {
   const sim = runSim();
   assert.ok(sim.jump());
   ticks(sim, 0.12);
   const left = sim.jumpT;
-  assert.ok(sim.duck(), 'down swipe accepted in the air');
-  assert.equal(sim.duckT, 0, 'not a ground slide yet');
+  assert.equal(sim.duck(), true, 'down swipe in the air starts the crouch, as in stage46g');
+  assert.ok(sim.duckT > 0.5);
   ticks(sim, 0.08);
-  assert.ok(sim.jumpT < left - 0.2, `fell quickly ${left.toFixed(3)} -> ${sim.jumpT.toFixed(3)}`);
-  ticks(sim, JUMP.TIME_S);
-  assert.ok(sim.duckT > 0, 'buffered slide starts on landing');
+  assert.ok(Math.abs(sim.jumpT - (left - 0.08)) < 0.02, `normal fall ${left.toFixed(3)} -> ${sim.jumpT.toFixed(3)}`);
 });
 
-test('a second duck during the slide is not lost', () => {
+test('a second duck during the slide is ignored', () => {
   const sim = runSim();
   assert.ok(sim.duck());
-  assert.ok(sim.duck(), 'second swipe buffered');
-  ticks(sim, 0.9);
-  assert.ok(sim.duckT > 0, 'the buffered duck started');
+  const t0 = sim.duckT;
+  assert.equal(sim.duck(), false, 'second swipe does not buffer');
+  ticks(sim, 0.2);
+  assert.ok(sim.duckT > 0 && sim.duckT < t0 - 0.15, 'the first slide just runs out');
+  ticks(sim, 0.7);
+  assert.equal(sim.duckT, 0, 'nothing starts after the first slide');
 });
 
 test('a fatal hit keeps a short slow moment and names what you hit', () => {
