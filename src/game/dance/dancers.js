@@ -123,13 +123,19 @@ export function buildDancer(mats, woman, v = 0, q = 'hi') {
 // passo del ballu tundu: braccia allacciate ai vicini (aperte di lato e un po' in basso),
 // passo laterale a tempo con il saltello sul battere
 export function danceStep(d, ph, beatK) {
-  const s = Math.sin(ph * Math.PI * 2);
-  d.arms[0].rotation.z = -1.15; d.arms[1].rotation.z = 1.15;
-  d.arms[0].rotation.x = d.arms[1].rotation.x = -0.15 + s * 0.08;
-  d.legs[0].rotation.x = s * 0.35; d.legs[1].rotation.x = -s * 0.35;
-  d.legs[0].rotation.z = Math.max(0, s) * 0.2; d.legs[1].rotation.z = -Math.max(0, -s) * 0.2;
-  d.fig.position.y = beatK * 0.12;
-  d.fig.rotation.z = s * 0.04;
+  const v = d.slot || 0;
+  const amp = 0.72 + (v % 5) * 0.08;
+  const arm = 1.02 + (v % 3) * 0.1;
+  const rate = 0.9 + (v % 4) * 0.06;
+  const s = Math.sin((ph * rate + v * 0.17) * Math.PI * 2);
+  if (!d.arms || !d.legs || !d.fig) return;
+  d.arms[0].rotation.z = -arm; d.arms[1].rotation.z = arm * (0.92 + (v % 2) * 0.08);
+  d.arms[0].rotation.x = -0.12 + s * (0.06 + (v % 3) * 0.03);
+  d.arms[1].rotation.x = -0.18 - s * 0.05;
+  d.legs[0].rotation.x = s * 0.35 * amp; d.legs[1].rotation.x = -s * 0.32 * amp;
+  d.legs[0].rotation.z = Math.max(0, s) * 0.2; d.legs[1].rotation.z = -Math.max(0, -s) * (0.16 + (v % 2) * 0.06);
+  d.fig.position.y = beatK * (0.08 + (v % 4) * 0.025);
+  d.fig.rotation.z = s * (0.03 + (v % 3) * 0.012);
 }
 // falo' di frakkere al centro del cerchio
 export function buildBonfire(mats) {

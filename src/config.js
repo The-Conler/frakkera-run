@@ -129,14 +129,14 @@ export const FUEL = {
 
 // ---- Velocita e difficolta -------------------------------------------
 export const DIFFICULTY = {
-  RAMP_METERS: 2400,      // metri per arrivare a difficolta 1
-  RAMP_EXP: 1.15,         // >1 = inizio piu' dolce
-  SPEED_START: 82,        // px/s
-  SPEED_END: 185,         // px/s a difficolta 1 (v5s6: piu' basso, il resto arriva dai gradini per ambiente)
-  SPEED_OVERDRIVE: 0.012, // px/s guadagnati per ogni metro oltre la rampa
+  RAMP_METERS: 1400,      // metri per arrivare a difficolta 1 (dentro il giro 1, non a meta' del giro 2)
+  RAMP_EXP: 0.70,         // <1 = sale prima: gia' nel paese si corre piu' forte
+  SPEED_START: 98,        // px/s (prima 82)
+  SPEED_END: 188,         // px/s a difficolta 1; i gradini per ambiente e l'overdrive continuano a far salire
+  SPEED_OVERDRIVE: 0.014, // px/s guadagnati per ogni metro oltre la rampa
   SPEED_MAX: 240,
-  OBSTACLE_P_START: 0.09, // probabilita di ostacolo per corsia libera per fila
-  OBSTACLE_P_END: 0.40,
+  OBSTACLE_P_START: 0.18, // probabilita di ostacolo per corsia libera per fila (prima 0.09)
+  OBSTACLE_P_END: 0.55,   // prima 0.40. PACE (in secondi) scarta i tentativi troppo vicini
   PICKUP_P_START: 0.14,   // probabilita di materiale per fila
   PICKUP_P_END: 0.065,
   FERULA_SHARE: 0.22,     // quota di ferula tra i materiali
@@ -147,6 +147,13 @@ export const DIFFICULTY = {
   MOVING_FROM: 0.18,      // ... per capre / botti che attraversano
   PUDDLE_FROM: 0.05,
 };
+// Ogni giro successivo e' un po' piu' fitto del precedente (il giro 3 si sente piu' del giro 1).
+// Moltiplica solo la probabilita': il tempo di reazione resta quello di PACE.
+export const LAP_HEAT = [1, 1.2, 1.38];
+export function lapHeat(lap) {
+  const i = Math.max(0, lap | 0);
+  return LAP_HEAT[Math.min(LAP_HEAT.length - 1, i)];
+}
 
 // ---- Mondo ------------------------------------------------------------
 export const WORLD = {
@@ -160,7 +167,9 @@ export const WORLD = {
   FIXED_DT: 1 / 120,       // passo fisso della simulazione (s)
   MAX_STEPS_PER_FRAME: 12,
   HIT_INVULN_S: 1.1,
-  DYING_S: 0.9,            // animazione di spegnimento prima del game over
+  DYING_S: 0.9,            // spegnimento senza urto (carburante finito)
+  SLOW_S: 1.15,            // rallenty dopo un urto, cosi' si vede cosa ti ha preso
+  SLOW_K: 0.2,             // quota della velocita' durante il rallenty
   HIT_SLOW: 0.55,          // moltiplicatore velocita subito dopo un urto
   HIT_RECOVER_S: 1.55,     // v5s46 (104): 1.4 -> 1.55 con una breve tenuta in basso
   HIT_HOLD_S: 0.25,        // v5s46 (104): dopo l'urto si resta lenti un attimo (si riprende il controllo), poi si riparte
@@ -203,9 +212,9 @@ export const NATURE_TREES = {
 
 export const ZONE3 = {
   FROM_LAP: 2,             // giro (da 0) da cui vale: il terzo
-  SPEED_CAP: 212,          // px/s (prima: ~235-240)
+  SPEED_CAP: 226,          // sopra la velocita' media del giro 1, sotto il tetto assoluto
   SPEED_GROW: 0.003,       // px/s per metro oltre l'inizio della zona
-  SPEED_CAP_MAX: 222,
+  SPEED_CAP_MAX: 234,
   EASE_M: 150,             // metri di frenata dolce all'ingresso
   MIN_GAP_S: 0.7,          // secondi minimi tra due azioni obbligate
   OBST_K: 1.4,             // probabilita' degli ostacoli corti
@@ -217,8 +226,8 @@ export const ZONE3 = {
 // ---- v5s6: ostacoli tipici di ogni ambiente (tutti distruttibili con la pistola) ----
 export const BIOME_OBST = {
   FROM: 0.03,              // difficolta' minima
-  P_START: 0.05,           // probabilita' per fila (dove possibile)
-  P_END: 0.11,
+  P_START: 0.07,           // probabilita' per fila (dove possibile) (prima 0.05)
+  P_END: 0.15,
   MIN_GAP_ROWS: 7,         // file minime tra due ostacoli d'ambiente
   ROLL_K: 0.42,            // botte/carrello verso il giocatore: velocita' = ROLL_K * corsa
   ROLL_ROWS: 6,            // file di corsia riservate alla rotolata (dietro il punto di partenza)
@@ -231,9 +240,10 @@ export const BIOME_OBST = {
 export const DUCK = {
   TIME_S: 0.62,            // durata dell'abbassata
   COOLDOWN_S: 0.08,
+  BUFFER_S: 0.45,          // un secondo swipe giu' durante l'abbassata o in aria non si perde
   BEAM_FROM: 0.04,         // difficolta' minima per le travi
-  BEAM_P_START: 0.035,
-  BEAM_P_END: 0.07,
+  BEAM_P_START: 0.05,      // prima 0.035
+  BEAM_P_END: 0.10,        // prima 0.07; il minimo in secondi resta PACE.SAME_S
   BEAM_MIN_GAP_ROWS: 12,
   BEAM_LEN: 10,            // px di profondita' della trave
 };
@@ -363,6 +373,8 @@ export const POWER = {
 // Il generatore continua a garantire un percorso SENZA saltare (il salto e' solo una scorciatoia).
 // v5s44c: ritmo degli ostacoli (tempo a velocita' corrente, tutte le zone e i giri)
 export const PACE = {
+  // Soglie in secondi: la distanza minima cresce da sola con speedAt, quindi il tempo di reazione
+  // resta questo anche con la rampa piu' ripida. Non si accorciano.
   SAME_S: 1.35,            // minimo tra due ostacoli della stessa azione (accovacciata globale, salto stessa corsia)
   ANY_S: 0.7,              // minimo tra due ondate di azioni obbligate (come zona 3, ora ovunque)
   CHAIN_N: 3,              // al massimo N azioni in CHAIN_WINDOW_S, poi un respiro

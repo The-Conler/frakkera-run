@@ -1087,7 +1087,7 @@ export class World {
         break;
       }
       case 'hit': {
-        this.addShake(0.35, 0.28); this.smokeAtTip(12);
+        this.addShake(0.2, 0.11); this.smokeAtTip(12);
         const t = this.tipW;
         this.burst(t.x, t.y + 0.5, t.z, COL.spark, 34, 5.5); this.burst(t.x, t.y + 0.3, t.z, COL.ember, 22, 3.5);
         this.char3d.stumble(); this.char3d.kick((Math.random() < 0.5 ? -1 : 1) * HIT_KICK.a, HIT_KICK.p);   // v5s45 (QA10 #7): urto piu' morbido (era 1.6 / 2.2), la frakkera resta in spalla
@@ -1138,7 +1138,7 @@ export class World {
     const p = this.tipW;
     for (let i = 0; i < n; i++) this.norm.emit(p.x + (Math.random() - 0.5) * 0.4, p.y + Math.random() * 0.4, p.z, (Math.random() - 0.5) * 0.8, 1 + Math.random() * 1.4, (Math.random() - 0.5) * 0.8, 1.2 + Math.random() * 0.8, 0.5, 2.0, i % 2 ? COL.smoke : COL.smokeD, 0.55, -0.3, 0.6);
   }
-  addShake(t, amp) { this.shake = Math.max(this.shake, t); this.shakeAmp = Math.max(this.shakeAmp * (this.shake > 0 ? 1 : 0), amp); }
+  addShake(t, amp) { if (this.reducedMotion) return; this.shake = Math.max(this.shake, t); this.shakeAmp = Math.max(this.shakeAmp * (this.shake > 0 ? 1 : 0), amp); }
   barrelBurst(d) {
     const v = this.views.get(d.e.id);
     const p = v ? v.root.position : _v.set(d.x * U, 0, 0);
@@ -1221,7 +1221,9 @@ export class World {
     // in miniera il buio cresce quando la frakkera si consuma
     const dark = Math.min(0.4, L.darkByFuel * (1 - fuelF));
     this.skyU.uTop.value.copy(m.top); this.skyU.uMid.value.copy(m.mid); this.skyU.uHor.value.copy(m.hor); this.skyU.uFog.value.copy(m.fog); this.skyU.uSun.value = m.sun;
-    this.scene.fog.color.copy(m.fog).convertSRGBToLinear();   /* v5s46c: three passa il colore della nebbia in sRGB, il cielo (shader proprio) mostra i valori lineari: senza questa conversione tutto cio' che sta nella nebbia risultava piu' chiaro del cielo (sagome pallide e piatte in fondo, salti di colore) */ this.scene.fog.near = m.fogNear * (1 - dark * 0.4); this.scene.fog.far = m.fogFar * (1 - dark * 0.55);
+    this.scene.fog.color.copy(m.fog).convertSRGBToLinear();   /* v5s46c: three passa il colore della nebbia in sRGB, il cielo (shader proprio) mostra i valori lineari: senza questa conversione tutto cio' che sta nella nebbia risultava piu' chiaro del cielo (sagome pallide e piatte in fondo, salti di colore) */
+    // nebbia piu' lunga e morbida: il primo piano resta nitido, il fondo sfuma (niente secondo pass di profondita')
+    this.scene.fog.near = m.fogNear * 0.82 * (1 - dark * 0.4); this.scene.fog.far = m.fogFar * 1.32 * (1 - dark * 0.55);
     this.hemi.color.copy(m.hemiS); this.hemi.groundColor.copy(m.hemiG); this.hemi.intensity = m.hemiI * (1 - dark * 0.5);   // v5s9: il buio cresce col fuoco che cala, ma non scende sotto la meta'
     // v5s42: luminosita' minima all'aperto (notte, pioggia, giri successivi): il telefono resta leggibile senza slavare.
     // Luce dal cielo efficace >= 0.62 e terreno mai nero (bordo strada e piloni del viadotto); in galleria resta il buio voluto.

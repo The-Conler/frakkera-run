@@ -108,7 +108,7 @@ export const BIOMES = [
 // dopo l'ultimo ambiente il viaggio ricomincia dal paese (giro 2, 3...):
 // stessi luoghi con variazioni (seme diverso) e luce che scende verso la sera/notte.
 export const CYCLE = BIOMES[BIOMES.length - 1].to;
-export const LAP_NIGHT = [0, 0.55, 0.85, 1];     // quota di "sera" per giro
+export const LAP_NIGHT = [0, 0.42, 0.74, 1];     // giro 1 tramonto pieno, poi sera, poi quasi notte, poi notte
 export const NIGHT_MOOD = { top: '#141a46', mid: '#3a3474', hor: '#8a5a7a', fog: '#4a4068', hemiS: '#9b95da', hemiG: '#2e2638', hemiI: 0.75, dirC: '#ff9b70', dirI: 0.6, moon: 1, sun: 0.05, far: '#8a80b8' };
 // schermata del menu (paese al crepuscolo) e del game over: come in v4
 export const MENU_MOOD = { top: '#2a2c6e', mid: '#7a5aa8', hor: '#f39a7c', fog: '#b57c98', hemiS: '#c7b4ff', hemiG: '#6a4a58', hemiI: 1.15, dirC: '#ffb784', dirI: 1.5, moon: 1, sun: 0.35, far: '#c9b6ea', fogNear: 30, fogFar: 150 };

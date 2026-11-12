@@ -7,7 +7,7 @@
 // mobili compaiono solo in "finestre calme" senza altri ostacoli.
 // Tappeti, combustibile e pistola si piazzano solo in celle libere.
 // =====================================================================
-import { DIFFICULTY as DF, WORLD, PX_PER_METER, CARPETS as CP, PISTOL, SPEED_STEPS as SS, BIOME_OBST as BO, DUCK, MASKS as MK, FIRE, MINE, CART, COLLECT, DANCE, FESTA, POWER, WEATHER, ANIMALS, SANTAMARTA, VILLAGE as VL, ZONE3 as Z3, NATURE_TREES as NT, PACE, CICCIO, danceThisLap } from '../config.js';
+import { DIFFICULTY as DF, WORLD, PX_PER_METER, CARPETS as CP, PISTOL, SPEED_STEPS as SS, BIOME_OBST as BO, DUCK, MASKS as MK, FIRE, MINE, CART, COLLECT, DANCE, FESTA, POWER, WEATHER, ANIMALS, SANTAMARTA, VILLAGE as VL, ZONE3 as Z3, NATURE_TREES as NT, PACE, CICCIO, danceThisLap, lapHeat } from '../config.js';
 import { rainLap } from './weather.js';
 import { biomeAt, BIOMES, CYCLE } from '../game/biomes/config.js';
 import { makeRng } from './rng.js';
@@ -580,6 +580,7 @@ export class Generator {
     const ROW = WORLD.ROW;
     const D = this.rowDist(r);
     const diff = difficultyAt(D);
+    const heat = lapHeat(biomeAt(D / PX_PER_METER + this.offM).lap);   // giro 3 piu' fitto del giro 1
     const nature = NT.BIOMES.includes(biomeIdAt(D, this.offM));   // v5s34: meno alberi caduti nella natura
     const used = new Array(L).fill(false); this._used = used;
     const z3 = this.z3Rows(D), z3ok = !z3 || r >= this.z3Next;   // v5s34: zona 3, si puo' mettere un'azione in questa fila?
@@ -704,7 +705,7 @@ export class Generator {
       return;
     }
     // ---- v5s6: trave bassa (tutte le corsie, si passa abbassandosi: niente altro sulla fila) ----
-    if (diff >= DUCK.BEAM_FROM && r >= this.nextBeamAt && !longActive && z3ok && (!z3 || this.hold <= 0) && this.paceOk('crouch', D + 10, 1) && rng() < lerp(DUCK.BEAM_P_START, DUCK.BEAM_P_END, diff) * (nature ? NT.BEAM_K : 1)) {
+    if (diff >= DUCK.BEAM_FROM && r >= this.nextBeamAt && !longActive && z3ok && (!z3 || this.hold <= 0) && this.paceOk('crouch', D + 10, 1) && rng() < lerp(DUCK.BEAM_P_START, DUCK.BEAM_P_END, diff) * (nature ? NT.BEAM_K : 1) * heat) {
       this.nextBeamAt = r + Math.max(this.paceRows(D), Math.round((DUCK.BEAM_MIN_GAP_ROWS + rng.int(0, 8)) * (z3 ? Z3.BEAM_GAP_K : 1)));
       z3mark(r); if (z3) this.hold = Math.max(this.hold, z3);   // niente cambio di sentiero subito dopo la trave
       for (let l = 0; l < L; l++) { used[l] = true; this.laneCool[l] = Math.max(this.laneCool[l], r + 1); }
@@ -727,7 +728,7 @@ export class Generator {
       return true;
     };
     let z3hit = false;
-    if (diff >= BO.FROM && r >= this.nextBiomeAt && z3ok && rng() < lerp(BO.P_START, BO.P_END, diff)) {
+    if (diff >= BO.FROM && r >= this.nextBiomeAt && z3ok && rng() < lerp(BO.P_START, BO.P_END, diff) * heat) {
       const kind = BIOME_OBST_KIND[biomeIdAt(D, this.offM)];
       const free = [];
       for (let l = 0; l < L; l++) if (!required[l] && !used[l] && this.blockedUntil[l] < r && this.laneCool[l] < r && z3can(l)) free.push(l);
@@ -759,7 +760,7 @@ export class Generator {
     // ---- ostacoli lunghi -------------------------------------------
     const canLong = (l) => !required[l] && !used[l] && this.blockedUntil[l] < r && z3can(l);
     const longK = z3 ? Z3.LONG_K : 1;
-    if (diff >= DF.NARROW_FROM && rng() < (0.035 + 0.05 * diff) * longK) {
+    if (diff >= DF.NARROW_FROM && rng() < (0.05 + 0.07 * diff) * longK * heat) {
       const l = rng() < 0.5 ? 0 : L - 1;
       const rows = 3 + rng.int(0, Math.round(1 + 2 * diff));
       // v5s40: nel paese la strettoia era una casa sporgente dentro la corsia esterna (sembrava una casa fuori posto,
@@ -774,7 +775,7 @@ export class Generator {
         if (place) { this.paceTake('lane', D + 2, l); emit({ kind: 'narrow', lane: l, d: D + 2, len: rows * ROW - 6 }); }
       }
     }
-    if (diff >= DF.GROUP_FROM && rng() < (0.04 + 0.06 * diff) * longK) {
+    if (diff >= DF.GROUP_FROM && rng() < (0.055 + 0.08 * diff) * longK * heat) {
       const l = rng.int(0, L - 1);
       if (canLong(l)) {
         this.blockedUntil[l] = r + 1;
@@ -787,7 +788,7 @@ export class Generator {
     }
 
     // ---- ostacoli corti --------------------------------------------
-    const pObs = lerp(DF.OBSTACLE_P_START, DF.OBSTACLE_P_END, diff) * (z3 ? Z3.OBST_K : 1);
+    const pObs = lerp(DF.OBSTACLE_P_START, DF.OBSTACLE_P_END, diff) * (z3 ? Z3.OBST_K : 1) * heat;
     const boost = r <= this.barrelBoostUntil;
     for (let l = 0; l < L; l++) {
       if (required[l] || used[l] || this.laneCool[l] >= r) continue;

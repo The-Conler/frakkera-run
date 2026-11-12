@@ -104,7 +104,7 @@ export class DanceRing {
       d.root.position.set(this.C.x + Math.sin(a) * this.R, 0, this.C.z + Math.cos(a) * this.R);
       d.root.rotation.y = a + Math.PI;                      // guardano il centro
       if (this.state === 'preview' && this.farLod) { d.root.position.y = 0; }
-      else danceStep(d, ph + d.slot * 0.5, bk);
+      else danceStep(d, ph + d.slot * 0.37, bk * (0.72 + (d.slot % 3) * 0.14));
     }
     if (this.state === 'dance') {
       this.joinT += dt; const q = Math.min(1, this.joinT / 0.9), e = q * q * (3 - 2 * q);

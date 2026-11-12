@@ -274,6 +274,15 @@
             <div class="go-tile"><svg><use href="#i-flame"/></svg><small>Zona</small><b id="go-biome" class="go-biome">Gadoni</b></div>
           </div>
           <p class="go-meta"><span><svg><use href="#i-barrel"/></svg> Botti distrutte <b id="go-barrels">0</b></span> &middot; <span id="go-rank"></span></p>
+          <div class="lucky" id="go-lucky">
+            <p class="go-label">Giro fortunato <small>una volta al giorno</small></p>
+            <div class="wheel-wrap">
+              <div class="wheel" id="go-wheel" aria-hidden="true"></div>
+              <div class="wheel-ptr" aria-hidden="true"></div>
+            </div>
+            <button type="button" class="btn btn-gold small" id="go-spin">Gira</button>
+            <p class="lucky-msg" id="go-spin-msg"></p>
+          </div>
           <form class="nick-form" id="nick-form" autocomplete="off">
             <input id="nick" maxlength="12" placeholder="Il tuo nickname" spellcheck="false" autocapitalize="characters" enterkeyhint="done" />
             <button class="btn btn-navy small" type="submit">Salva</button>

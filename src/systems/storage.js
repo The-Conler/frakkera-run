@@ -14,6 +14,7 @@ const K = {
   skins: 'frakkera.skins.v1',
   skin: 'frakkera.skin.v1',
   up: 'frakkera.upgrades.v1',
+  spin: 'frakkera.spinDay.v1',
 };
 
 const mem = {}; // fallback se localStorage non e' disponibile (es. privacy mode)
@@ -127,3 +128,12 @@ export const setSkin = (id) => set(K.skin, id);
 // v5s25: migliorie permanenti del Garag di Pinu ({ id: livello 0..3 })
 export function getUpgrades() { try { const o = JSON.parse(get(K.up) || '{}'); return o && typeof o === 'object' ? o : {}; } catch { return {}; } }
 export function setUpgrade(id, lvl) { const o = getUpgrades(); o[id] = Math.max(0, Math.min(3, lvl | 0)); set(K.up, JSON.stringify(o)); return o; }
+
+// Giro fortunato: una volta per giorno di calendario (UTC).
+export function spinDay(now = new Date()) { return now.toISOString().slice(0, 10); }
+export function canSpin(now = new Date()) { return get(K.spin) !== spinDay(now); }
+export function takeSpin(now = new Date()) {
+  if (!canSpin(now)) return false;
+  set(K.spin, spinDay(now));
+  return true;
+}

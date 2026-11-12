@@ -26,3 +26,11 @@ test('case a bordo via fuori dalla carreggiata, ogni prefab', () => {
   for (let i = 1; i <= 26; i++) chk(M.buildHouse(i).geom, 'casa ' + i);
   for (let i = 1; i <= 5; i++) chk(M.buildGarden(i).geom, 'orto ' + i);
 });
+test('l\'ultimo lampione davanti al murale di Tolu non c\'e\' piu\'', () => {
+  const sq = buildChurchSquare(1);
+  const nearMural = sq.lamps.filter((l) => Math.abs(l[0] - 8) < 0.4 && l[2] > -22 && l[2] < -16);
+  assert.equal(nearMural.length, 0, 'palo ancora davanti al murale: ' + JSON.stringify(nearMural));
+  const row = sq.lamps.filter((l) => Math.abs(l[0] - 8) < 0.4 && l[1] > 3);
+  assert.equal(row.length, 1, 'la fila verso il murale tiene il palo piu\' avanti');
+  assert.ok(row[0][2] < -22, 'il palo rimasto non e\' quello lontano dal murale');
+});

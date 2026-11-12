@@ -14,6 +14,16 @@ export const DANCE_DIRS = ['left', 'down', 'up', 'right'];
 
 export const HALF_W = { muretto: 12, botte: 7, bottecoricata: 11, botti: 12, pozza: 9, narrow: 17, goat: 7, rollbarrel: 7, rollin: 7, sasso: 8, bagnato: 9, trave: 60, panni: 60, processione: 13, tessitrice: 8, ciccio: 10, ramo: 60, acqua: 10, calamita: 11, finocchio: 11, scarponi: 11, maimoni: 8, fune: 40, fuso: 7, asfodelo: 10, ferula: 10, tappeto: 11, pistola: 11, pecora: 7, maialetto: 5, caprarupe: 8 };
 export const ATTRACT_SPEED = 34;
+const HIT_NAME = {
+  botte: 'La botte', muretto: 'Il muretto', bottecoricata: 'La botte', botti: 'Le botti',
+  narrow: 'La strettoia', goat: 'La capra', rollbarrel: 'Il tronco', rollin: 'La botte',
+  sasso: 'Il masso', trave: 'La trave', ramo: 'Il ramo', panni: 'I panni',
+  maimoni: 'Su Maimoni', fune: 'La fune', fuso: 'Il fuso', pecora: 'Le pecore',
+  maialetto: 'Il maialetto', caprarupe: 'La capra', deadend: 'Il binario',
+};
+function prefersReduced() {
+  try { return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; }
+}
 const PLAYER_BACK = 3, PLAYER_FRONT = 5, PLAYER_HALF = 3;
 export const GUTTER = 4;
 export const ROAD_HALF = (WORLD.LANES * WORLD.LANE_W + GUTTER * 2) / 2;
@@ -53,7 +63,8 @@ export class Sim {
     this.shopLap = 0; this.shopOffer = 0; this.shop = null; this.shield = 0;
     this.danceLap = -1; this.danceCue = null; this.dance = null;
     this.cart = null; this.cartLap = -1; this.cartSpK = 1;
-    this.duckT = 0; this.duckCd = 0; this.slipT = 0; this.speedStep = 0; this.beamHint = false;
+    this.duckT = 0; this.duckCd = 0; this.duckBuf = 0; this.fastFall = false; this.slipT = 0; this.speedStep = 0; this.beamHint = false;
+    this.hitName = null; this.dieSpeed = 0; this.dieDur = WORLD.DYING_S;
     this.magnetT = 0; this.fennelT = 0; this.bootsT = 0; this.bootsTick = 0;
     this.jumpHint = false; this.jumpT = 0; this.jumpCd = 0; this.jumpBuf = 0; this.jumpH = 0; this.wetT = 0;
     this.carpetStreak = 0; this.ammo = 0; this.fireCd = 0; this.recoilT = 0;
@@ -141,12 +152,12 @@ export class Sim {
   jump() {
     if (this.mode !== 'run' || this.cart) return false;
     if (this.jumpT > 0 || this.jumpCd > 0) {
-      if (this.jumpT <= JUMP.BUFFER_S) { this.jumpBuf = JUMP.BUFFER_S + this.jumpT + this.jumpCd; return true; }
-      return false;
+      this.jumpBuf = Math.max(this.jumpBuf, JUMP.TIME_S + JUMP.COOLDOWN_S + 0.15);
+      return this.jumpCd > 0 || this.jumpT <= JUMP.BUFFER_S;
     }
-    if (this.duckT > 0) { this.duckT = 0; this.duckCd = DUCK.COOLDOWN_S; }
+    if (this.duckT > 0) { this.duckT = 0; this.duckCd = DUCK.COOLDOWN_S; this.duckBuf = 0; }
     this.jumpBuf = 0;
-    this.jumpT = JUMP.TIME_S; this.stats.jumps++;
+    this.jumpT = JUMP.TIME_S; this.fastFall = false; this.stats.jumps++;
     this.inputs.push([this.step, 'J']);
     this.fx('jump'); this.fx('sound', 'jump');
     return true;
@@ -168,9 +179,21 @@ export class Sim {
     return { ok: true, total: left, level: lvl + 1 };
   }
 
-  // v5s6: abbassarsi (swipe giu', freccia giu', S) per passare sotto le travi basse
+  // v5s6: abbassarsi (swipe giu', freccia giu', S) per passare sotto le travi basse.
+  // In aria lo stesso gesto e' una caduta rapida; se l'abbassata e' gia' in corso resta in memoria.
   duck() {
-    if (this.mode !== 'run' || this.duckCd > 0 || this.duckT > 0 || this.cart) return false;
+    if (this.mode !== 'run' || this.cart) return false;
+    if (this.jumpT > 0) {
+      this.fastFall = true;
+      this.duckBuf = DUCK.BUFFER_S;
+      this.inputs.push([this.step, 'F']);
+      return true;
+    }
+    if (this.duckCd > 0 || this.duckT > 0) { this.duckBuf = DUCK.BUFFER_S; return true; }
+    return this.startDuck();
+  }
+  startDuck() {
+    this.duckBuf = 0;
     this.duckT = DUCK.TIME_S;
     this.inputs.push([this.step, 'D']);
     this.fx('duck');
@@ -364,7 +387,9 @@ export class Sim {
     }
     if (this.mode === 'over') { this.currentSpeed = 0; return; }
     if (this.mode === 'dying') {
-      this.currentSpeed = this.dieByHit ? 0 : Math.max(0, (this.currentSpeed || 0) - 900 * dt);
+      const u = this.dieDur > 0 ? Math.max(0, this.dieT / this.dieDur) : 0;
+      if (this.dieByHit && this.dieDur > WORLD.DYING_S + 0.05) this.currentSpeed = (this.dieSpeed || 0) * WORLD.SLOW_K * u;
+      else this.currentSpeed = this.dieByHit ? 0 : Math.max(0, (this.currentSpeed || 0) - 900 * dt);
       this.T += this.currentSpeed * dt;
       this.dieT -= dt;
       if (this.dieT <= 0) this.finish();
@@ -420,9 +445,14 @@ export class Sim {
     if (this.duckT > 0) { this.duckT = Math.max(0, this.duckT - dt); if (this.duckT === 0) this.duckCd = DUCK.COOLDOWN_S; }
     else this.duckCd = Math.max(0, this.duckCd - dt);
     this.slipT = Math.max(0, this.slipT - dt);
-    if (this.jumpT > 0) { this.jumpT = Math.max(0, this.jumpT - dt); if (this.jumpT === 0) { this.jumpCd = JUMP.COOLDOWN_S; this.fx('land'); } }
+    const fallK = this.fastFall && this.jumpT > 0 ? 3.4 : 1;
+    if (this.jumpT > 0) { this.jumpT = Math.max(0, this.jumpT - dt * fallK); if (this.jumpT === 0) { this.fastFall = false; this.jumpCd = JUMP.COOLDOWN_S; this.fx('land'); } }
     else this.jumpCd = Math.max(0, this.jumpCd - dt);
     if (this.jumpBuf > 0) { this.jumpBuf = Math.max(0, this.jumpBuf - dt); if (this.jumpT === 0 && this.jumpCd === 0) { this.jumpBuf = 0; this.jump(); } }   // v5s45: salto in memoria
+    if (this.duckBuf > 0) {
+      if (this.jumpT === 0 && this.duckT === 0 && this.duckCd === 0 && !this.cart) this.startDuck();
+      else if (this.jumpT === 0 && this.duckT === 0) this.duckBuf = Math.max(0, this.duckBuf - dt);
+    }
     this.jumpH = this.jumpT > 0 ? Math.sin(Math.PI * (1 - this.jumpT / JUMP.TIME_S)) * JUMP.H_PX : 0;
     this.wetT = Math.max(0, this.wetT - dt);
     // v5s18: giro in carrello (salita / discesa decise dalla distanza: deterministico)
@@ -477,7 +507,9 @@ export class Sim {
       this.fuel = 0;
       this.mode = 'dying';
       this.dieByHit = this.lastHitStep === this.step;
-      this.dieT = WORLD.DYING_S;
+      this.dieSpeed = this.currentSpeed || 0;
+      this.dieDur = this.dieByHit && !prefersReduced() ? WORLD.SLOW_S : WORLD.DYING_S;
+      this.dieT = this.dieDur;
       for (const p of this.shots) this.fx('shotEnd', p);
       this.shots = [];
       this.fx('die');
@@ -944,7 +976,8 @@ export class Sim {
     this.fx('hit', { e }); this.fx('ciccioHit', { e }); this.fx('sound', 'horn');
     this.fx('popup', { text: CICCIO.REASON.toUpperCase(), style: 'white' });
     this.fuel = 0; this.shield = 0;
-    this.mode = 'dying'; this.dieByHit = true; this.dieT = WORLD.DYING_S;
+    this.mode = 'dying'; this.dieByHit = true; this.dieSpeed = this.currentSpeed || 0;
+    this.dieDur = prefersReduced() ? WORLD.DYING_S : WORLD.SLOW_S; this.dieT = this.dieDur;
     for (const p of this.shots) this.fx('shotEnd', p);
     this.shots = [];
     this.fx('die');
@@ -1018,6 +1051,7 @@ export class Sim {
       return;
     }
     this.lastHitStep = this.step;
+    this.hitName = HIT_NAME[e.kind] || 'Ostacolo';
     const loss = e.kind === 'maimoni' ? MASKS.HIT_MAIMONI : e.kind === 'fune' ? MASKS.HIT_FUNE : e.kind === 'fuso' ? MASKS.HIT_FUSO : isMoving(e.kind) || e.kind === 'rollin' ? FUEL.HIT_GOAT : e.kind === 'trave' || e.kind === 'ramo' || e.kind === 'panni' ? FUEL.HIT_BEAM : FUEL.HIT_SOLID;
     this.log('h', loss);
     this.carpetStreak = 0;
@@ -1034,7 +1068,7 @@ export class Sim {
     this.mode = 'over';
     const meters = Math.floor(this.runD / PX_PER_METER);
     this.fx('over', {
-      score: this.score, meters, ...this.stats, reason: this.deathReason === 'ciccio' ? CICCIO.REASON : null, time: Math.round(this.runTime * 10) / 10,
+      score: this.score, meters, ...this.stats, reason: this.deathReason === 'ciccio' ? CICCIO.REASON : (this.dieByHit && this.hitName ? this.hitName : null), slow: this.dieDur > WORLD.DYING_S, time: Math.round(this.runTime * 10) / 10,
       seed: this.seed, carpetTotal: this.carpetTotal, debug: this.debug,
       log: { v: 4, mapOffsetM: this.mapOffsetM, seed: this.seed, steps: this.step, inputs: this.inputs.slice(), events: this.events.slice() },
     });

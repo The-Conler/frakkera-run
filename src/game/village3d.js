@@ -182,32 +182,34 @@ export function buildProcession(mats, v = 0) {
   return { root, figs, statue, lanterns };
 }
 export function animateProcession(p, t) {
-  // passo vero, sempre: gambe in opposizione, busto che sale sul battere. Mai fermi, mai a T.
-  const step = t * 5.4;
-  for (const d of p.figs) {
-    const s = Math.sin(step + (d.ph || 0));
-    d.root.rotation.y = PROC_FACE;
+  // passo vero, sempre: ognuno con il suo tempo e la sua ampiezza, cosi' il corteo non e' un clone.
+  p.figs.forEach((d, i) => {
+    const gait = 0.82 + (i % 5) * 0.07;
+    const swing = 0.68 + (i % 4) * 0.1;
+    const s = Math.sin(t * 5.4 * gait + (d.ph || 0) + i * 0.35);
+    d.root.rotation.y = PROC_FACE + Math.sin(t * 1.3 + i) * 0.04;
     if (d.legs && d.legs[0] && d.legs[1]) {
-      d.legs[0].rotation.x = s * 0.85;
-      d.legs[1].rotation.x = -s * 0.85;
+      d.legs[0].rotation.x = s * 0.85 * swing;
+      d.legs[1].rotation.x = -s * 0.78 * swing;
       d.legs[0].rotation.z = Math.max(0, s) * 0.08;
       d.legs[1].rotation.z = -Math.max(0, -s) * 0.08;
     }
-    if (d.fig) d.fig.position.y = Math.max(0, Math.abs(s) - 0.15) * 0.09;
+    if (d.fig) d.fig.position.y = Math.max(0, Math.abs(s) - 0.15) * (0.07 + (i % 3) * 0.02);
     if (d.arms && d.arms[0] && d.arms[1]) {
       if (d.role === 'bearer') {
-        d.arms[0].rotation.x = -1.05 + s * 0.08; d.arms[1].rotation.x = -1.05 - s * 0.08;
-        d.arms[0].rotation.z = 0.18; d.arms[1].rotation.z = -0.18;
+        d.arms[0].rotation.x = -1.05 + s * (0.05 + (i % 3) * 0.03); d.arms[1].rotation.x = -1.02 - s * 0.07;
+        d.arms[0].rotation.z = 0.16 + (i % 2) * 0.04; d.arms[1].rotation.z = -0.16;
       } else if (d.role === 'candle') {
-        d.arms[0].rotation.x = -s * 0.45; d.arms[1].rotation.x = -0.9;
+        d.arms[0].rotation.x = -s * (0.35 + (i % 2) * 0.12); d.arms[1].rotation.x = -0.85 - (i % 2) * 0.1;
         d.arms[0].rotation.z = 0.08; d.arms[1].rotation.z = -0.12;
       } else {
-        d.arms[0].rotation.x = -s * 0.65; d.arms[1].rotation.x = s * 0.65;
-        d.arms[0].rotation.z = 0.12; d.arms[1].rotation.z = -0.12;
+        d.arms[0].rotation.x = -s * 0.55; d.arms[1].rotation.x = s * 0.7;
+        d.arms[0].rotation.z = 0.1; d.arms[1].rotation.z = -0.14;
       }
     }
-  }
-  p.statue.position.y = Math.abs(Math.sin(step)) * 0.06; p.statue.rotation.z = Math.sin(step * 0.5) * 0.025;
+  });
+  const step = t * 5.4;
+  p.statue.position.y = Math.abs(Math.sin(step * 0.92)) * 0.06; p.statue.rotation.z = Math.sin(step * 0.47) * 0.03;
   // v5s46d (277): i ceri dondolano e la lanterna illumina la via
   if (p.lanterns) for (const L of p.lanterns) { L.rotation.z = Math.sin(t * 2.4 + L.position.x * 4) * 0.22; const g = L.children[0]; if (g && g.material) g.material.color.setRGB(1, 0.75 + Math.sin(t * 13 + L.position.x) * 0.12, 0.45); }
 }

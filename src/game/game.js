@@ -89,7 +89,7 @@ export class Game {
 
   // v5s46 (44): vibrazione del telefono (dove c'e' navigator.vibrate; iOS Safari non la supporta e si ignora)
   buzz(pattern) {
-    if (!pattern) return;
+    if (!pattern || this.world.reducedMotion) return;
     (this.vibes || (this.vibes = [])).push(pattern); if (this.vibes.length > 20) this.vibes.shift();
     try { if (typeof navigator !== 'undefined' && navigator.vibrate && !(this.settings && this.settings.vibrate === false)) navigator.vibrate(pattern); } catch { /* non supportato */ }
   }
@@ -166,33 +166,35 @@ export class Game {
       const t = e.touches[0]; if (!t || isBtn(e.target)) return;
       const r = el.getBoundingClientRect(); if (t.clientX < r.left + EDGE_PX || t.clientX > r.right - EDGE_PX) e.preventDefault();
     }, { passive: false });
-    const swipe = (q, dx, dy, min) => {
-      const dir = classifySwipe(dx, dy, min);
+    const swipe = (q, x, y, min) => {
+      const dir = classifySwipe(x - q.x, y - q.y, min);
       if (!dir) return false;
       if (this.sim.mode === 'dance') this.sim.danceInput(dir);
       else if (dir === 'left' || dir === 'right') this.sim.move(dir === 'right' ? 1 : -1);
       else if (dir === 'up') this.jump();
       else this.duck();
-      q.swiped = true; return true;
+      q.x = x; q.y = y; q.n = (q.n || 0) + 1;
+      q.swiped = q.n >= 3;
+      return true;
     };
     window.addEventListener('pointermove', (p) => {
       const q = this.ptr;
       if (!q || q.swiped || q.id !== p.pointerId) return;
       q.lx = p.clientX; q.ly = p.clientY;
-      swipe(q, p.clientX - q.x, p.clientY - q.y, q.edge ? SWIPE_PX * 0.65 : SWIPE_PX);
+      swipe(q, p.clientX, p.clientY, q.edge ? SWIPE_PX * 0.65 : SWIPE_PX);
     });
     const up = (p) => {
       const q = this.ptr;
       if (!q || q.id !== p.pointerId) return;
       const dt = performance.now() - q.t, dx = p.clientX - q.x, dy = p.clientY - q.y;
-      if (!q.swiped && !swipe(q, dx, dy, SWIPE_PX * 0.75) && !q.btn && dt < 350 && Math.abs(dx) < 20 && this.sim.mode !== 'dance' && el.contains(p.target) !== false) {
+      if (!q.n && !swipe(q, p.clientX, p.clientY, SWIPE_PX * 0.75) && !q.btn && dt < 350 && Math.abs(dx) < 20 && this.sim.mode !== 'dance' && el.contains(p.target) !== false) {
         const r = el.getBoundingClientRect();
         this.sim.move(p.clientX < r.left + r.width / 2 ? -1 : 1);
       }
       this.ptr = null;
     };
     window.addEventListener('pointerup', up);
-    window.addEventListener('pointercancel', (p) => { const q = this.ptr; if (q && q.id === p.pointerId && !q.swiped) swipe(q, q.lx - q.x, q.ly - q.y, SWIPE_PX * 0.6); this.ptr = null; });
+    window.addEventListener('pointercancel', (p) => { const q = this.ptr; if (q && q.id === p.pointerId && !q.n) swipe(q, q.lx, q.ly, SWIPE_PX * 0.6); this.ptr = null; });
     window.addEventListener('keydown', (e) => {
       if (e.target && e.target.tagName === 'INPUT') return;
       if (this.paused) return;
@@ -214,6 +216,7 @@ export class Game {
   // ---------------------------------------------------- ciclo
   loop(now) {
     requestAnimationFrame(this.loop);
+    try { this.world.reducedMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { this.world.reducedMotion = false; }
     if (this.hidden) return;
     const t0 = performance.now();
     const dtReal = this.last ? Math.min((now - this.last) / 1000, 0.25) : 1 / 60;
@@ -244,7 +247,7 @@ export class Game {
     ch.face = (mode === 'attract' || this.intro) ? introK * Math.PI : null;
     const view = this.view || (this.view = {});
     view.introK = this.intro ? introK : 0;
-    view.cam = (mode === 'attract' || this.intro) ? 'menu' : mode === 'dance' ? 'dance' : (mode === 'run' || mode === 'shop') ? 'run' : 'over';   // v5s7b: in negozio/3-2-1 resta la camera di corsa
+    view.cam = (mode === 'attract' || this.intro) ? 'menu' : mode === 'dance' ? 'dance' : (mode === 'run' || mode === 'shop' || mode === 'dying') ? 'run' : 'over';   // il rallenty dell'urto tiene la camera di corsa, cosi' si vede l'ostacolo
     view.char = ch; view.fuelF = mode === 'attract' || this.intro ? 1 : fuelF; view.speed = sim.currentSpeed; view.smoke = mode === 'dying' || mode === 'over';
     this.world.render(sim, dt, view);
     if (this.world.shopSign) bus.emit('shopAnchor', { on: true, x: this.world.shopSign.x, y: this.world.shopSign.y });

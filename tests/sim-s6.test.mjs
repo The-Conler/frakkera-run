@@ -76,9 +76,11 @@ const run = (sim, n, f) => { for (let i = 0; i < n; i++) { keep(sim); if (f) f(i
   ok('gradini: 7 cambi d\'ambiente fino al paese (giro 2)', JSON.stringify(ev) === '[1,2,3,4,5,6,7]', JSON.stringify(ev));
   ok('banner PIU\' VELOCE! emesso', fx.filter((f) => f[0] === 'popup' && f[1].text === SPEED_STEPS.BANNER).length === 7);
   const t1600 = sim.runTime;
-  ok('velocita\' a 1600 m giocabile (< 185 px/s)', speedAt(16000) < 185, speedAt(16000).toFixed(1));
+  ok('a 400 m gia\' piu\' veloce del vecchio giro 1 (> 130 px/s)', speedAt(4000) > 130, speedAt(4000).toFixed(1));
+  ok('a 1600 m piu\' veloce di prima e sotto il tetto', speedAt(16000) > 200 && speedAt(16000) <= DIFFICULTY.SPEED_MAX, speedAt(16000).toFixed(1));
+  ok('la velocita\' continua a salire nel giro 2', speedAt(24000) > speedAt(16000) - 0.01, speedAt(24000).toFixed(1));
   ok('tetto di velocita\' rispettato', speedAt(10 * 9000) <= DIFFICULTY.SPEED_MAX);
-  console.log(`  info: 1600 m in ${t1600.toFixed(0)} s di corsa, velocita' ${speedAt(16000).toFixed(0)} px/s (era 164 senza gradini)`);
+  console.log(`  info: 1600 m in ${t1600.toFixed(0)} s di corsa, velocita' ${speedAt(16000).toFixed(0)} px/s (prima ~175 a fine giro 1)`);
 }
 // 6) determinismo con i nuovi input
 {

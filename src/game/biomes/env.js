@@ -1071,7 +1071,8 @@ export class Env {
       // v5s44e: impronta del Monumento ai Caduti (lato sinistro, z locale -21 → W+21, ora di sbieco)
       feet.push(this.addHouseFoot(-1, W + 17.5, 9, 1.6));
     } else if (id === 'cappella') {
-      // specchiata: la cappella a SINISTRA della via (a destra la coprirebbe la fiamma), case bianche a destra
+      // specchiata: la cappella a SINISTRA della via (a destra la coprirebbe la fiamma).
+      // A destra, davanti a Santa Marta, solo muretto, erba e un leccio arretrato (niente case).
       root.scale.x = -1;
       cached('cappella', () => buildCappella());
       cached('cappellaL', () => buildCappellaLeft());
@@ -1269,8 +1270,8 @@ export class Env {
     let nk = night * (1 - L.tunnel);
     if (B.nightStart && !(typeof location !== 'undefined' && /[?&]xmas=0/.test(location.search))) { const [a, z] = B.nightStart; const q = Math.max(0, Math.min(1, (z - i.local) / (z - a))); nk = Math.max(nk, 0.82 * q * q * (3 - 2 * q)); }   // v5s37
     if (nk > 0) {
-      for (const k of MOOD_KEYS) if (NIGHT_MOOD[k]) out[k].lerp(_c.set(NIGHT_MOOD[k]), nk * 0.8);
-      for (const k of ['hemiI', 'dirI', 'moon', 'sun']) out[k] += (NIGHT_MOOD[k] - out[k]) * nk * 0.8;
+      for (const k of MOOD_KEYS) if (NIGHT_MOOD[k]) out[k].lerp(_c.set(NIGHT_MOOD[k]), nk * 0.94);
+      for (const k of ['hemiI', 'dirI', 'moon', 'sun']) out[k] += (NIGHT_MOOD[k] - out[k]) * nk * 0.94;
     }
     out.biome = B.id; out.night = nk;
     return out;

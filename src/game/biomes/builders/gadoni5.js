@@ -3,13 +3,13 @@
 //  - vicolo: muri d'intonaco consumato ai due lati, portone verde a due ante sotto un arco di pietra con
 //    lunetta a raggiera; piu' avanti il Monumento ai Caduti (al posto della casa con porta azzurra).
 //  - cappella tonda: piccolo edificio ocra arrotondato con gronda di coppi scuri, porta di legno marrone con
-//    architrave scuro, croce di ferro battuto sul muro; la via si divide attorno (ramo lastricato a destra),
-//    lampioni di ferro, case bianche con balconi dietro.
+//    architrave scuro, croce di ferro battuto sul muro; la via si divide attorno (ramo lastricato a destra).
+//    Le case bianche davanti a Santa Marta non ci sono piu': al loro posto muretto, erba e un leccio arretrato.
 // Coordinate del monumento: x come la via (0 = centro), z = 0 al punto "at", negativo = piu' avanti.
 // Tutto fuori dalle corsie (|x| > 6.9 m): le corsie restano libere e leggibili.
 // =====================================================================
 import * as THREE from 'three';
-import { Kit, G, rng, tree, shrub, cypress, LEAF } from './common.js';
+import { Kit, G, rng, tree, shrub, cypress, dryWall, LEAF } from './common.js';
 
 const E = 6.95;            // filo delle facciate (FACADE)
 const arcGeo = (r, t, arc) => new THREE.TorusGeometry(r, t, 5, 12, arc);
@@ -101,17 +101,21 @@ export function buildCappella() {
   return k.build({ ao: 0.22 });
 }
 
-// lato sinistro davanti alla cappella: casa bianca con balcone di ferro (facciata verso la via)
+// Approccio a Santa Marta, lato che dopo lo specchio della cappella sta a DESTRA della via.
+// Le due case crema col tetto rosso coprivano la facciata. Al loro posto continua il muretto
+// basso, con un piano d'erba (niente buco ne' volume sospeso) e un solo leccio piccolo, ben
+// indietro dal marciapiede, cosi' la chiesa resta tutta in vista.
 export function buildCappellaLeft() {
-  const k = new Kit(5301);
-  for (const [z, w, h] of [[-4, 8, 8], [-13.5, 8, 9]]) {   // v5s26: spazio per la navatella destra di Santa Marta
-    const x = -(E + 3.5);
-    k.add(G.box(7, h, w), '#ece8df', { x, y: h / 2, z, vary: 0.05 });
-    k.add(G.box(7.4, 0.3, w + 0.4), '#b3593c', { x, y: h + 0.15, z });
-    k.add(G.box(0.3, 0.6, w), '#9a948a', { x: -E - 0.1, y: 0.3, z });
-    for (const yy of [2.3, 5.4]) for (const zz of [-w / 4, w / 4]) windowFace(k, -E, yy, z + zz, 1, '#7a6a52', yy > 4);
-    balcony(k, -E, 4.4, z, w * 0.5, 1, '#2a2d31');
-  }
+  const k = new Kit(5301), r = rng(5301);
+  const xWall = -(E + 0.4);
+  const z0 = 1.0, len = 20;
+  k.add(G.box(12, 0.18, len + 1.2), '#6a7840', { x: xWall - 5.6, y: 0.05, z: z0 - len / 2, vary: 0.14 });
+  k.add(G.box(12.2, 0.08, len + 1.4), '#5d6b3c', { x: xWall - 5.6, y: 0.12, z: z0 - len / 2, vary: 0.1 });
+  dryWall(k, r, xWall, z0, len, 0.95, ['#9a9084', '#8a8074', '#a89c8c', '#7c7468', '#b0a494'], 0.46);
+  tree(k, r, xWall - 7.4, 0, -8.2, 0.58, LEAF.holm);
+  shrub(k, r, xWall - 2.1, 0, -2.6, 0.5, ['#3f6a28', '#4f7a32', '#2f5520'], 0.25);
+  shrub(k, r, xWall - 3.2, 0, -13.4, 0.48, ['#3f6a28', '#4f7a32'], 0.15);
+  shrub(k, r, xWall - 2.4, 0, -17.2, 0.42, ['#4a7a30', '#3a5a28'], 0);
   return k.build({ ao: 0.22 });
 }
 

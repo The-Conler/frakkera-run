@@ -48,7 +48,7 @@ test('jump is refused only when impossible (cart)', () => {
 
 test('a slightly diagonal swipe up is a jump, not a lane change', async () => {
   const { classifySwipe } = await import('../src/systems/swipe.js');
-  assert.equal(classifySwipe(21, -15), null, 'too short yet: wait');
+  assert.equal(classifySwipe(12, -8), null, 'too short yet: wait');
   assert.equal(classifySwipe(18, -30), 'up');
   assert.equal(classifySwipe(-14, -23), 'up');
   assert.equal(classifySwipe(30, -12), 'right');

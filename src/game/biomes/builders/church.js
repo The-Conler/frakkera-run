@@ -331,8 +331,10 @@ export function buildChurchSquare(seed = 1) {
     for (let i = 0; i < 8; i++) { const t = i / 7; const g = new THREE.Vector3(px - t * PW, 2.8 - Math.sin(t * Math.PI) * 0.4, pz + 0.3); k.add(G.ico(0.1, 0), C.bulb, { x: g.x, y: g.y, z: g.z, unlit: true }); }
     lamps.push([px - PW / 2, 2.6, pz - PL / 2, 3.2]);
   }
-  // pali con lanterna ai bordi della piazza e della piazzetta
-  for (const [lx, lz] of [[-8.2, -30], [-8.2, -48], [-30, -2], [8.0, -20], [8.0, -24.5]]) {
+  // pali con lanterna ai bordi della piazza e della piazzetta.
+  // Il palo piu' vicino al murale di Tolu (x 8, z -20) e' tolto: dopo lo specchio sta
+  // sul marciapiede sinistro e gli si piantava davanti. Resta il palo piu' avanti della fila.
+  for (const [lx, lz] of [[-8.2, -30], [-8.2, -48], [-30, -2], [8.0, -24.5]]) {
     k.add(G.cyl(0.08, 0.1, 3.6, 6), '#2b2a33', { x: lx, y: 1.8, z: lz });
     k.add(G.box(0.36, 0.46, 0.36), '#ffcf6a', { x: lx, y: 3.8, z: lz, unlit: true });
     k.add(G.cone(0.3, 0.3, 4), '#2b2a33', { x: lx, y: 4.2, z: lz, ry: Math.PI / 4 });

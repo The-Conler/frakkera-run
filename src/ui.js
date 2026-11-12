@@ -507,8 +507,44 @@ export function initUI(game) {
     setMsg(rank ? 'Salva il tuo nickname nella classifica demo' : '', '');
     refreshBest();
     show('over');
+    setupSpin();
     $('#btn-retry').focus({ preventScroll: true });
   });
+
+  const PRIZES = [
+    { label: '+3 tappeti', grant: () => store.addCarpets(3) },
+    { label: '+1 tappeto', grant: () => store.addCarpets(1) },
+    { label: 'Campanaccio', grant: () => store.addCollectible('bell', 1) },
+    { label: 'Facciola', grant: () => store.addCollectible('sweet', 1) },
+    { label: '+2 tappeti', grant: () => store.addCarpets(2) },
+    { label: 'Quasi!', grant: () => null },
+  ];
+  function setupSpin() {
+    const btn = $('#go-spin'), msg = $('#go-spin-msg'), wheel = $('#go-wheel');
+    if (!btn) return;
+    wheel.style.transition = 'none'; wheel.style.transform = 'rotate(0deg)';
+    const open = store.canSpin();
+    btn.disabled = !open;
+    btn.textContent = open ? 'Gira' : 'Domani';
+    msg.textContent = open ? '' : 'Già girato oggi';
+    btn.onclick = (e) => {
+      e.preventDefault(); e.stopPropagation();
+      if (!store.takeSpin()) { btn.disabled = true; msg.textContent = 'Già girato oggi'; return; }
+      btn.disabled = true;
+      const i = Math.floor(Math.random() * PRIZES.length);
+      const turns = 4 * 360;
+      const seg = 360 / PRIZES.length;
+      wheel.style.transition = 'transform 1.15s cubic-bezier(.15,.7,.2,1)';
+      wheel.style.transform = `rotate(${turns + (360 - (i + 0.5) * seg)}deg)`;
+      setTimeout(() => {
+        const prize = PRIZES[i];
+        prize.grant();
+        msg.textContent = prize.label;
+        $('#go-total').textContent = fmt(store.getCarpetTotal());
+        audio.click();
+      }, 1180);
+    };
+  }
 
   function setMsg(text, cls) {
     const m = $('#nick-msg');
