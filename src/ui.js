@@ -150,44 +150,122 @@ export function initUI(game) {
 
   // --------------------------------------------------------- popup (testi volanti)
   const popLayer = $('#popups');
-  let recentPops = [];
+  const SCORE_TEXT = /^\+(\d+)$/;
+  const MERGE_MS = 1000;
+  const MAX_POP = 4;
+  const POP_PAD = 8;
+  // Riquadro massimo del testo (scala dell'animazione compresa), ancorato al centro CSS.
+  // I popup del mondo non salgono piu': la salita li faceva attraversare SCAMBIO! e gli altri +20.
+  function popBox(el, host) {
+    const speed = el.classList.contains('speed');
+    const scale = speed ? 1.24 : el.classList.contains('center') ? 1.16 : 1.1;
+    const w = Math.max(el.offsetWidth || 0, 28) * scale + (speed ? 10 : 0);
+    const h = Math.max(el.offsetHeight || 0, 18) * scale;
+    let xPct = parseFloat(el.style.left), yPct = parseFloat(el.style.top);
+    if (!Number.isFinite(xPct) || !Number.isFinite(yPct)) {
+      const r = el.getBoundingClientRect();
+      if (!Number.isFinite(xPct)) xPct = ((r.left + r.right) / 2 - host.left) / host.width * 100;
+      if (!Number.isFinite(yPct)) yPct = ((r.top + r.bottom) / 2 - host.top) / host.height * 100;
+    }
+    const cx = host.left + (xPct / 100) * host.width;
+    const cy = host.top + (yPct / 100) * host.height;
+    return { el, cx, cy, w, h, left: cx - w / 2, right: cx + w / 2, top: cy - h / 2, bottom: cy + h / 2 };
+  }
+  function movePop(box, host, cx, cy) {
+    const x = Math.max(8, Math.min(92, (cx - host.left) / host.width * 100));
+    const y = Math.max(7, Math.min(88, (cy - host.top) / host.height * 100));
+    box.el.style.left = `${x}%`;
+    box.el.style.top = `${y}%`;
+    const nx = host.left + (x / 100) * host.width, ny = host.top + (y / 100) * host.height;
+    box.cx = nx; box.cy = ny;
+    box.left = nx - box.w / 2; box.right = nx + box.w / 2;
+    box.top = ny - box.h / 2; box.bottom = ny + box.h / 2;
+  }
+  // Separa i rettangoli veri (pad 8 > i 4 px del controllo), anche contro i testi centrali (SCAMBIO!).
+  function layoutPops(retry) {
+    const host = popLayer.getBoundingClientRect();
+    if (host.width < 2 || host.height < 2) return;
+    const els = [...popLayer.querySelectorAll('.pop')];
+    if (!retry && els.some((el) => (el.offsetHeight || 0) < 2)) { requestAnimationFrame(() => layoutPops(true)); return; }
+    for (let pass = 0; pass < 18; pass++) {
+      const boxes = els.filter((el) => el.isConnected).map((el) => popBox(el, host));
+      let moved = false;
+      for (let i = 0; i < boxes.length; i++) for (let j = 0; j < i; j++) {
+        const A = boxes[i], B = boxes[j];
+        const ox = Math.min(A.right, B.right) - Math.max(A.left, B.left);
+        const oy = Math.min(A.bottom, B.bottom) - Math.max(A.top, B.top);
+        if (ox <= POP_PAD || oy <= POP_PAD) continue;
+        const aCenter = A.el.classList.contains('center'), bCenter = B.el.classList.contains('center');
+        const mover = aCenter && !bCenter ? B : !aCenter && bCenter ? A : A;
+        const other = mover === A ? B : A;
+        const down = other.bottom - mover.top + POP_PAD;
+        const up = -(mover.bottom - other.top + POP_PAD);
+        const side = (mover.cx < other.cx ? -1 : 1) * (ox + POP_PAD);
+        const minY = host.top + host.height * 0.07, maxY = host.top + host.height * 0.88;
+        const minX = host.left + host.width * 0.08, maxX = host.left + host.width * 0.92;
+        let nx = mover.cx, ny = mover.cy;
+        if (mover.cy + down + mover.h / 2 <= maxY) ny += down;
+        else if (mover.cy + up - mover.h / 2 >= minY) ny += up;
+        else nx += side;
+        nx = Math.max(minX, Math.min(maxX, nx));
+        ny = Math.max(minY, Math.min(maxY, ny));
+        if (Math.abs(nx - mover.cx) < 0.5 && Math.abs(ny - mover.cy) < 0.5) continue;
+        movePop(mover, host, nx, ny);
+        moved = true;
+      }
+      if (!moved) break;
+    }
+  }
+  function trimPops(keep) {
+    const extra = [...popLayer.querySelectorAll('.pop')].filter((el) => el !== keep);
+    while (extra.length + (keep ? 1 : 0) > MAX_POP) {
+      const i = extra.findIndex((el) => !el.classList.contains('center'));
+      const victim = extra.splice(i >= 0 ? i : 0, 1)[0];
+      victim.remove();
+    }
+  }
+  function restartPop(el) {
+    el.dataset.born = String(performance.now());
+    el.style.animation = 'none';
+    void el.offsetWidth;
+    el.style.animation = '';
+  }
   bus.on('popup', (p) => {
     if (state !== 'play' && state !== 'countdown') return;
-    while (popLayer.childElementCount > 7) popLayer.firstElementChild.remove();
+    const now = performance.now();
+    if (p.x != null && SCORE_TEXT.test(p.text || '')) {
+      const prev = [...popLayer.querySelectorAll('.pop.score')].reverse().find((el) => el.dataset.score === p.text && now - Number(el.dataset.born) < MERGE_MS);
+      if (prev) {
+        const n = (Number(prev.dataset.n) || 1) + 1;
+        prev.dataset.n = String(n);
+        prev.textContent = `${p.text} ×${n}`;
+        restartPop(prev);
+        layoutPops();
+        return;
+      }
+    }
     const el = document.createElement('div');
     el.className = `pop ${p.style || 'white'}`;
     el.textContent = p.text;
-    if (p.x != null) { el.style.left = `${Math.max(12, Math.min(88, p.x * 100))}%`; el.style.top = `${Math.max(12, p.y * 100)}%`; }
-    else {
-      el.classList.add('center');
-      // v5s26: primo posto libero (mai due testi centrali sovrapposti, es. PIU' VELOCE! e SCAMBIO!)
-      const used = new Set([...popLayer.querySelectorAll('.pop.center')].map((q) => q.dataset.slot));
-      let slot = 0; while (used.has(String(slot)) && slot < 5) slot++;
-      if (slot >= 5) { popLayer.querySelector('.pop.center')?.remove(); slot = 0; }
-      el.dataset.slot = String(slot); el.style.top = `${26 + slot * 8}%`;
-    }
-    el.addEventListener('animationend', () => el.remove());
-    popLayer.appendChild(el);
-    // i testi nel mondo non si sovrappongono. La riga e' alta quanto il testo disegnato (piu' il margine del controllo),
-    // non una percentuale fissa: su 360x640 due "+20" finivano uno sull'altro vicino al punteggio.
-    // Si impilano verso il basso: l'animazione li porta in su, e un testo nuovo messo sopra verrebbe raggiunto dal precedente.
+    el.dataset.born = String(now);
     if (p.x != null) {
-      const now = performance.now(); recentPops = recentPops.filter((q) => now - q.t < 900);
-      const vw = window.innerWidth || 360, vh = window.innerHeight || 640;
-      let x = parseFloat(el.style.left), y = parseFloat(el.style.top);
-      if (p.style === 'carpet' || p.style === 'fuel') y = Math.max(10, y - 8);   // il +20 non resta sui tappeti
-      const hPx = Math.max(el.offsetHeight || 0, (parseFloat(getComputedStyle(el).fontSize) || 18) * 1.35);
-      const wPx = Math.max(el.offsetWidth || 0, hPx * 1.6);
-      const row = (hPx * 1.55 + 10) / vh * 100;
-      const col = (wPx + 12) / vw * 100;
-      const near = (xx, yy) => recentPops.some((q) => Math.abs(q.x - xx) < col && Math.abs(q.y - yy) < row);
-      for (let k = 0; k < 8 && near(x, y); k++) {
-        const down = y + row;
-        if (down <= 84) y = down;
-        else x = x < 50 ? Math.min(86, x + col) : Math.max(14, x - col);
-      }
-      el.style.left = `${x}%`; el.style.top = `${y}%`; recentPops.push({ x, y, t: now });
+      el.classList.add('anchored');
+      let y = p.y * 100;
+      if (p.style === 'carpet' || p.style === 'fuel') y -= 8;   // il punteggio non resta sul tappeto
+      el.style.left = `${Math.max(12, Math.min(88, p.x * 100))}%`;
+      el.style.top = `${Math.max(12, Math.min(78, y))}%`;
+      if (SCORE_TEXT.test(p.text || '')) { el.classList.add('score'); el.dataset.score = p.text; el.dataset.n = '1'; }
+    } else {
+      el.classList.add('center');
+      const used = new Set([...popLayer.querySelectorAll('.pop.center')].map((q) => q.dataset.slot));
+      let slot = 0; while (used.has(String(slot)) && slot < 4) slot++;
+      if (slot >= 4) { popLayer.querySelector('.pop.center')?.remove(); slot = 0; }
+      el.dataset.slot = String(slot); el.style.top = `${26 + slot * 9}%`;
     }
+    el.addEventListener('animationend', () => { if (now && performance.now() - Number(el.dataset.born) < 500) return; el.remove(); });
+    popLayer.appendChild(el);
+    trimPops(el);
+    layoutPops();
   });
 
   const refreshBest = () => {
