@@ -168,15 +168,25 @@ export function initUI(game) {
     }
     el.addEventListener('animationend', () => el.remove());
     popLayer.appendChild(el);
-    // v5s46c (45): i testi nel mondo non si sovrappongono: posizioni logiche dei testi recenti (le animazioni rendono
-    // inaffidabili i rettangoli), se il nuovo cade vicino a uno ancora visibile scende di una riga (max 5)
+    // i testi nel mondo non si sovrappongono. La riga e' alta quanto il testo disegnato (piu' il margine del controllo),
+    // non una percentuale fissa: su 360x640 due "+20" finivano uno sull'altro vicino al punteggio.
+    // Si impilano verso il basso: l'animazione li porta in su, e un testo nuovo messo sopra verrebbe raggiunto dal precedente.
     if (p.x != null) {
       const now = performance.now(); recentPops = recentPops.filter((q) => now - q.t < 900);
+      const vw = window.innerWidth || 360, vh = window.innerHeight || 640;
       let x = parseFloat(el.style.left), y = parseFloat(el.style.top);
-      if (p.style === 'carpet' || p.style === 'fuel') y = Math.max(10, y - 12);   // v5s46d (264): il +20 non resta sui tappeti
-      const up = p.style === 'carpet' || p.style === 'fuel';
-      for (let k = 0; k < 5 && recentPops.some((q) => Math.abs(q.x - x) < 16 && Math.abs(q.y - y) < 6); k++) y = up ? Math.max(8, y - 6.5) : Math.min(90, y + 6.5);
-      el.style.top = `${y}%`; recentPops.push({ x, y, t: now });
+      if (p.style === 'carpet' || p.style === 'fuel') y = Math.max(10, y - 8);   // il +20 non resta sui tappeti
+      const hPx = Math.max(el.offsetHeight || 0, (parseFloat(getComputedStyle(el).fontSize) || 18) * 1.35);
+      const wPx = Math.max(el.offsetWidth || 0, hPx * 1.6);
+      const row = (hPx * 1.55 + 10) / vh * 100;
+      const col = (wPx + 12) / vw * 100;
+      const near = (xx, yy) => recentPops.some((q) => Math.abs(q.x - xx) < col && Math.abs(q.y - yy) < row);
+      for (let k = 0; k < 8 && near(x, y); k++) {
+        const down = y + row;
+        if (down <= 84) y = down;
+        else x = x < 50 ? Math.min(86, x + col) : Math.max(14, x - col);
+      }
+      el.style.left = `${x}%`; el.style.top = `${y}%`; recentPops.push({ x, y, t: now });
     }
   });
 

@@ -478,7 +478,9 @@ export class World {
       v.gshadow = this.blob(1.4, 1.2); v.body.add(v.gshadow);
     } else if (kind === 'asfodelo' || kind === 'ferula') {
       v.body = new THREE.Group();
-      const m = new THREE.Mesh(this.geo[kind], this.mats2); m.rotation.z = 1.0; m.position.set(-0.55, -0.3, 0);
+      // v5s48: fascio quasi dritto. L'inclinazione di prima (57 gradi, spostato in basso) allargava il riquadro
+      // fino alla perforatrice e lo infilava nel pavimento: il controllo di appoggio lo leggeva sepolto.
+      const m = new THREE.Mesh(this.geo[kind], this.mats2); m.rotation.z = 0.15; m.position.set(0, 0.1, 0);
       v.body.add(m);
       v.glow = this.glowSprite(kind === 'ferula' ? '#f2ff9a' : '#fff1cf', 3.0, 0.55);
       v.shadow = this.blob(1.6, 1.0);
@@ -883,9 +885,10 @@ export class World {
         v.glow.material.opacity = 0.42 * (1 + this.light.tunnel);
         if (v.shadow) v.shadow.visible = true;
       } else if (e.kind === 'asfodelo' || e.kind === 'ferula') {
-        v.body.position.y = 1.0 + Math.sin(t * 3 + e.d) * 0.15;   // v5s46d-QA: +10 cm, sopra le rotaie anche nel punto piu' basso
+        // sopra le rotaie (cima ~0.15) anche nel punto basso del dondolio; il fascio non scende sotto il ferro
+        v.body.position.y = 0.22 + Math.sin(t * 3 + e.d) * 0.05;
         v.body.rotation.y = t * 1.4 + e.d;
-        v.glow.position.y = 1.2;
+        v.glow.position.y = 1.15;
       } else if (e.kind === 'pistola') {
         v.body.position.y = 1.25 + Math.sin(t * 3.5) * 0.18;
         v.body.rotation.y = t * 2.4;
@@ -922,19 +925,23 @@ export class World {
         // riciclate dal pool tenevano il lato della capra precedente)
         const sx = (e.side || 1) * (ROAD_HALF * U + 1.9) - laneX(e.lane) * U;
         if (v.perch) v.perch.position.set(sx, 0, 0);
-        if (e.scared) {   // v5s26: colpita: balzo fuori strada verso il lato (niente sangue)
+        if (e.scared) {   // v5s26: colpita: corre fuori strada rasoterra (niente arco in aria, il controllo di appoggio lo segnerebbe)
           v.fleeT = (v.fleeT || 0) + dt; const q = Math.min(1, v.fleeT / 0.7);
-          v.body.position.set((e.side || 1) * 9 * q, Math.sin(q * Math.PI) * 2.6, -q * 2); this.goatLegs(v, 'tuck', t); v.body.rotation.y = e.side > 0 ? 0 : Math.PI; v.body.rotation.z = (e.side || 1) * -0.4 * Math.sin(q * Math.PI);
+          v.body.position.set(sx + (e.side || 1) * 3.5 * q, 0.05, -q * 1.2); this.goatLegs(v, 'trot', t); v.body.rotation.y = e.side > 0 ? 0 : Math.PI; v.body.rotation.z = 0;
           if (v.warn) v.warn.visible = false;
         } else if (!e.landed) {
-          v.body.position.set(sx, 3.2, 0); v.body.rotation.y = e.side > 0 ? Math.PI : 0; this.goatLegs(v, 'stand', t);
+          v.body.position.set(sx, 3.2, 0); v.body.rotation.y = e.side > 0 ? Math.PI : 0; v.body.rotation.z = 0; this.goatLegs(v, 'stand', t);
           if (v.warn) { v.warn.visible = true; v.warn.scale.setScalar(1.3 + Math.sin(t * 10) * 0.2); }
         } else {
-          v.fallT += dt; const q = Math.min(1, v.fallT / 0.55);
-          v.body.position.set(sx * (1 - q), 3.2 * (1 - q) + Math.sin(q * Math.PI) * 3, 0);
-          this.goatLegs(v, q < 0.92 ? 'tuck' : 'trot', t);   // v5s27: zampe raccolte nel salto, poi trotterella sul posto
+          // scende sul masso e solo dopo cammina in corsia, con le zampe a terra: l'arco di 3 m restava in aria sopra la via
+          v.fallT += dt; const q = Math.min(1, v.fallT / 0.45);
+          const x = sx * (1 - q);
+          const onRock = Math.abs(x - sx) < 1.05;
+          v.body.position.set(x, onRock ? 3.2 : Math.abs(Math.sin(t * 3)) * 0.05, 0);
+          v.body.rotation.z = 0;
+          this.goatLegs(v, onRock ? 'stand' : 'trot', t);
           if (v.warn) v.warn.visible = q < 1;
-          if (q >= 1) { v.body.position.y = Math.abs(Math.sin(t * 3)) * 0.05; if (!v.landFx) { v.landFx = true; const p = v.root.position; this.dustPuff(p.x, p.z, 16); } }
+          if (q >= 1 && !v.landFx) { v.landFx = true; const p = v.root.position; this.dustPuff(p.x, p.z, 16); }
         }
       } else if (e.kind === 'rollin') {
         // v5s6: rotola verso di te (polvere e rombo come avviso)
