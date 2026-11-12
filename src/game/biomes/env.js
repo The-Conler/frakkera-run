@@ -767,7 +767,9 @@ export class Env {
     }
     const mh = 5.15, mw = mh * (768 / 1010);
     const m = new THREE.Mesh(new THREE.PlaneGeometry(mw, mh), this.muralMat);
-    m.position.set(p.mesh.position.x - 3, 0.72 + mh / 2, -p.W0 + 0.12);
+    // sul filo del timpano verso la via (non 3 m dentro il cortile, dove un albero lo copre)
+    m.position.set(p.mesh.position.x - 0.35, 0.85 + mh / 2, -p.W0 + 0.2);
+    m.name = 'tolu-mural';
     m.userData.ownGeo = true;
     this.scene.add(m);
     p.extra = p.extra || []; p.extra.push(m);

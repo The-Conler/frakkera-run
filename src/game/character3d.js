@@ -338,7 +338,8 @@ export class Character3D {
   // st: stato del personaggio da game.js (mode, speed, vx, invuln, armed, recoil...)
   update(dt, st, px, pz) {
     if (!this.ready) return;
-    const want = st.mode === 'attract' ? 'idle' : (st.mode === 'run' || st.mode === 'dance') ? 'run' : 'over';
+    const dying = st.mode === 'dying';
+    const want = st.mode === 'attract' ? 'idle' : (st.mode === 'run' || st.mode === 'dance' || dying) ? 'run' : 'over';
     if (want !== this.state) {
       const prev = this.state;
       this.state = want; this.stateT = 0;
@@ -347,7 +348,10 @@ export class Character3D {
     }
     this.stateT += dt;
     const sd = this.actions.stumble ? this.actions.stumble.getClip().duration : 0.8;
-    if (this.stumbleT >= 0) { this.stumbleT += dt; if (this.stumbleT > sd) this.stumbleT = -1; }
+    if (dying) {
+      if (this.stumbleT < 0) { this.stumbleT = 0.12; const a = this.actions.stumble; if (a) { a.reset(); a.play(); } }
+      this.stumbleT = 0.2;
+    } else if (this.stumbleT >= 0) { this.stumbleT += dt; if (this.stumbleT > sd) this.stumbleT = -1; }
     // pesi bersaglio
     const T = this.tw;
     for (const k of CLIP_NAMES) T[k] = 0;
@@ -366,7 +370,7 @@ export class Character3D {
       if (Math.abs(raw) > Math.abs(this.leanSig) || (raw !== 0 && Math.sign(raw) !== Math.sign(this.leanSig))) this.leanSig = raw;
       else this.leanSig += (raw - this.leanSig) * Math.min(1, dt * 3.2);
       const l = this.leanSig;
-      const s = this.stumbleT >= 0 && this.stumbleT < Math.min(sd - 0.22, STUMBLE_HOLD_S) ? 1 : 0;   // v5s46 (173): si rimette dritto prima
+      const s = dying || (this.stumbleT >= 0 && this.stumbleT < Math.min(sd - 0.22, STUMBLE_HOLD_S)) ? 1 : 0;   // v5s46 (173): si rimette dritto prima; nel rallenty la posa d'urto resta
       T.stumble = s;
       const r = 1 - s;
       T.left = Math.max(0, l) * r; T.right = Math.max(0, -l) * r; T.run = (1 - Math.abs(l)) * r;
@@ -412,11 +416,11 @@ export class Character3D {
     if (this.cartK > 1e-3) this.root.position.y = SEAT_Y * this.cartK;   // v5s20: dentro il carrello (le gambe restano nascoste dalle sponde)
     if (st.jumpH > 0) { this.root.position.y += st.jumpH * 0.16; }   // v5s25: salto piu' alto e visibile (px -> m)
     if (st.danceRy != null) { this.root.rotation.y = st.danceRy; this.root.position.y = st.danceHop || 0; }   // v5s11: nel cerchio del ballo
-    // lampeggio durante l'invulnerabilita'
-    this.model.visible = !(st.invuln > 0 && Math.floor(st.invuln * 14) % 2);
+    // lampeggio durante l'invulnerabilita'. Nel rallenty il corpo resta visibile (posa d'urto).
+    this.model.visible = !(st.mode !== 'dying' && st.invuln > 0 && Math.floor(st.invuln * 14) % 2);
     // v5s6: abbassata (swipe giu'): corsa accovacciata = corpo compresso e piegato in avanti,
     // frakkera inclinata in avanti e piu' bassa per passare sotto le travi
-    const dk = this.state === 'run' && st.duck > 0 ? 1 : 0;
+    const dk = this.state === 'run' && st.mode !== 'dying' && st.duck > 0 ? 1 : 0;
     this.duckK = (this.duckK || 0) + (dk - (this.duckK || 0)) * Math.min(1, dt * (dk ? 18 : 9));
     const k = this.duckK;
     // v5s27: squash & stretch nel salto: allungato in salita/discesa, schiacciato un attimo all'atterraggio

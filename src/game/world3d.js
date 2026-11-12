@@ -1101,7 +1101,7 @@ export class World {
       }
       case 'land': this.jumpPuff(sim.px * U, pz, 9); break;   // v5s27: polvere all'atterraggio
       case 'duck': { const x = sim.px * U; this.dustPuff(x, pz + 0.4, 6); break; }
-      case 'die': this.smokeAtTip(30); this.burnT = 0; this.burnKeep = this.char3d.keep ?? 1; break;
+      case 'die': this.smokeAtTip(sim.dieByHit ? 8 : 30); this.burnT = 0; this.burnKeep = this.char3d.keep ?? 1; break;
       case 'cheer': { const p = this.views.get(d.e.id)?.root.position; if (p) this.burst(p.x, 3.2, p.z, COL.spark2, 14, 3); break; }
       case 'crowdRoar': this.roarT = 0.5; break;
       case 'dogNip': this.addShake(0.2, 0.15); if (this.comp) this.comp[0].barkT = 0.35; break;
