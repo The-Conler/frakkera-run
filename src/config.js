@@ -257,7 +257,10 @@ export const MASKS = {
   HIT_MAIMONI: 24, HIT_FUNE: 16, HIT_FUSO: 14,  // carburante perso
 };
 
-// ---- v5s11: ballu tundu nella piazza della chiesa (una volta per giro, facoltativo: SALTA) ----
+// ---- v5s11: ballu tundu nella piazza della chiesa (facoltativo: SALTA) ----
+// Giri visti dal giocatore: 1, 2, 3... (in codice `lap` parte da 0).
+// Il ballo c'e' solo nei giri pari, dal secondo: 2, 4, 6... mai al giro 1 ne' nei dispari.
+export function danceThisLap(lap) { return lap >= 1 && lap % 2 === 1; }
 export const DANCE = {
   AT_M: 84,                // v5s45 (19): subito dopo la vista di Su Nascimentu e della chiesa (VISTA.AT_M 58); prima 150
   CLEAR_BEFORE_M: 26, CLEAR_AFTER_M: 18,   // v5s45: niente ostacoli/pickup dentro e davanti al cerchio
@@ -401,7 +404,8 @@ export const SANTAMARTA = {
 // paesani alle finestre: esultano per le scie di tappeti nel paese fuori dalla festa (log V)
 export const VILLAGE = {
   BIOME: 'village',
-  LAUNDRY_SHARE: 0.22,      // v5s36: meno panni (prima 0.6: lenzuola bianche luminose di traverso alla via)
+  LAUNDRY_SHARE: 0,         // niente panni in paese: la trave resta al loro posto (stesso consumo di rng)
+  LAUNDRY_RNG: 0.22,        // quota storica, solo per non spostare il rng del paese
   WEAVER_FROM_M: 118, WEAVER_TO_M: 146,   // v5s45 (15): una per giro, IN MEZZO alla via (corsia 1), girata verso chi corre
   WEAVER_LAP2_FROM_M: 102, WEAVER_LAP2_TO_M: 113,   // v5s45: nel giro 2 prima, per lasciare libero il passaggio di Ciccio
   WEAVER_LEN: 30,           // px di profondita' (telaio 2.8 m)

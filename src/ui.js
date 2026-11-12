@@ -33,6 +33,7 @@ export function initUI(game) {
 
   const show = (name) => {
     screens.forEach((s) => $(`#scr-${s}`).classList.toggle('hidden', s !== name));
+    if (name === 'menu') $('#scr-menu').classList.remove('menu-out');
     $('#hud').classList.toggle('hidden', !(name === null || name === 'pause'));
     if (name !== null) $('#fire-btn').classList.add('hidden');
     else if ((last.ammo || 0) > 0) $('#fire-btn').classList.remove('hidden');
@@ -194,6 +195,7 @@ export function initUI(game) {
     // arrivo da Pinu sul giro 2: ridimensionava il renderer e compilava 4 shader => scatto di ~2-9 s a 1620-1680 m)
     if (!play.icons) { play.icons = true; try { icon('pistola'); } catch (err) { /* solo anticipo */ } }
     play.t0 = undefined; $('#loading').classList.add('hidden');
+    if (state === 'intro') return;
     if (state === 'over' && performance.now() - overShownAt < 350) return; // anti doppio input
     if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
     audio.unlock();
@@ -202,9 +204,20 @@ export function initUI(game) {
     if (game.isPaused()) game.resume();
     savedThisRun = false;
     highlightId = null;
-    state = 'play';
-    show(null);
-    game.startRun();
+    const go = () => {
+      $('#dance-ui').classList.add('hidden');
+      $('#dance-skip').classList.add('hidden');
+      state = 'play';
+      show(null);
+      game.startRun();
+    };
+    if (state === 'menu') {
+      state = 'intro';
+      $('#scr-menu').classList.add('menu-out');
+      game.beginIntro(go);
+      return;
+    }
+    go();
   }
   function pause() {
     if (state !== 'play' || game.mode !== 'run') return;

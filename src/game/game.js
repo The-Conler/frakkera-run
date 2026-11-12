@@ -35,19 +35,36 @@ export class Game {
 
   // ---------------------------------------------------- API per ui.js
   startRun() {
+    this.intro = null;
     this.paused = false;
     this.downT = 0;
+    if (this.faceSnap != null && this.world.char3d) this.world.char3d.facing = this.faceSnap;
+    this.faceSnap = null;
     this.sim.skin = getSkin();
     this.world.setSkin?.(this.sim.skin);
     this.sim.startRun();
+    this.world.dance?.reset();
+    audio.danceStop();
     this.world.setMood('run');
     audio.setIntensity(1, 0);
     this.emitHud(true);
   }
+  // Dal menu: il corridore si gira e la camera passa dietro, poi parte la corsa. Riduzione movimento: taglio secco.
+  beginIntro(done) {
+    if (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      this.faceSnap = Math.PI;
+      done();
+      return;
+    }
+    this.intro = { t: 0, dur: 0.62, done };
+  }
   toAttract() {
+    this.intro = null;
     this.paused = false;
     this.downT = 0;
     this.sim.toAttract();
+    this.world.dance?.reset();
+    audio.danceStop();
     this.world.setMood('menu');
     audio.setIntensity(0);
   }
@@ -106,6 +123,7 @@ export class Game {
       case 'shopOfferEnd': bus.emit('shopOfferEnd'); break;
       // v5s11: ballu tundu
       case 'danceCue': bus.emit('danceCue', d); break;
+      case 'danceAbort': audio.danceStop(); bus.emit('danceEnd', { skipped: true, quit: true, reset: true }); break;
       case 'danceStart': bus.emit('danceStart', d); audio.danceStart(d.bpm); break;
       case 'danceBeat': audio.danceBeat(d); break;
       case 'danceRound': bus.emit('danceRound', d); break;
@@ -202,7 +220,12 @@ export class Game {
     if (this.last) { this.perf.gap += now - this.last; }
     this.last = now;
     const sim = this.sim;
-    if (!this.paused) {
+    const intro = this.intro;
+    if (intro) {
+      intro.t += dtReal;
+      if (intro.t >= intro.dur) { const done = intro.done; this.intro = null; done?.(); }
+    }
+    if (!this.paused && !this.intro) {
       this.accum += dtReal;
       let steps = 0;
       while (this.accum >= WORLD.FIXED_DT && steps < WORLD.MAX_STEPS_PER_FRAME) { sim.tick(WORLD.FIXED_DT); this.accum -= WORLD.FIXED_DT; steps++; }
@@ -215,10 +238,14 @@ export class Game {
     const ch = this.character || (this.character = {});
     ch.mode = mode; ch.speed = sim.currentSpeed; ch.clock = sim.clock; ch.vx = sim.vx; ch.invuln = sim.invuln; ch.targetLane = sim.targetLane;
     ch.duck = mode === 'run' ? sim.duckT : 0; ch.jumpH = mode === 'run' ? sim.jumpH : 0; ch.slip = sim.slipT; ch.fuelLow = sim.fuel < FUEL.LOW_WARNING; ch.armed = mode === 'run' && (sim.ammo > 0 || sim.recoilT > 0);
-    ch.recoil = sim.recoilT; ch.flameOn = mode === 'run' || mode === 'attract' || mode === 'dance'; ch.raise = mode === 'dance' ? 1 : 0; ch.downT = this.downT;
+    ch.recoil = sim.recoilT; ch.flameOn = mode === 'run' || mode === 'attract' || mode === 'dance' || !!this.intro; ch.raise = mode === 'dance' ? 1 : 0; ch.downT = this.downT;
+    const ease = this.intro ? this.intro.t / this.intro.dur : 0;
+    const introK = ease <= 0 ? 0 : ease >= 1 ? 1 : ease * ease * (3 - 2 * ease);
+    ch.face = (mode === 'attract' || this.intro) ? introK * Math.PI : null;
     const view = this.view || (this.view = {});
-    view.cam = mode === 'attract' ? 'menu' : mode === 'dance' ? 'dance' : (mode === 'run' || mode === 'shop') ? 'run' : 'over';   // v5s7b: in negozio/3-2-1 resta la camera di corsa
-    view.char = ch; view.fuelF = mode === 'attract' ? 1 : fuelF; view.speed = sim.currentSpeed; view.smoke = mode === 'dying' || mode === 'over';
+    view.introK = this.intro ? introK : 0;
+    view.cam = (mode === 'attract' || this.intro) ? 'menu' : mode === 'dance' ? 'dance' : (mode === 'run' || mode === 'shop') ? 'run' : 'over';   // v5s7b: in negozio/3-2-1 resta la camera di corsa
+    view.char = ch; view.fuelF = mode === 'attract' || this.intro ? 1 : fuelF; view.speed = sim.currentSpeed; view.smoke = mode === 'dying' || mode === 'over';
     this.world.render(sim, dt, view);
     if (this.world.shopSign) bus.emit('shopAnchor', { on: true, x: this.world.shopSign.x, y: this.world.shopSign.y });
     else if (this._shopAnch) bus.emit('shopAnchor', { on: false });

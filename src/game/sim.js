@@ -5,7 +5,7 @@
 // tramite `fx(tipo, dati)`. Unita': px del mondo 2D (10 px = 1 m), corsie
 // centrate su x = 0.
 // =====================================================================
-import { SCORE, FUEL, WORLD, PX_PER_METER, PISTOL, SPEED_STEPS, BIOME_OBST, DUCK, SHOP, MASKS, DANCE, FIRE, MINE, CART, COLLECT, SKINS, FESTA, POWER, JUMP, UPGRADES, WEATHER, ANIMALS, VILLAGE, CICCIO } from '../config.js';
+import { SCORE, FUEL, WORLD, PX_PER_METER, PISTOL, SPEED_STEPS, BIOME_OBST, DUCK, SHOP, MASKS, DANCE, FIRE, MINE, CART, COLLECT, SKINS, FESTA, POWER, JUMP, UPGRADES, WEATHER, ANIMALS, VILLAGE, CICCIO, danceThisLap } from '../config.js';
 import { biomeAt } from './biomes/config.js';
 import { cartAt, festaAt } from '../systems/generator.js';
 import { Generator, SOLID, DESTRUCTIBLE, PICKUP_KINDS, BIOME_KINDS, MASK_KINDS, difficultyAt, speedAt, speedStepsAt, lerp } from '../systems/generator.js';
@@ -72,6 +72,9 @@ export class Sim {
   clearEntities() { for (const e of this.entities) this.fx('despawn', e); this.entities = []; this.parades = {}; }
 
   startRun(seed) {
+    // Il cerchio del ballo e la UI restano attaccati al mondo (T non torna a zero): senza questo,
+    // un rigioca durante il ballo o il cue riparte dentro il ballu tundu.
+    if (this.mode === 'dance' || this.dance || this.danceCue) this.fx('danceAbort');
     this.clearEntities();
     this.resetRunState();
     this.seed = seed ?? randomSeed();
@@ -400,9 +403,9 @@ export class Sim {
       if (bi.b.id === 'village' && bi.lap >= 1 && bi.lap > this.shopLap && bi.local >= SHOP.OFFER_AT_M && bi.local <= SHOP.OFFER_UNTIL_M && !this.danceCue) {
         this.shopLap = bi.lap; this.shopOffer = SHOP.OFFER_S; this.log('O', bi.lap); this.fx('shopOffer', { lap: bi.lap, s: SHOP.OFFER_S, at: SHOP.AT_M });
       } }
-    // v5s11: ballu tundu una volta per giro nella piazza della chiesa (launeddas e coro qualche secondo prima)
+    // Ballu tundu solo nei giri pari (2, 4, 6...), subito dopo Su Nascimentu. Mai al giro 1 ne' nei dispari.
     { const bi = biomeAt(rd / PX_PER_METER + this.mapOffsetM);
-      if (bi.b.id === 'village' && bi.lap >= 1 && bi.lap > this.danceLap && bi.local < DANCE.AT_M + 5) {   // v5s26: dal secondo giro
+      if (bi.b.id === 'village' && danceThisLap(bi.lap) && bi.lap > this.danceLap && bi.local < DANCE.AT_M + 5) {
         const toGo = (DANCE.AT_M - bi.local) * PX_PER_METER;
         const sp = speedAt(rd, this.mapOffsetM);
         if (!this.danceCue && toGo > 0 && toGo <= sp * DANCE.CUE_S) {

@@ -1,9 +1,9 @@
-# feat-village: fotogrammi 390 px di panni, tessitrice, processione e finestre
+# feat-village: fotogrammi di tessitrice, processione e finestre.
+# I panni non si generano piu' in paese (al loro posto resta la trave).
 import asyncio, sys
 from playwright.async_api import async_playwright
 URL = sys.argv[1] if len(sys.argv) > 1 else 'http://127.0.0.1:4851/'
 SC = [  # nome, at (m nel paese), entita' da mettere davanti, attese (s) prima di ogni scatto
-  ('panni', 150, "[{kind:'panni',lane:1,len:10,variant:0,ahead:120}]", [0.25, 0.75]),
   ('tessitrice', 160, "[{kind:'tessitrice',lane:0,side:-1,len:16,variant:0,ahead:130}]", [0.3, 0.9]),
   ('processione', 170, "[{kind:'processione',lane:2,len:52,variant:0,ahead:150}]", [0.3, 0.9]),
   ('finestre', 180, "[]", [0.35, 0.8]),

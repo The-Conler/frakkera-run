@@ -1110,7 +1110,9 @@ export class World {
       case 'weaverThrow': { const p = this.views.get(d.e.id)?.root.position; if (p) this.burst(p.x * 0.6, 2.2, p.z, COL.spark2, 16, 4); break; }
       case 'procBump': { const p = this.views.get(d.e.id)?.root.position; if (p) this.burst(p.x, 2.0, p.z, COL.spark2, 10, 3); break; }
       case 'windowCheer': break;   // v5s26: niente paesani alle finestre (sembravano sospesi); resta solo il punteggio
+      case 'danceAbort': this.dance.reset(); break;
       case 'start': case 'attract':
+        this.dance.reset();
         this.rideOn = false; this.rideLeft = null; if (this.ride) { this.ride.visible = false; this.rideShadow.visible = false; }   // v5s20: niente carrello della corsa prima
         this.add.clear(); this.norm.clear(); this.shards.clear();
         if (type === 'start') this.env.startRun(sim.T * U); else this.env.toAttract(sim.T * U);
@@ -1280,7 +1282,14 @@ export class World {
     const aspect = this.camera.aspect;
     const wide = Math.max(0, Math.min(1, (aspect - 0.5) / 0.3));
     let cp, cl, fov;
-    if (view.cam === 'menu') { cp = _v.set(0.6 + wide * 1.2, 2.2 + wide * 0.4, pz + 12.6 - wide * 3); cl = _v2.set(0.05 - wide * 0.8, 3.0 + wide * 0.3, pz); fov = 58; }   // v5s8: piu' indietro, frakkera e fiamma intere sotto il logo
+    const introK = Math.max(0, Math.min(1, view.introK || 0));
+    const menuCam = view.cam === 'menu' && introK <= 0;
+    if (view.cam === 'menu') {
+      // Davanti al corridore (lui guarda la camera): la via e Santa Marta restano alle sue spalle.
+      this._mCp = this._mCp || new THREE.Vector3(); this._mCl = this._mCl || new THREE.Vector3();
+      this._mCp.set(-0.55, 2.55, pz + 13.2); this._mCl.set(-0.25, 1.85, pz - 26); this._mFov = 44;
+    }
+    if (menuCam) { cp = this._mCp; cl = this._mCl; fov = this._mFov; }
     else if (view.cam === 'dance' && this.dance.state !== 'off') { cp = _v; cl = _v2; fov = this.dance.camera(cp, cl); }
     else if (view.cam === 'over') { cp = _v.set(px * 0.45 + 2.0, 4.2, pz + 15.5); cl = _v2.set(px, -2.6, pz); fov = 52; }
     else {
@@ -1318,7 +1327,12 @@ export class World {
           cp.y += (ty - cp.y) * mk; cp.z += (tz - cp.z) * mk; cl.y += (ly - cl.y) * mk; cl.z += (lz - cl.z) * mk; fov += (fv - fov) * mk;
         } }
     }
-    const k = 1 - Math.exp(-dt * (view.cam === 'run' ? 7 : 2.6));
+    if (introK > 0 && view.cam === 'menu') {
+      this._bCp = this._bCp || new THREE.Vector3(); this._bCl = this._bCl || new THREE.Vector3();
+      this._bCp.copy(this._mCp).lerp(cp, introK); this._bCl.copy(this._mCl).lerp(cl, introK);
+      fov = this._mFov + (fov - this._mFov) * introK; cp = this._bCp; cl = this._bCl;
+    }
+    const k = 1 - Math.exp(-dt * (introK > 0 ? 10 : view.cam === 'run' ? 7 : 2.6));
     this.camPos.lerp(cp, k);
     this.camLook.lerp(cl, k);
     // la camera non resta mai indietro rispetto al corridore

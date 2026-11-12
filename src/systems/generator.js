@@ -7,7 +7,7 @@
 // mobili compaiono solo in "finestre calme" senza altri ostacoli.
 // Tappeti, combustibile e pistola si piazzano solo in celle libere.
 // =====================================================================
-import { DIFFICULTY as DF, WORLD, PX_PER_METER, CARPETS as CP, PISTOL, SPEED_STEPS as SS, BIOME_OBST as BO, DUCK, MASKS as MK, FIRE, MINE, CART, COLLECT, DANCE, FESTA, POWER, WEATHER, ANIMALS, SANTAMARTA, VILLAGE as VL, ZONE3 as Z3, NATURE_TREES as NT, PACE, CICCIO } from '../config.js';
+import { DIFFICULTY as DF, WORLD, PX_PER_METER, CARPETS as CP, PISTOL, SPEED_STEPS as SS, BIOME_OBST as BO, DUCK, MASKS as MK, FIRE, MINE, CART, COLLECT, DANCE, FESTA, POWER, WEATHER, ANIMALS, SANTAMARTA, VILLAGE as VL, ZONE3 as Z3, NATURE_TREES as NT, PACE, CICCIO, danceThisLap } from '../config.js';
 import { rainLap } from './weather.js';
 import { biomeAt, BIOMES, CYCLE } from '../game/biomes/config.js';
 import { makeRng } from './rng.js';
@@ -318,7 +318,7 @@ export class Generator {
   villageCalm(D) {
     const bi = biomeAt(D / PX_PER_METER + this.offM);
     if (bi.b.id !== VL.BIOME) return false;
-    if (bi.lap >= 1 && bi.local > DANCE.AT_M - DANCE.CLEAR_BEFORE_M - 6 && bi.local < DANCE.AT_M + DANCE.CLEAR_AFTER_M) return true;
+    if (danceThisLap(bi.lap) && bi.local > DANCE.AT_M - DANCE.CLEAR_BEFORE_M - 6 && bi.local < DANCE.AT_M + DANCE.CLEAR_AFTER_M) return true;
     if (bi.lap === CICCIO.LAP && bi.local > CICCIO.CLEAR_FROM_M - 8 && bi.local < CICCIO.CLEAR_TO_M) return true;
     if (this.weaverLap !== bi.lap) { const [f, t] = this.weaverWindow(bi.lap); if (bi.local > f - 22 && bi.local < t) return true; }
     return false;
@@ -423,7 +423,7 @@ export class Generator {
   // v5s20: la fila D e' vicina al punto del ballu tundu (metri prima / dopo)?
   nearDance(D, before, after) {
     const bi = biomeAt(D / PX_PER_METER + this.offM);
-    if (bi.b.id !== 'village' || bi.lap < 1) return false;   // v5s26: niente ballo al primo giro
+    if (bi.b.id !== 'village' || !danceThisLap(bi.lap)) return false;   // solo i giri 2, 4, 6...
     return bi.local > DANCE.AT_M - before && bi.local < DANCE.AT_M + after;
   }
 
@@ -545,7 +545,7 @@ export class Generator {
       // v5s45 (19): cerchio del ballu tundu (dal giro 2): niente ostacoli ne' pickup nel cerchio e subito prima
       if (!SIDE_KINDS[e.kind] && e.kind !== 'cane') {
         const dl = this.inSpan(e.d, e.len, DANCE.AT_M - DANCE.CLEAR_BEFORE_M, DANCE.AT_M + DANCE.CLEAR_AFTER_M);
-        if (dl >= 1) return;
+        if (danceThisLap(dl)) return;
       }
       // v5s45 (18): passaggio di Ciccio (solo giro 2): nessun altro ostacolo, nessun pickup sulla sua corsia
       if (e.kind !== 'cane' && !SIDE_KINDS[e.kind] && this.inSpan(e.d, e.len, CICCIO.CLEAR_FROM_M, CICCIO.CLEAR_TO_M) === CICCIO.LAP) {
@@ -709,14 +709,9 @@ export class Generator {
       z3mark(r); if (z3) this.hold = Math.max(this.hold, z3);   // niente cambio di sentiero subito dopo la trave
       for (let l = 0; l < L; l++) { used[l] = true; this.laneCool[l] = Math.max(this.laneCool[l], r + 1); }
       this.paceTake('crouch', D + 10, 1);
-      // feat-village: nel paese la trave puo' diventare i panni della nonna (la processione ha il suo flusso)
+      // In paese non si stendono piu' panni: resta la trave (ci si abbassa). Si consumano gli stessi estratti di quando c'erano i panni.
       const vb = biomeAt(D / PX_PER_METER + this.offM), vr = this.vrng;
-      if (vb.b.id === VL.BIOME && vr() < VL.LAUNDRY_SHARE) {
-        this.laundry++;
-        emit({ kind: 'panni', lane: 1, d: D + 10, len: DUCK.BEAM_LEN, variant: vr.int(0, 3) });
-        this.carpetRow(r, D, diff, used, emit);
-        return;
-      }
+      if (vb.b.id === VL.BIOME && vr() < VL.LAUNDRY_RNG) vr.int(0, 3);
       emit({ kind: 'trave', lane: 1, d: D + 10, len: DUCK.BEAM_LEN });
       this.carpetRow(r, D, diff, used, emit);
       return;

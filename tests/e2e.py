@@ -159,7 +159,7 @@ async def run_profile(p, name, mobile):
 
     # ---------------------------------------------------------------- partita
     await page.click('[data-act=play]')
-    await page.wait_for_timeout(400)
+    await page.wait_for_timeout(1100)   # il menu fa girare il corridore (~0.6 s) prima della corsa
     s0 = await state()
     check('partita avviata', s0['mode'] == 'run' and await visible('#hud'))
     await page.wait_for_timeout(500)
@@ -522,7 +522,7 @@ async def v2_section(page, name, mobile, cdp, check, shot, state, visible):
     check('v2 totale tappeti dopo ricarica', mc == str(ls2) and int(ls2) >= ls1, f'{mc} vs {ls2}')
     await shot('16-menu-dopo')
     # ---- v5s11: ballu tundu nella piazza (cue, ballo, freccia, SALTA senza penalita') ----
-    await page.goto(f'{URL}?test=1&fixeddpr&map=village&at=120&lap=1')   # v5s27: il ballu tundu c'e' solo dal 2o giro (stage26)
+    await page.goto(f'{URL}?test=1&fixeddpr&map=village&at=120&lap=1')   # giro 2 (lap 1): il ballo c'e'; i giri dispari no
     await page.wait_for_function('window.__frk && document.querySelector("#loading").classList.contains("hidden")', timeout=20000)
     await page.evaluate('window.__keepDance = true')
     await page.click('[data-act=play]')

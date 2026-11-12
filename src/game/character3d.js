@@ -398,10 +398,13 @@ export class Character3D {
     this.mascotPre(this.runK);
     this.plantFeet();
     this.frame = Math.floor(((this.phase + 0.75) % 1) * 4);
-    // posizione e orientamento
-    let fTarget = this.state === 'idle' ? -0.45 : this.state === 'over' ? Math.PI + 0.3 : Math.PI;   /* v5s42c: prima PI+1.15 dopo 1 s: di taglio la frakkera in spalla sembrava piantata dritta */
-    fTarget += Math.PI * 2 * Math.round((this.facing - fTarget) / (Math.PI * 2));
-    this.facing += (fTarget - this.facing) * Math.min(1, dt * (this.state === 'run' ? 7 : this.state === 'over' ? 1.6 : 2.5));
+    // posizione e orientamento. st.face (menu / giro di partenza) sostituisce il verso della clip.
+    if (typeof st.face === 'number') this.facing = st.face;
+    else {
+      let fTarget = this.state === 'idle' ? -0.45 : this.state === 'over' ? Math.PI + 0.3 : Math.PI;   /* v5s42c: prima PI+1.15 dopo 1 s: di taglio la frakkera in spalla sembrava piantata dritta */
+      fTarget += Math.PI * 2 * Math.round((this.facing - fTarget) / (Math.PI * 2));
+      this.facing += (fTarget - this.facing) * Math.min(1, dt * (this.state === 'run' ? 7 : this.state === 'over' ? 1.6 : 2.5));
+    }
     this.root.position.set(px, 0, pz);
     this.root.rotation.y = this.facing + (this.state === 'run' ? (st.vx || 0) * 0.22 : 0);
     this.root.rotation.z = this.state === 'run' && !st.cart ? (st.lean || 0) : 0;   // v5s46 (101): inclinato dentro la curva

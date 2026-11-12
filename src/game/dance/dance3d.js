@@ -2,7 +2,7 @@
 // (posto 0 del cerchio, frakkera alzata). Il cerchio gira a tempo; a fine ballo si apre e si passa in mezzo.
 import * as THREE from 'three';
 import { buildDancer, danceStep } from './dancers.js';
-import { DANCE } from '../../config.js';
+import { DANCE, danceThisLap } from '../../config.js';
 import { CYCLE } from '../biomes/config.js';
 
 const C_GOLD = new THREE.Color('#ffd060'), C_ORANGE = new THREE.Color('#ffa040');
@@ -36,12 +36,20 @@ export class DanceRing {
     this.w.scene.add(g); this.group = g;
   }
   // v5s44c: mostra il cerchio da lontano (VIS_M), senza toccare cue/gameplay
+  reset() {
+    this.state = 'off'; this.blend = 0; this.active = false; this.openT = 99; this.joinT = 0;
+    if (this.group) this.group.visible = false;
+  }
   preview(sim) {
     if (this.state === 'dance' || this.state === 'cue' || this.state === 'open') return;
     const m = (sim.runD || 0) / 10 + (sim.mapOffsetM || 0);
-    let danceM = Math.max(1, Math.floor(m / CYCLE)) * CYCLE + DANCE.AT_M;
-    if (danceM < CYCLE + DANCE.AT_M) danceM = CYCLE + DANCE.AT_M;
-    if (m > danceM + 25) danceM += CYCLE;
+    let lap = Math.floor(m / CYCLE);
+    if (!danceThisLap(lap) || m > lap * CYCLE + DANCE.AT_M + 25) {
+      lap += lap % 2 === 1 ? 2 : 1;
+      if (lap < 1) lap = 1;
+    }
+    if (!danceThisLap(lap)) return;
+    const danceM = lap * CYCLE + DANCE.AT_M;
     const ahead = danceM - m, vis = DANCE.VIS_M || 110;
     if (ahead >= vis || ahead < -20) {
       if (this.state === 'preview') { this.state = 'off'; if (this.group) this.group.visible = false; }
