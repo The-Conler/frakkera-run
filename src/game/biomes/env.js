@@ -23,6 +23,7 @@ import { buildChurchSquare, VISTA } from './builders/church.js';
 import { buildVicolo, buildCappella, buildCappellaLeft, cadutiDecals, cadutiStatue } from './builders/gadoni5.js';
 import { buildBanner } from '../masks/figures.js';
 import { Kit, G, rng, ROCK, LEAF } from './builders/common.js';
+import { endWallMural } from './muralWall.js';
 
 export const ROAD_W = 11, WALK_W = 1.45, FACADE = ROAD_W / 2 + WALK_W;
 const SEG = 120, BLEND = 12, AHEAD = 190, BEHIND = 14;   // v5s5: tratti di suolo lunghi (UV nel mondo): meno draw call ora che si costruisce piu lontano
@@ -772,16 +773,23 @@ export class Env {
     if (sd.s >= 0 || !p.mesh || !p.key || !p.key.startsWith('house')) return;
     const i = this.info(p.W0 + 0.3);
     if (i.b.id !== 'village' || i.local < 170 || i.local > 186) return;
+    const fit = endWallMural(p.mesh.geometry);
+    if (!fit) return;
     if (!this.muralMat) {
       const tex = new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}textures/gadoni-mural.webp`);
       tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
-      this.muralMat = new THREE.MeshLambertMaterial({ map: tex, emissive: new THREE.Color('#3a2820'), emissiveMap: tex, emissiveIntensity: 0.32 });
+      tex.wrapS = THREE.ClampToEdgeWrapping; tex.wrapT = THREE.ClampToEdgeWrapping;
+      this.muralMat = new THREE.MeshLambertMaterial({
+        map: tex, emissive: new THREE.Color('#3a2820'), emissiveMap: tex, emissiveIntensity: 0.32,
+        polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
+      });
     }
-    const mh = 5.15, mw = mh * (768 / 1010);
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(mw, mh), this.muralMat);
-    // Centro del timpano che guarda chi arriva: la casa va da x=0 (via) a x=-6, il cartellone sta a meta' (x-3),
-    // sul filo z del muro di testa. Come in stage46g. Il palo davanti resta tolto; la casa e' la stessa mesh.
-    m.position.set(p.mesh.position.x - 3, 0.72 + mh / 2, -p.W0 + 0.12);
+    const geo = new THREE.PlaneGeometry(fit.w, fit.h);
+    const uv = geo.attributes.uv;
+    for (let k = 0; k < uv.count; k++) uv.setXY(k, fit.u0 + uv.getX(k) * (fit.u1 - fit.u0), fit.v0 + uv.getY(k) * (fit.v1 - fit.v0));
+    const m = new THREE.Mesh(geo, this.muralMat);
+    // 5 cm davanti all'intonaco (il tetto e la cornice stanno piu' avanti e non z-fightano)
+    m.position.set(p.mesh.position.x + (p.mesh.scale.x || 1) * fit.cx, fit.cy, p.mesh.position.z + 0.05);
     m.name = 'tolu-mural';
     m.userData.ownGeo = true;
     this.scene.add(m);

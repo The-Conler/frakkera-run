@@ -4,6 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { buildChurchSquare } from '../src/game/biomes/builders/church.js';
+import { endWallMural } from '../src/game/biomes/muralWall.js';
 import * as M from '../src/game/models.js';
 const FACADE = 11 / 2 + 1.45;   // via + marciapiede (env.js)
 test('case della piazza fuori dal corridoio della via, giri 0-2', () => {
@@ -25,6 +26,19 @@ test('case a bordo via fuori dalla carreggiata, ogni prefab', () => {
   const chk = (g, name) => { const p = g.attributes.position; for (let j = 0; j < p.count; j++) if (p.getY(j) < 2.6) assert.ok(FACADE - p.getX(j) >= ROAD - 0.01, `${name} sporge sulla via`); };
   for (let i = 1; i <= 26; i++) chk(M.buildHouse(i).geom, 'casa ' + i);
   for (let i = 1; i <= 5; i++) chk(M.buildGarden(i).geom, 'orto ' + i);
+});
+test('il murale di Tolu copre il muro di testa, in proporzione, con la faccia intera', () => {
+  const pf = M.buildHouse(19);
+  const fit = endWallMural(pf.geom);
+  assert.ok(Math.abs(fit.cx - -3) < 0.02, 'centrato sulla profondita\'');
+  assert.ok(fit.w > 5.8 && fit.w < 6, `bordo a bordo, largo ${fit.w.toFixed(2)}`);
+  assert.ok(fit.cy - fit.h / 2 < 0.4, 'zoccolo basso');
+  assert.ok(fit.cy + fit.h / 2 > pf.h - 0.2, 'arriva sotto la gronda');
+  const imgA = 768 / 1010;
+  const shownA = ((fit.u1 - fit.u0) * imgA) / (fit.v1 - fit.v0);
+  assert.ok(Math.abs(shownA - fit.w / fit.h) < 1e-3, 'niente stiramento');
+  assert.equal(fit.u0, 0, 'il viso a sinistra resta nel quadro');
+  assert.ok(fit.u1 > 0.8, 'il fascio resta visibile');
 });
 test('l\'ultimo lampione davanti al murale di Tolu non c\'e\' piu\'', () => {
   const sq = buildChurchSquare(1);
