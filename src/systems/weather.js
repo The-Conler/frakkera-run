@@ -2,11 +2,21 @@
 import { WEATHER } from '../config.js';
 import { CYCLE, biomeAt } from '../game/biomes/config.js';
 const sm = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
-export const rainLap = (lap) => lap >= WEATHER.RAIN_FROM_LAP && (lap - WEATHER.RAIN_FROM_LAP) % 2 === 0;
+// Seme 0: l'alternanza storica (test). Un seme di partita sceglie pioggia o neve giro per giro, sempre allo stesso modo.
+const roll = (seed, lap) => {
+  let h = ((seed >>> 0) ^ Math.imul(lap + 1, 0x9e3779b1)) >>> 0;
+  h ^= h >>> 15; h = Math.imul(h, 0x85ebca6b) >>> 0; h ^= h >>> 13;
+  return (h >>> 0) / 4294967296;
+};
+export const rainLap = (lap, seed = 0) => {
+  if (lap < WEATHER.RAIN_FROM_LAP) return false;
+  if (!seed) return (lap - WEATHER.RAIN_FROM_LAP) % 2 === 0;
+  return roll(seed, lap) < 0.5;
+};
 // intensita' della pioggia 0..1 alla distanza b (m dall'inizio del ciclo, con offset)
-export function rainAt(b) {
+export function rainAt(b, seed = 0) {
   const x = Math.max(0, b), lap = Math.floor(x / CYCLE), f = (x - lap * CYCLE) / CYCLE;
-  if (!rainLap(lap)) return 0;
+  if (!rainLap(lap, seed)) return 0;
   return sm(0, 0.05, f) * (1 - sm(0.95, 1, f));
 }
 const hash = (n) => { let h = (n * 0x9e3779b1) >>> 0; h ^= h >>> 15; h = Math.imul(h, 0x85ebca6b) >>> 0; h ^= h >>> 13; return (h >>> 0) / 4294967296; };

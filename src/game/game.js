@@ -4,6 +4,7 @@
 // =====================================================================
 import { WORLD, FUEL, PX_PER_METER, VIBE } from '../config.js';
 import { difficultyAt } from '../systems/generator.js';
+import { biomeAt } from './biomes/config.js';
 import { Sim } from './sim.js';
 import { World } from './world3d.js';
 import { audio } from '../systems/audio.js';
@@ -209,7 +210,7 @@ export class Game {
       else if (k === 'Space') this.fire();
       else if (k === 'KeyW' || k === 'ArrowUp') { if (!e.repeat) this.jump(); }
       else if (k === 'ArrowDown' || k === 'KeyS') { if (!e.repeat) this.duck(); }
-      else if ((k === 'KeyP' || k === 'Escape') && this.sim.mode === 'run') bus.emit('request-pause');
+      else if ((k === 'KeyP' || k === 'Escape') && (this.sim.mode === 'run' || this.sim.mode === 'dance')) bus.emit('request-pause');
     });
   }
 
@@ -305,6 +306,7 @@ export class Game {
       mode: sim.mode, score: sim.score,
       best: Math.max(sim.best, sim.mode === 'run' || sim.mode === 'dying' || sim.mode === 'over' || sim.mode === 'dance' || sim.mode === 'shop' ? sim.score : 0),   // v5s29 (QA L1): REC non torna a 0 durante il ballo
       meters: Math.floor(Math.max(0, sim.runD) / PX_PER_METER),
+      giro: biomeAt(Math.max(0, sim.runD) / PX_PER_METER + (sim.mapOffsetM || 0)).lap + 1,
       fuel: Math.max(0, sim.fuel) / FUEL.MAX, chain: sim.chain,
       carpets: sim.mode === 'attract' ? 0 : sim.stats.carpets, carpetTotal: sim.carpetTotal,
       ammo: sim.mode === 'run' ? sim.ammo : 0,

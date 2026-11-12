@@ -5,7 +5,7 @@
 // =====================================================================
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { WORLD, BIOME_OBST, FIRE, MINE, FESTA, WEATHER, ANIMALS, LANE_FEEL, CAM_SPEED, RUN_SHADOW, FUEL, SHOP, PX_PER_METER } from '../config.js';
+import { WORLD, BIOME_OBST, FIRE, MINE, FESTA, WEATHER, ANIMALS, LANE_FEEL, CAM_SPEED, RUN_SHADOW, FUEL, SHOP, PX_PER_METER, SANTAMARTA } from '../config.js';
 const LOW_FUEL_F = FUEL.LOW_WARNING / FUEL.MAX;   // v5s46 (165)
 const FADE_IN_M = 16, FADE_OP = [0, 0.18, 0.45, 0.75, 1];   // v5s46 (169): metri di dissolvenza d'ingresso, opacita' per gradino
 import { laneX, isMoving, ROAD_HALF, VIEW_AHEAD } from './sim.js';
@@ -180,8 +180,8 @@ export class World {
     this.env = new Env(this);           // v5: ambienti di Gadoni a tratti (terreno, lati, galleria, monumenti)
     // v5s23: neve sui materiali (tetti, strada, alberi, rocce) e fiocchi
     for (const m of [this.mat.lit, this.bannerMat, this.env.lit]) addSnow(m);   // v5s29: botti senza neve (QA L4)
-    for (const k in this.env.roadMat) addSnow(this.env.roadMat[k], { road: true, cap: 0.98 });
-    for (const k in this.env.shoulderMat) addSnow(this.env.shoulderMat[k]);
+    for (const k in this.env.roadMat) if (k !== 'mineFloor' && k !== 'blueFloor') addSnow(this.env.roadMat[k], { road: true, cap: 0.98 });
+    for (const k in this.env.shoulderMat) if (k !== 'none') addSnow(this.env.shoulderMat[k]);
     { const mob = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
       this.flakes = buildFlakes(mob ? SNOW_CFG.FLAKES_MOBILE : SNOW_CFG.FLAKES_DESKTOP, this.tex.glow); this.scene.add(this.flakes); }
     this.snow = { ground: 0, fall: 0, lap: 0 }; this.breathT = 0;
@@ -1039,9 +1039,11 @@ export class World {
       case 'ricochet': this.burst(d.x * U, 1.8, -d.d * U, COL.spark2, 14, 4); break;
       case 'carpet': {
         const p = this.views.get(d.e.id)?.root.position || _v.set(sim.px * U, 0, pz);
-        for (let i = 0; i < 22; i++) {
+        const busy = (d.streak || 0) >= 3;
+        const n = busy ? 7 : 12;
+        for (let i = 0; i < n; i++) {
           const c = COL.carpet[i % COL.carpet.length];
-          (i % 2 ? this.add : this.norm).emit(p.x, 0.7, p.z, (Math.random() - 0.5) * 6, Math.random() * 5 + 2, (Math.random() - 0.5) * 6, 0.7, 0.35, 0.1, c, 1, 7, 1.5);
+          (i % 2 ? this.add : this.norm).emit(p.x, 0.35, p.z + 0.4, (Math.random() - 0.5) * 2.2, 0.6 + Math.random() * 1.1, (Math.random() - 0.5) * 1.4, 0.35, busy ? 0.12 : 0.2, 0.04, c, busy ? 0.4 : 0.62, 3, 1.2);
         }
         this.popWorld(`+${d.pts}`, p.x, 3.5, p.z, 'carpet');   // v5s46d (264): sopra i tappeti, non a terra
         break;
@@ -1196,13 +1198,13 @@ export class World {
       for (const k in OVER_TINT.mood) { const v = OVER_TINT.mood[k]; if (typeof v === 'string') tgt[k].lerp(_c.set(v), ok); else tgt[k] += (v - tgt[k]) * ok; }
     }
     // v5s23: luce fredda con la neve (stessa luminosita', tinta azzurrina: la sera dei giri resta)
-    { const sn = snowAt(env.cur.bDist); this.snowTgt = sn;
+    { const sn = snowAt(env.cur.bDist, this.weatherSeed || 0); this.snowTgt = sn;
       const ck = sn.ground * SNOW_CFG.COLD * (1 - (tgt.light?.tunnel || 0));
       if (ck > 0.001) for (const key of ['top', 'mid', 'hor', 'fog', 'hemiS', 'hemiG', 'dirC', 'far']) { const c = tgt[key]; if (!c || !c.isColor) continue;
         const l = c.r * 0.3 + c.g * 0.55 + c.b * 0.15; c.lerp(_c.setRGB(l * 0.9, l * 0.97, l * 1.12), ck); } }
     // v5s25: notte di pioggia (cielo piu' scuro e freddo) e chiazze di nebbia nella valle
-    { const out = 1 - (tgt.light?.tunnel || 0);
-      this.rainK += (rainAt(env.cur.bDist) * out - this.rainK) * Math.min(1, dt * 1.2);
+    { const out = 1 - this.roofCover(env.cur.bDist, tgt.light?.tunnel || 0);
+      this.rainK += (rainAt(env.cur.bDist, this.weatherSeed || 0) * out - this.rainK) * Math.min(1, dt * 1.2);
       this.fogK += (fogAt(env.cur.bDist) * out - this.fogK) * Math.min(1, dt * 1.5);
       const rk = this.rainK * 0.7, fk = this.fogK;
       if (rk > 0.001) { for (const key of ['top', 'mid', 'hor', 'fog', 'hemiS', 'dirC', 'far']) { const c = tgt[key]; if (c && c.isColor) c.lerp(_c.set(key === 'fog' || key === 'hor' ? '#3a4458' : '#262c3c'), rk); }
@@ -1271,7 +1273,16 @@ export class World {
     this.laneLean = (this.laneLean || 0) + (want - (this.laneLean || 0)) * Math.min(1, dt * 14);
     return this.visPx;
   }
+  // 1 dentro la navata di Santa Marta o in galleria: la pioggia e la neve non entrano.
+  roofCover(bDist, tunnel = 0) {
+    const bi = biomeAt(Math.max(0, bDist));
+    if (bi.b.id === 'mine-int' || bi.b.id === 'mine-blue' || tunnel >= 0.92) return 1;
+    const x = bi.local + bi.b.from;
+    const a = SANTAMARTA.FROM_M + 2, b = SANTAMARTA.FROM_M + SANTAMARTA.LEN_M - 0.4;
+    return x >= a && x < b ? 1 : tunnel;
+  }
   render(sim, dt, view) {
+    this.weatherSeed = sim.seed || 0;
     this.clock += dt;
     const pz = -sim.T * U, px0 = sim.px * U;
     // v5s46 (101): cambio di corsia piu' morbido a video: il corpo segue la posizione della simulazione con una molla
@@ -1358,7 +1369,9 @@ export class World {
     this.ridges.position.set(this.camera.position.x, 0, this.camera.position.z);
     this.under.position.x = this.camera.position.x; this.under.position.z = this.camera.position.z;
     if (!this._sideFill) this._sideFill = [1, -1].map((s) => { const m = new THREE.Mesh(new THREE.BoxGeometry(1.6, 24, 120), new THREE.MeshLambertMaterial({ color: '#6a6248' })); m.position.set(s * 42, 8, 0); m.frustumCulled = false; this.scene.add(m); return m; });
-    for (const m of this._sideFill) { m.position.z = this.camera.position.z - 16; m.material.color.copy(this.scene.fog.color); }
+    { const bid = this.env.cur?.b?.id || '';
+      const open = bid === 'viaduct' || bid === 'rock' || bid === 'river' || bid === 'mine-int' || bid === 'mine-blue';
+      for (const m of this._sideFill) { m.visible = !open; m.position.z = this.camera.position.z - 16; if (!open) m.material.color.copy(this.scene.fog.color); } }
     this.stars.position.copy(this.camera.position);
     this.far.visible = this.farVis > 0.01;
     this.far.position.set(0, -70 * (1 - this.farVis), camZ - FAR_Z);
@@ -1380,9 +1393,10 @@ export class World {
         for (const f of this.env.falls) { if (!f.parent || !f.visible) continue; f.getWorldPosition(_vf); if (_vf.z > cz + 4 || _vf.z < cz - 70) continue;
           this.norm.emit(_vf.x - 0.4 + Math.random() * 0.8, 0.25, _vf.z + (Math.random() - 0.5) * 1.6, (Math.random() - 0.7) * 1.6, Math.random() * 2.2 + 0.8, (Math.random() - 0.5) * 1.2, 0.7, 0.22, 0.1, COL.water, 0.8, 9, 0.5); } } }
     // v5s23: neve al suolo (niente nella galleria) e nevicata
-    { const st = this.snowTgt || this.snow, kk = Math.min(1, dt * 1.5), out = 1 - this.light.tunnel;
+    { const st = this.snowTgt || this.snow, kk = Math.min(1, dt * 1.5), out = 1 - this.roofCover(this.env.cur.bDist, this.light.tunnel || 0);
       this.snow.ground += (st.ground - this.snow.ground) * kk; this.snow.fall += (st.fall - this.snow.fall) * kk;
       SNOW_U.uSnow.value = this.snow.ground * out;
+      SNOW_U.uOrg.value.set(this.camera.position.x, this.camera.position.z);
       const fa = this.snow.fall * out * 0.85, f = this.flakes;
       f.visible = fa > 0.02;
       if (f.visible) { const u = f.material.uniforms; u.uT.value = this.clock; u.uCam.value.copy(this.camera.position); u.uA.value = fa; u.uPR.value = this.renderer.getPixelRatio(); }
@@ -1486,14 +1500,14 @@ export class World {
     this.groundGlow.material.opacity = (0.18 + 0.2 * fuelF) * (1 + L.tunnel * 0.9);
     // scintille dalla fiamma (piu' fuoco => piu' scintille)
     if (lit) {
-      this.sparkAcc += dt * (8 + 30 * fuelF);
+      this.sparkAcc += dt * (3 + 10 * fuelF);
       while (this.sparkAcc > 1) {
         this.sparkAcc -= 1;
         const t = this.tipW;
         const hot = Math.random() < 0.5;
         const sp = (view.speed || 0) * U;
-        this.add.emit(t.x + (Math.random() - 0.5) * 0.4, t.y + 0.4 + Math.random() * 0.5, t.z, (Math.random() - 0.5) * 1.6 - sp * 0.15, 1.5 + Math.random() * 2.5, (Math.random() - 0.3) * 1.2 + sp * 0.35,
-          0.6 + Math.random() * 0.7, hot ? 0.2 : 0.14, 0.03, hot ? COL.spark : COL.ember, 1, hot ? -0.6 : 1.4, 0.8);   // v5s46d (268): le braci ricadono
+        this.add.emit(t.x + (Math.random() - 0.5) * 0.25, t.y + 0.15 + Math.random() * 0.25, t.z + 0.35, (Math.random() - 0.5) * 0.8 - sp * 0.08, 0.5 + Math.random() * 0.9, (Math.random() - 0.3) * 0.5 + sp * 0.2,
+          0.28 + Math.random() * 0.22, hot ? 0.08 : 0.06, 0.02, hot ? COL.spark : COL.ember, 0.55, hot ? -0.4 : 0.9, 0.85);   // scia corta, bassa, non copre la via
       }
     }
     if (!lit && view.smoke) {
@@ -1501,7 +1515,7 @@ export class World {
       while (this.ambAcc > 1) { this.ambAcc -= 1; const t = this.tipW; this.norm.emit(t.x, t.y + 0.2, t.z, (Math.random() - 0.5) * 0.4, 0.8 + Math.random() * 0.6, (Math.random() - 0.5) * 0.3, 2.2, 0.4, 2.4, COL.smoke, 0.5, -0.1, 0.3); }
     }
     // braci e polline nell'aria
-    if (Math.random() < dt * 3) this.add.emit(px + (Math.random() - 0.5) * 14, 0.5 + Math.random() * 5, pz - Math.random() * 30, (Math.random() - 0.5) * 0.4, 0.3 + Math.random() * 0.4, 0, 3, 0.12, 0.05, COL.ember, 0.8, 0, 0);
+    if (Math.random() < dt * 1.2) this.add.emit(px + (Math.random() - 0.5) * 2.5, 0.4 + Math.random() * 1.2, pz + 0.6 + Math.random() * 2.5, (Math.random() - 0.5) * 0.3, 0.15 + Math.random() * 0.25, 0.2, 0.7, 0.05, 0.02, COL.ember, 0.35, 0.4, 0);
     // colpi in volo
     for (const [, s] of this.shots) {
       const x = s.p.x * U, z = -s.p.d * U;

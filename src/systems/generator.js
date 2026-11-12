@@ -129,7 +129,7 @@ export class Generator {
     this.nextCarpetAt = 1;
     this.carpetVariant = 0;
     // pistola
-    this.pistols = 0;
+    this.pistols = 0; this.pistolsLap = 0; this.pistolLap = -1;
     this.nextPistolRow = Math.ceil((PISTOL.FROM_M * PX_PER_METER - WORLD.LEAD_IN) / WORLD.ROW);
     this.barrelBoostUntil = -1;
     // v5s10: corteo delle maschere di Gadoni
@@ -399,7 +399,7 @@ export class Generator {
       return;
     }
     // v5s25: notte di pioggia: pozzanghere che rallentano un poco (corsia libera, mai sola via d'uscita)
-    if (free.length >= 2 && r >= this.nextPuddleRow && rainLap(biomeAt(m).lap) && !biomeAt(m).b.id.startsWith('mine')) {
+    if (free.length >= 2 && r >= this.nextPuddleRow && rainLap(biomeAt(m).lap, this.seed) && !biomeAt(m).b.id.startsWith('mine')) {
       const rr = this.rrng; this.nextPuddleRow = r + rr.int(WEATHER.PUDDLE_GAP_ROWS[0], WEATHER.PUDDLE_GAP_ROWS[1]);
       const lane = free[rr.int(0, free.length - 1)]; used[lane] = true; this.puddles++;
       emit({ kind: 'acqua', lane, d: D + 8, len: 14, variant: rr.int(0, 2) });
@@ -850,12 +850,14 @@ export class Generator {
   maybePistol(r, D, used, emit) {
     const lane = this.path;
     if (used[lane]) return;
+    const lap = biomeAt(D / PX_PER_METER + this.offM).lap;
+    if (this.pistolLap !== lap) { this.pistolLap = lap; this.pistolsLap = 0; }
     let go = false;
     if (this.debugPistol) go = r === 2 || (r > 2 && r % 30 === 2);
-    else go = r >= this.nextPistolRow && this.pistols < PISTOL.MAX_PER_RUN && this.rng() < PISTOL.P_PER_ROW;
+    else go = r >= this.nextPistolRow && this.pistols < PISTOL.MAX_PER_RUN && this.pistolsLap < PISTOL.MAX_PER_LAP && this.rng() < PISTOL.P_PER_ROW;
     if (!go) return;
     used[lane] = true;
-    this.pistols++;
+    this.pistols++; this.pistolsLap++;
     this.nextPistolRow = r + Math.ceil((PISTOL.MIN_GAP_M * PX_PER_METER) / WORLD.ROW);
     this.barrelBoostUntil = r + PISTOL.BARREL_BOOST_ROWS;
     emit({ kind: 'pistola', lane, d: D + 9, len: 12, pickup: true });

@@ -50,7 +50,7 @@ const runUntilNear = (sim, e, gap, act) => { for (let i = 0; i < 2000; i++) { if
   ok('niente neve sotto la pioggia', snowAt(CYCLE * 3.5).fall === 0 && snowAt(CYCLE * 3.5).ground < 0.01);
   const g = new Generator(31), out = []; g.fillUntil(WORLD.LEAD_IN + CYCLE * 6 * PX_PER_METER, (e) => out.push(e));
   const pd = out.filter((e) => e.kind === 'acqua');
-  ok('pozzanghere solo nei giri di pioggia', pd.length > 20 && pd.every((e) => rainLap(biomeAt(e.d / PX_PER_METER).lap)), pd.length);
+  ok('pozzanghere solo nei giri di pioggia', pd.length > 20 && pd.every((e) => rainLap(biomeAt(e.d / PX_PER_METER).lap, g.seed)), pd.length);
   const sim = mk(); const ref = mk(); const e = { kind: 'acqua', lane: sim.targetLane, d: at(sim, 30), len: 14 }; sim.spawn(e);
   let slowed = false; for (let i = 0; i < 200; i++) { sim.tick(DT); ref.tick(DT); if (sim.wetT > 0 && sim.currentSpeed < ref.currentSpeed * 0.9) slowed = true; }
   ok('pozzanghera rallenta un poco, senza danno', slowed && sim.stats.wetSlows === 1 && sim.stats.hits === 0);

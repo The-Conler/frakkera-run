@@ -13,17 +13,17 @@ export const SNOW_CFG = {
 };
 const sm = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 // livello di neve al suolo (0..1) e intensita' della nevicata (0..1) a distanza b (metri, con i giri)
-export function snowAt(b) {
+export function snowAt(b, seed = 0) {
   const lap = Math.floor(Math.max(0, b) / CYCLE), f = (Math.max(0, b) - lap * CYCLE) / CYCLE;
   if (lap <= 0) return { ground: 0, fall: 0, lap };
-  if (rainLap(lap)) return { ground: 1 - sm(0, 0.12, f), fall: 0, lap };          // v5s25: la pioggia scioglie la neve
-  if (lap > 2 && rainLap(lap - 1)) return { ground: sm(0, SNOW_CFG.FULL_AT, f), fall: 1, lap };
+  if (rainLap(lap, seed)) return { ground: 1 - sm(0, 0.12, f), fall: 0, lap };          // v5s25: la pioggia scioglie la neve
+  if (lap > 2 && rainLap(lap - 1, seed)) return { ground: sm(0, SNOW_CFG.FULL_AT, f), fall: 1, lap };
   if (lap === 1) return { ground: SNOW_CFG.DUST * sm(0.02, 0.7, f), fall: sm(0.0, 0.08, f) * 0.75, lap };
   return { ground: lap === 2 ? SNOW_CFG.DUST + (1 - SNOW_CFG.DUST) * sm(0, SNOW_CFG.FULL_AT, f) : 1, fall: 1, lap };
 }
 
 // uniformi condivise da tutti i materiali innevati
-export const SNOW_U = { uSnow: { value: 0 } };
+export const SNOW_U = { uSnow: { value: 0 }, uOrg: { value: new THREE.Vector2() } };
 
 // inietta la neve sulle facce rivolte verso l'alto (copertura a chiazze che si allarga col livello).
 // road: true = strada, con le tracce delle corsie lasciate piu' scure (corsie leggibili)
@@ -33,16 +33,17 @@ export function addSnow(m, o = {}) {
   m.onBeforeCompile = (sh, r) => {
     if (prev) prev(sh, r);
     sh.uniforms.uSnow = SNOW_U.uSnow;
-    sh.vertexShader = 'varying vec3 vSnW; varying float vSnUp;\n' + sh.vertexShader.replace('#include <project_vertex>', `#include <project_vertex>
+    sh.uniforms.uOrg = SNOW_U.uOrg;
+    sh.vertexShader = 'varying vec3 vSnW; varying float vSnUp; varying vec2 vSnL; uniform vec2 uOrg;\n' + sh.vertexShader.replace('#include <project_vertex>', `#include <project_vertex>
       { vec4 sw = vec4(transformed, 1.0); vec3 sn = objectNormal;
         #ifdef USE_INSTANCING
           sw = instanceMatrix * sw; sn = mat3(instanceMatrix) * sn;
         #endif
-        vSnW = (modelMatrix * sw).xyz; vSnUp = normalize(mat3(modelMatrix) * sn).y; }`);
-    sh.fragmentShader = 'uniform float uSnow; varying vec3 vSnW; varying float vSnUp;\n' + sh.fragmentShader.replace('#include <emissivemap_fragment>', `
-      if (uSnow > 0.001) {
-        vec2 sq = floor(vSnW.xz * 1.7);
-        float sn = fract(sin(dot(sq, vec2(12.9898, 78.233))) * 43758.5453) * 0.6 + fract(sin(dot(floor(vSnW.xz * 0.35), vec2(39.3, 11.1))) * 9631.7) * 0.4;
+        vSnW = (modelMatrix * sw).xyz; vSnUp = normalize(mat3(modelMatrix) * sn).y; vSnL = vSnW.xz - uOrg; }`);
+    sh.fragmentShader = 'uniform float uSnow; varying vec3 vSnW; varying float vSnUp; varying vec2 vSnL;\n' + sh.fragmentShader.replace('#include <emissivemap_fragment>', `
+      if (uSnow > 0.02) {
+        vec2 sq = floor(vSnL * 1.7);
+        float sn = fract(sin(dot(sq, vec2(12.9898, 78.233))) * 43758.5453) * 0.6 + fract(sin(dot(floor(vSnL * 0.35), vec2(39.3, 11.1))) * 9631.7) * 0.4;
         float up = smoothstep(0.3, 0.75, vSnUp);
         ${o.road ? 'sn = mix(sn, 0.08, 0.82);' : ''}
         float s = smoothstep(sn - 0.12, sn + 0.12, uSnow * 1.15) * up * ${cap};

@@ -56,8 +56,9 @@ export const PISTOL = {
   AMMO: 3,                  // colpi per pistola
   FROM_M: 140,              // non compare prima di X metri
   MIN_GAP_M: 380,           // distanza minima tra due pistole
-  P_PER_ROW: 0.03,          // probabilita' per fila quando e' disponibile
-  MAX_PER_RUN: 6,           // tetto per partita
+  P_PER_ROW: 0.045,         // probabilita' per fila quando e' disponibile
+  MAX_PER_LAP: 2,           // tetto per giro (prima un tetto di 6 per tutta la partita: dal giro 3 spariva)
+  MAX_PER_RUN: 48,          // tetto di sicurezza sull'intera corsa
   FIRE_COOLDOWN_S: 0.32,
   SHOT_SPEED: 430,          // px/s in piu' rispetto alla corsa
   BARREL_BOOST_ROWS: 24,    // dopo una pistola compaiono piu' botti
@@ -150,9 +151,18 @@ export const DIFFICULTY = {
 // Ogni giro successivo e' un po' piu' fitto del precedente (il giro 3 si sente piu' del giro 1).
 // Moltiplica solo la probabilita': il tempo di reazione resta quello di PACE.
 export const LAP_HEAT = [1, 1.2, 1.38];
+export const LAP_HEAT_CAP = 1.85;
+// Dal giro 4 in poi sale ancora un poco a giro, poi si ferma: il tempo di reazione resta quello di PACE.
 export function lapHeat(lap) {
   const i = Math.max(0, lap | 0);
-  return LAP_HEAT[Math.min(LAP_HEAT.length - 1, i)];
+  if (i < LAP_HEAT.length) return LAP_HEAT[i];
+  return Math.min(LAP_HEAT_CAP, LAP_HEAT[LAP_HEAT.length - 1] + (i - (LAP_HEAT.length - 1)) * 0.08);
+}
+// Dal giro 3 i fasci rendono un po' di piu' e la fiamma cala un po' meno, cosi' una corsa pulita regge.
+export function fuelSustain(lap) {
+  const i = Math.max(0, lap | 0);
+  if (i < 2) return 1;
+  return Math.min(1.42, 1 + (i - 1) * 0.07);
 }
 
 // ---- Mondo ------------------------------------------------------------
@@ -212,15 +222,15 @@ export const NATURE_TREES = {
 
 export const ZONE3 = {
   FROM_LAP: 2,             // giro (da 0) da cui vale: il terzo
-  SPEED_CAP: 226,          // sopra la velocita' media del giro 1, sotto il tetto assoluto
-  SPEED_GROW: 0.003,       // px/s per metro oltre l'inizio della zona
-  SPEED_CAP_MAX: 234,
-  EASE_M: 150,             // metri di frenata dolce all'ingresso
+  SPEED_CAP: 232,          // parte vicino alla velocita' gia' raggiunta (niente scalino al cambio di giro)
+  SPEED_GROW: 0.00085,     // px/s per metro: sale ancora dopo il giro 5, fino al tetto
+  SPEED_CAP_MAX: 240,
+  EASE_M: 1100,            // la frenata, se serve, e' lunga: al confine di giro non si sente il calo
   MIN_GAP_S: 0.7,          // secondi minimi tra due azioni obbligate
   OBST_K: 1.4,             // probabilita' degli ostacoli corti
-  LONG_K: 1.2,             // vicoli e gruppi di botti
-  BEAM_GAP_K: 1.35,        // travi piu' distanziate
-  BIOME_GAP_K: 1.4,        // ostacoli d'ambiente piu' distanziati
+  LONG_K: 1.15,            // vicoli e gruppi di botti (prima 1.2: i tipi lunghi sparivano)
+  BEAM_GAP_K: 1.12,        // travi un po' piu' spesso, cosi' restano in ogni giro
+  BIOME_GAP_K: 1.12,       // ostacoli d'ambiente (masso, pietra bagnata, botte che arriva) in ogni giro
 };
 
 // ---- v5s6: ostacoli tipici di ogni ambiente (tutti distruttibili con la pistola) ----
@@ -254,7 +264,7 @@ export const DUCK = {
 // (segno a terra prima). Non si possono colpire con la pistola. Passato tutto il corteo: BRAVU!
 export const MASKS = {
   FROM_M: 90,              // non prima di X metri di corsa
-  P_LAP: [0.05, 0.09, 0.13, 0.16], // probabilita' per fila nel paese, per giro (poi l'ultimo)
+  P_LAP: [0.05, 0.10, 0.22, 0.28], // per fila nel paese. Dal giro 3 sale: il corteo non sparisce nei giri successivi.
   MIN_GAP_ROWS: 30,        // file minime tra due cortei
   MAIMONI_VX: [26, 40],    // velocita' laterale (px/s) da diff 0 a 1
   FUNE_GAP_ROWS: 3,        // file tra Maimoni (fine finestra calma) e la fune
@@ -366,7 +376,7 @@ export const POWER = {
   MAGNET_S: 10, MAGNET_PX: 320, MAGNET_PULL: 9, MAGNET_V0: 120, MAGNET_ACC: 1400, MAGNET_VMAX: 1600, MAGNET_GRAB: 10, MAGNET_AIM: 4, MAGNET_ARC: 12,   // v5s27p: volo verso il personaggio (px/s)     // calamita: tira i tappeti da tutte le corsie
   FENNEL_S: 5,             // scudo di finocchio intrecciato: para UN urto entro 5 s
   BOOTS_S: 4, BOOTS_K: 1.28, BOOTS_PTS: 8, BOOTS_TICK_S: 0.5,   // scarponi del calzolaio
-  BRANCH_BIOMES: ['rock', 'river'], BRANCH_FROM_M: 60, BRANCH_GAP_ROWS: [26, 60], BRANCH_P: 0.09, BRANCH_LEN: 10,
+  BRANCH_BIOMES: ['rock', 'river'], BRANCH_FROM_M: 60, BRANCH_GAP_ROWS: [26, 60], BRANCH_P: 0.11, BRANCH_LEN: 10,
 };
 
 // ---- v5s25: salto (swipe su / freccia su / W) sopra gli ostacoli bassi ----

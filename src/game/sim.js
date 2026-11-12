@@ -5,7 +5,7 @@
 // tramite `fx(tipo, dati)`. Unita': px del mondo 2D (10 px = 1 m), corsie
 // centrate su x = 0.
 // =====================================================================
-import { SCORE, FUEL, WORLD, PX_PER_METER, PISTOL, SPEED_STEPS, BIOME_OBST, DUCK, SHOP, MASKS, DANCE, FIRE, MINE, CART, COLLECT, SKINS, FESTA, POWER, JUMP, UPGRADES, WEATHER, ANIMALS, VILLAGE, CICCIO, danceThisLap } from '../config.js';
+import { SCORE, FUEL, WORLD, PX_PER_METER, PISTOL, SPEED_STEPS, BIOME_OBST, DUCK, SHOP, MASKS, DANCE, FIRE, MINE, CART, COLLECT, SKINS, FESTA, POWER, JUMP, UPGRADES, WEATHER, ANIMALS, VILLAGE, CICCIO, danceThisLap, fuelSustain } from '../config.js';
 import { biomeAt } from './biomes/config.js';
 import { cartAt, festaAt } from '../systems/generator.js';
 import { Generator, SOLID, DESTRUCTIBLE, PICKUP_KINDS, BIOME_KINDS, MASK_KINDS, difficultyAt, speedAt, speedStepsAt, lerp } from '../systems/generator.js';
@@ -61,7 +61,7 @@ export class Sim {
     this.stats = { pickups: 0, nearMiss: 0, chains: 0, milestones: 0, hits: 0, bonus: 0, carpets: 0, barrels: 0, goats: 0, shopVisits: 0, shopBuys: 0, shopSpent: 0, shields: 0, obst: 0, ducks: 0, beams: 0, slips: 0, speedSteps: 0, shots: 0, pistols: 0, masks: 0, parades: 0, ropes: 0, spindles: 0, dances: 0, danceSkips: 0, dancePerfect: 0, danceGood: 0, danceMiss: 0, danceBest: 0, survival: 0, capped: 0, fires: 0, fireFuel: 0, lamps: 0, miners: 0, carts: 0, junctions: 0, deadends: 0, bells: 0, sweets: 0, cheers: 0, roars: 0, magnets: 0, fennels: 0, fennelBlocks: 0, boots: 0, bootsPts: 0, branches: 0, magnetPulls: 0, jumps: 0, jumped: 0, upBuys: 0, wetSlows: 0, flocks: 0, sheep: 0, piglets: 0, dogs: 0, barks: 0, chases: 0, nips: 0, escapes: 0, rockGoats: 0, laundry: 0, weaverCarpets: 0, weaverHits: 0, weaverDodges: 0, carpetsLost: 0, ciccio: 0, ciccioDodged: 0, procHits: 0, procClean: 0, windowCheers: 0 };
     this.dogT = 0; this.chase = null; this.cic = null; this.cicLap = -1; this.deathReason = null;
     this.shopLap = 0; this.shopOffer = 0; this.shop = null; this.shield = 0;
-    this.danceLap = -1; this.danceCue = null; this.dance = null;
+    this.danceLap = -1; this.danceCue = null; this.dance = null; this.danceHintLap = -1; this._spdShown = 0;
     this.cart = null; this.cartLap = -1; this.cartSpK = 1;
     this.duckT = 0; this.duckCd = 0; this.duckBuf = 0; this.fastFall = false; this.slipT = 0; this.speedStep = 0; this.beamHint = false;
     this.hitName = null; this.dieSpeed = 0; this.dieDur = WORLD.DYING_S;
@@ -408,13 +408,15 @@ export class Sim {
 ;
     const startK = this.mode === 'run' ? lerp(WORLD.START_K, 1, sm(this.runTime / WORLD.START_RAMP_S)) : 1;
     const steps = speedStepsAt(rd, this.mapOffsetM);
-    if (steps > this.speedStep) {
-      this.speedStep = steps; this.stats.speedSteps = steps;
+    const spdNow = speedAt(rd, this.mapOffsetM);
+    if (steps > this.speedStep && spdNow > (this._spdShown || 0) + 1.5) {
+      this.speedStep = steps; this.stats.speedSteps = steps; this._spdShown = spdNow;
       this.log('v', steps);
       this.fx('speedUp', { step: steps });
       this.fx('popup', { text: SPEED_STEPS.BANNER, style: 'speed' });
       this.fx('sound', 'speedUp');
-    }
+    } else if (steps > this.speedStep) this.speedStep = steps;
+    else if (spdNow > (this._spdShown || 0)) this._spdShown = spdNow;
     // v5s7: offerta del Garag di Pinu a ogni ritorno al paese (giro >= 1)
     // v5s46d (251): solo davanti alla bottega, all'inizio del paese. Si chiude superata la facciata,
     // cosi' il banner non resta al centro dello schermo fino a Santa Marta (giro 2, ~177 m).
@@ -430,6 +432,10 @@ export class Sim {
       } }
     // Ballu tundu solo nei giri pari (2, 4, 6...), subito dopo Su Nascimentu. Mai al giro 1 ne' nei dispari.
     { const bi = biomeAt(rd / PX_PER_METER + this.mapOffsetM);
+      if (bi.b.id === 'village' && danceThisLap(bi.lap) && this.danceHintLap !== bi.lap && bi.local >= 2 && bi.local < 14) {
+        this.danceHintLap = bi.lap;
+        this.fx('popup', { text: 'GIRO PARI: C\'È SA DANZA', style: 'gold' });
+      }
       if (bi.b.id === 'village' && danceThisLap(bi.lap) && bi.lap > this.danceLap && bi.local < DANCE.AT_M + 5) {
         const toGo = (DANCE.AT_M - bi.local) * PX_PER_METER;
         const sp = speedAt(rd, this.mapOffsetM);
@@ -475,7 +481,8 @@ export class Sim {
     this.T += speed * dt;
     this.updatePowers(dt);
     this.invuln = Math.max(0, this.invuln - dt);
-    this.fuel -= lerp(FUEL.DRAIN_START, FUEL.DRAIN_END, difficultyAt(rd)) * (1 - this.upVal('fiamma')) * dt;
+    { const fk = fuelSustain(biomeAt(rd / PX_PER_METER + this.mapOffsetM).lap);
+      this.fuel -= lerp(FUEL.DRAIN_START, FUEL.DRAIN_END, difficultyAt(rd)) * (2 / (1 + fk)) * (1 - this.upVal('fiamma')) * dt; }
 
     const meters = Math.floor(this.runD / PX_PER_METER);
     while (this.metersCredited < meters) {
@@ -880,7 +887,7 @@ export class Sim {
       this.fx('popup', { text: `${PISTOL.AMMO} COLPI`, style: 'small' });
       return;
     }
-    const add = (e.kind === 'ferula' ? FUEL.FERULA : FUEL.ASFODELO) * (e.mult || 1);   // v5s46c (8): fascina doppia dove una e' stata diradata
+    const add = (e.kind === 'ferula' ? FUEL.FERULA : FUEL.ASFODELO) * (e.mult || 1) * fuelSustain(biomeAt(this.runD / PX_PER_METER + this.mapOffsetM).lap);   // v5s46c (8): fascina doppia dove una e' stata diradata
     this.fuel = Math.min(FUEL.MAX, this.fuel + add);
     const pts = this.addBonus(SCORE.MATERIAL);
     this.stats.pickups++;

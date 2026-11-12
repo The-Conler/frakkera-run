@@ -739,12 +739,24 @@ export class Env {
     return p;
   }
   placePrefab(sd, W, pf) {
+    if (pf.inner == null && pf.geom) { let m = -Infinity; const P = pf.geom.attributes.position; for (let j = 0; j < P.count; j++) if (P.getY(j) < 2.6) m = Math.max(m, P.getX(j)); pf.inner = m; }
+    const push = Math.max(0, (pf.inner || 0) - WALK_W);
+    const ahead = W - (this.lastPW ?? W);
+    const here = this.info(W + 0.3);
+    const muralHouse = sd.s < 0 && here.b.id === 'village' && here.local >= 170 && here.local <= 186 && pf.key && pf.key.startsWith('house');
+    // case lontane del paese: una mesh unica per tratto, dettaglio pieno. Vicino si rismontano una per una.
+    if (ahead > 120 && !muralHouse && pf.geom && pf.geom.attributes) {
+      const geom = pf.geom.clone();
+      const piece = { W0: W, W1: W + pf.w, w: pf.w, mesh: null, geom, owned: true, lamps: [], make: () => pf.geom.clone(), lod: true, key: pf.key, placeX: sd.s * (FACADE + push) };
+      for (const l of pf.lamps || []) piece.lamps.push(this.lamp(sd.s * FACADE - sd.s * l.x, l.y, -W + l.z, '#ffb85a', 2.6));
+      if (pf.key && pf.key.startsWith('house')) piece.foot = this.addHouseFoot(sd.s, W, pf.w);
+      this.batchAdd(sd, piece);
+      return piece;
+    }
     const pool = this.pools.get(pf.key) || []; let mesh = pool.pop();
     if (!mesh) { mesh = new THREE.Mesh(pf.geom, this.mats2); this.scene.add(mesh); }
     // v5s40: sicurezza finale: nessuna parte bassa (< 2.6 m) del prefab oltre il bordo della carreggiata;
     // se sporgesse, la casa si sposta verso l'esterno (prima un prefab piu' largo entrava nelle 3 corsie)
-    if (pf.inner == null) { let m = -Infinity; const P = pf.geom.attributes.position; for (let j = 0; j < P.count; j++) if (P.getY(j) < 2.6) m = Math.max(m, P.getX(j)); pf.inner = m; }
-    const push = Math.max(0, pf.inner - WALK_W);
     mesh.visible = true; mesh.position.set(sd.s * (FACADE + push), 0, -W); mesh.scale.set(sd.s < 0 ? 1 : -1, 1, 1); mesh.rotation.set(0, 0, 0);
     const lamps = [];
     for (const l of pf.lamps) lamps.push(this.lamp(sd.s * FACADE - sd.s * l.x, l.y, -W + l.z, '#ffb85a', 2.6));
@@ -1156,7 +1168,18 @@ export class Env {
   freeMark(key) {
     const m = this.marks.get(key); if (!m) return;
     this.scene.remove(m.root);
-    if (m.pool) { for (const g of m.lamps) { g.visible = false; this.lampPool.push(g); } this.poolKeep = m.pool; if (this.falls === m.pool.falls) this.falls = []; this.marks.delete(key); return; }   // v5s46: tenuta pronta per il giro dopo
+    if (m.pool) {
+      for (const g of m.lamps) { g.visible = false; this.lampPool.push(g); }
+      if (this.poolKeep && this.poolKeep.root !== m.root) {
+        this.scene.remove(this.poolKeep.root);
+        for (const g of this.poolKeep.own || []) g.dispose?.();
+      }
+      this.scene.remove(m.root);
+      this.poolKeep = m.pool;
+      if (this.falls === m.pool.falls) this.falls = [];
+      this.marks.delete(key);
+      return;
+    }
     for (const f of m.feet || []) this.dropHouseFoot(f);
     for (const g of m.own) g.dispose();
     for (const g of m.gpu || []) g.dispose();          // solo buffer GPU; i dati CPU restano in cache
@@ -1190,7 +1213,8 @@ export class Env {
       if (!p.lod || p.W0 - playerW > LOD_D - 20) continue;
       if (p.W0 - playerW > 140 && performance.now() > this.deadline) break;
       const g = p.make(); this.batchRemove(p); p.lod = false; this.stats.upgraded = (this.stats.upgraded || 0) + 1;
-      p.mesh = new THREE.Mesh(g, this.mats2); p.mesh.position.set(sd.s * FACADE, 0, -p.W0); p.mesh.scale.x = sd.s < 0 ? 1 : -1; this.scene.add(p.mesh);
+      p.mesh = new THREE.Mesh(g, this.mats2); p.mesh.position.set(p.placeX ?? sd.s * FACADE, 0, -p.W0); p.mesh.scale.x = sd.s < 0 ? 1 : -1; this.scene.add(p.mesh);
+      if (p.key) this.attachMural(sd, p);
     }
     const cull = (list, rm) => { while (list.length && list[0].W1 < back) rm(list.shift()); };
     this.flushBatches();

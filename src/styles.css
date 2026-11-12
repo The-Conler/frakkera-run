@@ -234,6 +234,7 @@ svg { display: block; }
 .hud-dist { display: flex; align-items: center; gap: 4px; padding: 4px 10px 4px 7px; align-self: flex-start; border-radius: 99px; background: rgba(14,12,10,0.72); border: 1px solid rgba(247,232,213,0.1);
   font-family: var(--f-disp); font-weight: 600; font-size: calc(var(--u) * 13); color: var(--cream); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 .hud-dist svg { width: 16px; height: 16px; }
+.hud-giro { margin-left: 6px; padding-left: 6px; border-left: 1px solid rgba(247,232,213,0.28); letter-spacing: 0.02em; }
 .hud-right { display: flex; flex-direction: column; align-items: flex-end; gap: 7px; }
 .chip { display: flex; align-items: center; gap: 7px; padding: 6px 12px 6px 8px; border-radius: 16px; min-width: calc(var(--u) * 72);
   background: rgba(16, 13, 12, 0.78); border: 1px solid rgba(247,232,213,0.1); box-shadow: 0 8px 18px rgba(0,0,0,0.28);
@@ -589,7 +590,7 @@ svg { display: block; }
 }
 
 #scr-pause {
-  z-index: 5; align-items: center; justify-content: center;
+  z-index: 8; align-items: center; justify-content: center;
   background: rgba(6, 4, 3, 0.46); backdrop-filter: none; -webkit-backdrop-filter: none;
   padding: max(16px, env(safe-area-inset-top)) 22px max(16px, env(safe-area-inset-bottom));
 }

@@ -119,6 +119,7 @@ export function initUI(game) {
     if (h.score !== last.score) { hud.score.textContent = fmt(h.score); last.score = h.score; }
     if (h.best !== last.best) { hud.best.textContent = fmt(h.best); last.best = h.best; }
     if (h.meters !== last.meters) { hud.dist.textContent = fmt(h.meters); last.meters = h.meters; }
+    if (h.giro && h.giro !== last.giro) { const g = $('#hud-giro'); if (g) g.textContent = 'Giro ' + h.giro; last.giro = h.giro; }
     if (h.carpets !== last.carpets) { hud.carpets.textContent = fmt(h.carpets); last.carpets = h.carpets; }
     if (h.ammo !== last.ammo) {
       const armed = h.ammo > 0;
@@ -220,7 +221,7 @@ export function initUI(game) {
     go();
   }
   function pause() {
-    if (state !== 'play' || game.mode !== 'run') return;
+    if (state !== 'play' || (game.mode !== 'run' && game.mode !== 'dance')) return;
     game.pause();
     state = 'pause'; pausedAt = performance.now();   // v5s27p: lo stesso Esc che mette in pausa non deve anche riprendere
     show('pause');

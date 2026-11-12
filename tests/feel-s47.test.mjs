@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Sim } from '../src/game/sim.js';
-import { WORLD, JUMP, lapHeat } from '../src/config.js';
+import { WORLD, JUMP, lapHeat, LAP_HEAT_CAP } from '../src/config.js';
 import { canSpin, takeSpin } from '../src/systems/storage.js';
 
 function runSim() {
@@ -17,7 +17,9 @@ const ticks = (sim, s) => { for (let t = 0; t < s; t += WORLD.FIXED_DT) { sim.ti
 test('lap heat makes lap 3 denser than lap 1', () => {
   assert.equal(lapHeat(0), 1);
   assert.ok(lapHeat(2) > lapHeat(0) + 0.3);
-  assert.equal(lapHeat(9), lapHeat(2));
+  assert.ok(lapHeat(5) > lapHeat(2));
+  assert.equal(lapHeat(9), LAP_HEAT_CAP);
+  assert.equal(lapHeat(12), LAP_HEAT_CAP);
 });
 
 test('swipe down in the air fast-falls and the slide is remembered', () => {
